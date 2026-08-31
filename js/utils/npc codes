@@ -1,0 +1,1389 @@
+import * as THREE from 'three';
+import { ProceduralHumanRig } from './ProceduralHuman';
+
+export type AnimationMode = 'idle' | 'walk' | 'run' | 'combat' | 'reach_ik' | 'tpose';
+
+export class ProceduralAnimator {
+  private rig: ProceduralHumanRig;
+  public mode: AnimationMode = 'idle';
+  public ikTarget = new THREE.Vector3(0.35, 1.35, 0.35);
+  public ikLeftTarget = new THREE.Vector3(-0.35, 1.35, 0.35);
+  
+  public ikEnabled: boolean = false;
+  public breathingEnabled: boolean = true;
+  public swayEnabled: boolean = true;
+  public walkSpeed: number = 1.0;
+
+  private clock: THREE.Clock;
+  private walkPhase: number = 0;
+
+  constructor(rig: ProceduralHumanRig) {
+    this.rig = rig;
+    this.clock = new THREE.Clock();
+  }
+
+  public updateRig(rig: ProceduralHumanRig) {
+    this.rig = rig;
+  }
+
+  /**
+   * Main update tick called each frame
+   */
+  public update(delta?: number) {
+    const dt = delta !== undefined ? delta : this.clock.getDelta();
+    const t = this.clock.getElapsedTime();
+
+    // Reset bone rotations before applying new frame's kinematics
+    this.resetPose();
+
+    switch (this.mode) {
+      case 'tpose':
+        // Neutral bind pose
+        break;
+
+      case 'idle':
+        this.applyIdleBreathing(t);
+        break;
+
+      case 'walk':
+        this.walkPhase += dt * 3.5 * this.walkSpeed;
+        this.applyWalkCycle(this.walkPhase);
+        this.applyIdleBreathing(t * 0.5);
+        break;
+
+      case 'run':
+        this.walkPhase += dt * 6.5 * this.walkSpeed;
+        this.applyRunCycle(this.walkPhase);
+        break;
+
+      case 'combat':
+        this.applyCombatStance(t);
+        break;
+
+      case 'reach_ik':
+        this.applyIdleBreathing(t);
+        this.solveArmIK('Right', this.ikTarget);
+        break;
+    }
+
+    // Overlay Reach IK if IK toggle is explicitly active
+    if (this.ikEnabled && this.mode !== 'reach_ik') {
+      this.solveArmIK('Right', this.ikTarget);
+    }
+  }
+
+  /**
+   * Resets all bone transforms to default bind pose
+   */
+  private resetPose() {
+    this.rig.boneList.forEach(b => {
+      b.rotation.set(0, 0, 0);
+      b.scale.set(1, 1, 1);
+    });
+  }
+
+  /**
+   * Procedural Breathing, Spine scaling, and Neck/Head Saccades
+   */
+  private applyIdleBreathing(t: number) {
+    const { bones, mesh, morphDictionary } = this.rig;
+
+    if (this.breathingEnabled) {
+      const breathFreq = 1.6;
+      const breathSine = Math.sin(t * breathFreq);
+      const breathExpand = 1.0 + 0.02 * breathSine;
+
+      if (bones.Spine2) {
+        bones.Spine2.scale.set(breathExpand, 1.0 + 0.01 * breathSine, breathExpand);
+        bones.Spine2.rotation.x = 0.02 + 0.015 * breathSine;
+      }
+
+      if (morphDictionary && morphDictionary['ChestBreath'] !== undefined && mesh.morphTargetInfluences) {
+        mesh.morphTargetInfluences[morphDictionary['ChestBreath']] = THREE.MathUtils.clamp((breathSine + 1.0) * 0.5, 0, 1);
+      }
+    }
+
+    if (this.swayEnabled) {
+      const swayX = Math.sin(t * 0.6) * 0.02;
+      const headSaccadeX = Math.sin(t * 1.2) * 0.025;
+      const headSaccadeY = Math.cos(t * 0.9) * 0.035;
+
+      if (bones.Neck) {
+        bones.Neck.rotation.x = swayX;
+        bones.Neck.rotation.y = headSaccadeY * 0.4;
+      }
+
+      if (bones.Head) {
+        bones.Head.rotation.x = headSaccadeX;
+        bones.Head.rotation.y = headSaccadeY * 0.6;
+      }
+
+      // Natural resting arm drape along sides
+      if (bones.Clavicle_L) bones.Clavicle_L.rotation.z = -0.08;
+      if (bones.UpperArm_L) {
+        bones.UpperArm_L.rotation.z = -1.25 + Math.sin(t * 0.8) * 0.015;
+        bones.UpperArm_L.rotation.x = 0.08;
+      }
+      if (bones.Forearm_L) bones.Forearm_L.rotation.z = -0.2;
+
+      if (bones.Clavicle_R) bones.Clavicle_R.rotation.z = 0.08;
+      if (bones.UpperArm_R) {
+        bones.UpperArm_R.rotation.z = 1.25 - Math.sin(t * 0.8) * 0.015;
+        bones.UpperArm_R.rotation.x = 0.08;
+      }
+      if (bones.Forearm_R) bones.Forearm_R.rotation.z = 0.2;
+    }
+  }
+
+  /**
+   * Procedural Kinematic Walk Cycle (Sinusoidal gait kinematics)
+   */
+  private applyWalkCycle(phase: number) {
+    const { bones } = this.rig;
+
+    const bounce = Math.abs(Math.sin(phase)) * 0.03;
+    const hipSway = Math.sin(phase) * 0.06;
+
+    if (bones.Pelvis) {
+      bones.Pelvis.position.y = (this.rig.proportions.legLength * 0.88 * this.rig.proportions.height) - bounce;
+      bones.Pelvis.rotation.y = hipSway;
+      bones.Pelvis.rotation.z = -Math.sin(phase) * 0.03;
+    }
+
+    if (bones.Spine1) bones.Spine1.rotation.y = -hipSway * 0.6;
+    if (bones.Spine2) {
+      bones.Spine2.rotation.y = -hipSway * 0.4;
+      bones.Spine2.rotation.x = 0.04;
+    }
+
+    // Left Leg Gait
+    const legLPhase = phase;
+    const thighLAngle = Math.sin(legLPhase) * 0.55;
+    const calfLAngle = thighLAngle < 0 ? Math.max(0, -Math.sin(legLPhase) * 1.0) : 0.06;
+
+    if (bones.Thigh_L) bones.Thigh_L.rotation.x = thighLAngle;
+    if (bones.Calf_L) bones.Calf_L.rotation.x = calfLAngle;
+    if (bones.Foot_L) bones.Foot_L.rotation.x = -thighLAngle * 0.4 - calfLAngle * 0.3;
+
+    // Right Leg Gait
+    const legRPhase = phase + Math.PI;
+    const thighRAngle = Math.sin(legRPhase) * 0.55;
+    const calfRAngle = thighRAngle < 0 ? Math.max(0, -Math.sin(legRPhase) * 1.0) : 0.06;
+
+    if (bones.Thigh_R) bones.Thigh_R.rotation.x = thighRAngle;
+    if (bones.Calf_R) bones.Calf_R.rotation.x = calfRAngle;
+    if (bones.Foot_R) bones.Foot_R.rotation.x = -thighRAngle * 0.4 - calfRAngle * 0.3;
+
+    // Arm Counter-Swing
+    const armSwingL = Math.sin(legRPhase) * 0.45;
+    const armSwingR = Math.sin(legLPhase) * 0.45;
+
+    if (bones.UpperArm_L) {
+      bones.UpperArm_L.rotation.z = -1.25;
+      bones.UpperArm_L.rotation.x = armSwingL;
+    }
+    if (bones.Forearm_L) {
+      bones.Forearm_L.rotation.z = -0.2;
+      bones.Forearm_L.rotation.x = Math.max(0.1, -armSwingL * 0.4);
+    }
+
+    if (bones.UpperArm_R) {
+      bones.UpperArm_R.rotation.z = 1.25;
+      bones.UpperArm_R.rotation.x = armSwingR;
+    }
+    if (bones.Forearm_R) {
+      bones.Forearm_R.rotation.z = 0.2;
+      bones.Forearm_R.rotation.x = Math.max(0.1, -armSwingR * 0.4);
+    }
+  }
+
+  /**
+   * Procedural Dynamic Sprint / Run Cycle
+   */
+  private applyRunCycle(phase: number) {
+    const { bones } = this.rig;
+
+    const bounce = Math.abs(Math.sin(phase)) * 0.06;
+    const forwardLean = 0.18;
+
+    if (bones.Pelvis) {
+      bones.Pelvis.position.y = (this.rig.proportions.legLength * 0.88 * this.rig.proportions.height) - bounce + 0.03;
+      bones.Pelvis.rotation.x = forwardLean * 0.5;
+    }
+
+    if (bones.Spine2) {
+      bones.Spine2.rotation.x = forwardLean;
+    }
+
+    // Left Leg
+    const legLPhase = phase;
+    const thighLAngle = Math.sin(legLPhase) * 0.90;
+    const calfLAngle = thighLAngle < 0 ? Math.max(0, -Math.sin(legLPhase) * 1.5) : 0.15;
+
+    if (bones.Thigh_L) bones.Thigh_L.rotation.x = thighLAngle;
+    if (bones.Calf_L) bones.Calf_L.rotation.x = calfLAngle;
+    if (bones.Foot_L) bones.Foot_L.rotation.x = -thighLAngle * 0.5;
+
+    // Right Leg
+    const legRPhase = phase + Math.PI;
+    const thighRAngle = Math.sin(legRPhase) * 0.90;
+    const calfRAngle = thighRAngle < 0 ? Math.max(0, -Math.sin(legRPhase) * 1.5) : 0.15;
+
+    if (bones.Thigh_R) bones.Thigh_R.rotation.x = thighRAngle;
+    if (bones.Calf_R) bones.Calf_R.rotation.x = calfRAngle;
+    if (bones.Foot_R) bones.Foot_R.rotation.x = -thighRAngle * 0.5;
+
+    // Power Arm Swing
+    const armSwingL = Math.sin(legRPhase) * 0.85;
+    const armSwingR = Math.sin(legLPhase) * 0.85;
+
+    if (bones.UpperArm_L) {
+      bones.UpperArm_L.rotation.z = -1.15;
+      bones.UpperArm_L.rotation.x = armSwingL;
+    }
+    if (bones.Forearm_L) {
+      bones.Forearm_L.rotation.z = -0.3;
+      bones.Forearm_L.rotation.x = 0.75;
+    }
+
+    if (bones.UpperArm_R) {
+      bones.UpperArm_R.rotation.z = 1.15;
+      bones.UpperArm_R.rotation.x = armSwingR;
+    }
+    if (bones.Forearm_R) {
+      bones.Forearm_R.rotation.z = 0.3;
+      bones.Forearm_R.rotation.x = 0.75;
+    }
+  }
+
+  /**
+   * Defensive Combat / Guard Stance
+   */
+  private applyCombatStance(t: number) {
+    const { bones } = this.rig;
+
+    if (bones.Pelvis) {
+      bones.Pelvis.position.y = (this.rig.proportions.legLength * 0.88 * this.rig.proportions.height) - 0.06;
+      bones.Pelvis.rotation.y = 0.3;
+    }
+
+    if (bones.Thigh_L) {
+      bones.Thigh_L.rotation.x = 0.35;
+      bones.Thigh_L.rotation.y = 0.15;
+    }
+    if (bones.Calf_L) bones.Calf_L.rotation.x = 0.45;
+
+    if (bones.Thigh_R) {
+      bones.Thigh_R.rotation.x = -0.25;
+      bones.Thigh_R.rotation.y = -0.25;
+    }
+    if (bones.Calf_R) bones.Calf_R.rotation.x = 0.35;
+
+    if (bones.UpperArm_R) {
+      bones.UpperArm_R.rotation.x = 1.1 + Math.sin(t * 2) * 0.02;
+      bones.UpperArm_R.rotation.y = -0.35;
+      bones.UpperArm_R.rotation.z = 0.55;
+    }
+    if (bones.Forearm_R) {
+      bones.Forearm_R.rotation.x = 1.3;
+      bones.Forearm_R.rotation.z = 0.7;
+    }
+
+    if (bones.UpperArm_L) {
+      bones.UpperArm_L.rotation.x = 1.3 + Math.cos(t * 2) * 0.02;
+      bones.UpperArm_L.rotation.y = 0.35;
+      bones.UpperArm_L.rotation.z = -0.55;
+    }
+    if (bones.Forearm_L) {
+      bones.Forearm_L.rotation.x = 1.2;
+      bones.Forearm_L.rotation.z = -0.7;
+    }
+  }
+
+  /**
+   * Two-Bone Analytical Inverse Kinematics (IK)
+   * Calculates exact shoulder/elbow or hip/knee joint angles with head look-at
+   */
+  public solveArmIK(side: 'Right' | 'Left', targetPos: THREE.Vector3) {
+    const isRight = side === 'Right';
+    const upperBone = isRight ? this.rig.bones.UpperArm_R : this.rig.bones.UpperArm_L;
+    const foreBone = isRight ? this.rig.bones.Forearm_R : this.rig.bones.Forearm_L;
+    const handBone = isRight ? this.rig.bones.Hand_R : this.rig.bones.Hand_L;
+    const headBone = this.rig.bones.Head;
+
+    if (!upperBone || !foreBone || !handBone) return;
+
+    // Bone lengths
+    const upperLen = 0.36 * this.rig.proportions.armLength * this.rig.proportions.height;
+    const foreLen = 0.34 * this.rig.proportions.armLength * this.rig.proportions.height;
+
+    // Joint root world position
+    const shoulderWorld = new THREE.Vector3();
+    upperBone.getWorldPosition(shoulderWorld);
+
+    // Vector from shoulder to target
+    const targetDir = new THREE.Vector3().subVectors(targetPos, shoulderWorld);
+    const distToTarget = THREE.MathUtils.clamp(targetDir.length(), 0.05, upperLen + foreLen - 0.005);
+
+    // Law of Cosines
+    const cosElbow = (upperLen * upperLen + foreLen * foreLen - distToTarget * distToTarget) / (2 * upperLen * foreLen);
+    const elbowAngle = Math.PI - Math.acos(THREE.MathUtils.clamp(cosElbow, -1, 1));
+
+    const cosShoulder = (upperLen * upperLen + distToTarget * distToTarget - foreLen * foreLen) / (2 * upperLen * distToTarget);
+    const shoulderAngle = Math.acos(THREE.MathUtils.clamp(cosShoulder, -1, 1));
+
+    // Align upper arm towards target in world space
+    targetDir.normalize();
+
+    const lookTarget = new THREE.Vector3().addVectors(shoulderWorld, targetDir);
+    upperBone.lookAt(lookTarget);
+
+    if (isRight) {
+      upperBone.rotateZ(shoulderAngle);
+      foreBone.rotation.set(0, 0, elbowAngle);
+    } else {
+      upperBone.rotateZ(-shoulderAngle);
+      foreBone.rotation.set(0, 0, -elbowAngle);
+    }
+
+    // Natural head orientation tracking target
+    if (headBone) {
+      const headWorld = new THREE.Vector3();
+      headBone.getWorldPosition(headWorld);
+      const lookVector = new THREE.Vector3().subVectors(targetPos, headWorld).normalize();
+      headBone.rotation.y = THREE.MathUtils.clamp(Math.atan2(lookVector.x, lookVector.z) * 0.5, -0.6, 0.6);
+      headBone.rotation.x = THREE.MathUtils.clamp(-Math.asin(lookVector.y) * 0.4, -0.4, 0.4);
+    }
+  }
+}
+
+
+
+import * as THREE from 'three';
+
+export interface HumanProportions {
+  height: number;           // total scale multiplier (default 1.0)
+  headScale: number;        // scale of head (0.8 - 1.3)
+  shoulderWidth: number;    // width across shoulders (0.7 - 1.4)
+  chestBulk: number;        // torso / pectoral thickness (0.6 - 1.6)
+  waistWidth: number;       // waist thickness (0.6 - 1.5)
+  armLength: number;        // arm length multiplier (0.8 - 1.3)
+  legLength: number;        // leg length multiplier (0.8 - 1.3)
+  muscleDefinition: number; // muscularity (0 - 1)
+  skinTone: string;         // hex color string
+  roughness: number;        // skin roughness (0.2 - 0.9)
+  subsurface: number;       // SSS intensity (0 - 1)
+}
+
+export const DEFAULT_PROPORTIONS: HumanProportions = {
+  height: 1.0,
+  headScale: 1.0,
+  shoulderWidth: 1.0,
+  chestBulk: 1.0,
+  waistWidth: 1.0,
+  armLength: 1.0,
+  legLength: 1.0,
+  muscleDefinition: 0.5,
+  skinTone: '#d9a785',
+  roughness: 0.55,
+  subsurface: 0.75,
+};
+
+export interface ProceduralHumanRig {
+  mesh: THREE.SkinnedMesh;
+  skeleton: THREE.Skeleton;
+  bones: { [key: string]: THREE.Bone };
+  boneList: THREE.Bone[];
+  materials: {
+    skin: THREE.MeshPhysicalMaterial;
+  };
+  morphDictionary: { [key: string]: number };
+  skeletonHelper: THREE.SkeletonHelper;
+  proportions: HumanProportions;
+}
+
+/**
+ * Creates procedural normal & pore micro-textures in memory for skin rendering
+ */
+function createProceduralSkinTexture(): { diffuse: THREE.CanvasTexture; normal: THREE.CanvasTexture } {
+  const size = 512;
+  
+  // 1. Diffuse canvas
+  const diffCanvas = document.createElement('canvas');
+  diffCanvas.width = size;
+  diffCanvas.height = size;
+  const diffCtx = diffCanvas.getContext('2d')!;
+  diffCtx.fillStyle = '#ffffff';
+  diffCtx.fillRect(0, 0, size, size);
+  
+  const imgData = diffCtx.getImageData(0, 0, size, size);
+  const data = imgData.data;
+  
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const idx = (y * size + x) * 4;
+      const noise1 = Math.sin(x * 0.18) * Math.cos(y * 0.18) * 10;
+      const noise2 = (Math.random() - 0.5) * 8;
+      const v = Math.max(0, Math.min(255, 246 + noise1 + noise2));
+      
+      data[idx] = v;
+      data[idx + 1] = Math.max(0, v - 6);
+      data[idx + 2] = Math.max(0, v - 12);
+      data[idx + 3] = 255;
+    }
+  }
+  diffCtx.putImageData(imgData, 0, 0);
+
+  // 2. Normal canvas (skin pores)
+  const normCanvas = document.createElement('canvas');
+  normCanvas.width = size;
+  normCanvas.height = size;
+  const normCtx = normCanvas.getContext('2d')!;
+  const normData = normCtx.createImageData(size, size);
+  const nData = normData.data;
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const idx = (y * size + x) * 4;
+      const nx = 128 + Math.round((Math.random() - 0.5) * 24 + Math.sin(x * 0.5) * 6);
+      const ny = 128 + Math.round((Math.random() - 0.5) * 24 + Math.cos(y * 0.5) * 6);
+      const nz = 245;
+
+      nData[idx] = nx;
+      nData[idx + 1] = ny;
+      nData[idx + 2] = nz;
+      nData[idx + 3] = 255;
+    }
+  }
+  normCtx.putImageData(normData, 0, 0);
+
+  const diffTex = new THREE.CanvasTexture(diffCanvas);
+  diffTex.wrapS = THREE.RepeatWrapping;
+  diffTex.wrapT = THREE.RepeatWrapping;
+  diffTex.repeat.set(4, 4);
+
+  const normTex = new THREE.CanvasTexture(normCanvas);
+  normTex.wrapS = THREE.RepeatWrapping;
+  normTex.wrapT = THREE.RepeatWrapping;
+  normTex.repeat.set(8, 8);
+
+  return { diffuse: diffTex, normal: normTex };
+}
+
+/**
+ * Segment definition for skeletal bone segments
+ */
+interface BoneSegment {
+  boneIndex: number;
+  childIndex: number;
+  radius: number;
+}
+
+/**
+ * Procedurally generates a continuous, seamless humanoid mesh and binds it to a skeleton
+ */
+export function buildProceduralHuman(props: HumanProportions = DEFAULT_PROPORTIONS): ProceduralHumanRig {
+  // 1. Calculate Human Proportional Metrics
+  const H = props.height;
+  const legLen = 0.88 * props.legLength * H;
+  const thighLen = legLen * 0.52;
+  const calfLen = legLen * 0.48;
+  const pelvisY = legLen;
+  const spine1Len = 0.22 * H;
+  const spine2Len = 0.26 * H;
+  const neckLen = 0.12 * H;
+  const headLen = 0.22 * props.headScale * H;
+  
+  const shoulderOffset = 0.20 * props.shoulderWidth;
+  const armLen = 0.70 * props.armLength * H;
+  const upperArmLen = armLen * 0.52;
+  const forearmLen = armLen * 0.48;
+  const hipOffset = 0.11 * props.waistWidth;
+
+  // 2. BUILD SKELETON HIERARCHY
+  const pelvis = new THREE.Bone();
+  pelvis.name = 'Pelvis';
+  pelvis.position.set(0, pelvisY, 0);
+
+  const spine1 = new THREE.Bone();
+  spine1.name = 'Spine1';
+  spine1.position.set(0, spine1Len, 0);
+  pelvis.add(spine1);
+
+  const spine2 = new THREE.Bone(); // Chest / Shoulders junction
+  spine2.name = 'Spine2';
+  spine2.position.set(0, spine2Len, 0);
+  spine1.add(spine2);
+
+  const neck = new THREE.Bone();
+  neck.name = 'Neck';
+  neck.position.set(0, neckLen, 0);
+  spine2.add(neck);
+
+  const head = new THREE.Bone();
+  head.name = 'Head';
+  head.position.set(0, headLen, 0);
+  neck.add(head);
+
+  // Left Arm (T-Pose along +X)
+  const clavicleL = new THREE.Bone();
+  clavicleL.name = 'Clavicle_L';
+  clavicleL.position.set(shoulderOffset * 0.35, 0.02, 0);
+  spine2.add(clavicleL);
+
+  const upperArmL = new THREE.Bone();
+  upperArmL.name = 'UpperArm_L';
+  upperArmL.position.set(shoulderOffset * 0.65, 0, 0);
+  clavicleL.add(upperArmL);
+
+  const forearmL = new THREE.Bone();
+  forearmL.name = 'Forearm_L';
+  forearmL.position.set(upperArmLen, 0, 0);
+  upperArmL.add(forearmL);
+
+  const handL = new THREE.Bone();
+  handL.name = 'Hand_L';
+  handL.position.set(forearmLen, 0, 0);
+  forearmL.add(handL);
+
+  // Right Arm (T-Pose along -X)
+  const clavicleR = new THREE.Bone();
+  clavicleR.name = 'Clavicle_R';
+  clavicleR.position.set(-shoulderOffset * 0.35, 0.02, 0);
+  spine2.add(clavicleR);
+
+  const upperArmR = new THREE.Bone();
+  upperArmR.name = 'UpperArm_R';
+  upperArmR.position.set(-shoulderOffset * 0.65, 0, 0);
+  clavicleR.add(upperArmR);
+
+  const forearmR = new THREE.Bone();
+  forearmR.name = 'Forearm_R';
+  forearmR.position.set(-upperArmLen, 0, 0);
+  upperArmR.add(forearmR);
+
+  const handR = new THREE.Bone();
+  handR.name = 'Hand_R';
+  handR.position.set(-forearmLen, 0, 0);
+  forearmR.add(handR);
+
+  // Left Leg (along -Y)
+  const hipL = new THREE.Bone();
+  hipL.name = 'Hip_L';
+  hipL.position.set(hipOffset, 0, 0);
+  pelvis.add(hipL);
+
+  const thighL = new THREE.Bone();
+  thighL.name = 'Thigh_L';
+  thighL.position.set(0, -0.05, 0);
+  hipL.add(thighL);
+
+  const calfL = new THREE.Bone();
+  calfL.name = 'Calf_L';
+  calfL.position.set(0, -thighLen, 0);
+  thighL.add(calfL);
+
+  const footL = new THREE.Bone();
+  footL.name = 'Foot_L';
+  footL.position.set(0, -calfLen, 0.05);
+  calfL.add(footL);
+
+  // Right Leg (along -Y)
+  const hipR = new THREE.Bone();
+  hipR.name = 'Hip_R';
+  hipR.position.set(-hipOffset, 0, 0);
+  pelvis.add(hipR);
+
+  const thighR = new THREE.Bone();
+  thighR.name = 'Thigh_R';
+  thighR.position.set(0, -0.05, 0);
+  hipR.add(thighR);
+
+  const calfR = new THREE.Bone();
+  calfR.name = 'Calf_R';
+  calfR.position.set(0, -thighLen, 0);
+  thighR.add(calfR);
+
+  const footR = new THREE.Bone();
+  footR.name = 'Foot_R';
+  footR.position.set(0, -calfLen, 0.05);
+  calfR.add(footR);
+
+  const boneList = [
+    pelvis, spine1, spine2, neck, head,
+    clavicleL, upperArmL, forearmL, handL,
+    clavicleR, upperArmR, forearmR, handR,
+    hipL, thighL, calfL, footL,
+    hipR, thighR, calfR, footR
+  ];
+
+  const bonesMap: { [key: string]: THREE.Bone } = {};
+  boneList.forEach(b => { bonesMap[b.name] = b; });
+
+  // Update matrix world so every bone has true world coordinates
+  pelvis.updateMatrixWorld(true);
+
+  // 3. SEAMLESS CONNECTED GEOMETRY GENERATION
+  // We generate a unified continuous torso-neck-head column, paired limbs, and hands/feet
+  // seamlessly overlapping so no gaps ever appear.
+
+  const geometries: THREE.BufferGeometry[] = [];
+
+  // Helper: Get Bone World Position
+  function getBonePos(bone: THREE.Bone): THREE.Vector3 {
+    const v = new THREE.Vector3();
+    bone.getWorldPosition(v);
+    return v;
+  }
+
+  const pPelvis = getBonePos(pelvis);
+  const pSpine1 = getBonePos(spine1);
+  const pSpine2 = getBonePos(spine2);
+  const pNeck = getBonePos(neck);
+  const pHead = getBonePos(head);
+
+  // --- UNIFIED TORSO + NECK + HEAD COLUMN ---
+  // A vertical lofted body segment spanning continuously from Pelvis to Head
+  // Cross section profiles with anatomical contours:
+  const torsoRings = 24;
+  const torsoRadSegs = 20;
+  const torsoYMin = pPelvis.y - 0.12;
+  const torsoYMax = pHead.y + 0.16 * props.headScale;
+  const torsoH = torsoYMax - torsoYMin;
+
+  const torsoPositions: number[] = [];
+  const torsoIndices: number[] = [];
+  const torsoUVs: number[] = [];
+
+  for (let r = 0; r <= torsoRings; r++) {
+    const v = r / torsoRings;
+    const y = torsoYMin + v * torsoH;
+
+    // Determine radius & width based on anatomical section
+    let rx = 0.16 * props.waistWidth;
+    let rz = 0.12 * props.chestBulk;
+
+    if (y < pPelvis.y) {
+      // Pelvis / Lower Hips
+      const f = (y - torsoYMin) / (pPelvis.y - torsoYMin);
+      rx = (0.13 + f * 0.05) * props.waistWidth;
+      rz = (0.10 + f * 0.04);
+    } else if (y >= pPelvis.y && y < pSpine1.y) {
+      // Abdomen / Waist
+      const f = (y - pPelvis.y) / (pSpine1.y - pPelvis.y);
+      rx = (0.18 - f * 0.02) * props.waistWidth;
+      rz = (0.14 - f * 0.02) * props.chestBulk;
+    } else if (y >= pSpine1.y && y < pSpine2.y) {
+      // Ribcage & Chest / Pectorals
+      const f = (y - pSpine1.y) / (pSpine2.y - pSpine1.y);
+      rx = (0.16 + f * 0.07 * props.shoulderWidth) * (1.0 + props.muscleDefinition * 0.15);
+      rz = (0.12 + f * 0.04 * props.chestBulk) * (1.0 + props.muscleDefinition * 0.15);
+    } else if (y >= pSpine2.y && y < pNeck.y) {
+      // Shoulders / Trapezius transitioning into Neck
+      const f = (y - pSpine2.y) / (pNeck.y - pSpine2.y);
+      rx = THREE.MathUtils.lerp(0.23 * props.shoulderWidth, 0.07, f);
+      rz = THREE.MathUtils.lerp(0.15 * props.chestBulk, 0.075, f);
+    } else if (y >= pNeck.y && y < pHead.y) {
+      // Neck transitioning into Jaw
+      const f = (y - pNeck.y) / (pHead.y - pNeck.y);
+      rx = THREE.MathUtils.lerp(0.068, 0.09 * props.headScale, f);
+      rz = THREE.MathUtils.lerp(0.072, 0.095 * props.headScale, f);
+    } else {
+      // Cranium / Face / Head
+      const f = (y - pHead.y) / (torsoYMax - pHead.y);
+      const sphereProfile = Math.sqrt(Math.max(0, 1.0 - f * f));
+      rx = 0.11 * props.headScale * sphereProfile;
+      rz = 0.13 * props.headScale * sphereProfile;
+    }
+
+    for (let s = 0; s <= torsoRadSegs; s++) {
+      const u = s / torsoRadSegs;
+      const angle = u * Math.PI * 2;
+
+      let cosA = Math.cos(angle);
+      let sinA = Math.sin(angle);
+
+      let px = cosA * rx;
+      let pz = sinA * rz;
+      let py = y;
+
+      // Facial sculpture when in head height & facing forward
+      if (y >= pHead.y - 0.06 && y <= pHead.y + 0.08 && sinA > 0.3) {
+        // Nose protrusion
+        if (Math.abs(px) < 0.035 && y > pHead.y - 0.02 && y < pHead.y + 0.03) {
+          pz += 0.03 * (1.0 - Math.abs(px) / 0.035);
+        }
+        // Brow
+        if (y > pHead.y + 0.04 && y < pHead.y + 0.07 && Math.abs(px) < 0.06) {
+          pz += 0.015;
+        }
+        // Chin & Jaw forward contour
+        if (y < pHead.y - 0.02) {
+          pz += 0.015 * (1.0 - Math.abs(px) / 0.06);
+        }
+      }
+
+      // Pectoral bulge on chest front
+      if (y >= pSpine1.y + 0.05 && y <= pSpine2.y + 0.02 && sinA > 0.2) {
+        const pecBulge = Math.sin((y - pSpine1.y) * 12) * Math.sin(angle) * 0.02 * props.muscleDefinition;
+        pz += Math.max(0, pecBulge);
+      }
+
+      torsoPositions.push(px, py, pz);
+      torsoUVs.push(u, v);
+    }
+  }
+
+  for (let r = 0; r < torsoRings; r++) {
+    for (let s = 0; s < torsoRadSegs; s++) {
+      const a = r * (torsoRadSegs + 1) + s;
+      const b = (r + 1) * (torsoRadSegs + 1) + s;
+      const c = (r + 1) * (torsoRadSegs + 1) + (s + 1);
+      const d = r * (torsoRadSegs + 1) + (s + 1);
+
+      torsoIndices.push(a, b, d);
+      torsoIndices.push(b, c, d);
+    }
+  }
+
+  const torsoGeom = new THREE.BufferGeometry();
+  torsoGeom.setAttribute('position', new THREE.Float32BufferAttribute(torsoPositions, 3));
+  torsoGeom.setAttribute('uv', new THREE.Float32BufferAttribute(torsoUVs, 2));
+  torsoGeom.setIndex(torsoIndices);
+  torsoGeom.computeVertexNormals();
+  geometries.push(torsoGeom);
+
+  // Helper for limb segments
+  function createLimbCylinder(
+    pStart: THREE.Vector3, pEnd: THREE.Vector3,
+    rStart: number, rEnd: number,
+    radialSegs: number = 14, heightSegs: number = 8
+  ): THREE.BufferGeometry {
+    const dir = new THREE.Vector3().subVectors(pEnd, pStart);
+    const len = dir.length();
+    const geom = new THREE.CylinderGeometry(rEnd, rStart, len, radialSegs, heightSegs, false);
+
+    // Default cylinder is aligned with Y, centered at 0
+    // Move base to start, rotate to align with dir
+    geom.translate(0, len * 0.5, 0);
+
+    const axis = new THREE.Vector3(0, 1, 0);
+    const quat = new THREE.Quaternion().setFromUnitVectors(axis, dir.clone().normalize());
+    geom.applyQuaternion(quat);
+    geom.translate(pStart.x, pStart.y, pStart.z);
+    geom.computeVertexNormals();
+    return geom;
+  }
+
+  // --- ARMS (LEFT & RIGHT) ---
+  const pUarmL = getBonePos(upperArmL);
+  const pFarmL = getBonePos(forearmL);
+  const pHandL = getBonePos(handL);
+
+  const pUarmR = getBonePos(upperArmR);
+  const pFarmR = getBonePos(forearmR);
+  const pHandR = getBonePos(handR);
+
+  const armR = 0.055 * (1.0 + props.muscleDefinition * 0.3);
+
+  // Left Arm
+  const upperArmLGeom = createLimbCylinder(pUarmL, pFarmL, armR * 1.15, armR * 0.95);
+  const forearmLGeom = createLimbCylinder(pFarmL, pHandL, armR * 0.95, armR * 0.70);
+  const handLGeom = new THREE.BoxGeometry(0.08, 0.035, 0.09, 4, 2, 4);
+  handLGeom.translate(pHandL.x + 0.04, pHandL.y, pHandL.z);
+  geometries.push(upperArmLGeom, forearmLGeom, handLGeom);
+
+  // Right Arm
+  const upperArmRGeom = createLimbCylinder(pUarmR, pFarmR, armR * 1.15, armR * 0.95);
+  const forearmRGeom = createLimbCylinder(pFarmR, pHandR, armR * 0.95, armR * 0.70);
+  const handRGeom = new THREE.BoxGeometry(0.08, 0.035, 0.09, 4, 2, 4);
+  handRGeom.translate(pHandR.x - 0.04, pHandR.y, pHandR.z);
+  geometries.push(upperArmRGeom, forearmRGeom, handRGeom);
+
+  // --- LEGS (LEFT & RIGHT) ---
+  const pHipL = getBonePos(hipL);
+  const pThighL = getBonePos(thighL);
+  const pCalfL = getBonePos(calfL);
+  const pFootL = getBonePos(footL);
+
+  const pHipR = getBonePos(hipR);
+  const pThighR = getBonePos(thighR);
+  const pCalfR = getBonePos(calfR);
+  const pFootR = getBonePos(footR);
+
+  const thighRadius = 0.092 * (1.0 + props.muscleDefinition * 0.25);
+  const calfRadius = 0.068 * (1.0 + props.muscleDefinition * 0.2);
+
+  // Left Leg
+  const thighLGeom = createLimbCylinder(pThighL, pCalfL, thighRadius * 1.15, thighRadius * 0.85);
+  const calfLGeom = createLimbCylinder(pCalfL, pFootL, calfRadius * 1.05, calfRadius * 0.65);
+  const footLGeom = new THREE.BoxGeometry(0.09, 0.06, 0.18, 4, 2, 4);
+  footLGeom.translate(pFootL.x, pFootL.y - 0.03, pFootL.z + 0.04);
+  geometries.push(thighLGeom, calfLGeom, footLGeom);
+
+  // Right Leg
+  const thighRGeom = createLimbCylinder(pThighR, pCalfR, thighRadius * 1.15, thighRadius * 0.85);
+  const calfRGeom = createLimbCylinder(pCalfR, pFootR, calfRadius * 1.05, calfRadius * 0.65);
+  const footRGeom = new THREE.BoxGeometry(0.09, 0.06, 0.18, 4, 2, 4);
+  footRGeom.translate(pFootR.x, pFootR.y - 0.03, pFootR.z + 0.04);
+  geometries.push(thighRGeom, calfRGeom, footRGeom);
+
+  // MERGE ALL GEOMETRIES INTO UNIFIED CONTIGUOUS MESH
+  const mergedGeometry = mergeBufferGeometries(geometries);
+
+  // 4. PRECISE BONE CAPSULE / LINE-SEGMENT SKINNING MATH
+  // We calculate distance from each vertex to the actual bone line segment (joint A to joint B),
+  // creating smooth, realistic organic deformations without pinching or collapsing joints.
+
+  // Define bone segments: [parentIndex, childIndex]
+  const boneIndexMap = new Map<THREE.Bone, number>();
+  boneList.forEach((b, idx) => boneIndexMap.set(b, idx));
+
+  interface Segment {
+    parentIdx: number;
+    childIdx: number;
+    pA: THREE.Vector3;
+    pB: THREE.Vector3;
+    name: string;
+  }
+
+  const segments: Segment[] = [];
+
+  function addSegment(parent: THREE.Bone, child: THREE.Bone) {
+    const parentIdx = boneIndexMap.get(parent)!;
+    const childIdx = boneIndexMap.get(child)!;
+    segments.push({
+      parentIdx,
+      childIdx,
+      pA: getBonePos(parent),
+      pB: getBonePos(child),
+      name: `${parent.name}->${child.name}`
+    });
+  }
+
+  // Torso / Head segments
+  addSegment(pelvis, spine1);
+  addSegment(spine1, spine2);
+  addSegment(spine2, neck);
+  addSegment(neck, head);
+
+  // Left Arm
+  addSegment(spine2, clavicleL);
+  addSegment(clavicleL, upperArmL);
+  addSegment(upperArmL, forearmL);
+  addSegment(forearmL, handL);
+
+  // Right Arm
+  addSegment(spine2, clavicleR);
+  addSegment(clavicleR, upperArmR);
+  addSegment(upperArmR, forearmR);
+  addSegment(forearmR, handR);
+
+  // Left Leg
+  addSegment(pelvis, hipL);
+  addSegment(hipL, thighL);
+  addSegment(thighL, calfL);
+  addSegment(calfL, footL);
+
+  // Right Leg
+  addSegment(pelvis, hipR);
+  addSegment(hipR, thighR);
+  addSegment(thighR, calfR);
+  addSegment(calfR, footR);
+
+  // Helper: Distance from point P to line segment AB, returning distance and parameter t (0..1)
+  function distToSegment(p: THREE.Vector3, a: THREE.Vector3, b: THREE.Vector3): { dist: number; t: number } {
+    const ab = new THREE.Vector3().subVectors(b, a);
+    const ap = new THREE.Vector3().subVectors(p, a);
+    const abLenSq = ab.lengthSq();
+    if (abLenSq === 0) return { dist: ap.length(), t: 0 };
+
+    let t = ap.dot(ab) / abLenSq;
+    t = THREE.MathUtils.clamp(t, 0, 1);
+    const closest = new THREE.Vector3().copy(a).addScaledVector(ab, t);
+    return { dist: p.distanceTo(closest), t };
+  }
+
+  const posAttr = mergedGeometry.attributes.position;
+  const vertexCount = posAttr.count;
+
+  const skinIndices: number[] = [];
+  const skinWeights: number[] = [];
+  const vertex = new THREE.Vector3();
+
+  for (let i = 0; i < vertexCount; i++) {
+    vertex.fromBufferAttribute(posAttr, i);
+
+    // Compute influence of each segment and split between parent & child bone
+    const boneInfluences = new Float32Array(boneList.length);
+
+    for (let s = 0; s < segments.length; s++) {
+      const seg = segments[s];
+      const { dist, t } = distToSegment(vertex, seg.pA, seg.pB);
+
+      // Smooth gaussian/exponential falloff
+      const weight = Math.exp(-dist * 16.0);
+      if (weight > 0.0001) {
+        // Distribute weight along segment between parent and child joint
+        boneInfluences[seg.parentIdx] += weight * (1.0 - t);
+        boneInfluences[seg.childIdx] += weight * t;
+      }
+    }
+
+    // Top 4 bones by influence
+    const sortedBones: { index: number; weight: number }[] = [];
+    for (let b = 0; b < boneList.length; b++) {
+      if (boneInfluences[b] > 0.00001) {
+        sortedBones.push({ index: b, weight: boneInfluences[b] });
+      }
+    }
+
+    sortedBones.sort((a, b) => b.weight - a.weight);
+
+    const b0 = sortedBones[0] || { index: 0, weight: 1.0 };
+    const b1 = sortedBones[1] || { index: 0, weight: 0.0 };
+    const b2 = sortedBones[2] || { index: 0, weight: 0.0 };
+    const b3 = sortedBones[3] || { index: 0, weight: 0.0 };
+
+    const totalWeight = b0.weight + b1.weight + b2.weight + b3.weight;
+
+    skinIndices.push(b0.index, b1.index, b2.index, b3.index);
+    skinWeights.push(
+      b0.weight / totalWeight,
+      b1.weight / totalWeight,
+      b2.weight / totalWeight,
+      b3.weight / totalWeight
+    );
+  }
+
+  mergedGeometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(skinIndices, 4));
+  mergedGeometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(skinWeights, 4));
+
+  // 5. MORPH TARGETS (BLENDSHAPES)
+  const morphPositions: { [name: string]: Float32Array } = {};
+  const morphNames = ['Muscularity', 'ChestBreath', 'JawWidth', 'Slimness', 'HeadScale', 'Smile'];
+
+  morphNames.forEach(name => {
+    const deltaArr = new Float32Array(vertexCount * 3);
+    for (let i = 0; i < vertexCount; i++) {
+      const vx = posAttr.getX(i);
+      const vy = posAttr.getY(i);
+      const vz = posAttr.getZ(i);
+
+      let dx = 0, dy = 0, dz = 0;
+
+      if (name === 'Muscularity') {
+        if (vy > pPelvis.y * 0.8 && vy < pSpine2.y + 0.1) {
+          dx = Math.sign(vx) * 0.035;
+          dz = Math.sign(vz) * 0.030;
+        }
+      } else if (name === 'ChestBreath') {
+        if (vy > pSpine1.y && vy < pSpine2.y + 0.08) {
+          dz = Math.max(0, vz) * 0.25;
+          dx = vx * 0.10;
+        }
+      } else if (name === 'JawWidth') {
+        if (vy > pHead.y - 0.10 && vy < pHead.y) {
+          dx = vx * 0.40;
+        }
+      } else if (name === 'Slimness') {
+        if (vy < pHead.y - 0.15) {
+          dx = -vx * 0.20;
+          dz = -vz * 0.20;
+        }
+      } else if (name === 'HeadScale') {
+        if (vy > pNeck.y) {
+          dx = (vx - pHead.x) * 0.35;
+          dy = (vy - pHead.y) * 0.35;
+          dz = (vz - pHead.z) * 0.35;
+        }
+      } else if (name === 'Smile') {
+        if (vy > pHead.y - 0.06 && vy < pHead.y - 0.02 && vz > pHead.z + 0.03) {
+          dx = vx * 0.3;
+          dy = 0.015;
+          dz = 0.005;
+        }
+      }
+
+      deltaArr[i * 3] = vx + dx;
+      deltaArr[i * 3 + 1] = vy + dy;
+      deltaArr[i * 3 + 2] = vz + dz;
+    }
+    morphPositions[name] = deltaArr;
+  });
+
+  mergedGeometry.morphAttributes.position = morphNames.map(name => {
+    return new THREE.Float32BufferAttribute(morphPositions[name], 3);
+  });
+
+  const morphDict: { [key: string]: number } = {};
+  morphNames.forEach((name, idx) => { morphDict[name] = idx; });
+
+  // 6. SUBSURFACE SCATTERING SKIN MATERIAL
+  const { diffuse, normal } = createProceduralSkinTexture();
+
+  const skinMat = new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(props.skinTone),
+    map: diffuse,
+    normalMap: normal,
+    normalScale: new THREE.Vector2(0.35, 0.35),
+    roughness: props.roughness,
+    metalness: 0.0,
+    transmission: props.subsurface * 0.15,
+    thickness: 1.8,
+    attenuationColor: new THREE.Color('#ff4422'),
+    attenuationDistance: 0.4,
+    clearcoat: 0.12,
+    clearcoatRoughness: 0.45,
+    reflectivity: 0.5,
+    ior: 1.45,
+    side: THREE.DoubleSide
+  });
+
+  // 7. ASSEMBLE SKINNED MESH & SKELETON
+  const skinnedMesh = new THREE.SkinnedMesh(mergedGeometry, skinMat);
+  skinnedMesh.castShadow = true;
+  skinnedMesh.receiveShadow = true;
+
+  const skeleton = new THREE.Skeleton(boneList);
+  skinnedMesh.add(pelvis);
+  skinnedMesh.bind(skeleton);
+
+  const skeletonHelper = new THREE.SkeletonHelper(skinnedMesh);
+  skeletonHelper.visible = false;
+
+  return {
+    mesh: skinnedMesh,
+    skeleton,
+    bones: bonesMap,
+    boneList,
+    materials: { skin: skinMat },
+    morphDictionary: morphDict,
+    skeletonHelper,
+    proportions: { ...props }
+  };
+}
+
+/**
+ * Utility: Merges multiple BufferGeometries into a single indexed/non-indexed geometry
+ */
+function mergeBufferGeometries(geometries: THREE.BufferGeometry[]): THREE.BufferGeometry {
+  const merged = new THREE.BufferGeometry();
+  let totalVerts = 0;
+
+  geometries.forEach(g => {
+    totalVerts += g.attributes.position.count;
+  });
+
+  const positions = new Float32Array(totalVerts * 3);
+  const normals = new Float32Array(totalVerts * 3);
+  const uvs = new Float32Array(totalVerts * 2);
+
+  let offset = 0;
+  let uvOffset = 0;
+
+  geometries.forEach(g => {
+    const pos = g.attributes.position;
+    const norm = g.attributes.normal;
+    const uv = g.attributes.uv;
+
+    for (let i = 0; i < pos.count; i++) {
+      positions[offset * 3 + i * 3] = pos.getX(i);
+      positions[offset * 3 + i * 3 + 1] = pos.getY(i);
+      positions[offset * 3 + i * 3 + 2] = pos.getZ(i);
+
+      if (norm) {
+        normals[offset * 3 + i * 3] = norm.getX(i);
+        normals[offset * 3 + i * 3 + 1] = norm.getY(i);
+        normals[offset * 3 + i * 3 + 2] = norm.getZ(i);
+      } else {
+        normals[offset * 3 + i * 3 + 1] = 1.0;
+      }
+
+      if (uv) {
+        uvs[uvOffset * 2 + i * 2] = uv.getX(i);
+        uvs[uvOffset * 2 + i * 2 + 1] = uv.getY(i);
+      } else {
+        uvs[uvOffset * 2 + i * 2] = (pos.getX(i) + 1) * 0.5;
+        uvs[uvOffset * 2 + i * 2 + 1] = (pos.getY(i) + 1) * 0.5;
+      }
+    }
+
+    offset += pos.count;
+    uvOffset += pos.count;
+  });
+
+  merged.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  merged.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+  merged.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+  merged.computeVertexNormals();
+
+  return merged;
+}
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { buildProceduralHuman, DEFAULT_PROPORTIONS, HumanProportions, ProceduralHumanRig } from './ProceduralHuman';
+import { AnimationMode, ProceduralAnimator } from './ProceduralAnimation';
+
+export interface EngineCallbacks {
+  onInitialized?: () => void;
+  onStatsUpdate?: (stats: { polyCount: number; boneCount: number; memoryMB: number }) => void;
+}
+
+export class ThreeEngine {
+  private container: HTMLElement;
+  private scene: THREE.Scene;
+  private camera: THREE.PerspectiveCamera;
+  private renderer: THREE.WebGLRenderer;
+  private controls: OrbitControls;
+  private animationFrameId: number = 0;
+
+  // Procedural Rig & Animator
+  public rig: ProceduralHumanRig | null = null;
+  public animator: ProceduralAnimator | null = null;
+
+  // Scene Helpers & Visualizers
+  private ikTargetMesh: THREE.Mesh;
+  private floorGrid: THREE.GridHelper;
+  private shadowPlane: THREE.Mesh;
+
+  // State
+  public renderMode: 'sss' | 'clay' | 'wireframe' = 'sss';
+  public showSkeleton: boolean = false;
+  private callbacks?: EngineCallbacks;
+
+  constructor(container: HTMLElement, callbacks?: EngineCallbacks) {
+    this.container = container;
+    this.callbacks = callbacks;
+
+    // 1. Scene Setup
+    this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(0x121214);
+    this.scene.fog = new THREE.FogExp2(0x121214, 0.12);
+
+    // 2. Camera Setup
+    this.camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 50);
+    this.camera.position.set(0, 1.4, 3.2);
+
+    // 3. High Efficiency WebGL Renderer (optimized for 4GB RAM)
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    this.renderer.setSize(container.clientWidth, container.clientHeight);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.1;
+    container.appendChild(this.renderer.domElement);
+
+    // 4. Orbit Controls
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.enableDamping = true;
+    this.controls.dampingFactor = 0.05;
+    this.controls.target.set(0, 1.0, 0);
+    this.controls.maxPolarAngle = Math.PI / 2 + 0.05; // don't go under floor
+    this.controls.minDistance = 0.8;
+    this.controls.maxDistance = 8.0;
+
+    // 5. Studio Lighting Setup
+    this.setupLighting();
+
+    // 6. Floor & Shadow receiver
+    const shadowGeo = new THREE.PlaneGeometry(15, 15);
+    const shadowMat = new THREE.ShadowMaterial({ opacity: 0.35 });
+    this.shadowPlane = new THREE.Mesh(shadowGeo, shadowMat);
+    this.shadowPlane.rotation.x = -Math.PI / 2;
+    this.shadowPlane.position.y = 0;
+    this.shadowPlane.receiveShadow = true;
+    this.scene.add(this.shadowPlane);
+
+    this.floorGrid = new THREE.GridHelper(10, 20, 0x2e3038, 0x1a1c22);
+    this.floorGrid.position.y = 0.001;
+    this.scene.add(this.floorGrid);
+
+    // 7. Interactive IK Target Sphere
+    const ikGeo = new THREE.SphereGeometry(0.04, 16, 16);
+    const ikMat = new THREE.MeshStandardMaterial({
+      color: 0x3b82f6,
+      emissive: 0x1d4ed8,
+      emissiveIntensity: 0.6,
+      roughness: 0.2
+    });
+    this.ikTargetMesh = new THREE.Mesh(ikGeo, ikMat);
+    this.ikTargetMesh.position.set(0.4, 1.3, 0.4);
+    this.scene.add(this.ikTargetMesh);
+
+    // 8. Build Initial Procedural Human Model
+    this.rebuildHuman(DEFAULT_PROPORTIONS);
+
+    // Event Listeners
+    window.addEventListener('resize', this.onWindowResize);
+
+    // Start Rendering
+    this.animate();
+
+    if (this.callbacks?.onInitialized) {
+      this.callbacks.onInitialized();
+    }
+  }
+
+  private setupLighting() {
+    // Ambient soft fill
+    const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+    this.scene.add(ambient);
+
+    // Key Light (Main warm spotlight casting soft shadows)
+    const keyLight = new THREE.DirectionalLight(0xfff3e6, 2.2);
+    keyLight.position.set(3, 4, 3);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.width = 1024;
+    keyLight.shadow.mapSize.height = 1024;
+    keyLight.shadow.bias = -0.0005;
+    keyLight.shadow.camera.near = 0.5;
+    keyLight.shadow.camera.far = 12;
+    keyLight.shadow.camera.left = -2;
+    keyLight.shadow.camera.right = 2;
+    keyLight.shadow.camera.top = 3;
+    keyLight.shadow.camera.bottom = -1;
+    this.scene.add(keyLight);
+
+    // Cool Rim Light (Separates model silhouette from background)
+    const rimLight = new THREE.DirectionalLight(0x88ccff, 1.8);
+    rimLight.position.set(-3, 3, -3);
+    this.scene.add(rimLight);
+
+    // Warm Underfill (Mimics ground bounce / SSS subsurface glow)
+    const bounceLight = new THREE.DirectionalLight(0xff8866, 0.5);
+    bounceLight.position.set(0, -2, 2);
+    this.scene.add(bounceLight);
+  }
+
+  /**
+   * Procedurally generates a fresh SkinnedMesh & Skeleton with user parameters
+   */
+  public rebuildHuman(proportions: HumanProportions) {
+    if (this.rig) {
+      this.scene.remove(this.rig.mesh);
+      this.scene.remove(this.rig.skeletonHelper);
+      this.rig.mesh.geometry.dispose();
+      this.rig.materials.skin.dispose();
+    }
+
+    this.rig = buildProceduralHuman(proportions);
+    this.scene.add(this.rig.mesh);
+    this.scene.add(this.rig.skeletonHelper);
+    this.rig.skeletonHelper.visible = this.showSkeleton;
+
+    if (!this.animator) {
+      this.animator = new ProceduralAnimator(this.rig);
+    } else {
+      this.animator.updateRig(this.rig);
+    }
+
+    this.applyRenderMode(this.renderMode);
+
+    // Report stats
+    if (this.callbacks?.onStatsUpdate) {
+      const vertCount = this.rig.mesh.geometry.attributes.position.count;
+      const polyCount = Math.round(vertCount / 3);
+      const boneCount = this.rig.boneList.length;
+      this.callbacks.onStatsUpdate({
+        polyCount,
+        boneCount,
+        memoryMB: Number(((vertCount * 32) / (1024 * 1024)).toFixed(2)) + 3.5
+      });
+    }
+  }
+
+  public setAnimationMode(mode: AnimationMode) {
+    if (this.animator) {
+      this.animator.mode = mode;
+    }
+  }
+
+  public setIKTarget(x: number, y: number, z: number) {
+    this.ikTargetMesh.position.set(x, y, z);
+    if (this.animator) {
+      this.animator.ikTarget.set(x, y, z);
+    }
+  }
+
+  public toggleIK(enabled: boolean) {
+    if (this.animator) {
+      this.animator.ikEnabled = enabled;
+    }
+    this.ikTargetMesh.visible = enabled;
+  }
+
+  public toggleSkeleton(visible: boolean) {
+    this.showSkeleton = visible;
+    if (this.rig) {
+      this.rig.skeletonHelper.visible = visible;
+    }
+  }
+
+  public setRenderMode(mode: 'sss' | 'clay' | 'wireframe') {
+    this.renderMode = mode;
+    this.applyRenderMode(mode);
+  }
+
+  private applyRenderMode(mode: 'sss' | 'clay' | 'wireframe') {
+    if (!this.rig) return;
+    const mat = this.rig.materials.skin;
+
+    if (mode === 'wireframe') {
+      mat.wireframe = true;
+      mat.transmission = 0;
+      mat.color.set('#00ff88');
+    } else if (mode === 'clay') {
+      mat.wireframe = false;
+      mat.transmission = 0;
+      mat.color.set('#b8b0a8');
+      mat.roughness = 0.8;
+      mat.clearcoat = 0;
+    } else {
+      // Photorealistic SSS Skin
+      mat.wireframe = false;
+      mat.color.set(this.rig.proportions.skinTone);
+      mat.roughness = this.rig.proportions.roughness;
+      mat.transmission = this.rig.proportions.subsurface * 0.15;
+      mat.clearcoat = 0.12;
+    }
+    mat.needsUpdate = true;
+  }
+
+  public setMorphTarget(name: string, value: number) {
+    if (!this.rig || !this.rig.mesh.morphTargetDictionary || !this.rig.mesh.morphTargetInfluences) return;
+    const idx = this.rig.morphDictionary[name];
+    if (idx !== undefined) {
+      this.rig.mesh.morphTargetInfluences[idx] = value;
+    }
+  }
+
+  private onWindowResize = () => {
+    if (!this.container) return;
+    this.camera.aspect = this.container.clientWidth / this.container.clientHeight;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+  };
+
+  private animate = () => {
+    this.animationFrameId = requestAnimationFrame(this.animate);
+
+    this.controls.update();
+
+    if (this.animator && this.rig) {
+      this.animator.update();
+    }
+
+    this.renderer.render(this.scene, this.camera);
+  };
+
+  public dispose() {
+    window.removeEventListener('resize', this.onWindowResize);
+    cancelAnimationFrame(this.animationFrameId);
+    this.renderer.dispose();
+    if (this.container.contains(this.renderer.domElement)) {
+      this.container.removeChild(this.renderer.domElement);
+    }
+  }
+}

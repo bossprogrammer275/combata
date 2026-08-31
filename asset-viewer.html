@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Asset Viewer — STRIKE COMMAND</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#1a1d1a;color:#e8eae6;font-family:"Segoe UI",Roboto,Arial,sans-serif;overflow:hidden}
+  canvas{display:block;width:100%;height:100%}
+  #hud{position:fixed;top:12px;left:12px;pointer-events:none;z-index:10}
+  #hud h1{font-size:18px;color:#c9a227;margin-bottom:4px}
+  #hud p{font-size:12px;color:#9aa39a}
+  #info{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);background:rgba(14,18,15,.9);
+    border:1px solid rgba(201,162,39,.28);padding:8px 16px;border-radius:4px;font-size:13px;
+    pointer-events:none;z-index:10;white-space:nowrap}
+  #info b{color:#c9a227}
+  #nav{position:fixed;top:12px;right:12px;z-index:10;display:flex;flex-direction:column;gap:6px}
+  #nav button{background:rgba(14,18,15,.9);border:1px solid rgba(201,162,39,.28);color:#e8eae6;
+    padding:6px 12px;cursor:pointer;font-size:12px;border-radius:3px}
+  #nav button:hover{background:rgba(201,162,39,.15)}
+  #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(26,29,26,.95);z-index:100;font-size:20px;color:#c9a227;flex-direction:column;gap:8px}
+</style>
+</head>
+<body>
+<div id="loading">Loading assets...</div>
+<div id="hud" style="display:none"><h1>ASSET VIEWER</h1><p>Click asset to focus · Scroll to zoom · Drag to orbit</p></div>
+<div id="info" style="display:none"><b>&larr; &rarr;</b> prev/next &nbsp; <b>R</b> reset camera</div>
+<div id="nav" style="display:none">
+  <button onclick="focusPrev()">&larr; Prev</button>
+  <button onclick="focusNext()">Next &rarr;</button>
+  <button onclick="resetCamera()">Reset</button>
+</div>
+
+<script type="importmap">{"imports":{"three":"./js/lib/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { World } from './js/world.js';
+import { installAssets } from './assets/loader.js';
+
+const SECTIONS = {
+  building: 'BUILDINGS',
+  prop: 'PROPS',
+  landmark: 'LANDMARKS',
+  nature: 'NATURE',
+  vehicle: 'VEHICLES'
+};
+
+const ASSETS = [
+  // ===== BUILDINGS =====
+  { cat: 'building', kind: 'shop',        w: 12, h: 5,  d: 10, ry: 0.15, m: 'brick',    name: 'Shop' },
+  { cat: 'building', kind: 'tower',       w: 12, h: 10, d: 12, ry: 0.1,  m: 'concrete', name: 'Tower' },
+  { cat: 'building', kind: 'shell',       w: 12, h: 5,  d: 10, ry: 0,    m: 'brick',    name: 'Shell', windows: true },
+  { cat: 'building', kind: 'container',   w: 6,  h: 3,  d: 3,  ry: 0,    m: 'metal',    name: 'Container' },
+  { cat: 'building', kind: 'house',       w: 10, h: 4,  d: 8,  ry: 0.1,  m: 'brick',    name: 'House' },
+  { cat: 'building', kind: 'apartment',   w: 14, h: 9,  d: 10, ry: 0.2,  m: 'panel',    name: 'Apartment' },
+  { cat: 'building', kind: 'lcorner',     w: 12, h: 5,  d: 10, ry: 0.15, m: 'brick',    name: 'L-Corner' },
+  { cat: 'building', kind: 'rowhouse',    w: 18, h: 5,  d: 8,  ry: 0.1,  m: 'brick',    name: 'Rowhouse' },
+  { cat: 'building', kind: 'store',       w: 12, h: 5,  d: 10, ry: 0.15, m: 'brick',    name: 'Store' },
+  { cat: 'building', kind: 'gasstation',  w: 14, h: 4,  d: 10, ry: 0.1,  m: 'concrete', name: 'Gas Station' },
+  { cat: 'building', kind: 'supermarket', w: 20, h: 5,  d: 16, ry: 0.1,  m: 'concrete', name: 'Supermarket' },
+  { cat: 'building', kind: 'parking',     w: 16, h: 9,  d: 12, ry: 0.2,  m: 'concrete', name: 'Parking' },
+  { cat: 'building', kind: 'motel',       w: 14, h: 5,  d: 10, ry: 0.15, m: 'brick',    name: 'Motel' },
+  { cat: 'building', kind: 'bank',        w: 14, h: 6,  d: 12, ry: 0.1,  m: 'concrete', name: 'Bank' },
+  { cat: 'building', kind: 'hospital',    w: 20, h: 12, d: 16, ry: 0.05, m: 'concrete', name: 'Hospital' },
+  { cat: 'building', kind: 'policestation', w: 16, h: 7, d: 12, ry: 0,    m: 'concrete', name: 'Police Station' },
+  { cat: 'building', kind: 'nightclub',   w: 18, h: 8,  d: 16, ry: 0,    m: 'brick',    name: 'Nightclub' },
+  { cat: 'building', kind: 'townhouse',   w: 8,  h: 6,  d: 8,  ry: 0.1,  m: 'brick',    name: 'Townhouse' },
+  { cat: 'building', kind: 'box',         w: 10, h: 5,  d: 10, ry: 0.2,  m: 'concrete', name: 'Box', roof: true, windows: true },
+  { cat: 'building', kind: 'warehouse',   w: 22, h: 8,  d: 16, ry: 0.05, m: 'metal',    name: 'Warehouse' },
+  { cat: 'building', kind: 'mall',        w: 24, h: 8,  d: 18, ry: 0.05, m: 'concrete', name: 'Mall' },
+  { cat: 'building', kind: 'stadium',     w: 30, h: 10, d: 30, ry: 0,    m: 'concrete', name: 'Stadium' },
+  { cat: 'building', kind: 'mosque',      w: 16, h: 8,  d: 14, ry: 0,    m: 'concrete', name: 'Mosque' },
+
+  // ===== PROPS =====
+  { cat: 'prop', kind: 'crate',       name: 'Crate' },
+  { cat: 'prop', kind: 'barrels',     name: 'Barrels' },
+  { cat: 'prop', kind: 'barrel',      name: 'Barrel' },
+  { cat: 'prop', kind: 'lamp',        name: 'Lamp' },
+  { cat: 'prop', kind: 'hydrant',     name: 'Hydrant' },
+  { cat: 'prop', kind: 'dumpster',    name: 'Dumpster' },
+  { cat: 'prop', kind: 'trashcan',    name: 'Trash Can' },
+  { cat: 'prop', kind: 'mailbox',     name: 'Mailbox' },
+  { cat: 'prop', kind: 'busstop',     name: 'Bus Stop' },
+  { cat: 'prop', kind: 'trafficlight',name: 'Traffic Light' },
+  { cat: 'prop', kind: 'pole',        name: 'Pole' },
+  { cat: 'prop', kind: 'planter',     name: 'Planter' },
+  { cat: 'prop', kind: 'bollard',     name: 'Bollard' },
+  { cat: 'prop', kind: 'billboard',   name: 'Billboard' },
+  { cat: 'prop', kind: 'bench',       name: 'Bench' },
+
+  // ===== LANDMARKS =====
+  { cat: 'landmark', kind: 'transit',     name: 'Transit Hub' },
+  { cat: 'landmark', kind: 'fuel',        name: 'Fuel Tank', r: 3, h: 7 },
+  { cat: 'landmark', kind: 'port',        name: 'Port' },
+  { cat: 'landmark', kind: 'trainstation',name: 'Train Station' },
+  { cat: 'landmark', kind: 'warehouse',   name: 'Warehouse', w: 26, d: 16, h: 8 },
+  { cat: 'landmark', kind: 'mall',        name: 'Mall', w: 30, d: 16, h: 8 },
+  { cat: 'landmark', kind: 'stadium',     name: 'Stadium' },
+  { cat: 'landmark', kind: 'mosque',      name: 'Mosque', w: 14, d: 12 },
+  { cat: 'landmark', kind: 'policestation', name: 'Police Station', w: 16, d: 12, h: 7 },
+  { cat: 'landmark', kind: 'nightclub',   name: 'Nightclub', w: 18, d: 16, h: 8 },
+
+  // ===== NATURE =====
+  { cat: 'nature', kind: 'tree', name: 'Tree', s: 1 },
+];
+
+const COLS = 7, SPACING_X = 36, SPACING_Z = 48;
+
+// Layout: 7 columns, rows advance per section with a gap row between sections.
+function computeLayout() {
+  let row = 0, col = 0, lastCat = null;
+  const sectionStarts = [];
+  for (const a of ASSETS) {
+    if (a.cat !== lastCat) {
+      if (lastCat !== null) { row++; col = 0; }
+      lastCat = a.cat;
+      sectionStarts.push({ cat: a.cat, row });
+    }
+    a._row = row; a._col = col;
+    col++;
+    if (col === COLS) { col = 0; row++; }
+  }
+  const totalRows = row + (col > 0 ? 1 : 0);
+  return { sectionStarts, totalRows };
+}
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x2a2d2a);
+scene.fog = new THREE.FogExp2(0x2a2d2a, 0.0012);
+
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.5, 1500);
+camera.position.set(0, 160, 330);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.AmbientLight(0x667788, 0.6));
+const sun = new THREE.DirectionalLight(0xffeedd, 1.2);
+sun.position.set(50, 80, 40); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -400; sun.shadow.camera.right = 400;
+sun.shadow.camera.top = 400; sun.shadow.camera.bottom = -400;
+scene.add(sun);
+scene.add(new THREE.HemisphereLight(0x88aacc, 0x445544, 0.4));
+
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(1400, 1400),
+  new THREE.MeshStandardMaterial({ color: 0x3a3d2a, roughness: 1 })
+);
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
+scene.add(ground);
+scene.add(new THREE.GridHelper(1400, 140, 0x444444, 0x333333).translateY(0.01));
+
+// Orbit state
+let dragging = false, prevX = 0, prevY = 0, movedDuringDrag = false;
+let orbitTheta = -0.3, orbitPhi = 0.9, orbitDist = 340;
+let orbitTarget = new THREE.Vector3(0, 0, 0);
+let currentFocus = -1;
+
+function updateOrbit() {
+  camera.position.set(
+    orbitTarget.x + orbitDist * Math.sin(orbitTheta) * Math.cos(orbitPhi),
+    orbitTarget.y + orbitDist * Math.sin(orbitPhi),
+    orbitTarget.z + orbitDist * Math.cos(orbitTheta) * Math.cos(orbitPhi)
+  );
+  camera.lookAt(orbitTarget);
+}
+
+function makeLabel(name) {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 64;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = 'rgba(14,18,15,0.85)';
+  ctx.fillRect(0, 0, 512, 64);
+  ctx.strokeStyle = '#c9a227'; ctx.lineWidth = 2;
+  ctx.strokeRect(1, 1, 510, 62);
+  ctx.font = 'bold 26px "Segoe UI", Arial, sans-serif';
+  ctx.fillStyle = '#c9a227'; ctx.textAlign = 'center';
+  ctx.fillText(name, 256, 42);
+  const tex = new THREE.CanvasTexture(c);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+  s.scale.set(14, 1.8, 1);
+  return s;
+}
+
+function makeSectionHeader(name) {
+  const c = document.createElement('canvas');
+  c.width = 1024; c.height = 96;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = 'rgba(201,162,39,0.12)';
+  ctx.fillRect(0, 0, 1024, 96);
+  ctx.strokeStyle = '#c9a227'; ctx.lineWidth = 3;
+  ctx.strokeRect(2, 2, 1020, 92);
+  ctx.font = 'bold 44px "Segoe UI", Arial, sans-serif';
+  ctx.fillStyle = '#c9a227'; ctx.textAlign = 'center';
+  ctx.fillText(name, 512, 62);
+  const tex = new THREE.CanvasTexture(c);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+  s.scale.set(36, 3.4, 1);
+  return s;
+}
+
+function buildAsset(world, a, x, z) {
+  switch (a.cat) {
+    case 'building':
+      world._authoredBuilding({
+        kind: a.kind, x: x, z: z, w: a.w, h: a.h, d: a.d,
+        ry: a.ry || 0, m: a.m, solid: false,
+        roof: a.roof, windows: a.windows, seed: (a._seed || 1)
+      });
+      break;
+    case 'prop':
+      world._authoredProp({ kind: a.kind, x: x, z: z, ry: a.ry || 0 });
+      break;
+    case 'landmark':
+      world._authoredLandmark({
+        kind: a.kind, x: x, z: z, ry: a.ry || 0, solid: false,
+        w: a.w, d: a.d, h: a.h, r: a.r, n: a.n
+      });
+      break;
+    case 'nature':
+      if (a.kind === 'tree') world.tree(x, z, a.s || 1, false);
+      break;
+  }
+}
+
+async function init() {
+  installAssets(World);
+  // Build world with empty sceneData — avoids procedural city generation
+  const world = new World(scene, 'high', {});
+  // _flushGeometry was called during construction and nulled the batches — re-init
+  world._boxBatch = [];
+  world._planeBatch = [];
+  world._triBatch = [];
+  world._trimBatch = [];
+  world._branches = [];
+  world._leaves = [];
+
+  const { sectionStarts, totalRows } = computeLayout();
+  const midCol = (COLS - 1) / 2;
+  const focusTargets = [];
+  let built = 0;
+
+  for (let i = 0; i < ASSETS.length; i++) {
+    const a = ASSETS[i];
+    a._seed = i * 7 + 1;
+    const bx = (a._col - midCol) * SPACING_X;
+    const bz = (a._row - (totalRows - 1) / 2) * SPACING_Z;
+
+    try {
+      buildAsset(world, a, bx, bz);
+      built++;
+    } catch (e) {
+      console.warn('Failed to build', a.kind, e);
+      const errBox = new THREE.Mesh(
+        new THREE.BoxGeometry(4, 2, 4),
+        new THREE.MeshStandardMaterial({ color: 0xff0000, wireframe: true })
+      );
+      errBox.position.set(bx, 1, bz);
+      scene.add(errBox);
+    }
+
+    const h = a.h || 5;
+    const label = makeLabel(a.name);
+    label.position.set(bx, h + 3, bz);
+    scene.add(label);
+    focusTargets.push({ x: bx, z: bz, h: h, name: a.name, index: i, label });
+
+    // Yield to browser every 5 assets to prevent UI freeze
+    if (i % 5 === 4) await new Promise(r => setTimeout(r, 0));
+  }
+
+  // Section headers
+  for (const s of sectionStarts) {
+    const header = makeSectionHeader(SECTIONS[s.cat]);
+    header.position.set(0, 22, (s.row - (totalRows - 1) / 2) * SPACING_Z - 22);
+    scene.add(header);
+  }
+
+  // Flush all batched boxes/planes into InstancedMesh objects
+  world._flushGeometry();
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('hud').style.display = '';
+  document.getElementById('info').style.display = '';
+  document.getElementById('nav').style.display = '';
+
+  function findClosestToCamera() {
+    let best = -1, bestD = Infinity;
+    for (let i = 0; i < focusTargets.length; i++) {
+      const d = camera.position.distanceTo(new THREE.Vector3(focusTargets[i].x, focusTargets[i].h / 2, focusTargets[i].z));
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    return best;
+  }
+
+  window.focusNext = () => {
+    if (!focusTargets.length) return;
+    if (currentFocus < 0) currentFocus = findClosestToCamera();
+    currentFocus = (currentFocus + 1) % focusTargets.length;
+    focusCamera(currentFocus);
+  };
+  window.focusPrev = () => {
+    if (!focusTargets.length) return;
+    if (currentFocus < 0) currentFocus = findClosestToCamera();
+    currentFocus = (currentFocus - 1 + focusTargets.length) % focusTargets.length;
+    focusCamera(currentFocus);
+  };
+  window.resetCamera = () => {
+    currentFocus = -1;
+    orbitTarget.set(0, 0, 0);
+    orbitDist = 340; orbitTheta = -0.3; orbitPhi = 0.9;
+    updateOrbit();
+    document.getElementById('info').innerHTML = `<b>${built}/${ASSETS.length} assets loaded</b> — <b>&larr; &rarr;</b> browse`;
+  };
+
+  function focusCamera(idx) {
+    const t = focusTargets[idx];
+    if (!t) return;
+    orbitTarget.set(t.x, t.h / 2, t.z);
+    orbitDist = Math.max(t.h, 10) * 2.5;
+    updateOrbit();
+    document.getElementById('info').innerHTML =
+      `<b>${t.name}</b> [${t.index + 1}/${ASSETS.length}] — <b>&larr; &rarr;</b> browse`;
+  }
+
+  renderer.domElement.addEventListener('mousedown', (e) => {
+    dragging = true; movedDuringDrag = false;
+    prevX = e.clientX; prevY = e.clientY;
+  });
+  addEventListener('mouseup', () => dragging = false);
+  renderer.domElement.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    movedDuringDrag = true;
+    orbitTheta += (e.clientX - prevX) * 0.005;
+    orbitPhi = Math.max(0.1, Math.min(Math.PI / 2 - 0.05, orbitPhi + (e.clientY - prevY) * 0.005));
+    prevX = e.clientX; prevY = e.clientY;
+    currentFocus = -1;
+    updateOrbit();
+  });
+  renderer.domElement.addEventListener('wheel', (e) => {
+    orbitDist = Math.max(5, Math.min(900, orbitDist + e.deltaY * 0.05));
+    currentFocus = -1;
+    updateOrbit();
+  }, { passive: true });
+
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+  renderer.domElement.addEventListener('click', (e) => {
+    // Don't treat a finished orbit-drag as a click — that snapped the camera
+    // back onto the nearest asset while the user was trying to rotate the view.
+    if (movedDuringDrag) return;
+    mouse.x = (e.clientX / innerWidth) * 2 - 1;
+    mouse.y = -(e.clientY / innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObjects(scene.children, true);
+    if (hits.length) {
+      const p = hits[0].point;
+      let closest = -1, minD = Infinity;
+      for (let i = 0; i < focusTargets.length; i++) {
+        const d = Math.hypot(p.x - focusTargets[i].x, p.z - focusTargets[i].z);
+        if (d < minD) { minD = d; closest = i; }
+      }
+      if (closest >= 0) { currentFocus = closest; focusCamera(closest); }
+    }
+  });
+
+  addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight') focusNext();
+    else if (e.key === 'ArrowLeft') focusPrev();
+    else if (e.key === 'r' || e.key === 'R') resetCamera();
+    else if (e.key >= '1' && e.key <= '9') {
+      const idx = parseInt(e.key) - 1;
+      if (idx < focusTargets.length) { currentFocus = idx; focusCamera(idx); }
+    }
+  });
+
+  updateOrbit();
+  document.getElementById('info').innerHTML = `<b>${built}/${ASSETS.length} assets loaded</b> — <b>&larr; &rarr;</b> browse`;
+
+  function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+  }
+  animate();
+}
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+init().catch(e => {
+  console.error('Asset viewer init failed:', e);
+  document.getElementById('loading').innerHTML =
+    `<span style="color:#c0392b">Error: ${e.message}</span><br><small>${e.stack || ''}</small>`;
+});
+</script>
+</body>
+</html>

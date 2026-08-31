@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Full 3D Multi-View Model Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;background:#08080c;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  #app{display:flex;width:100%;height:100%;position:relative}
+
+  ::-webkit-scrollbar{width:5px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:99px}
+
+  #panel{
+    width:380px;min-width:380px;
+    background:rgba(14,14,18,.94);
+    backdrop-filter:blur(30px) saturate(150%);
+    border-right:1px solid rgba(255,255,255,.06);
+    display:flex;flex-direction:column;color:#d0d0d8;z-index:10;
+    overflow-y:auto;
+  }
+  .panel-header{
+    padding:22px 22px 0;
+    background:linear-gradient(180deg,rgba(100,120,255,.06) 0%,transparent 100%);
+  }
+  .title{font-size:18px;font-weight:900;color:#fff;letter-spacing:-0.03em;display:flex;align-items:center;gap:8px}
+  .title-icon{width:28px;height:28px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px}
+  .sub{font-size:11.5px;color:#6a6a78;margin:4px 0 18px;line-height:1.4}
+  .panel-body{padding:0 22px 22px;flex:1}
+
+  .section{margin-bottom:16px}
+  .section-label{
+    font-size:9.5px;text-transform:uppercase;letter-spacing:0.14em;
+    color:#55556a;font-weight:700;margin-bottom:10px;
+    display:flex;align-items:center;gap:6px;
+  }
+  .section-label::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.06)}
+
+  .views-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px}
+  .view-slot{
+    background:rgba(255,255,255,.025);
+    border:1.5px dashed rgba(120,140,255,.25);
+    border-radius:12px;padding:10px 8px;text-align:center;
+    cursor:pointer;transition:all .2s ease;position:relative;
+    overflow:hidden;min-height:100px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+  }
+  .view-slot:hover{border-color:rgba(120,140,255,.6);background:rgba(120,140,255,.06);transform:translateY(-1px)}
+  .view-slot.has-image{border-style:solid;border-color:rgba(120,255,160,.35);background:rgba(120,255,160,.04)}
+  .view-slot.has-image:hover{border-color:rgba(120,255,160,.6)}
+  .view-slot .slot-icon{font-size:20px;margin-bottom:4px;opacity:.6}
+  .view-slot .slot-label{font-size:10.5px;font-weight:700;color:#b0b0c0;letter-spacing:.03em}
+  .view-slot .slot-hint{font-size:9px;color:#55556a;margin-top:2px}
+  .view-slot .slot-preview{position:absolute;inset:0;object-fit:cover;width:100%;height:100%;border-radius:10px;opacity:.4}
+  .view-slot .slot-check{
+    position:absolute;top:6px;right:6px;width:18px;height:18px;border-radius:50%;
+    background:rgba(80,220,130,.9);display:none;align-items:center;justify-content:center;
+    font-size:10px;color:#fff;font-weight:900;
+  }
+  .view-slot.has-image .slot-check{display:flex}
+  .view-slot input{display:none}
+
+  .ctrl-group{margin-top:4px}
+  .label-row{display:flex;justify-content:space-between;font-size:11px;color:#8a8a9a;margin-bottom:4px}
+  .label-row b{color:#c8c8d4;font-weight:600}
+  input[type=range]{
+    width:100%;height:4px;margin-bottom:12px;
+    -webkit-appearance:none;appearance:none;
+    background:rgba(255,255,255,.08);border-radius:99px;outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;
+    width:14px;height:14px;border-radius:50%;
+    background:linear-gradient(135deg,#667eea,#764ba2);
+    cursor:pointer;border:2px solid rgba(255,255,255,.2);
+    box-shadow:0 2px 8px rgba(102,126,234,.4);
+  }
+
+  .btn{
+    background:linear-gradient(135deg,#667eea,#764ba2);
+    color:#fff;border:none;padding:12px 16px;font-size:12px;font-weight:700;
+    border-radius:10px;cursor:pointer;width:100%;margin-top:8px;
+    transition:all .2s;font-family:inherit;text-align:center;
+    box-shadow:0 4px 15px rgba(102,126,234,.25);letter-spacing:.02em;
+  }
+  .btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(102,126,234,.4)}
+  .btn:active{transform:translateY(0)}
+  .btn.secondary{background:rgba(255,255,255,.06);color:#c0c0cc;border:1px solid rgba(255,255,255,.1);box-shadow:none}
+  .btn.secondary:hover{background:rgba(255,255,255,.1);color:#fff}
+  .btn.danger{background:rgba(200,60,60,.15);color:#ff8888;border:1px solid rgba(200,60,60,.2);box-shadow:none}
+  .btn.danger:hover{background:rgba(200,60,60,.25)}
+
+  .stats{
+    margin-top:auto;font-size:11px;color:#55556a;
+    display:flex;flex-direction:column;gap:5px;
+    border-top:1px solid rgba(255,255,255,.06);padding:16px 22px;
+  }
+  .stats div{display:flex;justify-content:space-between}
+  .stats b{color:#a0a0b0;font-weight:600}
+
+  #viewport{flex:1;position:relative;background:#08080c;z-index:1}
+  #viewport canvas{display:block;width:100%;height:100%}
+
+  #toast{
+    position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(10px);
+    background:rgba(20,20,28,.92);backdrop-filter:blur(20px);
+    border:1px solid rgba(255,255,255,.1);padding:10px 24px;border-radius:12px;
+    font-size:12px;color:#e0e0ea;pointer-events:none;opacity:0;
+    transition:all .3s ease;z-index:30;box-shadow:0 8px 32px rgba(0,0,0,.4);
+  }
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  #loading{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    color:#8a8a9a;font:12px/1 'Inter',sans-serif;
+    display:none;align-items:center;gap:10px;
+    background:rgba(14,14,18,.9);padding:12px 24px;
+    border-radius:12px;border:1px solid rgba(255,255,255,.08);
+    box-shadow:0 8px 32px rgba(0,0,0,.5);
+  }
+  .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.1);border-top-color:#667eea;border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .watermark{position:absolute;bottom:16px;right:20px;font-size:10px;color:rgba(255,255,255,.08);letter-spacing:.1em;text-transform:uppercase;font-weight:700;pointer-events:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="panel">
+    <div class="panel-header">
+      <div class="title"><div class="title-icon">◆</div>Multi-View 3D Engine</div>
+      <div class="sub">Upload 4 side images. The engine carves a volumetric 3D mesh, displaces high-frequency surface details, and projects multi-view textures into a full 3D model.</div>
+    </div>
+    <div class="panel-body">
+      <div class="section">
+        <div class="section-label">Upload Model Views</div>
+        <div class="views-grid">
+          <div class="view-slot" data-face="front" id="slot-front">
+            <div class="slot-icon">⬆</div><div class="slot-label">Front</div><div class="slot-hint">Front view</div><div class="slot-check">✓</div><input type="file" accept="image/*">
+          </div>
+          <div class="view-slot" data-face="back" id="slot-back">
+            <div class="slot-icon">⬇</div><div class="slot-label">Back</div><div class="slot-hint">Rear view</div><div class="slot-check">✓</div><input type="file" accept="image/*">
+          </div>
+          <div class="view-slot" data-face="left" id="slot-left">
+            <div class="slot-icon">⬅</div><div class="slot-label">Left</div><div class="slot-hint">Left side view</div><div class="slot-check">✓</div><input type="file" accept="image/*">
+          </div>
+          <div class="view-slot" data-face="right" id="slot-right">
+            <div class="slot-icon">➡</div><div class="slot-label">Right</div><div class="slot-hint">Right side view</div><div class="slot-check">✓</div><input type="file" accept="image/*">
+          </div>
+        </div>
+        <button class="btn danger" id="clear-btn" style="margin-top:4px;font-size:10px;padding:7px 10px">Clear All Views</button>
+      </div>
+
+      <div class="section">
+        <div class="section-label">Mesh Quality</div>
+        <div class="ctrl-group">
+          <div class="label-row"><span>Grid Subdivisions</span><b id="grid-label">90³</b></div>
+          <input type="range" id="grid-res" min="40" max="140" value="90" step="5">
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">3D Shape & Surface Details</div>
+        <div class="ctrl-group">
+          <div class="label-row"><span>Depth / Thickness Scale</span><b id="depth-label">1.00</b></div>
+          <input type="range" id="depth" min="0.2" max="2.0" value="1.0" step="0.05">
+
+          <div class="label-row"><span>Surface Relief Bump</span><b id="bump-label">0.08</b></div>
+          <input type="range" id="bump-scale" min="0.00" max="0.25" value="0.08" step="0.01">
+
+          <div class="label-row"><span>Corner Fillet (Smooth K)</span><b id="smooth-k-label">0.05</b></div>
+          <input type="range" id="smooth-k" min="0.00" max="0.20" value="0.05" step="0.01">
+
+          <div class="label-row"><span>Silhouette Threshold</span><b id="thresh-label">30</b></div>
+          <input type="range" id="threshold" min="5" max="220" value="30" step="5">
+        </div>
+      </div>
+
+      <button class="btn" id="generate-btn">⬡ Reconstruct 3D Model</button>
+      <button class="btn secondary" id="export-gltf">Export .glb Model</button>
+      <button class="btn secondary" id="export-obj">Export .obj Model</button>
+    </div>
+    <div class="stats">
+      <div>Vertices <b id="stat-verts">0</b></div>
+      <div>Triangles <b id="stat-tris">0</b></div>
+      <div>Bake Time <b id="stat-time">—</b></div>
+      <div>Views Loaded <b id="stat-views">0 / 4</b></div>
+    </div>
+  </div>
+
+  <div id="viewport">
+    <div id="loading"><span class="spinner"></span>Building 3D model &amp; projecting textures…</div>
+    <div class="watermark">FULL 3D MULTI-VIEW ENGINE</div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MARCHING CUBES (Paul Bourke layout)
+// ═══════════════════════════════════════════════════════════════════
+const edgeTable = new Uint16Array([
+0x0,0x109,0x203,0x30a,0x406,0x50f,0x605,0x70c,0x80c,0x905,0xa0f,0xb06,0xc0a,0xd03,0xe09,0xf00,
+0x190,0x99,0x393,0x29a,0x596,0x49f,0x795,0x69c,0x99c,0x895,0xb9f,0xa96,0xd9a,0xc93,0xf99,0xe90,
+0x230,0x339,0x33,0x13a,0x636,0x73f,0x435,0x53c,0xa3c,0xb35,0x83f,0x936,0xe3a,0xf33,0xc39,0xd30,
+0x3a0,0x2a9,0x1a3,0xaa,0x7a6,0x6af,0x5a5,0x4ac,0xbac,0xaa5,0x9af,0x8a6,0xfaa,0xea3,0xda9,0xca0,
+0x460,0x569,0x663,0x76a,0x66,0x16f,0x265,0x36c,0xc6c,0xd65,0xe6f,0xf66,0x86a,0x963,0xa69,0xb60,
+0x5f0,0x4f9,0x7f3,0x6fa,0x1f6,0xff,0x3f5,0x2fc,0xdfc,0xcf5,0xfff,0xef6,0x9fa,0x8f3,0xbf9,0xaf0,
+0x650,0x759,0x453,0x55a,0x256,0x35f,0x55,0x15c,0xe5c,0xf55,0xc5f,0xd56,0xa5a,0xb53,0x859,0x950,
+0x7c0,0x6c9,0x5c3,0x4ca,0x3c6,0x2cf,0x1c5,0xcc,0xfcc,0xec5,0xdcf,0xcc6,0xbca,0xac3,0x9c9,0x8c0,
+0x8c0,0x9c9,0xac3,0xbca,0xcc6,0xdcf,0xec5,0xfcc,0xcc,0x1c5,0x2cf,0x3c6,0x4ca,0x5c3,0x6c9,0x7c0,
+0x950,0x859,0xb53,0xa5a,0xd56,0xc5f,0xf55,0xe5c,0x15c,0x55,0x35f,0x256,0x55a,0x453,0x759,0x650,
+0xaf0,0xbf9,0x8f3,0x9fa,0xef6,0xfff,0xcf5,0xdfc,0x2fc,0x3f5,0xff,0x1f6,0x6fa,0x7f3,0x4f9,0x5f0,
+0xb60,0xa69,0x963,0x86a,0xf66,0xe6f,0xd65,0xc6c,0x36c,0x265,0x16f,0x66,0x76a,0x663,0x569,0x460,
+0xca0,0xda9,0xea3,0xfaa,0x8a6,0x9af,0xaa5,0xbac,0x4ac,0x5a5,0x6af,0x7a6,0xaa,0x1a3,0x2a9,0x3a0,
+0xd30,0xc39,0xf33,0xe3a,0x936,0x83f,0xb35,0xa3c,0x53c,0x435,0x73f,0x636,0x13a,0x33,0x339,0x230,
+0xe90,0xf99,0xc93,0xd9a,0xa96,0xb9f,0x895,0x99c,0x69c,0x795,0x49f,0x596,0x29a,0x393,0x99,0x190,
+0xf00,0xe09,0xd03,0xc0a,0xb06,0xa0f,0x905,0x80c,0x70c,0x605,0x50f,0x406,0x30a,0x203,0x109,0x0
+]);
+const triTable = new Int8Array([
+-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0,8,3,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0,1,9,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 1,8,3,9,8,1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+1,2,10,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0,8,3,1,2,10,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 9,2,10,0,2,9,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 2,8,3,2,10,8,10,9,8,-1,-1,-1,-1,-1,-1,-1,
+3,11,2,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0,11,2,8,11,0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 1,9,0,2,3,11,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 1,11,2,1,9,11,9,8,11,-1,-1,-1,-1,-1,-1,-1,
+3,10,1,11,10,3,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0,10,1,0,8,10,8,11,10,-1,-1,-1,-1,-1,-1,-1, 3,9,0,3,11,9,11,10,9,-1,-1,-1,-1,-1,-1,-1, 9,8,10,10,8,11,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+4,7,8,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 4,3,0,7,3,4,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0,1,9,8,4,7,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 4,1,9,4,7,1,7,3,1,-1,-1,-1,-1,-1,-1,-1,
+1,2,10,8,4,7,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 3,4,7,3,0,4,1,2,10,-1,-1,-1,-1,-1,-1,-1, 9,2,10,9,0,2,8,4,7,-1,-1,-1,-1,-1,-1,-1, 2,10,9,2,9,7,2,7,3,7,9,4,-1,-1,-1,-1,
+8,4,7,3,11,2,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 11,4,7,11,2,4,2,0,4,-1,-1,-1,-1,-1,-1,-1, 9,0,1,8,4,7,2,3,11,-1,-1,-1,-1,-1,-1,-1, 4,7,11,9,4,11,9,11,2,9,2,1,-1,-1,-1,-1,
+3,10,1,3,11,10,7,8,4,-1,-1,-1,-1,-1,-1,-1, 1,11,10,1,4,11,1,0,4,7,11,4,-1,-1,-1,-1, 4,7,8,9,0,11,9,11,10,11,0,3,-1,-1,-1,-1, 4,7,11,4,11,9,9,11,10,-1,-1,-1,-1,-1,-1,-1,
+9,5,4,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 9,5,4,0,8,3,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0,5,4,1,5,0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 8,5,4,8,3,5,3,1,5,-1,-1,-1,-1,-1,-1,-1,
+1,2,10,9,5,4,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 3,0,8,1,2,10,4,9,5,-1,-1,-1,-1,-1,-1,-1, 5,2,10,5,4,2,4,0,2,-1,-1,-1,-1,-1,-1,-1, 2,10,5,3,2,5,3,5,4,3,4,8,-1,-1,-1,-1,
+9,5,4,2,3,11,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0,11,2,0,8,11,4,9,5,-1,-1,-1,-1,-1,-1,-1, 0,5,4,0,1,5,2,3,11,-1,-1,-1,-1,-1,-1,-1, 2,1,5,2,5,8,2,8,11,4,8,5,-1,-1,-1,-1,
+10,3,11,10,1,3,9,5,4,-1,-1,-1,-1,-1,-1,-1, 4,9,5,0,8,1,8,10,1,8,11,10,-1,-1,-1,-1, 5,4,0,5,0,11,5,11,10,11,0,3,-1,-1,-1,-1, 5,4,8,5,8,10,10,8,11,-1,-1,-1,-1,-1,-1,-1,
+9,7,8,5,7,9,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 9,3,0,9,5,3,5,7,3,-1,-1,-1,-1,-1,-1,-1, 0,7,8,0,1,7,1,5,7,-1,-1,-1,-1,-1,-1,-1, 1,5,3,3,5,7,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+9,7,8,9,5,7,10,1,2,-1,-1,-1,-1,-1,-1,-1, 10,1,2,9,5,0,5,3,0,5,7,3,-1,-1,-1,-1, 8,0,2,8,2,5,8,5,7,10,5,2,-1,-1,-1,-1, 2,10,5,2,5,3,3,5,7,-1,-1,-1,-1,-1,-1,-1,
+7,9,5,7,8,9,3,11,2,-1,-1,-1,-1,-1,-1,-1, 9,5,7,9,7,2,9,2,0,2,7,11,-1,-1,-1,-1, 2,3,11,0,1,8,1,7,8,1,5,7,-1,-1,-1,-1, 11,2,1,11,1,7,7,1,5,-1,-1,-1,-1,-1,-1,-1,
+3,7,5,3,5,1,1,5,6,-1,-1,-1,-1,-1,-1,-1, 8,11,6,8,6,0,0,6,1,1,6,5,-1,-1,-1,-1, 0,1,9,3,7,5,3,5,6,5,7,4,-1,-1,-1,-1, 9,8,1,8,3,1,4,8,9,4,9,5,6,5,9,7
+]);
+const edgeCorners = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+
+function interpEdge(p1, v1, p2, v2, iso) {
+  const denom = v2 - v1;
+  if (Math.abs(denom) < 1e-12) return [(p1[0]+p2[0])*0.5,(p1[1]+p2[1])*0.5,(p1[2]+p2[2])*0.5];
+  const t = (iso - v1) / denom;
+  return [p1[0]+t*(p2[0]-p1[0]), p1[1]+t*(p2[1]-p1[1]), p1[2]+t*(p2[2]-p1[2])];
+}
+
+function marchingCubes(field, resX, resY, resZ, boundsMin, boundsMax, isoLevel) {
+  const verts = [], cells = [];
+  const stepX = (boundsMax[0]-boundsMin[0]) / resX;
+  const stepY = (boundsMax[1]-boundsMin[1]) / resY;
+  const stepZ = (boundsMax[2]-boundsMin[2]) / resZ;
+
+  const sx = resX + 1;
+  const sy = resY + 1;
+  function getVal(i, j, k) { return field[k * sy * sx + j * sx + i]; }
+
+  for (let k = 0; k < resZ; k++)
+  for (let j = 0; j < resY; j++)
+  for (let i = 0; i < resX; i++) {
+    const cv = [
+      getVal(i,   j,   k),
+      getVal(i+1, j,   k),
+      getVal(i+1, j+1, k),
+      getVal(i,   j+1, k),
+      getVal(i,   j,   k+1),
+      getVal(i+1, j,   k+1),
+      getVal(i+1, j+1, k+1),
+      getVal(i,   j+1, k+1)
+    ];
+
+    let cubeIndex = 0;
+    for (let c = 0; c < 8; c++) if (cv[c] < isoLevel) cubeIndex |= (1<<c);
+    if (cubeIndex === 0 || cubeIndex === 255) continue;
+    const edgeMask = edgeTable[cubeIndex];
+    if (!edgeMask) continue;
+
+    const corners = [
+      [boundsMin[0]+i*stepX,     boundsMin[1]+j*stepY,     boundsMin[2]+k*stepZ],
+      [boundsMin[0]+(i+1)*stepX, boundsMin[1]+j*stepY,     boundsMin[2]+k*stepZ],
+      [boundsMin[0]+(i+1)*stepX, boundsMin[1]+(j+1)*stepY, boundsMin[2]+k*stepZ],
+      [boundsMin[0]+i*stepX,     boundsMin[1]+(j+1)*stepY, boundsMin[2]+k*stepZ],
+      [boundsMin[0]+i*stepX,     boundsMin[1]+j*stepY,     boundsMin[2]+(k+1)*stepZ],
+      [boundsMin[0]+(i+1)*stepX, boundsMin[1]+j*stepY,     boundsMin[2]+(k+1)*stepZ],
+      [boundsMin[0]+(i+1)*stepX, boundsMin[1]+(j+1)*stepY, boundsMin[2]+(k+1)*stepZ],
+      [boundsMin[0]+i*stepX,     boundsMin[1]+(j+1)*stepY, boundsMin[2]+(k+1)*stepZ],
+    ];
+
+    const eVertIndices = {};
+    for (let e = 0; e < 12; e++) {
+      if (edgeMask & (1<<e)) {
+        const c0 = edgeCorners[e][0], c1 = edgeCorners[e][1];
+        const pos = interpEdge(corners[c0], cv[c0], corners[c1], cv[c1], isoLevel);
+        eVertIndices[e] = verts.length/3;
+        verts.push(pos[0],pos[1],pos[2]);
+      }
+    }
+    let triIdx = cubeIndex * 16;
+    for (let t = 0; t < 16; t += 3) {
+      const a = triTable[triIdx+t], b = triTable[triIdx+t+1], c = triTable[triIdx+t+2];
+      if (a<0||b<0||c<0) break;
+      const va=eVertIndices[a], vb=eVertIndices[b], vc=eVertIndices[c];
+      if (va!==undefined && vb!==undefined && vc!==undefined) cells.push(va,vb,vc);
+    }
+  }
+  return { positions: new Float32Array(verts), indices: cells };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FAST 2D EUCLIDEAN DISTANCE TRANSFORM & SAMPLER
+// ═══════════════════════════════════════════════════════════════════
+function edt1D(f, n) {
+  const d = new Float32Array(n);
+  const v = new Int32Array(n);
+  const z = new Float32Array(n + 1);
+  let k = 0; v[0] = 0; z[0] = -1e20; z[1] = +1e20;
+
+  for (let q = 1; q < n; q++) {
+    let s = ((f[q] + q * q) - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
+    while (s <= z[k]) {
+      k--;
+      s = ((f[q] + q * q) - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
+    }
+    k++; v[k] = q; z[k] = s; z[k + 1] = +1e20;
+  }
+
+  k = 0;
+  for (let q = 0; q < n; q++) {
+    while (z[k + 1] < q) k++;
+    const dx = q - v[k];
+    d[q] = f[v[k]] + dx * dx;
+  }
+  return d;
+}
+
+function edt2D(grid, w, h, targetVal) {
+  const INF = 1e9;
+  const f = new Float32Array(Math.max(w, h));
+  const d2 = new Float32Array(w * h);
+
+  for (let x = 0; x < w; x++) {
+    for (let y = 0; y < h; y++) f[y] = (grid[y * w + x] === targetVal) ? 0 : INF;
+    const dCol = edt1D(f, h);
+    for (let y = 0; y < h; y++) d2[y * w + x] = dCol[y];
+  }
+
+  const dist = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) f[x] = d2[y * w + x];
+    const dRow = edt1D(f, w);
+    for (let x = 0; x < w; x++) dist[y * w + x] = Math.sqrt(dRow[x]);
+  }
+  return dist;
+}
+
+function compute2DViewData(img, targetW, targetH, threshold) {
+  const c = document.createElement('canvas');
+  c.width = targetW; c.height = targetH;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(img, 0, 0, targetW, targetH);
+  const imgData = ctx.getImageData(0, 0, targetW, targetH).data;
+
+  const grid = new Float32Array(targetW * targetH);
+  const colors = new Float32Array(targetW * targetH * 3);
+  const brightness = new Float32Array(targetW * targetH);
+
+  for (let i = 0; i < targetW * targetH; i++) {
+    const idx = i * 4;
+    const r = imgData[idx] / 255;
+    const g = imgData[idx+1] / 255;
+    const b = imgData[idx+2] / 255;
+    const a = imgData[idx+3];
+
+    colors[i*3]   = r;
+    colors[i*3+1] = g;
+    colors[i*3+2] = b;
+
+    let br = (r * 0.299 + g * 0.587 + b * 0.114);
+    brightness[i] = br;
+
+    let solid = (br * 255 >= threshold && a > 30);
+    grid[i] = solid ? 1 : 0;
+  }
+
+  const dOut = edt2D(grid, targetW, targetH, 1);
+  const dIn  = edt2D(grid, targetW, targetH, 0);
+
+  const sdf = new Float32Array(targetW * targetH);
+  const norm = Math.max(targetW, targetH);
+  for (let i = 0; i < targetW * targetH; i++) {
+    sdf[i] = grid[i] === 1 ? -dIn[i] / norm : dOut[i] / norm;
+  }
+
+  return { sdf, colors, brightness, width: targetW, height: targetH };
+}
+
+function sampleView(viewData, u, v) {
+  if (!viewData) return { d: 1.0, r: 0.2, g: 0.2, b: 0.2, br: 0.2 };
+  const w = viewData.width, h = viewData.height;
+  const su = Math.max(0, Math.min(1, u)) * (w - 1);
+  const sv = Math.max(0, Math.min(1, v)) * (h - 1);
+
+  const x0 = Math.floor(su), x1 = Math.min(x0 + 1, w - 1);
+  const y0 = Math.floor(sv), y1 = Math.min(y0 + 1, h - 1);
+  const tx = su - x0, ty = sv - y0;
+
+  const idx00 = y0 * w + x0, idx10 = y0 * w + x1;
+  const idx01 = y1 * w + x0, idx11 = y1 * w + x1;
+
+  // SDF distance
+  const d00 = viewData.sdf[idx00], d10 = viewData.sdf[idx10];
+  const d01 = viewData.sdf[idx01], d11 = viewData.sdf[idx11];
+  const d = (d00 * (1-tx) + d10 * tx) * (1-ty) + (d01 * (1-tx) + d11 * tx) * ty;
+
+  // Brightness
+  const br00 = viewData.brightness[idx00], br10 = viewData.brightness[idx10];
+  const br01 = viewData.brightness[idx01], br11 = viewData.brightness[idx11];
+  const br = (br00 * (1-tx) + br10 * tx) * (1-ty) + (br01 * (1-tx) + br11 * tx) * ty;
+
+  // Color RGB
+  const r00 = viewData.colors[idx00*3], r10 = viewData.colors[idx10*3];
+  const r01 = viewData.colors[idx01*3], r11 = viewData.colors[idx11*3];
+  const r = (r00 * (1-tx) + r10 * tx) * (1-ty) + (r01 * (1-tx) + r11 * tx) * ty;
+
+  const g00 = viewData.colors[idx00*3+1], g10 = viewData.colors[idx10*3+1];
+  const g01 = viewData.colors[idx01*3+1], g11 = viewData.colors[idx11*3+1];
+  const g = (g00 * (1-tx) + g10 * tx) * (1-ty) + (g01 * (1-tx) + g11 * tx) * ty;
+
+  const b00 = viewData.colors[idx00*3+2], b10 = viewData.colors[idx10*3+2];
+  const b01 = viewData.colors[idx01*3+2], b11 = viewData.colors[idx11*3+2];
+  const b = (b00 * (1-tx) + b10 * tx) * (1-ty) + (b01 * (1-tx) + b11 * tx) * ty;
+
+  return { d, r, g, b, br };
+}
+
+function smax(a, b, k) {
+  if (k <= 0) return Math.max(a, b);
+  const h = Math.max(0, Math.min(1, 0.5 + 0.5 * (a - b) / k));
+  return a * h + b * (1 - h) + k * h * (1 - h);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// THREE.JS SCENE SETUP
+// ═══════════════════════════════════════════════════════════════════
+const viewport = document.getElementById('viewport');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(viewport.clientWidth, viewport.clientHeight);
+renderer.setClearColor(0x08080c);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.3;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+viewport.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x08080c, 0.05);
+
+const cam = new THREE.PerspectiveCamera(38, viewport.clientWidth / viewport.clientHeight, 0.05, 50);
+cam.position.set(2.5, 1.5, 4.0);
+
+const controls = new OrbitControls(cam, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.07;
+
+// Lighting Rig
+scene.add(new THREE.AmbientLight(0x353545, 0.7));
+const key = new THREE.DirectionalLight(0xfff4e6, 3.2);
+key.position.set(6, 8, 6); scene.add(key);
+const fill = new THREE.DirectionalLight(0x8899cc, 1.2);
+fill.position.set(-5, 3, -4); scene.add(fill);
+const rim = new THREE.DirectionalLight(0xaa88ff, 0.8);
+rim.position.set(0, -3, -6); scene.add(rim);
+
+// Ground
+const gnd = new THREE.Mesh(new THREE.PlaneGeometry(40,40), new THREE.MeshStandardMaterial({color:0x0a0a12,roughness:0.95}));
+gnd.rotation.x = -Math.PI/2; gnd.position.y = -2; scene.add(gnd);
+
+// ═══════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════
+const faceImages = { front: null, back: null, left: null, right: null };
+let currentMesh = null;
+
+// ═══════════════════════════════════════════════════════════════════
+// DETAILED WEAPON CANVAS ART (FOR DEFAULT PREVIEW)
+// ═══════════════════════════════════════════════════════════════════
+function drawGunSide(ctx, w, h, mirrored) {
+  ctx.save();
+  if (mirrored) { ctx.translate(w, 0); ctx.scale(-1, 1); }
+  ctx.fillStyle = '#0a0a10';
+  ctx.fillRect(0, 0, w, h);
+
+  const cx = w*0.5, cy = h*0.48;
+
+  // Stock
+  const stockGrad = ctx.createLinearGradient(w*0.03, cy-h*0.06, w*0.03, cy+h*0.1);
+  stockGrad.addColorStop(0, '#5a5e68'); stockGrad.addColorStop(1, '#33363e');
+  ctx.fillStyle = stockGrad;
+  ctx.beginPath();
+  ctx.moveTo(w*0.03, cy - h*0.06); ctx.lineTo(w*0.20, cy - h*0.07);
+  ctx.lineTo(w*0.22, cy - h*0.06); ctx.lineTo(w*0.22, cy + h*0.06);
+  ctx.lineTo(w*0.20, cy + h*0.08); ctx.lineTo(w*0.06, cy + h*0.12);
+  ctx.lineTo(w*0.025, cy + h*0.10); ctx.closePath(); ctx.fill();
+
+  // Buffer Tube
+  ctx.fillStyle = '#444852'; ctx.fillRect(w*0.15, cy - h*0.04, w*0.08, h*0.05);
+
+  // Receiver Body
+  const recvGrad = ctx.createLinearGradient(w*0.20, cy-h*0.07, w*0.20, cy+h*0.07);
+  recvGrad.addColorStop(0, '#686d7a'); recvGrad.addColorStop(1, '#3e424c');
+  ctx.fillStyle = recvGrad;
+  ctx.beginPath();
+  ctx.moveTo(w*0.20, cy - h*0.07); ctx.lineTo(w*0.62, cy - h*0.08);
+  ctx.lineTo(w*0.62, cy + h*0.06); ctx.lineTo(w*0.20, cy + h*0.07);
+  ctx.closePath(); ctx.fill();
+
+  // Ejection Port
+  ctx.fillStyle = '#1c1e24'; ctx.fillRect(w*0.42, cy - h*0.03, w*0.08, h*0.04);
+
+  // Picatinny Rail
+  ctx.fillStyle = '#555964'; ctx.fillRect(w*0.22, cy - h*0.11, w*0.52, h*0.035);
+  ctx.fillStyle = '#2c2e36';
+  for(let i=0; i<20; i++) ctx.fillRect(w*0.23 + i*w*0.025, cy - h*0.105, w*0.008, h*0.025);
+
+  // Handguard
+  const hgGrad = ctx.createLinearGradient(w*0.55, cy-h*0.065, w*0.55, cy+h*0.055);
+  hgGrad.addColorStop(0, '#5e6372'); hgGrad.addColorStop(1, '#3a3d46');
+  ctx.fillStyle = hgGrad; ctx.fillRect(w*0.55, cy - h*0.065, w*0.23, h*0.12);
+  ctx.fillStyle = '#22252c';
+  for(let i=0; i<4; i++) ctx.fillRect(w*0.57 + i*w*0.05, cy - h*0.04, w*0.03, h*0.02);
+
+  // Barrel
+  const bGrad = ctx.createLinearGradient(w*0.62, cy-h*0.035, w*0.62, cy+h*0.005);
+  bGrad.addColorStop(0, '#757c8d'); bGrad.addColorStop(1, '#4a505c');
+  ctx.fillStyle = bGrad; ctx.fillRect(w*0.62, cy - h*0.035, w*0.29, h*0.04);
+
+  // Muzzle Device
+  ctx.fillStyle = '#5a5f6e'; ctx.fillRect(w*0.89, cy - h*0.045, w*0.075, h*0.055);
+  ctx.fillStyle = '#1c1e24';
+  for(let i=0; i<3; i++) ctx.fillRect(w*0.895 + i*w*0.022, cy - h*0.04, w*0.008, h*0.045);
+
+  // Scope
+  ctx.fillStyle = '#656b78';
+  ctx.fillRect(w*0.33, cy - h*0.16, w*0.18, h*0.05);
+  ctx.beginPath(); ctx.arc(w*0.515, cy - h*0.135, h*0.028, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(w*0.325, cy - h*0.135, h*0.022, 0, Math.PI*2); ctx.fill();
+
+  // Magazine
+  const magGrad = ctx.createLinearGradient(w*0.34, cy+h*0.065, w*0.34, cy+h*0.28);
+  magGrad.addColorStop(0, '#666a78'); magGrad.addColorStop(1, '#333640');
+  ctx.fillStyle = magGrad;
+  ctx.beginPath();
+  ctx.moveTo(w*0.34, cy + h*0.065); ctx.lineTo(w*0.41, cy + h*0.065);
+  ctx.lineTo(w*0.40, cy + h*0.28); ctx.lineTo(w*0.33, cy + h*0.28);
+  ctx.closePath(); ctx.fill();
+
+  // Trigger Guard & Trigger
+  ctx.strokeStyle = '#5a5f6c'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(w*0.30, cy + h*0.06);
+  ctx.quadraticCurveTo(w*0.28, cy + h*0.13, w*0.32, cy + h*0.13);
+  ctx.lineTo(w*0.41, cy + h*0.13);
+  ctx.quadraticCurveTo(w*0.43, cy + h*0.13, w*0.43, cy + h*0.06); ctx.stroke();
+  ctx.fillStyle = '#3a3d46';
+  ctx.beginPath(); ctx.moveTo(w*0.36, cy + h*0.065); ctx.lineTo(w*0.37, cy + h*0.065); ctx.lineTo(w*0.365, cy + h*0.10); ctx.fill();
+
+  // Pistol Grip
+  const gripGrad = ctx.createLinearGradient(w*0.24, cy+h*0.065, w*0.24, cy+h*0.25);
+  gripGrad.addColorStop(0, '#4e525e'); gripGrad.addColorStop(1, '#2c2f38');
+  ctx.fillStyle = gripGrad;
+  ctx.beginPath();
+  ctx.moveTo(w*0.24, cy + h*0.065); ctx.lineTo(w*0.30, cy + h*0.065);
+  ctx.quadraticCurveTo(w*0.31, cy + h*0.12, w*0.29, cy + h*0.22);
+  ctx.lineTo(w*0.28, cy + h*0.25); ctx.lineTo(w*0.235, cy + h*0.25);
+  ctx.lineTo(w*0.22, cy + h*0.22); ctx.quadraticCurveTo(w*0.21, cy + h*0.15, w*0.22, cy + h*0.08);
+  ctx.closePath(); ctx.fill();
+
+  ctx.restore();
+}
+
+function drawGunFrontBack(ctx, w, h, isFront) {
+  ctx.fillStyle = '#0a0a10'; ctx.fillRect(0, 0, w, h);
+  const cx = w*0.5, cy = h*0.48;
+
+  // Main body
+  ctx.fillStyle = '#555a66';
+  ctx.beginPath();
+  ctx.moveTo(cx - w*0.09, cy - h*0.11); ctx.lineTo(cx + w*0.09, cy - h*0.11);
+  ctx.lineTo(cx + w*0.08, cy + h*0.07); ctx.lineTo(cx - w*0.08, cy + h*0.07);
+  ctx.closePath(); ctx.fill();
+
+  // Rail & Scope
+  ctx.fillStyle = '#484c56'; ctx.fillRect(cx - w*0.06, cy - h*0.15, w*0.12, h*0.04);
+  ctx.fillStyle = '#656b78'; ctx.beginPath(); ctx.arc(cx, cy - h*0.165, h*0.035, 0, Math.PI*2); ctx.fill();
+
+  if (isFront) {
+    // Muzzle bore
+    ctx.fillStyle = '#181a20'; ctx.beginPath(); ctx.arc(cx, cy - h*0.015, h*0.055, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#585e6b'; ctx.fillRect(cx - 3, cy - h*0.21, 6, h*0.06);
+  } else {
+    // Stock butt plate
+    ctx.fillStyle = '#3a3d46'; ctx.fillRect(cx - w*0.08, cy - h*0.09, w*0.16, h*0.15);
+  }
+
+  // Grip
+  ctx.fillStyle = '#404450';
+  ctx.beginPath();
+  ctx.moveTo(cx - w*0.045, cy + h*0.07); ctx.lineTo(cx + w*0.045, cy + h*0.07);
+  ctx.lineTo(cx + w*0.035, cy + h*0.27); ctx.lineTo(cx - w*0.035, cy + h*0.27);
+  ctx.closePath(); ctx.fill();
+
+  // Magazine
+  ctx.fillStyle = '#4e5260'; ctx.fillRect(cx - w*0.03, cy + h*0.07, w*0.06, h*0.20);
+}
+
+function createDefaultGunImages() {
+  const W = 512, H = 320;
+  const views = {};
+  let c;
+
+  c = document.createElement('canvas'); c.width = W; c.height = H;
+  drawGunFrontBack(c.getContext('2d'), W, H, true); views.front = c;
+
+  c = document.createElement('canvas'); c.width = W; c.height = H;
+  drawGunFrontBack(c.getContext('2d'), W, H, false); views.back = c;
+
+  c = document.createElement('canvas'); c.width = W; c.height = H;
+  drawGunSide(c.getContext('2d'), W, H, false); views.left = c;
+
+  c = document.createElement('canvas'); c.width = W; c.height = H;
+  drawGunSide(c.getContext('2d'), W, H, true); views.right = c;
+
+  return views;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FULL 3D MULTI-VIEW RECONSTRUCTION WITH TEXTURES & BUMP DISPLACEMENT
+// ═══════════════════════════════════════════════════════════════════
+function reconstructFull3DModel() {
+  const gridRes = parseInt(document.getElementById('grid-res').value);
+  const depthScale = parseFloat(document.getElementById('depth').value);
+  const bumpScale = parseFloat(document.getElementById('bump-scale').value);
+  const smoothK = parseFloat(document.getElementById('smooth-k').value);
+  const thresh = parseInt(document.getElementById('threshold').value);
+
+  const hasFront = !!faceImages.front;
+  const hasBack  = !!faceImages.back;
+  const hasLeft  = !!faceImages.left;
+  const hasRight = !!faceImages.right;
+  const viewCount = [hasFront, hasBack, hasLeft, hasRight].filter(Boolean).length;
+  document.getElementById('stat-views').textContent = `${viewCount} / 4`;
+
+  document.getElementById('loading').style.display = 'flex';
+
+  let sources;
+  if (viewCount === 0) {
+    sources = createDefaultGunImages();
+  } else {
+    sources = { ...faceImages };
+    if (!sources.back && sources.front) sources.back = sources.front;
+    if (!sources.front && sources.back) sources.front = sources.back;
+    if (!sources.right && sources.left) sources.right = sources.left;
+    if (!sources.left && sources.right) sources.left = sources.right;
+  }
+
+  setTimeout(() => {
+    try {
+      const t0 = performance.now();
+      const sdfRes = 256;
+
+      // Compute 2D SDF, Colors, and Brightness maps for each view
+      const viewFront = sources.front ? compute2DViewData(sources.front, sdfRes, sdfRes, thresh) : null;
+      const viewBack  = sources.back  ? compute2DViewData(sources.back,  sdfRes, sdfRes, thresh) : null;
+      const viewLeft  = sources.left  ? compute2DViewData(sources.left,  sdfRes, sdfRes, thresh) : null;
+      const viewRight = sources.right ? compute2DViewData(sources.right, sdfRes, sdfRes, thresh) : null;
+
+      // Grid Dimensions
+      const resX = Math.round(gridRes * 0.7);
+      const resY = gridRes;
+      const resZ = Math.round(gridRes * depthScale * 1.4);
+
+      const volW = 1.2;
+      const volH = 1.8;
+      const volD = 2.4 * depthScale;
+
+      const bMin = [-volW/2, -volH/2, -volD/2];
+      const bMax = [ volW/2,  volH/2,  volD/2];
+
+      const field = new Float32Array((resX + 1) * (resY + 1) * (resZ + 1));
+      const sx = resX + 1;
+      const sy = resY + 1;
+
+      for (let k = 0; k <= resZ; k++) {
+        const nz = k / resZ;
+        for (let j = 0; j <= resY; j++) {
+          const ny = j / resY;
+          const v_img = 1.0 - ny;
+
+          for (let i = 0; i <= resX; i++) {
+            const nx = i / resX;
+
+            let d_side = null;
+            if (viewLeft || viewRight) {
+              const sL = viewLeft  ? sampleView(viewLeft,  nz,       v_img).d : null;
+              const sR = viewRight ? sampleView(viewRight, 1.0 - nz, v_img).d : null;
+              d_side = (sL !== null && sR !== null) ? 0.5 * (sL + sR) : (sL ?? sR);
+            }
+
+            let d_front = null;
+            if (viewFront || viewBack) {
+              const sF = viewFront ? sampleView(viewFront, nx,       v_img).d : null;
+              const sB = viewBack  ? sampleView(viewBack,  1.0 - nx, v_img).d : null;
+              d_front = (sF !== null && sB !== null) ? 0.5 * (sF + sB) : (sF ?? sB);
+            } else {
+              d_front = (Math.abs(nx - 0.5) * 2.0 - 0.18) * 0.15;
+            }
+
+            let d_3d = (d_side !== null && d_front !== null) ? smax(d_side, d_front, smoothK) : (d_side ?? d_front ?? 1.0);
+            field[k * sy * sx + j * sx + i] = d_3d;
+          }
+        }
+      }
+
+      // Marching Cubes Base Geometry
+      const result = marchingCubes(field, resX, resY, resZ, bMin, bMax, 0.0);
+      const t1 = performance.now();
+
+      if (result.positions.length === 0) {
+        toast('⚠ Surface empty — adjust Silhouette Threshold');
+        document.getElementById('loading').style.display = 'none';
+        return;
+      }
+
+      const positions = result.positions;
+      const vertCount = positions.length / 3;
+
+      // Temporary Geometry to compute surface normals
+      const tempGeo = new THREE.BufferGeometry();
+      tempGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      tempGeo.setIndex(result.indices);
+      tempGeo.computeVertexNormals();
+
+      const normals = tempGeo.attributes.normal.array;
+      const colors = new Float32Array(vertCount * 3);
+
+      // Displace Surface & Texture Vertices from multi-view projections
+      for (let vi = 0; vi < vertCount; vi++) {
+        const px = positions[vi * 3];
+        const py = positions[vi * 3 + 1];
+        const pz = positions[vi * 3 + 2];
+
+        const nx = normals[vi * 3];
+        const ny = normals[vi * 3 + 1];
+        const nz = normals[vi * 3 + 2];
+
+        // Normalize coordinates to [0..1]
+        const u_x = (px - bMin[0]) / volW;
+        const u_y = (py - bMin[1]) / volH;
+        const u_z = (pz - bMin[2]) / volD;
+
+        const v_img = 1.0 - u_y;
+
+        // Samples from views
+        const sLeft  = viewLeft  ? sampleView(viewLeft,  u_z,       v_img) : null;
+        const sRight = viewRight ? sampleView(viewRight, 1.0 - u_z, v_img) : null;
+        const sFront = viewFront ? sampleView(viewFront, u_x,       v_img) : null;
+        const sBack  = viewBack  ? sampleView(viewBack,  1.0 - u_x, v_img) : null;
+
+        // Weights from normal orientation
+        let wLeft  = Math.max(0, -nx);
+        let wRight = Math.max(0,  nx);
+        let wFront = Math.max(0,  nz);
+        let wBack  = Math.max(0, -nz);
+        let wTop   = Math.max(0,  ny);
+        let wBot   = Math.max(0, -ny);
+
+        const totalW = wLeft + wRight + wFront + wBack + wTop + wBot + 1e-4;
+        wLeft /= totalW; wRight /= totalW; wFront /= totalW; wBack /= totalW;
+        wTop /= totalW;  wBot /= totalW;
+
+        // Blend Colors & Surface Relief
+        let cr = 0, cg = 0, cb = 0, cBr = 0;
+
+        if (sLeft)  { cr += sLeft.r  * wLeft;  cg += sLeft.g  * wLeft;  cb += sLeft.b  * wLeft;  cBr += sLeft.br  * wLeft; }
+        if (sRight) { cr += sRight.r * wRight; cg += sRight.g * wRight; cb += sRight.b * wRight; cBr += sRight.br * wRight; }
+        if (sFront) { cr += sFront.r * wFront; cg += sFront.g * wFront; cb += sFront.b * wFront; cBr += sFront.br * wFront; }
+        if (sBack)  { cr += sBack.r  * wBack;  cg += sBack.g  * wBack;  cb += sBack.b  * wBack;  cBr += sBack.br  * wBack; }
+
+        // Top/Bottom fallback blending
+        const sideAvgR = ((sLeft?.r||0)+(sRight?.r||0)+(sFront?.r||0)+(sBack?.r||0))*0.25;
+        const sideAvgG = ((sLeft?.g||0)+(sRight?.g||0)+(sFront?.g||0)+(sBack?.g||0))*0.25;
+        const sideAvgB = ((sLeft?.b||0)+(sRight?.b||0)+(sFront?.b||0)+(sBack?.b||0))*0.25;
+        const sideAvgBr= ((sLeft?.br||0)+(sRight?.br||0)+(sFront?.br||0)+(sBack?.br||0))*0.25;
+
+        cr += sideAvgR * (wTop + wBot);
+        cg += sideAvgG * (wTop + wBot);
+        cb += sideAvgB * (wTop + wBot);
+        cBr += sideAvgBr * (wTop + wBot);
+
+        colors[vi * 3]     = cr;
+        colors[vi * 3 + 1] = cg;
+        colors[vi * 3 + 2] = cb;
+
+        // Apply 3D Surface Relief Displacement along normal
+        if (bumpScale > 0) {
+          const disp = (cBr - 0.4) * bumpScale;
+          positions[vi * 3]     += nx * disp;
+          positions[vi * 3 + 1] += ny * disp;
+          positions[vi * 3 + 2] += nz * disp;
+        }
+      }
+
+      // Recompute final smooth normals after displacement
+      const finalGeo = new THREE.BufferGeometry();
+      finalGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      finalGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      finalGeo.setIndex(result.indices);
+      finalGeo.computeVertexNormals();
+
+      const mat = new THREE.MeshStandardMaterial({
+        vertexColors: true,
+        roughness: 0.38,
+        metalness: 0.55,
+        flatShading: false,
+        side: THREE.DoubleSide
+      });
+
+      if (currentMesh) {
+        scene.remove(currentMesh);
+        currentMesh.geometry.dispose();
+        currentMesh.material.dispose();
+      }
+
+      currentMesh = new THREE.Mesh(finalGeo, mat);
+
+      // Center model
+      finalGeo.computeBoundingBox();
+      const center = new THREE.Vector3();
+      finalGeo.boundingBox.getCenter(center);
+      currentMesh.position.set(-center.x, -center.y, -center.z);
+
+      scene.add(currentMesh);
+
+      document.getElementById('stat-verts').textContent = vertCount.toLocaleString();
+      document.getElementById('stat-tris').textContent = (result.indices.length/3).toLocaleString();
+      document.getElementById('stat-time').textContent = (t1-t0).toFixed(0) + ' ms';
+
+      toast(`✓ Full 3D Model generated — ${vertCount.toLocaleString()} verts with 3D relief & textures`);
+    } catch(err) {
+      console.error(err);
+      toast('Error: ' + err.message);
+    }
+    document.getElementById('loading').style.display = 'none';
+  }, 40);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FILE UPLOAD
+// ═══════════════════════════════════════════════════════════════════
+document.querySelectorAll('.view-slot').forEach(slot => {
+  const face = slot.dataset.face;
+  const input = slot.querySelector('input');
+  slot.addEventListener('click', () => input.click());
+  slot.addEventListener('dragover', e => { e.preventDefault(); slot.style.borderColor='rgba(120,140,255,.8)'; });
+  slot.addEventListener('dragleave', () => { slot.style.borderColor=''; });
+  slot.addEventListener('drop', e => {
+    e.preventDefault(); slot.style.borderColor='';
+    if (e.dataTransfer.files?.[0]) loadImageForFace(face, e.dataTransfer.files[0], slot);
+  });
+  input.addEventListener('change', e => {
+    if (e.target.files?.[0]) loadImageForFace(face, e.target.files[0], slot);
+  });
+});
+
+function loadImageForFace(face, file, slot) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.src = ev.target.result;
+    img.onload = () => {
+      faceImages[face] = img;
+      slot.classList.add('has-image');
+      let preview = slot.querySelector('.slot-preview');
+      if (!preview) { preview = document.createElement('img'); preview.className='slot-preview'; slot.appendChild(preview); }
+      preview.src = ev.target.result;
+      document.getElementById('stat-views').textContent = `${Object.values(faceImages).filter(Boolean).length} / 4`;
+      toast(`${face[0].toUpperCase()+face.slice(1)} view loaded`);
+      reconstructFull3DModel();
+    };
+  };
+  reader.readAsDataURL(file);
+}
+
+document.getElementById('clear-btn').addEventListener('click', () => {
+  faceImages.front = faceImages.back = faceImages.left = faceImages.right = null;
+  document.querySelectorAll('.view-slot').forEach(s => { s.classList.remove('has-image'); const p=s.querySelector('.slot-preview'); if(p)p.remove(); });
+  document.getElementById('stat-views').textContent = '0 / 4';
+  reconstructFull3DModel();
+  toast('Cleared — showing default model');
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// SLIDERS
+// ═══════════════════════════════════════════════════════════════════
+function bindSlider(id, labelId, fmt) {
+  document.getElementById(id).addEventListener('input', e => {
+    document.getElementById(labelId).textContent = fmt(e.target.value);
+  });
+  document.getElementById(id).addEventListener('change', () => reconstructFull3DModel());
+}
+bindSlider('grid-res', 'grid-label', v => `${v}³`);
+bindSlider('depth', 'depth-label', v => parseFloat(v).toFixed(2));
+bindSlider('bump-scale', 'bump-label', v => parseFloat(v).toFixed(2));
+bindSlider('smooth-k', 'smooth-k-label', v => parseFloat(v).toFixed(2));
+bindSlider('threshold', 'thresh-label', v => v);
+
+document.getElementById('generate-btn').addEventListener('click', reconstructFull3DModel);
+
+// ═══════════════════════════════════════════════════════════════════
+// EXPORTERS
+// ═══════════════════════════════════════════════════════════════════
+document.getElementById('export-gltf').addEventListener('click', async () => {
+  if (!currentMesh) return;
+  try {
+    const m = await import('https://unpkg.com/three@0.160.0/examples/jsm/exporters/GLTFExporter.js');
+    const exporter = new (m.GLTFExporter || m.default)();
+    exporter.parse(currentMesh, gltf => {
+      const blob = new Blob([gltf], {type:'application/octet-stream'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download='model_3d.glb'; a.click();
+      URL.revokeObjectURL(url);
+      toast('Exported model_3d.glb');
+    }, {binary:true});
+  } catch(e) { toast('Export error: '+e.message); }
+});
+
+document.getElementById('export-obj').addEventListener('click', () => {
+  if (!currentMesh) return;
+  const pos = currentMesh.geometry.attributes.position.array;
+  const col = currentMesh.geometry.attributes.color?.array;
+  const idx = currentMesh.geometry.index?.array;
+  let obj = '# Full 3D Multi-View Model Export\n';
+  for (let i=0;i<pos.length;i+=3) {
+    if (col) {
+      obj += `v ${pos[i].toFixed(5)} ${pos[i+1].toFixed(5)} ${pos[i+2].toFixed(5)} ${col[i].toFixed(3)} ${col[i+1].toFixed(3)} ${col[i+2].toFixed(3)}\n`;
+    } else {
+      obj += `v ${pos[i].toFixed(5)} ${pos[i+1].toFixed(5)} ${pos[i+2].toFixed(5)}\n`;
+    }
+  }
+  if (idx) for (let i=0;i<idx.length;i+=3) obj+=`f ${idx[i]+1} ${idx[i+1]+1} ${idx[i+2]+1}\n`;
+  const blob = new Blob([obj],{type:'text/plain'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='model_3d.obj'; a.click();
+  URL.revokeObjectURL(url);
+  toast('Exported model_3d.obj');
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// RESIZE & ANIMATION LOOP
+// ═══════════════════════════════════════════════════════════════════
+window.addEventListener('resize', () => {
+  cam.aspect = viewport.clientWidth/viewport.clientHeight;
+  cam.updateProjectionMatrix();
+  renderer.setSize(viewport.clientWidth, viewport.clientHeight);
+});
+
+function animate() {
+  controls.update();
+  if (currentMesh) currentMesh.rotation.y += 0.003;
+  renderer.render(scene, cam);
+  requestAnimationFrame(animate);
+}
+
+reconstructFull3DModel();
+animate();
+</script>
+</body>
+</html>

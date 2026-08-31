@@ -1,0 +1,109 @@
+{
+  "id": "test-world",
+  "name": "SA Pipeline Test Range",
+  "version": 2,
+  "bounds": 200,
+  "startPoint": {
+    "x": 0,
+    "z": 30,
+    "yaw": 3.14159
+  },
+  "ground": {
+    "size": 600,
+    "color": "0x3a4a3a"
+  },
+  "roads": [
+    {
+      "w": 10,
+      "sidewalk": true,
+      "smooth": false,
+      "points": [
+        [-40, 0],
+        [40, 0]
+      ]
+    },
+    {
+      "w": 10,
+      "sidewalk": true,
+      "smooth": false,
+      "points": [
+        [0, -40],
+        [0, 40]
+      ]
+    }
+  ],
+  "pads": [
+    {
+      "x": 0,
+      "z": 0,
+      "w": 60,
+      "d": 60,
+      "m": "plaza",
+      "ry": 0
+    }
+  ],
+  "buildings": [
+    {
+      "kind": "house",
+      "x": -30,
+      "z": -30,
+      "w": 12,
+      "h": 5,
+      "d": 10,
+      "ry": 0,
+      "m": "brick",
+      "windows": true,
+      "solid": true,
+      "roof": true,
+      "roofAccess": false,
+      "enterable": false
+    }
+  ],
+  "props": [
+    { "kind": "crate", "x": 10, "z": 10, "ry": 0.3 },
+    { "kind": "barrel", "x": 15, "z": -8, "ry": 0, "react": "fire" },
+    { "kind": "lamp", "x": -8, "z": 5, "ry": 0 },
+    { "kind": "dumpster", "x": 20, "z": 12, "ry": 0.5 },
+    { "kind": "bench", "x": -15, "z": 8, "ry": 0 },
+    { "kind": "hydrant", "x": 8, "z": -15, "ry": 0 }
+  ],
+  "trees": [
+    { "x": -25, "z": 15, "s": 1.0, "dead": false },
+    { "x": 25, "z": -20, "s": 0.8, "dead": false }
+  ],
+  "spawns": [
+    [20, 20],
+    [-20, 20],
+    [20, -20],
+    [-20, -20],
+    [0, -25],
+    [0, 25],
+    [25, 0],
+    [-25, 0]
+  ],
+  "cover": [
+    [10, 10],
+    [-10, 10],
+    [10, -10],
+    [-10, -10],
+    [0, 15],
+    [0, -15]
+  ],
+  "loot": [
+    [12, 12, 0.3],
+    [-12, -12, 0.8]
+  ],
+  "vehicles": [
+    { "x": 30, "z": 5, "ry": 0.1, "kind": "car" },
+    { "x": -30, "z": -5, "ry": 3.0, "kind": "jeep" }
+  ],
+  "named": [
+    { "x": 0, "z": 0, "name": "TEST PLAZA", "color": "#00ff88" },
+    { "x": -30, "z": -30, "name": "BRICK HOUSE", "color": "#ff8844" }
+  ],
+  "transit": [],
+  "landmarks": [],
+  "interiors": [],
+  "reactives": [],
+  "streetProps": false
+}

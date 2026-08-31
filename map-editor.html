@@ -1,0 +1,2349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MAP EDITOR — Strike Command</title>
+<style>
+  :root { --bg:#0f1115; --panel:#181c22; --panel2:#1f242c; --panel3:#272d36; --line:#2a303a; --txt:#d4d9e0; --dim:#6b7680; --acc:#ffd24a; --ok:#59c06a; --err:#e06050; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html,body { height:100%; }
+  body { background:var(--bg); color:var(--txt); font:13px/1.4 "Segoe UI",system-ui,sans-serif; display:flex; overflow:hidden; }
+
+  /* LEFT TOOL RAIL */
+  #toolrail { width:56px; background:var(--panel); border-right:1px solid var(--line); display:flex; flex-direction:column; align-items:center; padding:6px 0; gap:2px; z-index:10; flex-shrink:0; }
+  #toolrail .logo { font-size:10px; font-weight:700; color:var(--acc); letter-spacing:1px; padding:6px 0 8px; text-align:center; width:100%; border-bottom:1px solid var(--line); margin-bottom:4px; }
+  #toolrail button { width:40px; height:40px; background:none; border:none; color:var(--dim); border-radius:8px; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; font-size:9px; transition:background .12s,color .12s; }
+  #toolrail button svg { width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  #toolrail button:hover { background:var(--panel2); color:var(--txt); }
+  #toolrail button.active { background:rgba(255,210,74,.12); color:var(--acc); }
+  #toolrail .rail-sep { width:28px; height:1px; background:var(--line); margin:4px 0; }
+
+  /* CENTER AREA */
+  #center { flex:1; display:flex; flex-direction:column; min-width:0; }
+
+  /* TOP BAR */
+  #topbar { display:flex; align-items:center; gap:10px; padding:6px 14px; background:var(--panel); border-bottom:1px solid var(--line); flex-shrink:0; min-height:42px; }
+  #topbar .file-group { display:flex; align-items:center; gap:4px; }
+  #topbar select, #topbar input[type=text] { background:var(--panel2); color:var(--txt); border:1px solid var(--line); border-radius:5px; padding:4px 8px; font-size:12px; }
+  #topbar button { background:var(--panel2); color:var(--txt); border:1px solid var(--line); border-radius:5px; padding:5px 12px; cursor:pointer; font-size:12px; transition:all .12s; }
+  #topbar button:hover { border-color:var(--acc); color:var(--acc); }
+  #topbar button.primary { background:var(--acc); color:#111; border-color:var(--acc); font-weight:600; }
+  #topbar button.primary:hover { background:#ffe060; }
+  #topbar .sep { width:1px; height:22px; background:var(--line); }
+  #topbar .spacer { flex:1; }
+  #topbar .status-group { display:flex; align-items:center; gap:8px; }
+  #saveState { color:var(--ok); font-size:11px; }
+  #status { color:var(--dim); font-size:11px; }
+  #topbar label { color:var(--dim); font-size:11px; display:flex; align-items:center; gap:4px; }
+  #topbar select { padding:3px 6px; }
+
+  /* TOOL OPTIONS BAR */
+  #toolopts { display:flex; align-items:center; gap:8px; padding:5px 14px; background:var(--panel); border-bottom:1px solid var(--line); flex-shrink:0; min-height:34px; flex-wrap:wrap; }
+  #toolopts label { color:var(--dim); font-size:11px; display:flex; align-items:center; gap:4px; }
+  #toolopts input[type=number] { width:52px; background:var(--panel2); color:var(--txt); border:1px solid var(--line); border-radius:4px; padding:2px 5px; font-size:11px; }
+  #toolopts input[type=checkbox] { accent-color:var(--acc); }
+  #toolopts select { background:var(--panel2); color:var(--txt); border:1px solid var(--line); border-radius:4px; padding:2px 5px; font-size:11px; }
+  #toolopts .opt-sep { width:1px; height:16px; background:var(--line); }
+  #kindLabel { display:none; }
+
+  /* MAIN CANVAS AREA */
+  #canvas-area { flex:1; display:flex; min-height:0; position:relative; }
+  #pane2d { flex:1; position:relative; min-width:200px; }
+  #canvas2d { position:absolute; inset:0; width:100%; height:100%; display:block; background:#0c0e11; cursor:crosshair; }
+  #pane3d { width:45%; min-width:280px; display:flex; flex-direction:column; border-left:1px solid var(--line); }
+  #view3d { flex:1; min-height:0; position:relative; background:#0c0e11; }
+  #canvas3d { position:absolute; inset:0; width:100%; height:100%; display:block; }
+
+  /* OVERLAYS */
+  #coords { position:absolute; left:10px; bottom:8px; color:var(--dim); font-size:11px; background:rgba(0,0,0,.6); padding:3px 8px; border-radius:4px; pointer-events:none; }
+  #hint { position:absolute; right:10px; bottom:8px; color:#4a5158; font-size:11px; pointer-events:none; }
+  #legend { position:absolute; left:50%; bottom:8px; transform:translateX(-50%); background:rgba(0,0,0,.65); border:1px solid var(--line); border-radius:5px; padding:5px 10px; display:none; font-size:11px; color:var(--dim); pointer-events:none; z-index:2; max-width:85%; }
+  #legend.show { display:flex; flex-wrap:wrap; gap:4px 12px; }
+  #legend .lg { display:flex; align-items:center; gap:4px; }
+  #legend .lg i { width:8px; height:8px; border-radius:2px; display:inline-block; }
+
+  /* RIGHT PANEL (Inspector + Library) */
+  #rightpanel { width:280px; background:var(--panel); border-left:1px solid var(--line); display:flex; flex-direction:column; flex-shrink:0; overflow:hidden; }
+  #rightpanel .rp-header { padding:8px 12px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:6px; flex-shrink:0; }
+  #rightpanel .rp-header h2 { font-size:11px; color:var(--acc); text-transform:uppercase; letter-spacing:1px; flex:1; }
+  #rightpanel .rp-header button { background:var(--panel2); color:var(--txt); border:1px solid var(--line); border-radius:4px; padding:2px 7px; cursor:pointer; font-size:10px; }
+  #rightpanel .rp-header button:hover { border-color:var(--acc); color:var(--acc); }
+  #insp { flex:1; overflow:auto; padding:8px 12px; }
+  #insp h2 { font-size:11px; color:var(--acc); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+  #insp .row { display:flex; align-items:center; gap:6px; margin:3px 0; }
+  #insp .row label { width:72px; color:var(--dim); font-size:11px; flex-shrink:0; }
+  #insp .row input[type=number], #insp .row input[type=text], #insp .row select { flex:1; min-width:0; background:var(--panel2); color:var(--txt); border:1px solid var(--line); border-radius:4px; padding:3px 6px; font-size:12px; }
+  #insp .row input[type=checkbox] { width:auto; accent-color:var(--acc); }
+  #insp .row input[type=color] { width:30px; height:22px; padding:0; border:1px solid var(--line); background:var(--panel2); border-radius:3px; }
+  #insp .row input:disabled { opacity:.4; }
+  #insp .section { margin-top:8px; padding-top:6px; border-top:1px solid var(--line); }
+  #insp .note { color:var(--dim); font-size:11px; }
+  #insp button.primary { background:var(--acc); color:#14161a; border:none; font-weight:600; padding:5px 12px; border-radius:4px; cursor:pointer; }
+  #issues { margin-top:8px; }
+  #issues .issue { padding:3px 6px; border-radius:3px; font-size:11px; margin:2px 0; cursor:pointer; }
+  #issues .issue.err { background:rgba(224,96,80,.12); color:#f0a090; }
+  #issues .issue.warn { background:rgba(255,210,74,.1); color:#e8cf8a; }
+
+  /* ASSET LIBRARY (collapsible in right panel) */
+  #library { border-top:1px solid var(--line); display:flex; flex-direction:column; max-height:45%; min-height:0; flex-shrink:0; }
+  #library.collapsed { max-height:32px; min-height:32px; }
+  #library.collapsed .lib-body { display:none; }
+  #library .lib-h { display:flex; align-items:center; gap:6px; padding:6px 12px; border-bottom:1px solid var(--line); flex-shrink:0; cursor:pointer; }
+  #library .lib-h h2 { font-size:11px; color:var(--acc); text-transform:uppercase; letter-spacing:1px; }
+  #library .lib-h button { background:var(--panel2); color:var(--txt); border:1px solid var(--line); border-radius:4px; padding:2px 6px; cursor:pointer; font-size:10px; }
+  #libCount { margin-left:auto; color:var(--dim); font-size:10px; }
+  #library .lib-body { flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+  #libSearch { width:100%; background:var(--panel2); color:var(--txt); border:1px solid var(--line); border-radius:4px; padding:4px 8px; font-size:11px; margin:6px 8px 0; width:calc(100% - 16px); }
+  #libGrid { flex:1; overflow:auto; padding:4px 8px 8px; }
+  .lib-cat { margin-bottom:6px; }
+  .lib-cat-h { font-size:9px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; margin:4px 0 3px; }
+  .lib-grid { display:flex; flex-wrap:wrap; gap:3px; }
+  .tile { display:flex; align-items:center; gap:5px; background:var(--panel2); color:var(--txt); border:1px solid var(--line); border-radius:4px; padding:3px 6px; cursor:pointer; font-size:11px; transition:all .1s; }
+  .tile:hover { border-color:var(--acc); color:var(--acc); }
+  .tile.active { border-color:var(--acc); background:rgba(255,210,74,.12); color:var(--acc); }
+  .tile .sw { width:8px; height:8px; border-radius:2px; flex-shrink:0; }
+
+  /* ASSET EDITOR (fullscreen overlay) */
+  #assetEditor { display:none; position:fixed; inset:0; z-index:100; background:#0c0e11; flex-direction:column; }
+
+  /* FULLSCREEN 3D MODE */
+  body.fullscreen3d #toolrail, body.fullscreen3d #topbar, body.fullscreen3d #toolopts, body.fullscreen3d #rightpanel { display:none !important; }
+  body.fullscreen3d #center { flex:1; }
+  body.fullscreen3d #canvas-area { flex:1; }
+  body.fullscreen3d #pane2d { display:none; }
+  body.fullscreen3d #pane3d { width:100%; border-left:none; }
+  #float-toolbar { display:none; position:fixed; left:12px; top:50%; transform:translateY(-50%); z-index:50; background:rgba(24,28,34,.92); backdrop-filter:blur(8px); border:1px solid var(--line); border-radius:12px; padding:6px; flex-direction:column; gap:2px; }
+  body.fullscreen3d #float-toolbar { display:flex; }
+  #float-inspector { display:none; position:fixed; right:12px; top:50%; transform:translateY(-50%); z-index:50; background:rgba(24,28,34,.92); backdrop-filter:blur(8px); border:1px solid var(--line); border-radius:12px; padding:10px; width:220px; max-height:70vh; overflow-y:auto; color:var(--txt); font-size:12px; }
+  body.fullscreen3d #float-inspector.has-sel { display:block; }
+  #float-inspector h4 { margin:0 0 6px; font-size:13px; color:var(--acc); }
+  #float-inspector label { display:block; margin:3px 0 1px; color:var(--dim); font-size:10px; text-transform:uppercase; letter-spacing:.5px; }
+  #float-inspector input, #float-inspector select { width:100%; box-sizing:border-box; background:rgba(255,255,255,.06); border:1px solid var(--line); border-radius:4px; color:var(--txt); padding:4px 6px; font-size:12px; }
+  #float-inspector .fi-row { display:flex; gap:4px; }
+  #float-inspector .fi-row input { flex:1; }
+  #float-inspector .fi-btn { margin-top:6px; padding:4px 8px; background:rgba(255,255,255,.08); border:1px solid var(--line); border-radius:4px; color:var(--txt); cursor:pointer; font-size:11px; }
+  #float-toolbar button { width:42px; height:42px; background:none; border:none; color:var(--dim); border-radius:8px; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; font-size:9px; transition:background .12s,color .12s; }
+  #float-toolbar button svg { width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  #float-toolbar button:hover { background:rgba(255,255,255,.08); color:var(--txt); }
+  #float-toolbar button.active { background:rgba(255,210,74,.15); color:var(--acc); }
+  #float-toolbar .ft-sep { width:28px; height:1px; background:var(--line); margin:2px auto; }
+  #float-exit { position:fixed; top:12px; right:12px; z-index:50; background:rgba(24,28,34,.9); backdrop-filter:blur(8px); border:1px solid var(--line); border-radius:8px; padding:6px 14px; color:var(--txt); cursor:pointer; font-size:12px; display:none; }
+  body.fullscreen3d #float-exit { display:block; }
+  #float-exit:hover { border-color:var(--acc); color:var(--acc); }
+  #float-coords { position:fixed; left:12px; bottom:12px; z-index:50; color:var(--dim); font-size:11px; background:rgba(0,0,0,.6); padding:3px 8px; border-radius:4px; display:none; pointer-events:none; }
+  body.fullscreen3d #float-coords { display:block; }
+  #float-hint { position:fixed; right:12px; bottom:12px; z-index:50; color:#4a5158; font-size:11px; display:none; pointer-events:none; }
+  body.fullscreen3d #float-hint { display:block; }
+</style>
+</head>
+<body>
+<!-- LEFT TOOL RAIL -->
+<div id="toolrail">
+  <div class="logo">MAP</div>
+  <button data-tool="select" class="active" title="Select / move"><svg><path d="M3 3l7 18 3-8 8-3z"/></svg><span>Sel</span></button>
+  <button data-tool="road" title="Draw road"><svg><path d="M2 20 C8 12, 16 12, 22 20"/><path d="M2 16 C8 8, 16 8, 22 16"/></svg><span>Road</span></button>
+  <button data-tool="pad" title="Place pad"><svg><rect x="3" y="3" width="18" height="18" rx="2"/></svg><span>Pad</span></button>
+  <button data-tool="building" title="Place building"><svg><path d="M3 21V7l9-4 9 4v14"/><path d="M9 21v-6h6v6"/></svg><span>Bldg</span></button>
+  <button data-tool="prop" title="Place prop"><svg><rect x="5" y="5" width="14" height="14" rx="3"/><circle cx="12" cy="12" r="3"/></svg><span>Prop</span></button>
+  <button data-tool="vehicle" title="Place vehicle"><svg><rect x="2" y="8" width="20" height="8" rx="3"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Car</span></button>
+  <button data-tool="landmark" title="Place landmark"><svg><path d="M12 2l8 18H4z"/></svg><span>Lmrk</span></button>
+  <div class="rail-sep"></div>
+  <button data-tool="text" title="Add text sign"><svg><path d="M4 7V4h16v3"/><path d="M12 4v16"/><path d="M8 20h8"/></svg><span>Text</span></button>
+  <button data-tool="tree" title="Plant tree"><svg><circle cx="12" cy="8" r="5"/><path d="M12 13v8"/></svg><span>Tree</span></button>
+  <button data-tool="spawn" title="Enemy spawn"><svg><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg><span>Spawn</span></button>
+  <button data-tool="cover" title="Cover point"><svg><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 12h8"/></svg><span>Cover</span></button>
+  <button data-tool="loot" title="Loot drop"><svg><path d="M12 2l6 6-6 6-6-6z"/><path d="M12 14v8"/></svg><span>Loot</span></button>
+  <button data-tool="startpoint" title="Player start"><svg><polygon points="12,2 15,10 12,8 9,10"/><path d="M12 10v12"/></svg><span>Start</span></button>
+  <div class="rail-sep"></div>
+  <button data-tool="erase" title="Delete object"><svg><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12"/><path d="M9 7V4h6v3"/></svg><span>Del</span></button>
+</div>
+
+<!-- CENTER -->
+<div id="center">
+  <!-- TOP BAR -->
+  <div id="topbar">
+    <div class="file-group">
+      <select id="sceneList" title="Scene files"></select>
+      <button id="btnLoad">Load</button>
+      <button id="btnNew">New</button>
+      <button id="btnSave">Save</button>
+      <button id="btnDelete" title="Delete selected map file" style="color:var(--err);">Del</button>
+    </div>
+    <div class="sep"></div>
+    <button id="btnValidate">Validate</button>
+    <button id="btnOpenGame" class="primary">Play</button>
+    <div class="sep"></div>
+    <label>Quality <select id="previewQ"><option>high</option><option>low</option><option>ultra-low</option></select></label>
+    <label><input type="checkbox" id="autoPreview" checked> Auto</label>
+    <button id="btnRebuild">Rebuild 3D</button>
+    <button id="btnFit">Fit</button>
+    <button id="btnFullscreen3d" title="Toggle fullscreen 3D editing mode">3D Full</button>
+    <div class="spacer"></div>
+    <div class="status-group">
+      <span id="saveState"></span>
+      <span id="status"></span>
+    </div>
+  </div>
+
+  <!-- TOOL OPTIONS -->
+  <div id="toolopts">
+    <label id="kindLabel" style="display:none">Kind <select id="kindSel"></select></label>
+    <label>W <input type="number" id="roadW" value="12" min="4" max="40" step="1"></label>
+    <label><input type="checkbox" id="roadSidewalk" checked> Walk</label>
+    <label><input type="checkbox" id="roadSmooth" checked> Smooth</label>
+    <div class="opt-sep"></div>
+    <label>Pad W <input type="number" id="padW" value="20" min="4" step="1"></label>
+    <label>D <input type="number" id="padD" value="14" min="4" step="1"></label>
+    <div class="opt-sep"></div>
+    <label><input type="checkbox" id="showGrid" checked> Grid</label>
+  </div>
+
+  <!-- CANVAS AREA -->
+  <div id="canvas-area">
+    <div id="pane2d">
+      <canvas id="canvas2d"></canvas>
+      <div id="coords"></div>
+      <div id="hint">Select + drag blue ring=rotate · gold corners=resize · Q/E=rotate · Del=delete</div>
+      <div id="legend"></div>
+    </div>
+    <div id="pane3d">
+      <div id="view3d"><canvas id="canvas3d"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- RIGHT PANEL -->
+<div id="rightpanel">
+  <div id="insp"></div>
+  <div id="library">
+    <div class="lib-h"><h2>Assets</h2><span id="libCount"></span><button id="libToggle">−</button></div>
+    <div class="lib-body">
+      <input id="libSearch" type="text" placeholder="Search...">
+      <div id="libGrid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- FLOATING TOOLBAR (fullscreen 3D) -->
+<div id="float-toolbar">
+  <button data-tool="select" class="active" title="Select"><svg><path d="M3 3l7 18 3-8 8-3z"/></svg><span>Sel</span></button>
+  <button data-tool="road" title="Road"><svg><path d="M2 20 C8 12, 16 12, 22 20"/><path d="M2 16 C8 8, 16 8, 22 16"/></svg><span>Road</span></button>
+  <button data-tool="pad" title="Pad"><svg><rect x="3" y="3" width="18" height="18" rx="2"/></svg><span>Pad</span></button>
+  <button data-tool="building" title="Building"><svg><path d="M3 21V7l9-4 9 4v14"/><path d="M9 21v-6h6v6"/></svg><span>Bldg</span></button>
+  <button data-tool="prop" title="Prop"><svg><rect x="5" y="5" width="14" height="14" rx="3"/><circle cx="12" cy="12" r="3"/></svg><span>Prop</span></button>
+  <button data-tool="vehicle" title="Vehicle"><svg><rect x="2" y="8" width="20" height="8" rx="3"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Car</span></button>
+  <button data-tool="text" title="Text"><svg><path d="M4 7V4h16v3"/><path d="M12 4v16"/><path d="M8 20h8"/></svg><span>Text</span></button>
+  <div class="ft-sep"></div>
+  <button data-tool="tree" title="Tree"><svg><circle cx="12" cy="8" r="5"/><path d="M12 13v8"/></svg><span>Tree</span></button>
+  <button data-tool="spawn" title="Spawn"><svg><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg><span>Spawn</span></button>
+  <button data-tool="cover" title="Cover"><svg><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 12h8"/></svg><span>Cover</span></button>
+  <button data-tool="loot" title="Loot"><svg><path d="M12 2l6 6-6 6-6-6z"/><path d="M12 14v8"/></svg><span>Loot</span></button>
+  <button data-tool="startpoint" title="Start"><svg><polygon points="12,2 15,10 12,8 9,10"/><path d="M12 10v12"/></svg><span>Start</span></button>
+  <div class="ft-sep"></div>
+  <button data-tool="erase" title="Delete"><svg><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12"/><path d="M9 7V4h6v3"/></svg><span>Del</span></button>
+</div>
+<button id="float-exit">Exit 3D</button>
+<div id="float-coords"></div>
+<div id="float-hint">Click=select · Drag=move · Q/E=rotate · Scroll=zoom · Middle-click=pan</div>
+<div id="float-inspector"></div>
+
+<div id="assetEditor" style="display:none;position:fixed;inset:0;z-index:100;background:#0c0e11;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--panel);border-bottom:1px solid var(--line);">
+    <h2 style="font-size:13px;color:var(--acc);font-weight:600;">ASSET EDITOR</h2>
+    <span id="aeAssetName" style="color:var(--dim);font-size:12px;"></span>
+    <button id="aeClose" style="margin-left:auto;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:4px;padding:4px 12px;cursor:pointer;">Close [Esc]</button>
+  </div>
+  <div style="flex:1;display:flex;min-height:0;">
+    <div id="aeView3d" style="flex:1;position:relative;background:#0c0e11;">
+      <canvas id="aeCanvas3d" style="position:absolute;inset:0;width:100%;height:100%;display:block;"></canvas>
+    </div>
+    <div id="aeControls" style="width:280px;background:var(--panel);border-left:1px solid var(--line);padding:10px;overflow:auto;">
+      <h3 style="font-size:11px;color:var(--acc);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Properties</h3>
+      <div id="aeProps"></div>
+      <h3 style="font-size:11px;color:var(--acc);text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px;">Visual Overrides</h3>
+      <div id="aeVisual"></div>
+      <div style="margin-top:12px;">
+        <button id="aeApply" class="primary" style="width:100%;padding:6px;background:var(--acc);color:#14161a;border:none;border-radius:4px;cursor:pointer;font-weight:600;">Apply & Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">{"imports":{"three":"./js/lib/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { World } from './js/world.js';
+
+// ============ state ============
+const $ = (s) => document.querySelector(s);
+const catOrder = ['roads','vehicles','pads','buildings','props','landmarks','trees','spawns','cover','loot','transit','named','reactives'];
+const catLabel = { roads:'Roads', vehicles:'Vehicles', pads:'Pads', buildings:'Buildings', props:'Props', landmarks:'Landmarks', trees:'Trees', spawns:'Spawns', cover:'Cover', loot:'Loot', transit:'Transit stops', named:'Named spots', reactives:'Reactives' };
+const TOOL_HINTS = {
+  select: 'click=select · drag=move · Q/E=rotate · drag blue ring=rotate · drag gold corners=resize',
+  road: 'click=add point · smooth curves auto-generated · Enter/dblclick=finish · esc=cancel',
+  pad: 'drag=size the pad',
+  building: 'drag=size the building',
+  text: 'click a building to add text · drag text to reposition · select it to edit style',
+  tree: 'click=plant a tree',
+  spawn: 'click=place an enemy spawn',
+  cover: 'click=place a cover point',
+  loot: 'click=place a loot drop',
+  transit: 'click=place a transit stop',
+  named: 'click=place a named spot',
+  react: 'click=place a reactive prop',
+  prop: 'click=place the prop',
+  landmark: 'click=place the landmark',
+  vehicle: 'click=place the vehicle',
+  startpoint: 'click=set player start',
+  erase: 'click an object to delete it',
+};
+const LEGEND = [
+  ['Road', '#5a5650'], ['Pad', '#7a7468'], ['Building', '#827870'], ['Vehicle', '#c06060'],
+  ['Tree', '#3a6a3a'], ['Weed', '#4a7a4a'], ['Prop', '#9a9fa6'], ['Landmark', '#e8a040'],
+  ['Spawn', '#e05050'], ['Cover', '#e8a040'], ['Loot', '#ffd24a'], ['Transit', '#4ab8ff'],
+  ['Named', '#ffd24a'], ['Reactive', '#c060e0'],
+];
+const LIBRARY = [
+  { cat: 'Infrastructure', items: [
+    { tool:'road', name:'Road', desc:'Click points to draw a road; Enter to finish', color:'#5a5650' },
+    { tool:'pad', name:'Pad', desc:'Drag to place a flat plaza pad', color:'#7a7468' },
+  ]},
+  { cat: 'Buildings — Simple', items: [
+    { tool:'building', kind:'box', name:'Box', desc:'Simple block; set W/D/H in inspector', color:'#827870' },
+    { tool:'building', kind:'tower', name:'Tower', desc:'Multi-floor tower', color:'#666d7a' },
+    { tool:'building', kind:'shell', name:'Shell', desc:'U-shaped shell with opening', color:'#7a726a' },
+    { tool:'building', kind:'container', name:'Container', desc:'Enterable container; drops loot', color:'#5a6a5a' },
+  ]},
+  { cat: 'Buildings — Houses', items: [
+    { tool:'building', kind:'house', name:'House', desc:'Residential house with gable roof', color:'#8a6a4a' },
+    { tool:'building', kind:'housedetailed', name:'Detailed House', desc:'House with balcony & shutters', color:'#9a7a5a' },
+    { tool:'building', kind:'townhouse', name:'Townhouse', desc:'Narrow townhouse', color:'#7a6a58' },
+    { tool:'building', kind:'rowhouse', name:'Row House', desc:'Attached row house', color:'#8a7260' },
+    { tool:'building', kind:'lcorner', name:'L-Corner', desc:'L-shaped corner building', color:'#7a7268' },
+    { tool:'building', kind:'luxuryvilla', name:'Luxury Villa', desc:'Big villa with pool & garden', color:'#c8a878' },
+  ]},
+  { cat: 'Buildings — Shops & Retail', items: [
+    { tool:'building', kind:'shop', name:'Shopfront', desc:'Store with glass display & awning', color:'#a57050' },
+    { tool:'building', kind:'store', name:'Store', desc:'Retail store with signage', color:'#7a7060' },
+    { tool:'building', kind:'supermarket', name:'Supermarket', desc:'Large retail building', color:'#8a8a80' },
+    { tool:'building', kind:'mall', name:'Mall', desc:'Shopping mall', color:'#8a8a82' },
+  ]},
+  { cat: 'Buildings — Residential', items: [
+    { tool:'building', kind:'apartment', name:'Apartment', desc:'Multi-story block with balconies', color:'#7a7a82' },
+    { tool:'building', kind:'motel', name:'Motel', desc:'Two-story motel with corridor', color:'#8a8070' },
+  ]},
+  { cat: 'Buildings — Tall', items: [
+    { tool:'building', kind:'highrise', name:'Highrise', desc:'Tall highrise tower', color:'#6a6a74' },
+    { tool:'building', kind:'penthousetower', name:'Penthouse Tower', desc:'Luxury tower with helipad', color:'#5a6a82' },
+    { tool:'building', kind:'artdeco', name:'Art Deco Hotel', desc:'Art deco style hotel', color:'#b0a080' },
+  ]},
+  { cat: 'Buildings — Services', items: [
+    { tool:'building', kind:'hospital', name:'Hospital', desc:'Hospital building', color:'#8a8a90' },
+    { tool:'building', kind:'bank', name:'Bank', desc:'Bank with columns', color:'#8a8a84' },
+    { tool:'building', kind:'policestation', name:'Police Station', desc:'LSPD police station', color:'#4a5a8a' },
+    { tool:'building', kind:'firestation', name:'Fire Station', desc:'Fire station with garage', color:'#a04030' },
+    { tool:'building', kind:'school', name:'School', desc:'School building', color:'#a09070' },
+    { tool:'building', kind:'warehouse', name:'Warehouse', desc:'Industrial warehouse', color:'#6a6a62' },
+  ]},
+  { cat: 'Buildings — Entertainment', items: [
+    { tool:'building', kind:'nightclub', name:'Nightclub', desc:'Nightclub / club building', color:'#6a3a7a' },
+    { tool:'building', kind:'stadium', name:'Stadium', desc:'Sports stadium', color:'#6a7a8a' },
+    { tool:'building', kind:'mosque', name:'Mosque', desc:'Mosque building', color:'#8a8a7a' },
+  ]},
+  { cat: 'Buildings — Transport', items: [
+    { tool:'building', kind:'gasstation', name:'Gas Station', desc:'Fuel station with canopy', color:'#7a8070' },
+    { tool:'building', kind:'modernpetrol', name:'Modern Petrol', desc:'Modern fuel station', color:'#5080a0' },
+    { tool:'building', kind:'parking', name:'Parking', desc:'Multi-story parking garage', color:'#7a7a78' },
+    { tool:'building', kind:'trainstation', name:'Train Station', desc:'Train station building', color:'#9a8a70' },
+    { tool:'building', kind:'transitstation', name:'Transit Station', desc:'Public transit hub', color:'#4a8aaa' },
+    { tool:'building', kind:'marinapier', name:'Marina Pier', desc:'Waterfront marina pier', color:'#5088aa' },
+    { tool:'building', kind:'airporthangar', name:'Airport Hangar', desc:'Large airplane hangar', color:'#8a8a88' },
+  ]},
+  { cat: 'Props — Street', items: [
+    { tool:'prop', kind:'bench', name:'Bench', desc:'Wooden sidewalk bench', color:'#8a6a4a' },
+    { tool:'prop', kind:'lamp', name:'Street Lamp', desc:'Light pole', color:'#d0c060' },
+    { tool:'prop', kind:'hydrant', name:'Hydrant', desc:'Fire hydrant', color:'#a83228' },
+    { tool:'prop', kind:'trashcan', name:'Trash Can', desc:'Public trash can', color:'#5a5a52' },
+    { tool:'prop', kind:'mailbox', name:'Mailbox', desc:'Street mailbox', color:'#3a5a8a' },
+    { tool:'prop', kind:'busstop', name:'Bus Stop', desc:'Bus stop shelter', color:'#5a6a7a' },
+    { tool:'prop', kind:'trafficlight', name:'Traffic Light', desc:'Traffic signal', color:'#4a4a42' },
+    { tool:'prop', kind:'pole', name:'Pole', desc:'Utility pole', color:'#6a5a4a' },
+    { tool:'prop', kind:'planter', name:'Planter', desc:'Street planter box', color:'#4a7a3a' },
+    { tool:'prop', kind:'bollard', name:'Bollard', desc:'Short protective post', color:'#7a7a72' },
+  ]},
+  { cat: 'Props — Cargo', items: [
+    { tool:'prop', kind:'crate', name:'Crate', desc:'Wooden crate', color:'#a08050' },
+    { tool:'prop', kind:'woodcrate', name:'Wood Crate', desc:'Wooden shipping crate', color:'#8a6a40' },
+    { tool:'prop', kind:'crates', name:'Crate Stack', desc:'Stack of crates', color:'#907040' },
+    { tool:'prop', kind:'box', name:'Box', desc:'Generic box prop', color:'#9a8a6a' },
+    { tool:'prop', kind:'barrel', name:'Barrel', desc:'Fuel barrel; reactive', color:'#c07050' },
+    { tool:'prop', kind:'barrels', name:'Barrel Cluster', desc:'Cluster of explosive barrels', color:'#b06040' },
+    { tool:'prop', kind:'stairs', name:'Stairs', desc:'Portable metal stairs', color:'#6a6a62' },
+  ]},
+  { cat: 'Props — Outdoor', items: [
+    { tool:'prop', kind:'dumpster', name:'Dumpster', desc:'Metal dumpster bin', color:'#466e46' },
+    { tool:'prop', kind:'billboard', name:'Billboard', desc:'Advertising billboard', color:'#8a8a82' },
+    { tool:'prop', kind:'umbrella', name:'Umbrella', desc:'Patio umbrella', color:'#c04040' },
+    { tool:'prop', kind:'cafetable', name:'Cafe Table', desc:'Outdoor cafe table', color:'#8a7a60' },
+    { tool:'prop', kind:'wreck', name:'Wreck', desc:'Destroyed vehicle wreck', color:'#5a5a52' },
+  ]},
+  { cat: 'Landmarks', items: [
+    { tool:'landmark', kind:'fuel', name:'Fuel Tank', desc:'Explosive fuel tank', color:'#e06050' },
+    { tool:'landmark', kind:'port', name:'Port', desc:'Docks / port structure', color:'#60a8e0' },
+    { tool:'landmark', kind:'trainstation', name:'Train Station', desc:'Train station landmark', color:'#e8a040' },
+    { tool:'landmark', kind:'warehouse', name:'Warehouse', desc:'Big warehouse landmark', color:'#a08050' },
+    { tool:'landmark', kind:'transit', name:'Transit', desc:'Transit station landmark', color:'#4ab8ff' },
+    { tool:'landmark', kind:'mall', name:'Mall', desc:'Shopping mall landmark', color:'#8a8a82' },
+    { tool:'landmark', kind:'stadium', name:'Stadium', desc:'Sports stadium landmark', color:'#6a7a8a' },
+    { tool:'landmark', kind:'mosque', name:'Mosque', desc:'Mosque landmark', color:'#8a8a7a' },
+    { tool:'landmark', kind:'policestation', name:'Police Station', desc:'LSPD HQ landmark', color:'#4a5a8a' },
+    { tool:'landmark', kind:'nightclub', name:'Nightclub', desc:'Nightclub landmark', color:'#6a3a7a' },
+    { tool:'landmark', kind:'firestation', name:'Fire Station', desc:'Fire station landmark', color:'#a04030' },
+    { tool:'landmark', kind:'school', name:'School', desc:'School landmark', color:'#a09070' },
+    { tool:'landmark', kind:'hill', name:'Hill', desc:'Terrain hill', color:'#4a6a3a' },
+    { tool:'landmark', kind:'rockfield', name:'Rock Field', desc:'Scattered rocks', color:'#7a7a72' },
+  ]},
+  { cat: 'Vehicles', items: [
+    { tool:'vehicle', kind:'car', name:'Car', desc:'Fast civilian car — drivable', color:'#c06060' },
+    { tool:'vehicle', kind:'truck', name:'Truck', desc:'Heavy truck — drivable', color:'#6080b0' },
+    { tool:'vehicle', kind:'jeep', name:'Jeep', desc:'Off-road jeep — drivable', color:'#70a060' },
+  ]},
+  { cat: 'Nature', items: [
+    { tool:'tree', kind:'live', name:'Tree', desc:'Living tree', color:'#3a6a3a' },
+    { tool:'tree', kind:'dead', name:'Dead Tree', desc:'Dry dead tree', color:'#6a5a3a' },
+  ]},
+  { cat: 'Combat & loot', items: [
+    { tool:'spawn', name:'Enemy Spawn', desc:'Where enemies appear', color:'#e05050' },
+    { tool:'cover', name:'Cover Point', desc:'AI cover spot', color:'#e8a040' },
+    { tool:'loot', name:'Loot Drop', desc:'Item drop spot', color:'#ffd24a' },
+    { tool:'react', kind:'flex', name:'Reactive (Flex)', desc:'Falling / tilting prop', color:'#c060e0' },
+    { tool:'react', kind:'fire', name:'Reactive (Fire)', desc:'Explodes into fire', color:'#ff6a30' },
+    { tool:'react', kind:'firex', name:'Reactive (Firex)', desc:'Fire barrel trap', color:'#e06050' },
+  ]},
+  { cat: 'Map Info', items: [
+    { tool:'transit', name:'Transit Stop', desc:'Named transport stop', color:'#4ab8ff' },
+    { tool:'named', name:'Named Spot', desc:'Labeled point of interest', color:'#ffd24a' },
+  ]},
+];
+
+// ============ BEZIER MATH ============
+function catmullRomPoint(p0, p1, p2, p3, t) {
+  const t2 = t * t, t3 = t2 * t;
+  return [
+    0.5 * ((2*p1[0]) + (-p0[0]+p2[0])*t + (2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2 + (-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3),
+    0.5 * ((2*p1[1]) + (-p0[1]+p2[1])*t + (2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*t2 + (-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3),
+  ];
+}
+function smoothRoadPoints(points, segmentsPerCurve = 8) {
+  if (points.length < 3) return points.slice();
+  const out = [];
+  const n = points.length;
+  for (let i = 0; i < n - 1; i++) {
+    const p0 = points[Math.max(0, i - 1)];
+    const p1 = points[i];
+    const p2 = points[Math.min(n - 1, i + 1)];
+    const p3 = points[Math.min(n - 1, i + 2)];
+    for (let s = 0; s < segmentsPerCurve; s++) {
+      out.push(catmullRomPoint(p0, p1, p2, p3, s / segmentsPerCurve));
+    }
+  }
+  out.push(points[n - 1]);
+  return out;
+}
+
+// ============ HANDLE STATE ============
+let handleMode = null;   // 'rotate' | 'resize-nw' | 'resize-ne' | 'resize-sw' | 'resize-se' | null
+let handleStart = null;  // {mx, mz, origRy, origW, origD, origX, origZ, startAngle}
+
+// ============ TEXT OVERLAY SYSTEM ============
+let textDraft = null;     // {buildingCat, buildingIdx, dragging: true}
+let textDragIdx = -1;     // index of overlay being dragged
+let textDragStart = null; // {ox, oz}
+const TEXT_FONTS = ['Arial', 'Impact', 'Courier New', 'Georgia', 'Verdana'];
+const TEXT_COLORS = ['#ffffff','#000000','#ffd24a','#ff3333','#33ff33','#3399ff','#ff6600','#cc33ff'];
+function getOverlays(it) { return it._overlays || []; }
+function setOverlays(it, arr) { it._overlays = arr; }
+function addOverlay(it, text, wx, wz) {
+  if (!it._overlays) it._overlays = [];
+  it._overlays.push({ text, offX: wx - (it.x||0), offZ: wz - (it.z||0), color: '#ffffff', fontSize: 14, font: 'Arial', face: 'front', stroke: true });
+}
+function hitTestOverlay(sx, sy) {
+  if (!selected) return -1;
+  const it = scene[selected.cat][selected.idx];
+  if (!it) return -1;
+  const overlays = getOverlays(it);
+  for (let i = overlays.length - 1; i >= 0; i--) {
+    const ov = overlays[i];
+    const wx = (it.x||0) + ov.offX, wz = (it.z||0) + ov.offZ;
+    const [osx, osy] = toScreen2(wx, wz);
+    if (Math.hypot(sx - osx, sy - osy) < Math.max(12, ov.fontSize * 0.8)) return i;
+  }
+  return -1;
+}
+
+const newScene = () => ({
+  id: 'new-map', name: 'New Map', version: 1,
+  bounds: 900,
+  startPoint: { x: 0, z: 70, yaw: Math.PI },
+  ground: { size: 2600, color: 0x4a3a2a },
+  roads: [], vehicles: [], pads: [], buildings: [], props: [], landmarks: [],
+  trees: [], spawns: [], cover: [], loot: [], transit: [], named: [], reactives: [],
+});
+function normalizeScene(s) {
+  s = s || {};
+  for (const c of catOrder) if (!Array.isArray(s[c])) s[c] = [];
+  if (!s.startPoint || typeof s.startPoint !== 'object') s.startPoint = { x: 0, z: 70, yaw: Math.PI };
+  if (!s.ground || typeof s.ground !== 'object') s.ground = { size: 2600, color: 0x4a3a2a };
+  if (!s.bounds) s.bounds = 900;
+  if (!s.name) s.name = s.id || 'New Map';
+  return s;
+}
+let scene = normalizeScene(newScene());
+let selected = null;        // {cat, idx}
+let tool = 'select';
+let camResetNeeded = true;
+let view = { cx: 0, cz: 0, scale: 2.2 };  // px per meter
+let roadDraft = null;       // {points:[[x,z],...], replaceCat, replaceIdx}
+let dragRect = null;        // {cat, x0,z0,x1,z1, kind fields}
+let dragged = null;         // {cat, idx, ox, oz} while moving selection
+let selBox3d = null;
+let pScene = new THREE.Scene();
+let issues = [];
+
+// ============ scene helpers ============
+function itemAt(cat, idx) { return scene[cat][idx]; }
+function setPoint(cat, idx, x, z) { // for [x,z] arrays
+  const v = scene[cat][idx];
+  if (Array.isArray(v)) scene[cat][idx] = [x, z]; else { v.x = x; v.z = z; }
+}
+function worldRect(b) { // building-ish {x,z,w,d,ry} -> corners
+  const w = b.w || 12, d = b.d || 12, ry = b.ry || 0;
+  const cs = Math.cos(ry), sn = Math.sin(ry);
+  const corners = [];
+  for (const [lx, lz] of [[-w/2,-d/2],[w/2,-d/2],[w/2,d/2],[-w/2,d/2]]) {
+    corners.push([b.x + lx*cs - lz*sn, b.z + lx*sn + lz*cs]);
+  }
+  return corners;
+}
+function landmarkRect(lm) {
+  const sz = { fuel:[lm.r||3, lm.r||3], port:[21,15], trainstation:[25,13], warehouse:[lm.w||34, lm.d||22], mall:[40,20], stadium:[82,57], mosque:[lm.w||16, lm.d||14], policestation:[lm.w||16, lm.d||12], nightclub:[lm.w||18, lm.d||16], transit:[7,5] }[lm.kind] || [8,8];
+  return worldRect({ x: lm.x, z: lm.z, w: sz[0], d: sz[1], ry: lm.ry || 0 });
+}
+function bRect(cat, item) {
+  if (cat === 'buildings' || cat === 'pads') return worldRect(item);
+  if (cat === 'vehicles') return worldRect({ x: item.x, z: item.z, w: ({ car: 2.2, truck: 2.7, jeep: 2.3 }[item.kind] || 2.2), d: ({ car: 4.6, truck: 5.8, jeep: 4.8 }[item.kind] || 4.6), ry: item.ry || 0 });
+  if (cat === 'landmarks') return landmarkRect(item);
+  if (item && item.x !== undefined) return worldRect({ x: item.x, z: item.z, w: item.w || 2, d: item.d || 2, ry: item.ry || 0 });
+  return null;
+}
+
+// ============ 2D canvas ============
+const c2 = $('#canvas2d'), ctx2 = c2.getContext('2d');
+function resize2d() {
+  const r = $('#pane2d').getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  c2.width = r.width * dpr; c2.height = r.height * dpr;
+  c2.style.width = r.width + 'px'; c2.style.height = r.height + 'px';
+  ctx2.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+function toScreen2(wx, wz) { return [(wx - view.cx) * view.scale + vw()/2, (wz - view.cz) * view.scale + vh()/2]; }
+function vw() { return c2.clientWidth; }
+function vh() { return c2.clientHeight; }
+function toWorld(sx, sy) { return [(sx - vw()/2) / view.scale + view.cx, (sy - vh()/2) / view.scale + view.cz]; }
+const snap1 = (v) => Math.round(v);
+const snap5 = (v) => Math.round(v / 5) * 5;
+
+function drawCat(cat, fn) { for (const it of (scene[cat] || [])) fn(it); }
+
+function contentBounds() {
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity, ok = false;
+  const pt = (x, z) => {
+    if (x == null || z == null || !isFinite(x) || !isFinite(z)) return;
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+    ok = true;
+  };
+  for (const r of scene.roads || []) for (const p of r.points || []) pt(p[0], p[1]);
+  for (const c of ['vehicles', 'pads', 'buildings', 'props', 'landmarks', 'trees', 'transit', 'named', 'reactives']) for (const it of scene[c] || []) pt(it.x, it.z);
+  for (const c of ['spawns', 'cover', 'loot']) for (const p of scene[c] || []) pt(p[0], p[1]);
+  pt(scene.startPoint && scene.startPoint.x, scene.startPoint && scene.startPoint.z);
+  return { minX, maxX, minZ, maxZ, ok };
+}
+function fitView() {
+  const cb = contentBounds();
+  if (cb.ok) {
+    view.cx = (cb.minX + cb.maxX) / 2;
+    view.cz = (cb.minZ + cb.maxZ) / 2;
+    view.scale = Math.min(vw() / (cb.maxX - cb.minX + 100), vh() / (cb.maxZ - cb.minZ + 100));
+  } else {
+    const b = scene.bounds || 900;
+    view.cx = 0; view.cz = 0;
+    view.scale = Math.min(vw(), vh()) / (b * 2 + 120);
+  }
+  view.scale = Math.max(0.03, Math.min(40, view.scale));
+  draw2d();
+}
+function fit3d() {
+  const cb = contentBounds();
+  if (!cb.ok) { pTarget.set(0, 20, 0); orbit.dist = 500; updateOrbit(); return; }
+  const cx = (cb.minX + cb.maxX) / 2, cz = (cb.minZ + cb.maxZ) / 2;
+  const size = Math.max(cb.maxX - cb.minX, cb.maxZ - cb.minZ, 40);
+  pTarget.set(cx, 12, cz);
+  orbit.dist = Math.max(30, size * 0.9 / Math.tan(pCam.fov * Math.PI / 360) + 30);
+  updateOrbit();
+}
+function draw2d() {
+  ctx2.clearRect(0, 0, vw(), vh());
+  const b = scene.bounds || 900;
+  const sc = view.scale;
+  if ($('#showGrid').checked) {
+    const step = sc > 8 ? 5 : sc > 2.5 ? 10 : sc > 0.8 ? 50 : 100;
+    ctx2.strokeStyle = 'rgba(255,255,255,0.05)'; ctx2.lineWidth = 1;
+    const x0 = Math.floor((view.cx - vw()/2/sc) / step) * step;
+    const z0 = Math.floor((view.cz - vh()/2/sc) / step) * step;
+    ctx2.beginPath();
+    for (let x = x0; x < view.cx + vw()/2/sc + step; x += step) {
+      const [sx] = toScreen2(x, 0);
+      ctx2.moveTo(sx, 0); ctx2.lineTo(sx, vh());
+    }
+    for (let z = z0; z < view.cz + vh()/2/sc + step; z += step) {
+      const [, sy] = toScreen2(0, z);
+      ctx2.moveTo(0, sy); ctx2.lineTo(vw(), sy);
+    }
+    ctx2.stroke();
+  }
+  // ground
+  const gs = scene.ground ? scene.ground.size : 2600;
+  const [gx0, gy0] = toScreen2(-gs/2, -gs/2);
+  const [gx1, gy1] = toScreen2(gs/2, gs/2);
+  ctx2.fillStyle = '#23262c'; ctx2.fillRect(gx0, gy0, gx1-gx0, gy1-gy0);
+  ctx2.strokeStyle = '#3a3f47'; ctx2.strokeRect(gx0, gy0, gx1-gx0, gy1-gy0);
+  // city bounds
+  const [bx0, by0] = toScreen2(-b, -b);
+  const [bx1, by1] = toScreen2(b, b);
+  ctx2.strokeStyle = 'rgba(255,210,74,0.35)'; ctx2.lineWidth = 1; ctx2.setLineDash([6, 6]);
+  ctx2.strokeRect(bx0, by0, bx1-bx0, by1-by0); ctx2.setLineDash([]);
+
+  drawRoads();
+  drawCat('vehicles', drawVehicle);
+  drawCat('pads', (p) => { fillRectC(p, '#7a7468', '#8a837a'); });
+  drawCat('trees', (t) => { const r = Math.max(2.5, 1.6 * sc * (t.s || 1)); ctx2.beginPath(); ctx2.arc(...toScreen2(t.x, t.z), r, 0, 7); ctx2.fillStyle = t.dead ? '#6a5a3a' : '#3a6a3a'; ctx2.fill(); ctx2.strokeStyle = '#2a4a2a'; ctx2.lineWidth = 1; ctx2.stroke(); });
+  drawBuildings();
+  drawOverlays();
+  drawCat('props', (p) => { const r = Math.max(2, 0.7 * sc); dot(p.x, p.z, r, '#9a9fa6'); });
+  drawCat('landmarks', drawLandmark);
+  drawCat('spawns', (p) => { const [sx, sy] = toScreen2(p[0], p[1]); ctx2.beginPath(); ctx2.arc(sx, sy, 4, 0, 7); ctx2.fillStyle = '#e05050'; ctx2.fill(); ctx2.beginPath(); ctx2.arc(sx, sy, 1.6, 0, 7); ctx2.fillStyle = '#fff'; ctx2.fill(); });
+  drawCat('cover', (p) => { const [sx, sy] = toScreen2(p[0], p[1]); ctx2.strokeStyle = '#e8a040'; ctx2.lineWidth = 2; ctx2.strokeRect(sx-4, sy-4, 8, 8); });
+  drawCat('loot', (p) => { const [sx, sy] = toScreen2(p[0], p[1]); ctx2.fillStyle = '#ffd24a'; ctx2.beginPath(); ctx2.moveTo(sx, sy-5); ctx2.lineTo(sx+4, sy); ctx2.lineTo(sx, sy+5); ctx2.lineTo(sx-4, sy); ctx2.closePath(); ctx2.fill(); });
+  drawCat('reactives', (p) => dot(p.x, p.z, 3.5, '#c060e0'));
+  drawCat('transit', (p) => { const [sx, sy] = toScreen2(p.x, p.z); star(sx, sy, 5, '#4ab8ff'); label(p.name, sx + 8, sy + 3, '#4ab8ff'); });
+  drawCat('named', (p) => { const [sx, sy] = toScreen2(p.x, p.z); ctx2.beginPath(); ctx2.arc(sx, sy, 4, 0, 7); ctx2.fillStyle = p.color || '#ffd24a'; ctx2.fill(); label(p.name, sx + 8, sy + 3, p.color || '#ffd24a'); });
+  // start point marker
+  if (scene.startPoint) {
+    const [sx, sy] = toScreen2(scene.startPoint.x, scene.startPoint.z);
+    ctx2.beginPath(); ctx2.arc(sx, sy, 7, 0, 7); ctx2.fillStyle = '#40e0ff'; ctx2.fill();
+    ctx2.beginPath(); ctx2.arc(sx, sy, 3, 0, 7); ctx2.fillStyle = '#fff'; ctx2.fill();
+    const ry = scene.startPoint.yaw || 0;
+    ctx2.beginPath(); ctx2.moveTo(sx, sy); ctx2.lineTo(sx + Math.sin(ry) * 12, sy - Math.cos(ry) * 12);
+    ctx2.strokeStyle = '#40e0ff'; ctx2.lineWidth = 2; ctx2.stroke();
+    label('SPAWN', sx + 10, sy + 3, '#40e0ff');
+  }
+  drawSelection();
+  drawDraft();
+  updateSel3d();
+}
+function dot(wx, wz, r, color) {
+  const [sx, sy] = toScreen2(wx, wz);
+  ctx2.beginPath(); ctx2.arc(sx, sy, r, 0, 7);
+  ctx2.fillStyle = color; ctx2.fill();
+}
+function label(txt, sx, sy, color) {
+  ctx2.font = '11px Segoe UI, sans-serif';
+  ctx2.fillStyle = color; ctx2.globalAlpha = 0.95;
+  ctx2.fillText(txt, sx, sy); ctx2.globalAlpha = 1;
+}
+function star(sx, sy, r, color) {
+  ctx2.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const rr = i % 2 ? r * 0.45 : r, a = i * Math.PI / 5 - Math.PI / 2;
+    const px = sx + Math.cos(a) * rr, py = sy + Math.sin(a) * rr;
+    i ? ctx2.lineTo(px, py) : ctx2.moveTo(px, py);
+  }
+  ctx2.closePath(); ctx2.fillStyle = color; ctx2.fill();
+}
+function fillRectC(item, fill, border) {
+  const pts = worldRect(item).map(([wx, wz]) => toScreen2(wx, wz));
+  pathPts(pts); ctx2.fillStyle = fill; ctx2.fill();
+  ctx2.strokeStyle = border; ctx2.lineWidth = 1; ctx2.stroke();
+}
+function pathPts(pts) {
+  ctx2.beginPath(); ctx2.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) ctx2.lineTo(pts[i][0], pts[i][1]);
+  ctx2.closePath();
+}
+function drawRoads() {
+  for (const rd of scene.roads) {
+    const pts = rd.points || [];
+    if (pts.length < 2) continue;
+    const wpx = (rd.w || 12) * view.scale;
+    const drawPts = rd.smooth !== false ? smoothRoadPoints(pts, view.scale > 3 ? 12 : 6) : pts;
+    const screen = drawPts.map(([wx, wz]) => toScreen2(wx, wz));
+    if (rd.sidewalk) {
+      ctx2.beginPath(); ctx2.moveTo(screen[0][0], screen[0][1]);
+      for (const p of screen) ctx2.lineTo(p[0], p[1]);
+      ctx2.strokeStyle = '#5a5650'; ctx2.lineWidth = wpx + 4.8 * view.scale; ctx2.lineJoin = 'round'; ctx2.lineCap = 'round'; ctx2.stroke();
+    }
+    ctx2.beginPath(); ctx2.moveTo(screen[0][0], screen[0][1]);
+    for (const p of screen) ctx2.lineTo(p[0], p[1]);
+    ctx2.strokeStyle = '#3d3d3d'; ctx2.lineWidth = wpx; ctx2.lineJoin = 'round'; ctx2.lineCap = 'round'; ctx2.stroke();
+    if (view.scale > 1.5) {
+      ctx2.strokeStyle = 'rgba(255,255,255,0.18)'; ctx2.lineWidth = Math.max(1, view.scale * 0.4); ctx2.setLineDash([view.scale * 3, view.scale * 4]);
+      ctx2.beginPath(); ctx2.moveTo(screen[0][0], screen[0][1]);
+      for (const p of screen) ctx2.lineTo(p[0], p[1]); ctx2.stroke(); ctx2.setLineDash([]);
+    }
+    ctx2.strokeStyle = 'rgba(255,255,255,0.06)'; ctx2.lineWidth = 1;
+    ctx2.beginPath(); ctx2.moveTo(screen[0][0], screen[0][1]);
+    for (const p of screen) ctx2.lineTo(p[0], p[1]); ctx2.stroke();
+  }
+}
+function drawBuildings() {
+  const colorOf = (b) => b.kind === 'tower' ? '#666d7a' : b.kind === 'shell' ? '#7a726a' : b.kind === 'container' ? '#5a6a5a' : '#827870';
+  drawCat('buildings', (b) => {
+    fillRectC(b, colorOf(b), selected && selected.cat === 'buildings' && scene.buildings[selected.idx] === b ? '#ffd24a' : '#3a3f47');
+    if (b.name) { const [sx, sy] = toScreen2(b.x, b.z); label(b.name, sx + 8, sy, '#ffe9b0'); }
+  });
+}
+function drawOverlays() {
+  for (const cat of ['buildings', 'landmarks']) {
+    for (let ci = 0; ci < (scene[cat] || []).length; ci++) {
+      const it = scene[cat][ci];
+      const overlays = getOverlays(it);
+      for (let oi = 0; oi < overlays.length; oi++) {
+        const ov = overlays[oi];
+        const wx = (it.x || 0) + ov.offX, wz = (it.z || 0) + ov.offZ;
+        const [sx, sy] = toScreen2(wx, wz);
+        const isSelected = selected && selected.cat === cat && selected.idx === ci;
+        ctx2.save();
+        const fs = Math.max(9, ov.fontSize * view.scale * 0.35);
+        ctx2.font = `bold ${fs}px ${ov.font || 'Arial'}`;
+        ctx2.textAlign = 'center'; ctx2.textBaseline = 'middle';
+        if (ov.stroke) {
+          ctx2.strokeStyle = '#000000'; ctx2.lineWidth = Math.max(2, fs * 0.12);
+          ctx2.lineJoin = 'round';
+          ctx2.strokeText(ov.text, sx, sy);
+        }
+        ctx2.fillStyle = ov.color || '#ffffff';
+        ctx2.fillText(ov.text, sx, sy);
+        if (isSelected) {
+          const tw = ctx2.measureText(ov.text).width;
+          ctx2.strokeStyle = '#64c8ff'; ctx2.lineWidth = 1.5; ctx2.setLineDash([3, 2]);
+          ctx2.strokeRect(sx - tw/2 - 4, sy - fs/2 - 3, tw + 8, fs + 6);
+          ctx2.setLineDash([]);
+          ctx2.beginPath(); ctx2.arc(sx, sy, 4, 0, Math.PI * 2);
+          ctx2.fillStyle = '#64c8ff'; ctx2.fill();
+        }
+        ctx2.restore();
+      }
+    }
+  }
+}
+const VEH_COLORS = { car: '#c06060', truck: '#6080b0', jeep: '#70a060' };
+function drawVehicle(v) {
+  const sz = { car: [2.2, 4.6], truck: [2.7, 5.8], jeep: [2.3, 4.8] }[v.kind] || [2.2, 4.6];
+  const pts = worldRect({ x: v.x, z: v.z, w: sz[0], d: sz[1], ry: v.ry || 0 }).map(([wx, wz]) => toScreen2(wx, wz));
+  pathPts(pts);
+  ctx2.fillStyle = VEH_COLORS[v.kind] || '#c0a060'; ctx2.globalAlpha = 0.85; ctx2.fill(); ctx2.globalAlpha = 1;
+  ctx2.strokeStyle = '#1a1a1c'; ctx2.lineWidth = 1.5; ctx2.stroke();
+  const [sx, sy] = toScreen2(v.x, v.z);
+  ctx2.font = 'bold 10px Segoe UI, sans-serif';
+  ctx2.fillStyle = '#fff';
+  ctx2.fillText((v.kind || 'car').toUpperCase()[0], sx - 3, sy + 3);
+}
+function drawLandmark(lm) {  const colors = { transit:'#4ab8ff', fuel:'#e06050', port:'#60a8e0', trainstation:'#e8a040', warehouse:'#a08050', mall:'#8a8a82', stadium:'#6a7a8a', mosque:'#8a8a7a', policestation:'#4a5a8a', nightclub:'#6a3a7a' };
+  const pts = landmarkRect(lm).map(([wx, wz]) => toScreen2(wx, wz));
+  pathPts(pts);
+  ctx2.fillStyle = colors[lm.kind] || '#aaa'; ctx2.globalAlpha = 0.55; ctx2.fill(); ctx2.globalAlpha = 1;
+  ctx2.strokeStyle = colors[lm.kind] || '#aaa'; ctx2.lineWidth = 1.5; ctx2.stroke();
+  const [sx, sy] = toScreen2(lm.x, lm.z);
+  if (lm.kind === 'transit') star(sx, sy, 6, colors.transit);
+  label(lm.name || lm.kind.toUpperCase(), sx + 8, sy, colors[lm.kind] || '#aaa');
+}
+function drawSelection() {
+  if (!selected) return;
+  const it = scene[selected.cat][selected.idx];
+  if (!it) return;
+  const pts = bRect(selected.cat, it);
+  if (pts) {
+    const screen = pts.map(([wx, wz]) => toScreen2(wx, wz));
+    pathPts(screen);
+    ctx2.strokeStyle = '#ffd24a'; ctx2.lineWidth = 2; ctx2.stroke();
+    if (selected.cat === 'buildings' || selected.cat === 'pads' || selected.cat === 'landmarks' || it.ry !== undefined) {
+      const cx = (pts[0][0]+pts[1][0]+pts[2][0]+pts[3][0])/4;
+      const cz = (pts[0][1]+pts[1][1]+pts[2][1]+pts[3][1])/4;
+      const [scx, scy] = toScreen2(cx, cz);
+      const radius = Math.max(30, Math.min(60, Math.hypot(pts[1][0]-pts[0][0], pts[1][1]-pts[0][1]) * 0.55));
+      ctx2.beginPath(); ctx2.arc(scx, scy, radius, 0, Math.PI * 2);
+      ctx2.strokeStyle = 'rgba(100,200,255,0.5)'; ctx2.lineWidth = 2; ctx2.setLineDash([4, 3]); ctx2.stroke(); ctx2.setLineDash([]);
+      const ry = it.ry || 0;
+      const hx = scx + Math.sin(ry) * radius;
+      const hy = scy - Math.cos(ry) * radius;
+      ctx2.beginPath(); ctx2.arc(hx, hy, 6, 0, Math.PI * 2);
+      ctx2.fillStyle = '#64c8ff'; ctx2.fill();
+      ctx2.strokeStyle = '#fff'; ctx2.lineWidth = 2; ctx2.stroke();
+      const midScreen = toScreen2(cx, cz);
+      const cornerDist = 8;
+      const corners = [
+        { label: 'nw', sx: Math.min(screen[0][0],screen[2][0])-cornerDist, sy: Math.min(screen[0][1],screen[2][1])-cornerDist },
+        { label: 'ne', sx: Math.max(screen[1][0],screen[3][0])+cornerDist, sy: Math.min(screen[0][1],screen[2][1])-cornerDist },
+        { label: 'sw', sx: Math.min(screen[0][0],screen[2][0])-cornerDist, sy: Math.max(screen[1][1],screen[3][1])+cornerDist },
+        { label: 'se', sx: Math.max(screen[1][0],screen[3][0])+cornerDist, sy: Math.max(screen[1][1],screen[3][1])+cornerDist },
+      ];
+      for (const c of corners) {
+        ctx2.beginPath(); ctx2.arc(c.sx, c.sy, 5, 0, Math.PI * 2);
+        ctx2.fillStyle = '#ffd24a'; ctx2.fill();
+        ctx2.strokeStyle = '#14161a'; ctx2.lineWidth = 2; ctx2.stroke();
+      }
+    }
+  } else {
+    const [sx, sy] = toScreen2(it.x, it.z);
+    ctx2.strokeStyle = '#ffd24a'; ctx2.lineWidth = 2;
+    ctx2.beginPath(); ctx2.arc(sx, sy, 7, 0, 7); ctx2.stroke();
+  }
+}
+function drawDraft() {
+  if (roadDraft) {
+    const pts = roadDraft.points.map(([wx, wz]) => [wx, wz]);
+    if (pts.length) {
+      let allPts = pts.slice();
+      if (roadDraft.mouse) allPts.push(toWorld(roadDraft.mouse[0], roadDraft.mouse[1]));
+      const smooth = smoothRoadPoints(allPts.length >= 2 ? allPts : [allPts[0], allPts[0]], view.scale > 3 ? 12 : 6);
+      const screen = smooth.map(([wx, wz]) => toScreen2(wx, wz));
+      ctx2.strokeStyle = 'rgba(255,210,74,0.85)'; ctx2.lineWidth = Math.max(3, (+roadW.value || 12)) * view.scale; ctx2.lineJoin = 'round'; ctx2.lineCap = 'round';
+      ctx2.beginPath(); ctx2.moveTo(screen[0][0], screen[0][1]);
+      for (const p of screen) ctx2.lineTo(p[0], p[1]);
+      ctx2.stroke();
+      for (const [wx, wz] of roadDraft.points) { const [sx, sy] = toScreen2(wx, wz); ctx2.beginPath(); ctx2.arc(sx, sy, 4, 0, Math.PI * 2); ctx2.fillStyle = '#ffd24a'; ctx2.fill(); ctx2.strokeStyle = '#14161a'; ctx2.lineWidth = 1.5; ctx2.stroke(); }
+    }
+  }
+  if (dragRect) {
+    const x = Math.min(dragRect.x0, dragRect.x1), z = Math.min(dragRect.z0, dragRect.z1);
+    const w = Math.abs(dragRect.x1 - dragRect.x0), d = Math.abs(dragRect.z1 - dragRect.z0);
+    fillRectC({ x: x + w / 2, z: z + d / 2, w, d, ry: 0 }, 'rgba(255,210,74,0.25)', 'rgba(255,210,74,0.9)');
+  }
+}
+function toWorld2(px, py) { return toWorld(px, py); }
+
+// ============ hit testing ============
+function distPtSeg2(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay, len2 = dx * dx + dy * dy;
+  if (len2 < 1e-9) return Math.hypot(px - ax, py - ay);
+  let t = ((px - ax) * dx + (py - ay) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+function pick(wx, wz) {
+  const eps = Math.min(Math.max(5 / view.scale, 1.5), 6);
+  const scan = (cat, pred) => {
+    const arr = scene[cat] || [];
+    for (let i = arr.length - 1; i >= 0; i--) {
+      if (pred(arr[i], i) < eps) return { cat, idx: i };
+    }
+    return null;
+  };
+  let h;
+  h = scan('named', (p) => Math.hypot(p.x - wx, p.z - wz)); if (h) return h;
+  h = scan('transit', (p) => Math.hypot(p.x - wx, p.z - wz)); if (h) return h;
+  h = scan('vehicles', (p) => Math.hypot(p.x - wx, p.z - wz) - 2.2); if (h) return h;
+  h = scan('landmarks', (p) => (insideRect(wx, wz, p) ? 0 : 1e9)); if (h) return h;
+  h = scan('props', (p) => Math.hypot(p.x - wx, p.z - wz) - 1.6); if (h) return h;
+  h = scan('buildings', (p) => (insideRect(wx, wz, p) ? 0 : 1e9)); if (h) return h;
+  h = scan('pads', (p) => (insideRect(wx, wz, p) ? 0 : 1e9)); if (h) return h;
+  h = scan('trees', (p) => Math.hypot(p.x - wx, p.z - wz) - 2); if (h) return h;
+  h = scan('spawns', (p) => Math.hypot(p[0] - wx, p[1] - wz) - 1.5); if (h) return h;
+  h = scan('cover', (p) => Math.hypot(p[0] - wx, p[1] - wz) - 1.5); if (h) return h;
+  h = scan('loot', (p) => Math.hypot(p[0] - wx, p[1] - wz) - 1.5); if (h) return h;
+  h = scan('reactives', (p) => Math.hypot(p.x - wx, p.z - wz) - 1.5); if (h) return h;
+  h = scan('roads', (rd) => {
+    let best = 1e9;
+    for (let i = 0; i < (rd.points || []).length - 1; i++) {
+      best = Math.min(best, distPtSeg2(wx, wz, rd.points[i][0], rd.points[i][1], rd.points[i+1][0], rd.points[i+1][1]));
+    }
+    return best - (rd.w || 12) / 2;
+  });
+  return h;
+}
+function insideRect(wx, wz, item) {
+  const w = (item.w || 12) / 2, d = (item.d || 12) / 2;
+  const dx = wx - item.x, dz = wz - item.z;
+  const ry = -(item.ry || 0);
+  const lx = dx * Math.cos(ry) - dz * Math.sin(ry);
+  const lz = dx * Math.sin(ry) + dz * Math.cos(ry);
+  return Math.abs(lx) <= w + 0.6 && Math.abs(lz) <= d + 0.6;
+}
+
+// ============ handle hit testing ============
+function hitTestHandles(sx, sy) {
+  if (!selected) return null;
+  const it = scene[selected.cat][selected.idx];
+  if (!it || it.ry === undefined) return null;
+  const pts = bRect(selected.cat, it);
+  if (!pts) return null;
+  const cx = (pts[0][0]+pts[1][0]+pts[2][0]+pts[3][0])/4;
+  const cz = (pts[0][1]+pts[1][1]+pts[2][1]+pts[3][1])/4;
+  const [scx, scy] = toScreen2(cx, cz);
+  const radius = Math.max(30, Math.min(60, Math.hypot(pts[1][0]-pts[0][0], pts[1][1]-pts[0][1]) * 0.55));
+  const ry = it.ry || 0;
+  const hx = scx + Math.sin(ry) * radius;
+  const hy = scy - Math.cos(ry) * radius;
+  if (Math.hypot(sx - hx, sy - hy) < 10) return 'rotate';
+  const screen = pts.map(([wx, wz]) => toScreen2(wx, wz));
+  const corners = [
+    { label: 'nw', sx: Math.min(screen[0][0],screen[2][0])-8, sy: Math.min(screen[0][1],screen[2][1])-8 },
+    { label: 'ne', sx: Math.max(screen[1][0],screen[3][0])+8, sy: Math.min(screen[0][1],screen[2][1])-8 },
+    { label: 'sw', sx: Math.min(screen[0][0],screen[2][0])-8, sy: Math.max(screen[1][1],screen[3][1])+8 },
+    { label: 'se', sx: Math.max(screen[1][0],screen[3][0])+8, sy: Math.max(screen[1][1],screen[3][1])+8 },
+  ];
+  for (const c of corners) {
+    if (Math.hypot(sx - c.sx, sy - c.sy) < 10) return 'resize-' + c.label;
+  }
+  return null;
+}
+
+// ============ tools / mouse ============
+let mouse = { x: 0, y: 0, down: false, button: 0, lastX: 0, lastY: 0 };
+c2.addEventListener('mousedown', (e) => {
+  if (document.activeElement && document.activeElement.tagName !== 'CANVAS') document.activeElement.blur();
+  const [wx, wz] = toWorld(e.offsetX, e.offsetY);
+  mouse.down = true; mouse.button = e.button;
+  mouse.lastX = e.offsetX; mouse.lastY = e.offsetY;
+  if (e.button === 1 || e.button === 2 || e.shiftKey) return; // pan
+  if (tool === 'select') {
+    const ovIdx = hitTestOverlay(e.offsetX, e.offsetY);
+    if (ovIdx >= 0 && selected) {
+      const it = scene[selected.cat][selected.idx];
+      const ov = getOverlays(it)[ovIdx];
+      textDragIdx = ovIdx;
+      textDragStart = { ox: ov.offX, oz: ov.offZ, fx: wx, fz: wz };
+      return;
+    }
+    const hh = hitTestHandles(e.offsetX, e.offsetY);
+    if (hh) {
+      const it = scene[selected.cat][selected.idx];
+      handleMode = hh;
+      const cx = it.x, cz = it.z;
+      if (hh === 'rotate') {
+        handleStart = { mx: e.offsetX, my: e.offsetY, origRy: it.ry || 0, cx, cz, startAngle: Math.atan2(e.offsetX - vw()/2, -(e.offsetY - vh()/2)) };
+      } else {
+        handleStart = { mx: e.offsetX, my: e.offsetY, origW: it.w || 12, origD: it.d || 12, origX: it.x, origZ: it.z, startAngle: 0 };
+      }
+      return;
+    }
+    const h = pick(wx, wz);
+    if (h) {
+      selected = h;
+      const it = scene[h.cat][h.idx];
+      const ix = it.x !== undefined ? it.x : it[0];
+      const iz = it.z !== undefined ? it.z : it[1];
+      dragged = { cat: h.cat, idx: h.idx, ox: ix, oz: iz, fx: wx, fz: wz, moved: false };
+    } else selected = null;
+    renderInspector(); draw2d();
+  } else if (tool === 'road') {
+    if (!roadDraft) roadDraft = { points: [], mouse: null };
+    roadDraft.points.push([snap1(wx), snap1(wz)]);
+    roadDraft.mouse = null;
+    draw2d();
+  } else if (tool === 'pad' || tool === 'building') {
+    dragRect = { cat: tool, x0: snap1(wx), z0: snap1(wz), x1: snap1(wx), z1: snap1(wz) };
+  } else if (tool === 'erase') {
+    const h = pick(wx, wz);
+    if (h) { scene[h.cat].splice(h.idx, 1); if (selected && selected.cat === h.cat && selected.idx === h.idx) selected = null; redrawAll(); }
+  } else if (tool === 'text') {
+    const h = pick(wx, wz);
+    if (h && (h.cat === 'buildings' || h.cat === 'landmarks')) {
+      selected = h;
+      const it = scene[h.cat][h.idx];
+      const txt = prompt('Enter text for sign:', 'TEXT');
+      if (txt) { addOverlay(it, txt, wx, wz); redrawAll(); renderInspector(); }
+    }
+  } else {
+    placePoint(tool, wx, wz);
+  }
+});
+c2.addEventListener('mousemove', (e) => {
+  const [wx, wz] = toWorld(e.offsetX, e.offsetY);
+  $('#coords').textContent = `x ${snap1(wx)}  z ${snap1(wz)}`;
+  if (!mouse.down) {
+    if (roadDraft) { roadDraft.mouse = toScreen2(snap1(wx), snap1(wz)); draw2d(); }
+    const hh = hitTestHandles(e.offsetX, e.offsetY);
+    c2.style.cursor = hh ? (hh === 'rotate' ? 'grab' : 'nwse-resize') : (tool === 'erase' ? 'not-allowed' : tool === 'select' ? 'default' : 'crosshair');
+    return;
+  }
+  const dx = e.offsetX - mouse.lastX, dy = e.offsetY - mouse.lastY;
+  mouse.lastX = e.offsetX; mouse.lastY = e.offsetY;
+  if (mouse.button === 1 || mouse.button === 2 || (mouse.button === 0 && e.shiftKey)) {
+    view.cx -= dx / view.scale; view.cz -= dy / view.scale; draw2d(); return;
+  }
+  if (textDragIdx >= 0 && textDragStart && selected) {
+    const it = scene[selected.cat][selected.idx];
+    const ov = getOverlays(it)[textDragIdx];
+    if (ov) {
+      ov.offX = textDragStart.ox + (wx - textDragStart.fx);
+      ov.offZ = textDragStart.oz + (wz - textDragStart.fz);
+      draw2d(); schedulePreview();
+    }
+    return;
+  }
+  if (handleMode && handleStart && selected) {
+    const it = scene[selected.cat][selected.idx];
+    if (handleMode === 'rotate') {
+      const [cx, cz] = [handleStart.cx, handleStart.cz];
+      const [scx, scy] = toScreen2(cx, cz);
+      const angle = Math.atan2(e.offsetX - scx, -(e.offsetY - scy));
+      const baseAngle = Math.atan2(handleStart.mx - scx, -(handleStart.my - scy));
+      it.ry = snap5(handleStart.origRy + (angle - baseAngle));
+      draw2d(); schedulePreview();
+    } else if (handleMode.startsWith('resize-') && it.w !== undefined) {
+      const corner = handleMode.split('-')[1];
+      const [cx, cz] = [handleStart.cx || it.x, handleStart.cz || it.z];
+      const [scx, scy] = toScreen2(cx, cz);
+      const worldDx = (e.offsetX - handleStart.mx) / view.scale;
+      const worldDy = (e.offsetY - handleStart.my) / view.scale;
+      let newW = handleStart.origW, newD = handleStart.origD;
+      if (corner === 'ne' || corner === 'se') newW = snap5(Math.max(4, handleStart.origW + worldDx));
+      else newW = snap5(Math.max(4, handleStart.origW - worldDx));
+      if (corner === 'se' || corner === 'sw') newD = snap5(Math.max(4, handleStart.origD + worldDy));
+      else newD = snap5(Math.max(4, handleStart.origD - worldDy));
+      it.w = newW; it.d = newD;
+      draw2d(); schedulePreview();
+    }
+    return;
+  }
+  if (tool === 'select' && dragged) {
+    const it = scene[dragged.cat][dragged.idx];
+    const nx = snap1(dragged.ox + (wx - dragged.fx));
+    const nz = snap1(dragged.oz + (wz - dragged.fz));
+    if (it.x !== undefined) { it.x = nx; it.z = nz; }
+    else { scene[dragged.cat][dragged.idx] = [nx, nz]; }
+    dragged.moved = true;
+    draw2d(); schedulePreview();
+  } else if (dragRect) {
+    dragRect.x1 = snap1(wx); dragRect.z1 = snap1(wz);
+    draw2d();
+  }
+});
+c2.addEventListener('mouseup', (e) => {
+  if (dragRect) finishDragRect();
+  mouse.down = false;
+  if (dragged) { dragged = null; }
+  if (handleMode) { handleMode = null; handleStart = null; renderInspector(); dirty(); }
+  if (textDragIdx >= 0) { textDragIdx = -1; textDragStart = null; dirty(); }
+});
+function finishDragRect() {
+  if (!dragRect) return;
+  const w = Math.abs(dragRect.x1 - dragRect.x0), d = Math.abs(dragRect.z1 - dragRect.z0);
+  if (w >= 3 && d >= 3) {
+    const cx = (dragRect.x0 + dragRect.x1) / 2, cz = (dragRect.z0 + dragRect.z1) / 2;
+    if (dragRect.cat === 'pad') scene.pads.push({ x: snap1(cx), z: snap1(cz), w: snap1(w), d: snap1(d), ry: 0, m: 'plaza' });
+    else scene.buildings.push({ ...buildDefaults, kind: kindSel.value || 'box', x: snap1(cx), z: snap1(cz), w: snap1(w), d: snap1(d), ry: 0 });
+    selected = { cat: dragRect.cat === 'pad' ? 'pads' : 'buildings', idx: scene[dragRect.cat === 'pad' ? 'pads' : 'buildings'].length - 1 };
+  }
+  dragRect = null;
+  redrawAll();
+}
+c2.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const [wx, wz] = toWorld(e.offsetX, e.offsetY);
+  const f = e.deltaY < 0 ? 1.18 : 1 / 1.18;
+  view.scale = Math.min(40, Math.max(0.03, view.scale * f));
+  view.cx = wx - (e.offsetX - vw()/2) / view.scale;
+  view.cz = wz - (e.offsetY - vh()/2) / view.scale;
+  draw2d();
+}, { passive: false });
+c2.addEventListener('contextmenu', (e) => e.preventDefault());
+c2.addEventListener('dblclick', (e) => {
+  if (tool === 'road' && roadDraft) finishRoad();
+  if (tool === 'select') {
+    const [wx, wz] = toWorld(e.offsetX, e.offsetY);
+    const h = pick(wx, wz);
+    if (h && (h.cat === 'buildings' || h.cat === 'landmarks' || h.cat === 'props')) {
+      selected = h;
+      openSubEditor(h.cat, h.idx);
+      renderInspector(); draw2d();
+    }
+  }
+});
+function placePoint(tool, wx, wz) {
+  const x = snap1(wx), z = snap1(wz);
+  if (tool === 'spawn') scene.spawns.push([x, z]);
+  else if (tool === 'cover') scene.cover.push([x, z]);
+  else if (tool === 'loot') scene.loot.push([x, z]);
+  else if (tool === 'tree') scene.trees.push({ x, z, s: 1, dead: kindSel.value === 'dead' });
+  else if (tool === 'transit') scene.transit.push({ x, z, name: 'STATION' });
+  else if (tool === 'named') scene.named.push({ x, z, name: 'AREA', color: '#ffd24a' });
+  else if (tool === 'react') scene.reactives.push({ x, z, kind: kindSel.value || 'flex' });
+  else if (tool === 'prop') scene.props.push({ ...propDefaults[kindSel.value], x, z });
+  else if (tool === 'landmark') scene.landmarks.push({ ...landmarkDefaults[kindSel.value], x, z });
+  else if (tool === 'vehicle') scene.vehicles.push({ x, z, ry: 0, kind: kindSel.value || 'car' });
+  else if (tool === 'startpoint') { scene.startPoint.x = x; scene.startPoint.z = z; selected = null; redrawAll(); return; }
+  selected = { cat: tool === 'prop' ? 'props' : tool === 'landmark' ? 'landmarks' : tool === 'vehicle' ? 'vehicles' : tool === 'tree' ? 'trees' : tool === 'react' ? 'reactives' : tool, idx: scene[tool === 'prop' ? 'props' : tool === 'landmark' ? 'landmarks' : tool === 'vehicle' ? 'vehicles' : tool === 'tree' ? 'trees' : tool === 'react' ? 'reactives' : tool].length - 1 };
+  redrawAll();
+}
+function finishRoad() {
+  if (roadDraft && roadDraft.points.length >= 2) {
+    if (roadDraft.replaceCat) {
+      const it = scene[roadDraft.replaceCat][roadDraft.replaceIdx];
+      it.points = roadDraft.points.slice();
+      it.smooth = $('#roadSmooth').checked;
+    } else {
+      scene.roads.push({ w: +roadW.value, sidewalk: roadSidewalk.checked, smooth: $('#roadSmooth').checked, points: roadDraft.points.slice() });
+    }
+  }
+  roadDraft = null;
+  redrawAll();
+}
+window.addEventListener('keydown', (e) => {
+  const tag = document.activeElement && document.activeElement.tagName;
+  const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+  if (e.key === 'Escape') {
+    if (inInput) { document.activeElement.blur(); return; }
+    if ($('#assetEditor').style.display === 'flex') { closeAssetEditor(); return; }
+    if (roadDraft) { roadDraft = null; draw2d(); }
+    else { selected = null; renderInspector(); draw2d(); }
+    return;
+  }
+  if (inInput) return;
+  if (e.key === 'Enter' && roadDraft) { finishRoad(); return; }
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (selected) { scene[selected.cat].splice(selected.idx, 1); selected = null; redrawAll(); }
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save(); return; }
+  if (selected && (e.key.startsWith('Arrow'))) {
+    e.preventDefault();
+    const it = scene[selected.cat][selected.idx];
+    const step = e.shiftKey ? 5 : 1;
+    const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+    const dz = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+    if (it.x !== undefined) { it.x = snap1(it.x + dx); it.z = snap1(it.z + dz); }
+    else { scene[selected.cat][selected.idx] = [snap1(it[0] + dx), snap1(it[1] + dz)]; }
+    redrawAll();
+  }
+  if (selected && !fs3d && (e.key === 'q' || e.key === 'Q')) {
+    const it = scene[selected.cat][selected.idx];
+    if (it.ry !== undefined || it.x !== undefined) { it.ry = (it.ry || 0) - (e.shiftKey ? 0.5 : 0.15); redrawAll(); }
+  }
+  if (selected && !fs3d && (e.key === 'e' || e.key === 'E')) {
+    const it = scene[selected.cat][selected.idx];
+    if (it.ry !== undefined || it.x !== undefined) { it.ry = (it.ry || 0) + (e.shiftKey ? 0.5 : 0.15); redrawAll(); }
+  }
+});
+
+// ============ toolbar ============
+const buildDefaults = { kind: 'box', w: 12, d: 12, h: 4, ry: 0, m: 'concrete', roof: false, roofAccess: false, enterable: false, windows: true, solid: true, doorW: 3, name: '' };
+const propKinds = ['crate','woodcrate','crates','box','barrel','barrels','stairs','lamp','hydrant','dumpster','trashcan','mailbox','busstop','trafficlight','pole','planter','bollard','billboard','bench','umbrella','cafetable','wreck'];
+const propDefaults = {
+  crate: { kind:'crate', m:'crate', ry:0, y:0 },
+  woodcrate: { kind:'woodcrate', m:'wood', ry:0, y:0 },
+  crates: { kind:'crates', m:'crate', ry:0, y:0 },
+  box: { kind:'box', m:'crate', w:1.2, h:0.9, d:1.2, ry:0, y:0 },
+  barrel: { kind:'barrel', m:'barrel', react:'flex', ry:0, y:0 },
+  barrels: { kind:'barrels', m:'barrel', react:'firex', ry:0, y:0 },
+  stairs: { kind:'stairs', m:'metal', ry:0 },
+  lamp: { kind:'lamp', ry:0 },
+  hydrant: { kind:'hydrant', ry:0 },
+  dumpster: { kind:'dumpster', m:{ m:'metal', c:[70,110,70] }, ry:0, y:0 },
+  trashcan: { kind:'trashcan', ry:0 },
+  mailbox: { kind:'mailbox', ry:0 },
+  busstop: { kind:'busstop', ry:0 },
+  trafficlight: { kind:'trafficlight', ry:0 },
+  pole: { kind:'pole', ry:0 },
+  planter: { kind:'planter', ry:0 },
+  bollard: { kind:'bollard', ry:0 },
+  billboard: { kind:'billboard', ry:0 },
+  bench: { kind:'bench', ry:0 },
+  umbrella: { kind:'umbrella', ry:0 },
+  cafetable: { kind:'cafetable', ry:0 },
+  wreck: { kind:'wreck', ry:0 },
+};
+const landmarkKinds = ['transit','fuel','port','trainstation','warehouse','mall','stadium','mosque','policestation','nightclub'];
+const landmarkDefaults = {
+  transit: { kind:'transit', name:'STATION', ry:0 },
+  fuel: { kind:'fuel', r:3, h:7, solid:true, ry:0 },
+  port: { kind:'port', solid:true, ry:0 },
+  trainstation: { kind:'trainstation', solid:true, ry:0 },
+  warehouse: { kind:'warehouse', w:34, d:22, h:9, solid:true, ry:0 },
+  mall: { kind:'mall', w:40, d:20, h:8.5, solid:true, ry:0 },
+  stadium: { kind:'stadium', solid:true, ry:0 },
+  mosque: { kind:'mosque', w:16, d:14, h:8, solid:true, ry:0 },
+  policestation: { kind:'policestation', w:16, d:12, h:7, solid:true, ry:0 },
+  nightclub: { kind:'nightclub', w:18, d:16, h:8, solid:true, ry:0 },
+};
+const KIND_OPTIONS = {
+  building: ['box', 'tower', 'shell', 'container', 'house', 'housedetailed', 'apartment', 'lcorner', 'rowhouse', 'townhouse', 'luxuryvilla', 'shop', 'store', 'supermarket', 'mall', 'motel', 'highrise', 'penthousetower', 'artdeco', 'hospital', 'bank', 'policestation', 'firestation', 'school', 'warehouse', 'nightclub', 'stadium', 'mosque', 'gasstation', 'modernpetrol', 'parking', 'trainstation', 'transitstation', 'marinapier', 'airporthangar'],
+  prop: propKinds,
+  landmark: landmarkKinds,
+  vehicle: ['car', 'truck', 'jeep'],
+  react: ['flex', 'fire', 'firex'],
+  tree: ['live', 'dead'],
+};
+document.querySelectorAll('#toolrail button[data-tool]').forEach((btn) => {
+  btn.addEventListener('click', () => setTool(btn.dataset.tool));
+});
+
+function setTool(t, kind) {
+  tool = t;
+  document.querySelectorAll('#toolrail button[data-tool]').forEach((b) => b.classList.toggle('active', b.dataset.tool === t));
+  document.querySelectorAll('#float-toolbar button[data-tool]').forEach((b) => b.classList.toggle('active', b.dataset.tool === t));
+  const opts = KIND_OPTIONS[t];
+  $('#kindLabel').style.display = opts ? '' : 'none';
+  if (opts) {
+    if (!$('#kindSel').dataset.for || $('#kindSel').dataset.for !== t) {
+      $('#kindSel').innerHTML = opts.map((k) => `<option>${k}</option>`).join('');
+      $('#kindSel').dataset.for = t;
+    }
+    if (kind && $('#kindSel').value !== kind) $('#kindSel').value = kind;
+  }
+  document.querySelectorAll('#libGrid .tile').forEach((b) => {
+    const k = b.dataset.kind;
+    b.classList.toggle('active', b.dataset.tool === t && (!k || k === $('#kindSel').value));
+  });
+  c2.style.cursor = t === 'erase' ? 'not-allowed' : t === 'select' ? 'default' : t === 'text' ? 'text' : 'crosshair';
+  $('#hint').textContent = TOOL_HINTS[t] || 'click=place · wheel=zoom · middle/right=pan';
+  if (t !== 'road') { if (roadDraft) finishRoad(); }
+  draw2d();
+}
+setTool('select');
+
+// ============ asset library ============
+function renderLibrary(filter = '') {
+  const f = filter.trim().toLowerCase();
+  const grid = $('#libGrid');
+  grid.innerHTML = '';
+  let shown = 0;
+  for (const group of LIBRARY) {
+    const items = group.items.filter((it) => !f || it.name.toLowerCase().includes(f) || it.desc.toLowerCase().includes(f) || group.cat.toLowerCase().includes(f));
+    if (!items.length) continue;
+    const sec = document.createElement('div');
+    sec.className = 'lib-cat';
+    const h = document.createElement('div');
+    h.className = 'lib-cat-h';
+    h.textContent = group.cat;
+    sec.append(h);
+    const row = document.createElement('div');
+    row.className = 'lib-grid';
+    for (const it of items) {
+      const t = document.createElement('button');
+      t.className = 'tile';
+      t.dataset.tool = it.tool;
+      if (it.kind) t.dataset.kind = it.kind;
+      t.title = it.desc;
+      const sw = document.createElement('span');
+      sw.className = 'sw';
+      sw.style.background = it.color;
+      const nm = document.createElement('span');
+      nm.textContent = it.name;
+      t.append(sw, nm);
+      t.addEventListener('click', () => pickLibrary(it));
+      row.append(t);
+      shown++;
+    }
+    sec.append(row);
+    grid.append(sec);
+  }
+  $('#libCount').textContent = shown + ' assets';
+}
+function pickLibrary(it) {
+  setTool(it.tool, it.kind);
+  selected = null;
+  renderInspector();
+  draw2d();
+}
+$('#library .lib-h').addEventListener('click', () => $('#library').classList.toggle('collapsed'));
+$('#libToggle').addEventListener('click', () => $('#library').classList.toggle('collapsed'));
+$('#libSearch').addEventListener('input', (e) => renderLibrary(e.target.value));
+$('#legend').innerHTML = LEGEND.map(([n, c]) => `<span class="lg"><i style="background:${c}"></i>${n}</span>`).join('');
+// legend toggle (double-click coords to show)
+
+// ============ inspector ============
+const insp = $('#insp');
+function field(labelText, inputHtml, change) {
+  const row = document.createElement('div');
+  row.className = 'row';
+  const lb = document.createElement('label');
+  lb.textContent = labelText;
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'flex:1;min-width:0;display:flex;gap:4px;align-items:center';
+  wrap.innerHTML = inputHtml;
+  const input = wrap.firstElementChild;
+  input.addEventListener('change', () => change(input));
+  row.append(lb, wrap);
+  return row;
+}
+function numField(labelText, val, change, step = 1) {
+  return field(labelText, `<input type="number" value="${val}" step="${step}">`, (i) => change(+i.value));
+}
+function textField(labelText, val, change) {
+  return field(labelText, `<input type="text" value="${esc(val)}">`, (i) => change(i.value));
+}
+function selField(labelText, val, options, change) {
+  return field(labelText, `<select>${options.map((o) => `<option ${o === val ? 'selected' : ''}>${o}</option>`).join('')}</select>`, (i) => change(i.value));
+}
+function boolField(labelText, val, change) {
+  return field(labelText, `<input type="checkbox" ${val ? 'checked' : ''}>`, (i) => change(i.checked));
+}
+function colorField(labelText, val, change) {
+  return field(labelText, `<input type="color" value="${toHex(val)}">`, (i) => change(fromHex(i.value)));
+}
+const esc = (s) => String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;');
+function toHex(m) {
+  if (typeof m === 'number') return '#' + m.toString(16).padStart(6, '0');
+  if (Array.isArray(m)) return '#' + m.map((v) => v.toString(16).padStart(2, '0')).join('');
+  return '#ffd24a';
+}
+function fromHex(h) {
+  const n = parseInt(h.slice(1), 16);
+  return [n >> 16 & 255, n >> 8 & 255, n & 255];
+}
+const MATERIALS = ['concrete','brick','wood','metal','crate','roof','barrel','road','walk','plaza','glass'];
+function matField(it, key) {
+  const cur = it[key];
+  const isCol = typeof cur === 'object' && cur && cur.m;
+  const rows = [];
+  rows.push(selField('Mat', isCol ? cur.m : (typeof cur === 'string' ? cur : 'concrete'), MATERIALS, (v) => { it[key] = isCol ? { ...it[key], m: v } : v; redrawAll(); }));
+  rows.push(colorField('Tint', isCol ? (cur.c || [200,200,200]) : null, (v) => { it[key] = { m: it[key].m || it[key], c: v }; redrawAll(); }));
+  rows.forEach((r) => insp.append(r));
+}
+function renderInspector() {
+  insp.innerHTML = '<h2>Inspector</h2>';
+  const sec = (t) => { const d = document.createElement('div'); d.className = 'section'; const h = document.createElement('h2'); h.textContent = t; d.append(h); insp.append(d); return d; };
+  const toInsp = (d) => d;
+
+  // world settings
+  sec('World');
+  insp.append(
+    textField('Id', scene.id, (v) => { scene.id = v; }),
+    textField('Name', scene.name, (v) => { scene.name = v; }),
+    numField('Version', scene.version, (v) => { scene.version = v; }),
+    numField('Bounds', scene.bounds, (v) => { scene.bounds = v; redrawAll(); }),
+    numField('Ground size', scene.ground.size, (v) => { scene.ground.size = v; redrawAll(); }),
+  );
+  insp.append(colorField('Ground color', scene.ground.color, (v) => { scene.ground.color = v; redrawAll(); }));
+  insp.append(
+    numField('Start x', scene.startPoint.x, (v) => { scene.startPoint.x = v; }),
+    numField('Start z', scene.startPoint.z, (v) => { scene.startPoint.z = v; }),
+    numField('Start yaw', scene.startPoint.yaw, (v) => { scene.startPoint.yaw = v; }, 0.1),
+  );
+  const startBtn = document.createElement('button');
+  startBtn.textContent = 'Move player to start';
+  startBtn.style.marginTop = '6px';
+  startBtn.addEventListener('click', () => { view.cx = scene.startPoint.x; view.cz = scene.startPoint.z; view.scale = 4; draw2d(); });
+  insp.append(startBtn);
+
+  if (!selected) {
+    const counts = document.createElement('div');
+    counts.className = 'note';
+    counts.style.marginTop = '8px';
+    counts.textContent = catOrder.map((c) => `${catLabel[c]}: ${(scene[c] || []).length}`).join(' · ');
+    insp.append(counts);
+    renderIssues();
+    return;
+  }
+
+  const { cat, idx } = selected;
+  const it = scene[cat][idx];
+  sec(catLabel[cat]);
+
+  if (cat === 'roads') {
+    insp.append(numField('Width', it.w || 12, (v) => { it.w = v; redrawAll(); }));
+    insp.append(boolField('Sidewalk', it.sidewalk, (v) => { it.sidewalk = v; redrawAll(); }));
+    insp.append(boolField('Smooth', it.smooth !== false, (v) => { it.smooth = v; redrawAll(); }));
+    insp.append(field('Points', `<span style="color:var(--dim)">${it.points.length}</span>`, () => {}));
+    const ed = document.createElement('button');
+    ed.textContent = roadDraft ? 'Cancel point edit' : 'Edit points';
+    ed.style.marginTop = '4px';
+    ed.addEventListener('click', () => {
+      if (roadDraft) { roadDraft = null; draw2d(); ed.textContent = 'Edit points'; }
+      else {
+        roadDraft = { points: it.points.map((p) => [...p]), mouse: null, replaceCat: cat, replaceIdx: idx };
+        setTool('road');
+        ed.textContent = 'Cancel point edit';
+        draw2d();
+      }
+    });
+    insp.append(ed);
+  } else if (cat === 'vehicles') {
+    insp.append(selField('Kind', it.kind || 'car', ['car', 'truck', 'jeep'], (v) => { it.kind = v; redrawAll(); }));
+    insp.append(numField('X', it.x, (v) => { it.x = v; redrawAll(); }));
+    insp.append(numField('Z', it.z, (v) => { it.z = v; redrawAll(); }));
+    insp.append(numField('Rot', it.ry || 0, (v) => { it.ry = v; redrawAll(); }, 0.05));
+    insp.append(textField('Name', it.name || '', (v) => { it.name = v; redrawAll(); }));
+  } else if (cat === 'pads') {
+    insp.append(numField('X', it.x, (v) => { it.x = v; redrawAll(); }));
+    insp.append(numField('Z', it.z, (v) => { it.z = v; redrawAll(); }));
+    insp.append(numField('W', it.w, (v) => { it.w = v; redrawAll(); }));
+    insp.append(numField('D', it.d, (v) => { it.d = v; redrawAll(); }));
+    insp.append(numField('Rot', it.ry || 0, (v) => { it.ry = v; redrawAll(); }, 0.05));
+    matField(it, 'm');
+  } else if (cat === 'buildings') {
+    insp.append(selField('Kind', it.kind || 'box', KIND_OPTIONS.building, (v) => { it.kind = v; redrawAll(); }));
+    insp.append(numField('X', it.x, (v) => { it.x = v; redrawAll(); }));
+    insp.append(numField('Z', it.z, (v) => { it.z = v; redrawAll(); }));
+    insp.append(numField('W', it.w, (v) => { it.w = v; redrawAll(); }));
+    insp.append(numField('D', it.d, (v) => { it.d = v; redrawAll(); }));
+    insp.append(numField('H', it.h, (v) => { it.h = v; redrawAll(); }));
+    insp.append(numField('Rot', it.ry || 0, (v) => { it.ry = v; redrawAll(); }, 0.05));
+    matField(it, 'm');
+    insp.append(selField('Roof mat', it.roofM || 'roof', MATERIALS, (v) => { it.roofM = v; redrawAll(); }));
+    insp.append(boolField('Roof slab', it.roof, (v) => { it.roof = v; redrawAll(); }));
+    insp.append(boolField('Roof access', it.roofAccess, (v) => { it.roofAccess = v; redrawAll(); }));
+    insp.append(boolField('Enterable', it.enterable, (v) => { it.enterable = v; redrawAll(); }));
+    insp.append(boolField('Windows', it.windows, (v) => { it.windows = v; redrawAll(); }));
+    insp.append(boolField('Solid', it.solid !== false, (v) => { it.solid = v; redrawAll(); }));
+    insp.append(numField('Door W', it.doorW || 3, (v) => { it.doorW = v; redrawAll(); }));
+    insp.append(textField('Name', it.name || '', (v) => { it.name = v; redrawAll(); }));
+    const overlays = getOverlays(it);
+    if (overlays.length > 0) {
+      const oSec = document.createElement('div'); oSec.className = 'section';
+      const oH = document.createElement('h2'); oH.textContent = 'Text Signs (' + overlays.length + ')'; oSec.append(oH);
+      overlays.forEach((ov, oi) => {
+        const oRow = document.createElement('div'); oRow.style.cssText = 'border:1px solid var(--line);border-radius:4px;padding:5px 6px;margin:4px 0;background:var(--panel2);';
+        const oTop = document.createElement('div'); oTop.style.cssText = 'display:flex;align-items:center;gap:4px;margin-bottom:3px;';
+        const oTxt = document.createElement('input'); oTxt.type = 'text'; oTxt.value = ov.text;
+        oTxt.style.cssText = 'flex:1;background:var(--bg);color:var(--txt);border:1px solid var(--line);border-radius:3px;padding:2px 5px;font-size:12px;';
+        oTxt.addEventListener('change', () => { ov.text = oTxt.value; redrawAll(); });
+        const oDel = document.createElement('button'); oDel.textContent = 'X'; oDel.title = 'Remove sign';
+        oDel.style.cssText = 'background:var(--err);color:#fff;border:none;border-radius:3px;padding:2px 6px;cursor:pointer;font-size:11px;';
+        oDel.addEventListener('click', () => { overlays.splice(oi, 1); setOverlays(it, overlays); redrawAll(); renderInspector(); });
+        oTop.append(oTxt, oDel);
+        const oBot = document.createElement('div'); oBot.style.cssText = 'display:flex;gap:4px;align-items:center;flex-wrap:wrap;';
+        const oClr = document.createElement('input'); oClr.type = 'color'; oClr.value = ov.color || '#ffffff';
+        oClr.style.cssText = 'width:26px;height:20px;padding:0;border:1px solid var(--line);background:var(--panel2);';
+        oClr.addEventListener('input', () => { ov.color = oClr.value; redrawAll(); });
+        const oStroke = document.createElement('label'); oStroke.style.cssText = 'font-size:11px;color:var(--dim);display:flex;align-items:center;gap:2px;';
+        const oStrokeCb = document.createElement('input'); oStrokeCb.type = 'checkbox'; oStrokeCb.checked = ov.stroke !== false;
+        oStrokeCb.addEventListener('change', () => { ov.stroke = oStrokeCb.checked; redrawAll(); });
+        oStroke.append(oStrokeCb, document.createTextNode('outline'));
+        const oFont = document.createElement('select'); oFont.style.cssText = 'background:var(--bg);color:var(--txt);border:1px solid var(--line);border-radius:3px;padding:1px 3px;font-size:11px;';
+        for (const f of TEXT_FONTS) { const o = document.createElement('option'); o.value = f; o.textContent = f; if (ov.font === f) o.selected = true; oFont.append(o); }
+        oFont.addEventListener('change', () => { ov.font = oFont.value; redrawAll(); });
+        const oSize = document.createElement('input'); oSize.type = 'number'; oSize.value = ov.fontSize || 14; oSize.min = 6; oSize.max = 72; oSize.step = 2;
+        oSize.style.cssText = 'width:42px;background:var(--bg);color:var(--txt);border:1px solid var(--line);border-radius:3px;padding:1px 3px;font-size:11px;';
+        oSize.addEventListener('change', () => { ov.fontSize = +oSize.value; redrawAll(); });
+        const oOffX = document.createElement('input'); oOffX.type = 'number'; oOffX.value = ov.offX || 0; oOffX.step = 1; oOffX.title = 'Offset X';
+        oOffX.style.cssText = 'width:42px;background:var(--bg);color:var(--txt);border:1px solid var(--line);border-radius:3px;padding:1px 3px;font-size:11px;';
+        oOffX.addEventListener('change', () => { ov.offX = +oOffX.value; redrawAll(); });
+        const oOffZ = document.createElement('input'); oOffZ.type = 'number'; oOffZ.value = ov.offZ || 0; oOffZ.step = 1; oOffZ.title = 'Offset Z';
+        oOffZ.style.cssText = 'width:42px;background:var(--bg);color:var(--txt);border:1px solid var(--line);border-radius:3px;padding:1px 3px;font-size:11px;';
+        oOffZ.addEventListener('change', () => { ov.offZ = +oOffZ.value; redrawAll(); });
+        oBot.append(oClr, oStroke, oFont, document.createTextNode('sz:'), oSize, document.createTextNode('x:'), oOffX, document.createTextNode('z:'), oOffZ);
+        oRow.append(oTop, oBot);
+        oSec.append(oRow);
+      });
+      insp.append(oSec);
+    }
+    const addSignBtn = document.createElement('button');
+    addSignBtn.textContent = '+ Add Text Sign';
+    addSignBtn.style.cssText = 'margin-top:4px;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:4px;padding:3px 8px;cursor:pointer;font-size:12px;';
+    addSignBtn.addEventListener('click', () => { addOverlay(it, 'TEXT', it.x, it.z); redrawAll(); renderInspector(); });
+    insp.append(addSignBtn);
+  } else if (cat === 'props') {
+    insp.append(selField('Kind', it.kind, propKinds, (v) => { Object.assign(it, propDefaults[v]); it.kind = v; redrawAll(); }));
+    insp.append(numField('X', it.x, (v) => { it.x = v; redrawAll(); }));
+    insp.append(numField('Z', it.z, (v) => { it.z = v; redrawAll(); }));
+    if (it.y !== undefined) insp.append(numField('Y', it.y || 0, (v) => { it.y = v; redrawAll(); }, 0.1));
+    insp.append(numField('Rot', it.ry || 0, (v) => { it.ry = v; redrawAll(); }, 0.05));
+    if (it.kind === 'box') {
+      insp.append(numField('W', it.w, (v) => { it.w = v; redrawAll(); }));
+      insp.append(numField('H', it.h, (v) => { it.h = v; redrawAll(); }));
+      insp.append(numField('D', it.d, (v) => { it.d = v; redrawAll(); }));
+    }
+    if (it.kind === 'barrel' || it.kind === 'crate') {
+      insp.append(selField('Reactive', it.react || 'none', ['none','flex','fire'], (v) => { it.react = v === 'none' ? null : v; redrawAll(); }));
+    }
+    if (!it.m || typeof it.m === 'string') matField(it, 'm');
+    insp.append(textField('Name', it.name || '', (v) => { it.name = v; redrawAll(); }));
+  } else if (cat === 'landmarks') {
+    insp.append(selField('Kind', it.kind, landmarkKinds, (v) => { Object.assign(it, landmarkDefaults[v]); it.kind = v; redrawAll(); }));
+    insp.append(numField('X', it.x, (v) => { it.x = v; redrawAll(); }));
+    insp.append(numField('Z', it.z, (v) => { it.z = v; redrawAll(); }));
+    insp.append(numField('Rot', it.ry || 0, (v) => { it.ry = v; redrawAll(); }, 0.05));
+    if (it.h !== undefined) insp.append(numField('H', it.h, (v) => { it.h = v; redrawAll(); }));
+    if (it.r !== undefined) insp.append(numField('R', it.r, (v) => { it.r = v; redrawAll(); }));
+    if (it.w !== undefined) insp.append(numField('W', it.w, (v) => { it.w = v; redrawAll(); }));
+    if (it.d !== undefined) insp.append(numField('D', it.d, (v) => { it.d = v; redrawAll(); }));
+    if (it.n !== undefined) insp.append(numField('N', it.n, (v) => { it.n = v; redrawAll(); }));
+    if (it.solid !== undefined) insp.append(boolField('Solid', it.solid, (v) => { it.solid = v; redrawAll(); }));
+    if (it.name !== undefined) insp.append(textField('Name', it.name || '', (v) => { it.name = v; redrawAll(); }));
+  } else if (cat === 'trees') {
+    insp.append(numField('X', it.x, (v) => { it.x = v; redrawAll(); }));
+    insp.append(numField('Z', it.z, (v) => { it.z = v; redrawAll(); }));
+    insp.append(numField('Scale', it.s || 1, (v) => { it.s = v; redrawAll(); }, 0.1));
+    insp.append(boolField('Dead', it.dead, (v) => { it.dead = v; redrawAll(); }));
+    insp.append(textField('Name', it.name || '', (v) => { it.name = v; redrawAll(); }));
+  } else if (cat === 'transit') {
+    insp.append(numField('X', it.x, (v) => { it.x = v; redrawAll(); }));
+    insp.append(numField('Z', it.z, (v) => { it.z = v; redrawAll(); }));
+    insp.append(textField('Name', it.name, (v) => { it.name = v; draw2d(); dirty(); }));
+  } else if (cat === 'named') {
+    insp.append(numField('X', it.x, (v) => { it.x = v; redrawAll(); }));
+    insp.append(numField('Z', it.z, (v) => { it.z = v; redrawAll(); }));
+    insp.append(textField('Name', it.name, (v) => { it.name = v; draw2d(); dirty(); }));
+    insp.append(colorField('Color', it.color, (v) => { it.color = '#' + v.map((n) => n.toString(16).padStart(2, '0')).join(''); draw2d(); dirty(); }));
+  } else if (cat === 'reactives') {
+    insp.append(selField('Kind', it.kind, ['flex','fire','firex'], (v) => { it.kind = v; redrawAll(); }));
+    insp.append(numField('X', it.x, (v) => { it.x = v; redrawAll(); }));
+    insp.append(numField('Z', it.z, (v) => { it.z = v; redrawAll(); }));
+    insp.append(textField('Name', it.name || '', (v) => { it.name = v; redrawAll(); }));
+  } else {
+    // spawns / cover / loot are [x,z]
+    insp.append(numField('X', it[0], (v) => { setPoint(cat, idx, v, it[1]); draw2d(); dirty(); }));
+    insp.append(numField('Z', it[1], (v) => { setPoint(cat, idx, it[0], v); draw2d(); dirty(); }));
+  }
+
+  const del = document.createElement('button');
+  del.textContent = 'Delete item';
+  del.style.marginTop = '8px';
+  del.addEventListener('click', () => { scene[cat].splice(idx, 1); selected = null; redrawAll(); });
+  insp.append(del);
+
+  const subBtn = document.createElement('button');
+  subBtn.textContent = 'Open Asset Sub-Editor';
+  subBtn.style.cssText = 'margin-top:8px;background:var(--acc);color:#14161a;border:none;font-weight:600;padding:5px 10px;cursor:pointer;';
+  subBtn.addEventListener('click', () => openSubEditor(cat, idx));
+  insp.append(subBtn);
+
+  if (cat === 'buildings' || cat === 'landmarks' || cat === 'props') {
+    const aeBtn = document.createElement('button');
+    aeBtn.textContent = 'Open Full-Screen Asset Editor';
+    aeBtn.style.cssText = 'margin-top:6px;background:#40e0ff;color:#14161a;border:none;font-weight:600;padding:5px 10px;cursor:pointer;width:100%;';
+    aeBtn.addEventListener('click', () => openAssetEditor(cat, idx));
+    insp.append(aeBtn);
+  }
+
+  renderIssues();
+  updateFloatInspector();
+}
+function updateFloatInspector() {
+  const fi = $('#float-inspector');
+  if (!fs3d || !selected) { fi.classList.remove('has-sel'); fi.innerHTML = ''; return; }
+  fi.classList.add('has-sel');
+  const { cat, idx } = selected;
+  const it = scene[cat][idx];
+  let html = `<h4>${catLabel[cat]}</h4>`;
+  const num = (label, val, key) => `<label>${label}</label><input type="number" step="any" data-key="${key}" value="${val}">`;
+  const txt = (label, val, key) => `<label>${label}</label><input type="text" data-key="${key}" value="${val || ''}">`;
+  const sel = (label, val, opts, key) => `<label>${label}</label><select data-key="${key}">${opts.map(o => `<option${o === val ? ' selected' : ''}>${o}</option>`).join('')}</select>`;
+  const bool = (label, val, key) => `<label><input type="checkbox" data-key="${key}"${val ? ' checked' : ''}> ${label}</label>`;
+  if (it.x !== undefined) { html += num('X', it.x, 'x') + num('Z', it.z, 'z'); }
+  else if (Array.isArray(it)) { html += num('X', it[0], '_a0') + num('Z', it[1], '_a1'); }
+  if (it.ry !== undefined) html += num('Rot', it.ry, 'ry');
+  if (it.w !== undefined) html += num('W', it.w, 'w');
+  if (it.d !== undefined) html += num('D', it.d, 'd');
+  if (it.h !== undefined) html += num('H', it.h, 'h');
+  if (it.kind !== undefined) html += sel('Kind', it.kind, KIND_OPTIONS[cat] || ['box'], 'kind');
+  if (it.name !== undefined) html += txt('Name', it.name || '', 'name');
+  else if (cat !== 'spawns' && cat !== 'cover' && cat !== 'loot') html += txt('Name', '', 'name');
+  if (it.m !== undefined) {
+    const m = typeof it.m === 'object' && it.m ? it.m.m : it.m;
+    html += sel('Mat', m || 'concrete', MATERIALS, '_mat');
+  }
+  if (cat === 'buildings') {
+    html += bool('Roof', it.roof, 'roof');
+    html += bool('Windows', it.windows, 'windows');
+    html += bool('Enterable', it.enterable, 'enterable');
+  }
+  html += `<div class="fi-row"><button class="fi-btn" id="fi-del">Delete</button><button class="fi-btn" id="fi-center">Center</button></div>`;
+  fi.innerHTML = html;
+  fi.querySelectorAll('input[data-key], select[data-key]').forEach(el => {
+    const handler = () => {
+      const k = el.dataset.key;
+      if (k === '_a0') { it[0] = +el.value; }
+      else if (k === '_a1') { it[1] = +el.value; }
+      else if (k === '_mat') { it.m = el.value; }
+      else if (k === 'name') { it.name = el.value; }
+      else if (el.type === 'checkbox') it[k] = el.checked;
+      else if (el.type === 'number') it[k] = +el.value;
+      else it[k] = el.value;
+      redrawAll();
+    };
+    el.addEventListener('input', handler);
+    el.addEventListener('change', handler);
+  });
+  const delBtn = fi.querySelector('#fi-del');
+  if (delBtn) delBtn.addEventListener('click', () => { scene[cat].splice(idx, 1); selected = null; redrawAll(); });
+  const centerBtn = fi.querySelector('#fi-center');
+  if (centerBtn) centerBtn.addEventListener('click', () => {
+    const cx = it.x !== undefined ? it.x : (Array.isArray(it) ? it[0] : 0);
+    const cz = it.z !== undefined ? it.z : (Array.isArray(it) ? it[1] : 0);
+    pTarget.set(cx, 0, cz); updateOrbit();
+  });
+}
+
+// ============ validation ============
+function validate() {
+  issues = [];
+  const B = scene;
+  const distPtSeg = (px, pz, ax, az, bx, bz) => {
+    const dx = bx - ax, dz = bz - az, len2 = dx * dx + dz * dz;
+    if (len2 < 1e-9) return Math.hypot(px - ax, pz - az);
+    let t = ((px - ax) * dx + (pz - az) * dz) / len2;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(px - (ax + t * dx), pz - (az + t * dz));
+  };
+  const roadSeqs = [];
+  for (const r of B.roads || []) {
+    const pts = r.points || [];
+    for (let i = 0; i < pts.length - 1; i++) roadSeqs.push({ a: pts[i], b: pts[i + 1], w: r.w || 12 });
+    if (pts.length > 2 && pts[0][0] === pts[pts.length - 1][0] && pts[0][1] === pts[pts.length - 1][1]) {
+      roadSeqs.push({ a: pts[pts.length - 1], b: pts[0], w: r.w || 12 });
+    }
+  }
+  const distToRoad = (x, z) => {
+    let best = 1e9;
+    for (const s of roadSeqs) best = Math.min(best, distPtSeg(x, z, s.a[0], s.a[1], s.b[0], s.b[1]));
+    return best;
+  };
+  const radius = (b) => Math.hypot(b.w || 12, b.d || 12) / 2;
+  const buildings = [];
+  for (let i = 0; i < (B.buildings || []).length; i++) {
+    const b = B.buildings[i];
+    buildings.push({ kind: b.kind || 'box', x: b.x, z: b.z, r: radius(b), cat: 'buildings', idx: i });
+  }
+  for (let i = 0; i < (B.landmarks || []).length; i++) {
+    const lm = B.landmarks[i];
+    const r = { warehouse: Math.hypot(lm.w || 34, lm.d || 22) / 2, trainstation: Math.hypot(24, 12) / 2, port: Math.hypot(20, 14) / 2, fuel: (lm.r || 3) * 1.5, policestation: Math.hypot(lm.w || 16, lm.d || 12) / 2, nightclub: Math.hypot(lm.w || 18, lm.d || 16) / 2, mall: Math.hypot(lm.w || 40, lm.d || 20) / 2, stadium: Math.hypot(lm.w || 82, lm.d || 57) / 2, mosque: Math.hypot(lm.w || 16, lm.d || 14) / 2, transit: 5 }[lm.kind];
+    if (r) buildings.push({ kind: lm.kind, x: lm.x, z: lm.z, r, cat: 'landmarks', idx: i });
+  }
+  const locOf = (b) => loc(b.cat, b.idx, b.x, b.z);
+  const minClear = 7;
+  for (const b of buildings) {
+    const clear = distToRoad(b.x, b.z) - b.r;
+    if (clear < minClear) issues.push({ lvl: 'err', msg: `BUILDING ${b.kind}@(${b.x},${b.z}) ${clear.toFixed(1)}m from road centerline (r=${b.r.toFixed(0)})`, loc: locOf(b) });
+  }
+  for (let i = 0; i < buildings.length; i++) {
+    for (let j = i + 1; j < buildings.length; j++) {
+      const a = buildings[i], b = buildings[j];
+      const d = Math.hypot(a.x - b.x, a.z - b.z);
+      if (d < a.r + b.r - 1) issues.push({ lvl: 'err', msg: `OVERLAP ${a.kind}@(${a.x},${a.z}) vs ${b.kind}@(${b.x},${b.z}) gap ${(d - a.r - b.r).toFixed(1)}m`, loc: locOf(a) });
+    }
+  }
+  const inside = (x, z, b) => Math.hypot(x - b.x, z - b.z) < b.r + 1.5;
+  const lmSpots = (B.landmarks || []).map((l) => [l.x, l.z]);
+  const loc = (cat, idx, x, z) => ({ cat, idx, x, z });
+  const checkPts = (arr, label, skipRoad, objCat) => {
+    for (let i = 0; i < (arr || []).length; i++) {
+      const p = arr[i];
+      const x = Array.isArray(p) ? p[0] : p.x, z = Array.isArray(p) ? p[1] : p.z;
+      for (const b of buildings) {
+        if (inside(x, z, b)) { issues.push({ lvl: 'err', msg: `${label} (${x},${z}) inside ${b.kind}@(${b.x},${b.z})`, loc: loc(objCat, i, x, z) }); break; }
+      }
+      if (!skipRoad) {
+        const d = distToRoad(x, z);
+        const nearLm = lmSpots.some(([lx, lz]) => Math.hypot(x - lx, z - lz) < 35);
+        if (d > 70 && !nearLm) issues.push({ lvl: 'warn', msg: `${label} (${x},${z}) is ${d.toFixed(0)}m from any road`, loc: loc(objCat, i, x, z) });
+      }
+    }
+  };
+  checkPts(B.spawns, 'SPAWN', false, 'spawns');
+  checkPts(B.loot, 'LOOT', true, 'loot');
+  checkPts(B.cover, 'COVER', true, 'cover');
+  for (let i = 0; i < (B.props || []).length; i++) {
+    const p = B.props[i];
+    for (const b of buildings) {
+      if (inside(p.x, p.z, b)) {
+        issues.push({ lvl: 'err', msg: `PROP ${p.kind}@(${p.x},${p.z}) inside ${b.kind}@(${b.x},${b.z})`, loc: loc('props', i, p.x, p.z) });
+        break;
+      }
+    }
+  }
+  for (let i = 0; i < (B.trees || []).length; i++) {
+    const t = B.trees[i];
+    for (const b of buildings) {
+      if (Math.hypot(t.x - b.x, t.z - b.z) < b.r - 2) { issues.push({ lvl: 'warn', msg: `TREE (${t.x},${t.z}) too close to ${b.kind}@(${b.x},${b.z})`, loc: loc('trees', i, t.x, t.z) }); break; }
+    }
+  }
+  return issues;
+}
+function renderIssues() {
+  const box = document.createElement('div');
+  box.id = 'issues';
+  box.innerHTML = '';
+  if (issues.length === 0) {
+    const ok = document.createElement('div');
+    ok.className = 'note';
+    ok.textContent = 'Validation: all clear';
+    box.append(ok);
+  } else {
+    const h = document.createElement('h2');
+    h.style.cssText = 'margin-top:8px';
+    h.textContent = `${issues.length} issue${issues.length > 1 ? 's' : ''} — click to locate`;
+    box.append(h);
+    for (const is of issues) {
+      const d = document.createElement('div');
+      d.className = 'issue ' + is.lvl;
+      d.textContent = is.msg;
+      d.addEventListener('click', () => {
+        view.cx = is.loc.x; view.cz = is.loc.z; view.scale = Math.max(view.scale, 4);
+        if (is.loc.cat >= 0) { selected = { cat: is.loc.cat, idx: is.loc.idx }; }
+        draw2d(); renderInspector();
+      });
+      box.append(d);
+    }
+  }
+  const old = insp.querySelector('#issues');
+  if (old) old.remove();
+  insp.append(box);
+}
+
+// ============ asset sub-editor (merged into inspector) ============
+let subEditorCat = null, subEditorIdx = null;
+function openSubEditor(cat, idx) {
+  subEditorCat = cat; subEditorIdx = idx;
+}
+
+// ============ full-screen asset editor ============
+let aeRenderer = null, aeScene = null, aeCam = null, aeWorld = null;
+let aeOrbit = { yaw: 0.8, pitch: 0.45, dist: 25 };
+let aeTarget = new THREE.Vector3(0, 3, 0);
+let aeItem = null, aeCat = null, aeIdx = null;
+let aeOmouse = null;
+
+function openAssetEditor(cat, idx) {
+  const it = scene[cat] && scene[cat][idx];
+  if (!it) return;
+  aeItem = it; aeCat = cat; aeIdx = idx;
+  const wrap = $('#assetEditor');
+  wrap.style.display = 'flex';
+  const name = it.kind || it.type || cat;
+  $('#aeAssetName').textContent = `${name.toUpperCase()} — ${cat} #${idx}`;
+
+  // init renderer if needed
+  if (!aeRenderer) {
+    const c = $('#aeCanvas3d');
+    aeRenderer = new THREE.WebGLRenderer({ canvas: c, antialias: true });
+    aeRenderer.shadowMap.enabled = true;
+    aeCam = new THREE.PerspectiveCamera(50, 1, 0.1, 500);
+  }
+  resizeAssetEditor();
+
+  // build scene with just this asset
+  if (aeScene) disposeScene(aeScene);
+  aeScene = new THREE.Scene();
+  aeScene.add(new THREE.AmbientLight(0xffffff, 0.5));
+  const dl = new THREE.DirectionalLight(0xffffff, 1);
+  dl.position.set(20, 30, 20); dl.castShadow = true;
+  aeScene.add(dl);
+  const dl2 = new THREE.DirectionalLight(0x8888ff, 0.3);
+  dl2.position.set(-15, 20, -10); aeScene.add(dl2);
+
+  // build just the single asset
+  const sd = JSON.parse(JSON.stringify(scene));
+  sd.buildings = cat === 'buildings' ? [it] : [];
+  sd.landmarks = cat === 'landmarks' ? [it] : [];
+  sd.props = cat === 'props' ? [it] : [];
+  sd.roads = []; sd.pads = []; sd.vehicles = []; sd.trees = [];
+  sd.spawns = []; sd.cover = []; sd.loot = []; sd.transit = []; sd.named = [];
+  sd.reactives = [];
+  sd.startPoint = { x: 0, z: 0, yaw: 0 };
+  try { aeWorld = new World(aeScene, 'high', sd); } catch (e) { console.warn(e); }
+
+  aeTarget.set(it.x || 0, (it.h || 4) / 2, it.z || 0);
+  aeOrbit.dist = Math.max(it.w || 12, it.d || 12) * 1.2;
+  updateAeOrbit();
+  renderAeControls();
+}
+
+function closeAssetEditor() {
+  $('#assetEditor').style.display = 'none';
+  if (aeScene) { disposeScene(aeScene); aeScene = null; }
+  aeItem = null; aeCat = null; aeIdx = null;
+}
+
+function resizeAssetEditor() {
+  if (!aeRenderer) return;
+  const r = $('#aeView3d').getBoundingClientRect();
+  if (!r.width) return;
+  aeRenderer.setSize(r.width, r.height);
+  aeCam.aspect = r.width / r.height;
+  aeCam.updateProjectionMatrix();
+}
+
+function updateAeOrbit() {
+  if (!aeCam) return;
+  aeCam.position.set(
+    aeTarget.x + aeOrbit.dist * Math.cos(aeOrbit.pitch) * Math.sin(aeOrbit.yaw),
+    aeTarget.y + aeOrbit.dist * Math.sin(aeOrbit.pitch),
+    aeTarget.z + aeOrbit.dist * Math.cos(aeOrbit.pitch) * Math.cos(aeOrbit.yaw));
+  aeCam.lookAt(aeTarget);
+}
+
+function renderAeControls() {
+  const props = $('#aeProps');
+  const visual = $('#aeVisual');
+  props.innerHTML = ''; visual.innerHTML = '';
+  if (!aeItem) return;
+  const it = aeItem;
+
+  // basic properties
+  const addNum = (label, val, cb) => {
+    const row = document.createElement('div'); row.style.cssText = 'display:flex;align-items:center;gap:6px;margin:3px 0;';
+    const lb = document.createElement('label'); lb.textContent = label; lb.style.cssText = 'color:var(--dim);font-size:12px;width:70px;flex-shrink:0;';
+    const inp = document.createElement('input'); inp.type = 'number'; inp.value = val; inp.step = 0.5;
+    inp.style.cssText = 'flex:1;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:3px;padding:3px 5px;';
+    inp.addEventListener('change', () => cb(parseFloat(inp.value)));
+    row.append(lb, inp); props.append(row);
+  };
+  const addText = (label, val, cb) => {
+    const row = document.createElement('div'); row.style.cssText = 'display:flex;align-items:center;gap:6px;margin:3px 0;';
+    const lb = document.createElement('label'); lb.textContent = label; lb.style.cssText = 'color:var(--dim);font-size:12px;width:70px;flex-shrink:0;';
+    const inp = document.createElement('input'); inp.type = 'text'; inp.value = val || '';
+    inp.style.cssText = 'flex:1;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:3px;padding:3px 5px;';
+    inp.addEventListener('change', () => cb(inp.value));
+    row.append(lb, inp); props.append(row);
+  };
+
+  if (it.x !== undefined) { addNum('X', it.x, (v) => { it.x = v; openAssetEditor(aeCat, aeIdx); }); }
+  if (it.z !== undefined) { addNum('Z', it.z, (v) => { it.z = v; openAssetEditor(aeCat, aeIdx); }); }
+  if (it.w !== undefined) addNum('Width', it.w, (v) => { it.w = v; openAssetEditor(aeCat, aeIdx); });
+  if (it.d !== undefined) addNum('Depth', it.d, (v) => { it.d = v; openAssetEditor(aeCat, aeIdx); });
+  if (it.h !== undefined) addNum('Height', it.h, (v) => { it.h = v; openAssetEditor(aeCat, aeIdx); });
+  if (it.ry !== undefined) addNum('Rotation', it.ry, (v) => { it.ry = v; openAssetEditor(aeCat, aeIdx); });
+  addText('Name', it.name, (v) => { it.name = v; });
+
+  // visual overrides
+  const addColor = (label, val, cb) => {
+    const row = document.createElement('div'); row.style.cssText = 'display:flex;align-items:center;gap:6px;margin:3px 0;';
+    const lb = document.createElement('label'); lb.textContent = label; lb.style.cssText = 'color:var(--dim);font-size:12px;width:70px;flex-shrink:0;';
+    const ci = document.createElement('input'); ci.type = 'color'; ci.value = val || '#969696';
+    ci.style.cssText = 'width:34px;height:24px;padding:0;border:1px solid var(--line);background:var(--panel2);';
+    ci.addEventListener('input', () => cb(ci.value));
+    row.append(lb, ci); visual.append(row);
+  };
+  const addSelect = (label, val, opts, cb) => {
+    const row = document.createElement('div'); row.style.cssText = 'display:flex;align-items:center;gap:6px;margin:3px 0;';
+    const lb = document.createElement('label'); lb.textContent = label; lb.style.cssText = 'color:var(--dim);font-size:12px;width:70px;flex-shrink:0;';
+    const sel = document.createElement('select');
+    sel.style.cssText = 'flex:1;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:3px;padding:3px 5px;';
+    for (const [k, v] of Object.entries(opts)) {
+      const o = document.createElement('option'); o.value = k; o.textContent = v;
+      if (k === val) o.selected = true; sel.appendChild(o);
+    }
+    sel.addEventListener('change', () => cb(sel.value));
+    row.append(lb, sel); visual.append(row);
+  };
+
+  addColor('Wall tint', it._tint || '#969696', (v) => { it._tint = v; schedulePreview(); openAssetEditor(aeCat, aeIdx); });
+  addColor('Roof tint', it._roofTint || '#808080', (v) => { it._roofTint = v; schedulePreview(); openAssetEditor(aeCat, aeIdx); });
+  addSelect('Wall mat', it.m || 'default', { default: 'Default', brick: 'Brick', wood: 'Wood', concrete: 'Concrete', panel: 'Panel', corrugated: 'Metal' }, (v) => { it.m = v === 'default' ? undefined : v; schedulePreview(); openAssetEditor(aeCat, aeIdx); });
+  addSelect('Roof mat', it.roofM || 'default', { default: 'Default', shingle: 'Shingle', tile: 'Tile', metal: 'Metal' }, (v) => { it.roofM = v === 'default' ? undefined : v; schedulePreview(); openAssetEditor(aeCat, aeIdx); });
+
+  // overlay text controls
+  if (aeCat === 'buildings' || aeCat === 'landmarks') {
+    const ovDiv = document.createElement('div'); ovDiv.style.cssText = 'margin-top:8px;padding-top:6px;border-top:1px solid var(--line);';
+    ovDiv.innerHTML = '<div style="font-size:11px;color:var(--acc);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Text Overlays</div>';
+    const overlays = it._overlays || [];
+    overlays.forEach((ov, oi) => {
+      const row = document.createElement('div'); row.style.cssText = 'display:flex;gap:4px;margin:2px 0;';
+      const ti = document.createElement('input'); ti.type = 'text'; ti.value = ov.text; ti.style.cssText = 'flex:1;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:3px;padding:2px 4px;font-size:11px;';
+      ti.addEventListener('change', () => { ov.text = ti.value; schedulePreview(); });
+      const ci = document.createElement('input'); ci.type = 'color'; ci.value = ov.color || '#ffffff'; ci.style.cssText = 'width:24px;height:22px;padding:0;border:1px solid var(--line);';
+      ci.addEventListener('input', () => { ov.color = ci.value; schedulePreview(); });
+      const db = document.createElement('button'); db.textContent = '×'; db.style.cssText = 'background:var(--panel2);color:var(--err);border:1px solid var(--line);border-radius:3px;cursor:pointer;font-size:11px;padding:0 5px;';
+      db.addEventListener('click', () => { overlays.splice(oi, 1); it._overlays = overlays; schedulePreview(); renderAeControls(); });
+      row.append(ti, ci, db); ovDiv.append(row);
+    });
+    const addOvBtn = document.createElement('button'); addOvBtn.textContent = '+ Add overlay';
+    addOvBtn.style.cssText = 'margin-top:4px;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:3px;padding:3px 8px;cursor:pointer;font-size:11px;';
+    addOvBtn.addEventListener('click', () => {
+      if (!it._overlays) it._overlays = [];
+      it._overlays.push({ text: 'TEXT', color: '#ffffff', offX: 0, offZ: 0, fontSize: 1.0 });
+      schedulePreview(); renderAeControls();
+    });
+    ovDiv.append(addOvBtn);
+    visual.append(ovDiv);
+  }
+}
+
+$('#aeClose').addEventListener('click', closeAssetEditor);
+$('#aeApply').addEventListener('click', () => { closeAssetEditor(); redrawAll(); schedulePreview(); });
+
+// open asset editor on double-click from library
+// (also callable from inspector via button — see renderInspector)
+window._openAssetEditor = openAssetEditor;
+
+// 3D orbit in asset editor
+$('#aeCanvas3d').addEventListener('mousedown', (e) => {
+  aeOmouse = { x: e.clientX, y: e.clientY, b: e.button };
+});
+window.addEventListener('mousemove', (e) => {
+  if (!aeOmouse || $('#assetEditor').style.display === 'none') return;
+  const dx = e.clientX - aeOmouse.x, dy = e.clientY - aeOmouse.y;
+  aeOmouse.x = e.clientX; aeOmouse.y = e.clientY;
+  if (aeOmouse.b === 0) {
+    aeOrbit.yaw -= dx * 0.005;
+    aeOrbit.pitch = Math.max(0.05, Math.min(1.5, aeOrbit.pitch + dy * 0.005));
+  } else if (aeOmouse.b === 2) {
+    aeTarget.y += dy * 0.02;
+  }
+  updateAeOrbit();
+});
+$('#aeCanvas3d').addEventListener('mouseup', () => { aeOmouse = null; });
+$('#aeCanvas3d').addEventListener('contextmenu', (e) => e.preventDefault());
+$('#aeCanvas3d').addEventListener('wheel', (e) => {
+  aeOrbit.dist = Math.max(3, Math.min(200, aeOrbit.dist * (e.deltaY > 0 ? 1.1 : 1 / 1.1)));
+  updateAeOrbit();
+}, { passive: true });
+
+// ============ 3D preview ============
+const c3 = $('#canvas3d'), ctx3 = c3.getContext('webgl2', { antialias: true }) || c3.getContext('webgl', { antialias: true });
+const renderer = new THREE.WebGLRenderer({ canvas: c3, antialias: true });
+renderer.shadowMap.enabled = true;
+let pWorld = null;
+const pCam = new THREE.PerspectiveCamera(60, 1, 0.1, 10000);
+const pTarget = new THREE.Vector3(0, 20, 0);
+let orbit = { yaw: 0.8, pitch: 0.45, dist: 500 };
+let oMouse = null;
+function resize3d() {
+  const r = $('#view3d').getBoundingClientRect();
+  if (!r.width) return;
+  renderer.setSize(r.width, r.height);
+  pCam.aspect = r.width / r.height;
+  pCam.updateProjectionMatrix();
+}
+function updateOrbit() {
+  pCam.position.set(
+    pTarget.x + orbit.dist * Math.cos(orbit.pitch) * Math.sin(orbit.yaw),
+    pTarget.y + orbit.dist * Math.sin(orbit.pitch),
+    pTarget.z + orbit.dist * Math.cos(orbit.pitch) * Math.cos(orbit.yaw));
+  pCam.lookAt(pTarget);
+}
+$('#canvas3d').addEventListener('mousedown', (e) => {
+  if (document.activeElement && document.activeElement.tagName !== 'CANVAS') document.activeElement.blur();
+  oMouse = null;
+  if (e.button !== 0) { oMouse = { x: e.clientX, y: e.clientY, b: e.button }; return; }
+  if (fs3d) return; // fullscreen 3D has its own handler
+  const pt = planePointFromEvent(e);
+  if (!pt) return;
+  const wx = pt.x, wz = pt.z;
+  if (tool === 'select') {
+    const h = pick(wx, wz);
+    if (h) {
+      selected = h;
+      const it = scene[h.cat][h.idx];
+      const ix = it.x !== undefined ? it.x : it[0];
+      const iz = it.z !== undefined ? it.z : it[1];
+      dragged = { cat: h.cat, idx: h.idx, ox: ix, oz: iz, fx: wx, fz: wz, moved: false, from3d: true };
+      renderInspector(); draw2d();
+      return;
+    }
+    selected = null;
+    renderInspector(); draw2d();
+    oMouse = { x: e.clientX, y: e.clientY, b: 0 };
+  } else if (tool === 'road') {
+    if (!roadDraft) roadDraft = { points: [], mouse: null };
+    roadDraft.points.push([snap1(wx), snap1(wz)]);
+    roadDraft.mouse = null;
+    draw2d();
+  } else if (tool === 'pad' || tool === 'building') {
+    dragRect = { cat: tool, x0: snap1(wx), z0: snap1(wz), x1: snap1(wx), z1: snap1(wz), from3d: true };
+    draw2d();
+  } else if (tool === 'erase') {
+    const h = pick(wx, wz);
+    if (h) { scene[h.cat].splice(h.idx, 1); if (selected && selected.cat === h.cat && selected.idx === h.idx) selected = null; redrawAll(); }
+  } else {
+    placePoint(tool, wx, wz);
+  }
+});
+window.addEventListener('mousemove', (e) => {
+  if (dragged && dragged.from3d) {
+    const pt = planePointFromEvent(e);
+    if (pt) {
+      const it = scene[dragged.cat][dragged.idx];
+      const nx = snap1(dragged.ox + (pt.x - dragged.fx));
+      const nz = snap1(dragged.oz + (pt.z - dragged.fz));
+      if (it.x !== undefined) { it.x = nx; it.z = nz; }
+      else { scene[dragged.cat][dragged.idx] = [nx, nz]; }
+      dragged.moved = true;
+      updateSel3d(); draw2d(); schedulePreview(150);
+    }
+    return;
+  }
+  if (dragRect && dragRect.from3d) {
+    const pt = planePointFromEvent(e);
+    if (pt) { dragRect.x1 = snap1(pt.x); dragRect.z1 = snap1(pt.z); draw2d(); schedulePreview(150); }
+    return;
+  }
+  if (tool === 'road' && roadDraft && e.target === c3) {
+    const pt = planePointFromEvent(e);
+    if (pt) { roadDraft.mouse = toScreen2(snap1(pt.x), snap1(pt.z)); draw2d(); }
+    return;
+  }
+  if (!oMouse) return;
+  const dx = e.clientX - oMouse.x, dy = e.clientY - oMouse.y;
+  oMouse.x = e.clientX; oMouse.y = e.clientY;
+  if (oMouse.b === 0) { orbit.yaw -= dx * 0.005; orbit.pitch = Math.max(0.05, Math.min(1.5, orbit.pitch + dy * 0.005)); }
+  else if (oMouse.b === 2) { const f = orbit.dist * 0.0015; pTarget.x -= Math.sin(orbit.yaw) * dx * f; pTarget.z -= Math.cos(orbit.yaw) * dx * f; pTarget.x += Math.cos(orbit.yaw) * dy * f; pTarget.z -= Math.sin(orbit.yaw) * dy * f; }
+});
+window.addEventListener('mouseup', () => {
+  if (dragRect) finishDragRect();
+  if (dragged) { dragged = null; }
+  oMouse = null;
+});
+$('#canvas3d').addEventListener('wheel', (e) => { e.preventDefault(); orbit.dist = Math.max(8, Math.min(3000, orbit.dist * (e.deltaY > 0 ? 1.15 : 1 / 1.15))); }, { passive: false });
+$('#canvas3d').addEventListener('contextmenu', (e) => e.preventDefault());
+function disposeScene(sc) {
+  sc.traverse((o) => {
+    if (o.geometry) o.geometry.dispose();
+    if (o.material) {
+      const ms = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of ms) {
+        // Don't dispose textures — they're cached globally and reused across rebuilds.
+        m.dispose();
+      }
+    }
+  });
+}
+const raycaster3 = new THREE.Raycaster();
+const planeY0 = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+function planePointFromEvent(e) {
+  const r = c3.getBoundingClientRect();
+  const ndc = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  raycaster3.setFromCamera(ndc, pCam);
+  return raycaster3.ray.intersectPlane(planeY0, new THREE.Vector3());
+}
+function updateSel3d() {
+  if (!selBox3d) selBox3d = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color: 0xffd24a }));
+  if (selBox3d.parent !== pScene) pScene.add(selBox3d);
+  const it = selected && scene[selected.cat] ? scene[selected.cat][selected.idx] : null;
+  if (!it) { selBox3d.visible = false; return; }
+  const pts = bRect(selected.cat, it);
+  if (!pts) { selBox3d.visible = false; return; }
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for (const p of pts) { if (p[0] < minX) minX = p[0]; if (p[0] > maxX) maxX = p[0]; if (p[1] < minZ) minZ = p[1]; if (p[1] > maxZ) maxZ = p[1]; }
+  selBox3d.visible = true;
+  selBox3d.position.set((minX + maxX) / 2, (it.h || 2) / 2, (minZ + maxZ) / 2);
+  selBox3d.scale.set(maxX - minX + 0.8, it.h || 2, maxZ - minZ + 0.8);
+  selBox3d.rotation.set(0, 0, 0);
+}
+let previewTimer = null;
+let lastPreviewJson = '';
+function schedulePreview(delay = 400) { if ($('#autoPreview').checked) { clearTimeout(previewTimer); previewTimer = setTimeout(buildPreview, delay); } }
+function buildPreview() {
+  const snap = JSON.stringify(scene);
+  if (snap === lastPreviewJson) return; // no changes — skip rebuild entirely
+  lastPreviewJson = snap;
+  const t0 = performance.now();
+  disposeScene(pScene);
+  pScene = new THREE.Scene();
+  try {
+    const sd = JSON.parse(snap);
+    pWorld = new World(pScene, $('#previewQ').value, sd);
+    const ms = Math.round(performance.now() - t0);
+    $('#status').textContent = `3D rebuilt in ${ms}ms (${sd.buildings.length} buildings, ${sd.roads.length} roads)`;
+  } catch (err) {
+    $('#status').textContent = '3D error: ' + err.message;
+  }
+  if (camResetNeeded) { fit3d(); camResetNeeded = false; }
+  updateOrbit();
+  updateSel3d();
+}
+function animate() {
+  requestAnimationFrame(animate);
+  updateOrbit();
+  renderer.render(pScene, pCam);
+  // render asset editor if open
+  if (aeRenderer && aeScene && aeCam && $('#assetEditor').style.display === 'flex') {
+    updateAeOrbit();
+    aeRenderer.render(aeScene, aeCam);
+  }
+}
+animate();
+$('#btnRebuild').addEventListener('click', buildPreview);
+$('#previewQ').addEventListener('change', buildPreview);
+
+// ============ save / load ============
+function sceneFileName() { return (scene.id || 'map').replace(/[^\w-]/g, '_') + '.json'; }
+let saveTimer = null;
+function dirty() {
+  clearTimeout(saveTimer);
+  $('#saveState').textContent = 'Unsaved changes';
+  saveTimer = setTimeout(() => save(true), 2500);
+}
+let lastBackupJson = null;
+function backupIfNeeded() {
+  const snap = JSON.stringify(scene);
+  if (snap === lastBackupJson) return;
+  lastBackupJson = snap;
+}
+async function save(silent) {
+  clearTimeout(saveTimer);
+  $('#saveState').textContent = 'Saving…';
+  const name = sceneFileName();
+  const data = JSON.stringify(scene, null, 2);
+  try {
+    const r = await fetch('/api/scene', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, data }),
+    });
+    const j = await r.json();
+    if (r.ok) backupIfNeeded();
+    $('#saveState').textContent = r.ok ? (silent ? 'Autosaved ' : 'Saved ') + name : 'Save failed: ' + (j.error || r.status);
+    refreshList();
+  } catch (err) {
+    $('#saveState').textContent = 'Save failed: ' + err.message;
+  }
+}
+$('#btnSave').addEventListener('click', () => save());
+$('#btnDelete').addEventListener('click', async () => {
+  const name = $('#sceneList').value;
+  if (!name) return;
+  if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+  try {
+    await fetch('/api/scene?name=' + encodeURIComponent(name), { method: 'DELETE' });
+    $('#status').textContent = `Deleted ${name}`;
+    refreshList();
+  } catch (err) { $('#status').textContent = 'Delete failed: ' + err.message; }
+});
+$('#btnNew').addEventListener('click', () => { if (!confirm('Create new map? Unsaved changes will be lost.')) return; scene = normalizeScene(newScene()); selected = null; roadDraft = null; camResetNeeded = true; fitView(); redrawAll(); buildPreview(); });
+async function refreshList() {
+  try {
+    const r = await fetch('/api/scenes');
+    const files = (await r.json()).filter(f => !f.endsWith('.bak'));
+    const sel = $('#sceneList');
+    const prev = sel.value;
+    sel.innerHTML = files.map((f) => `<option ${f === prev ? 'selected' : ''}>${f}</option>`).join('');
+  } catch (e) { /* offline */ }
+}
+$('#btnLoad').addEventListener('click', async () => {
+  const name = $('#sceneList').value;
+  if (!name) return;
+  if (!confirm(`Load "${name}"? Unsaved changes will be lost.`)) return;
+  try {
+    const r = await fetch('/api/scene?name=' + encodeURIComponent(name));
+    scene = normalizeScene(await r.json());
+    scene.id = name.replace('.json', '');
+    selected = null; roadDraft = null;
+    fitView(); redrawAll();
+    camResetNeeded = true; buildPreview();
+    $('#status').textContent = `Loaded ${name}`;
+  } catch (err) { $('#status').textContent = 'Load failed: ' + err.message; }
+});
+$('#btnValidate').addEventListener('click', () => { validate(); renderInspector(); $('#status').textContent = issues.length ? `${issues.length} issues` : 'All clear'; });
+$('#btnOpenGame').addEventListener('click', () => { save().then(() => { window.open('/?scene=' + sceneFileName(), '_blank'); }); });
+$('#btnFit').addEventListener('click', () => { fitView(); fit3d(); });
+
+function redrawAll() { draw2d(); renderInspector(); schedulePreview(); dirty(); }
+window.addEventListener('resize', () => { resize2d(); resize3d(); resizeAssetEditor(); });
+refreshList();
+renderLibrary();
+// boot
+resize2d(); resize3d();
+fitView();
+renderInspector();
+// deep-link: ?map=city-a.json&yaw=&pitch=&dist=&tx=&tz= frames the 3D view
+const qp = new URLSearchParams(location.search);
+const hasBootCam = ['yaw', 'pitch', 'dist', 'tx', 'tz'].some(k => !isNaN(parseFloat(qp.get(k))));
+if (hasBootCam) {
+  if (!isNaN(parseFloat(qp.get('yaw')))) orbit.yaw = parseFloat(qp.get('yaw'));
+  if (!isNaN(parseFloat(qp.get('pitch')))) orbit.pitch = parseFloat(qp.get('pitch'));
+  if (!isNaN(parseFloat(qp.get('dist')))) orbit.dist = parseFloat(qp.get('dist'));
+  if (!isNaN(parseFloat(qp.get('tx')))) pTarget.x = parseFloat(qp.get('tx'));
+  if (!isNaN(parseFloat(qp.get('tz')))) pTarget.z = parseFloat(qp.get('tz'));
+  pTarget.y = 12;
+  camResetNeeded = false;
+}
+const qm = qp.get('map');
+if (qm) {
+  (async () => {
+    try {
+      const r = await fetch('/api/scene?name=' + encodeURIComponent(qm));
+      scene = normalizeScene(await r.json());
+      scene.id = qm.replace('.json', '');
+      selected = null; roadDraft = null;
+      fitView(); redrawAll();
+      camResetNeeded = false;
+      buildPreview();
+    } catch (err) { console.error('boot map load failed', err); }
+  })();
+} else {
+  buildPreview();
+}
+
+// ============ FULLSCREEN 3D MODE ============
+let fs3d = false;
+const raycaster3d = new THREE.Raycaster();
+const ground3d = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+let fs3dDrag = null; // {cat, idx, startWorld, startObj}
+
+function toggleFullscreen3d() {
+  fs3d = !fs3d;
+  document.body.classList.toggle('fullscreen3d', fs3d);
+  setTimeout(() => { resize3d(); resize2d(); draw2d(); redrawAll(); }, 100);
+  updateFloatInspector();
+}
+
+$('#btnFullscreen3d').addEventListener('click', toggleFullscreen3d);
+$('#float-exit').addEventListener('click', toggleFullscreen3d);
+
+// wire floating toolbar buttons
+document.querySelectorAll('#float-toolbar button[data-tool]').forEach(btn => {
+  btn.addEventListener('click', () => setTool(btn.dataset.tool));
+});
+
+// 3D click → raycast against scene objects
+function fs3dWorldHit(e) {
+  const rect = $('#canvas3d').getBoundingClientRect();
+  const mx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  const my = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster3d.setFromCamera(new THREE.Vector2(mx, my), pCam);
+  // ground intersection
+  const gHit = raycaster3d.ray.intersectPlane(ground3d, new THREE.Vector3());
+  return gHit;
+}
+
+function fs3dObjectHit(wx, wz) {
+  let best = null, bestD = 8; // 8m snap radius
+  const testObj = (cat, it, w, d) => {
+    const ix = it.x !== undefined ? it.x : (Array.isArray(it) ? it[0] : null);
+    const iz = it.z !== undefined ? it.z : (Array.isArray(it) ? it[1] : null);
+    if (ix === null) return;
+    const ry = it.ry || 0;
+    const dx = wx - ix, dz = wz - iz;
+    const cos = Math.cos(-ry), sin = Math.sin(-ry);
+    const lx = dx * cos - dz * sin, lz = dx * sin + dz * cos;
+    const hw = (w || 2) / 2 + 1, hd = (d || 2) / 2 + 1;
+    if (Math.abs(lx) < hw && Math.abs(lz) < hd) {
+      const d = Math.hypot(dx, dz);
+      if (d < bestD) { bestD = d; best = { cat, idx: scene[cat].indexOf(it) }; }
+    }
+  };
+  for (const it of (scene.buildings || [])) testObj('buildings', it, it.w || 12, it.d || 12);
+  for (const it of (scene.props || [])) testObj('props', it, 2, 2);
+  for (const it of (scene.landmarks || [])) testObj('landmarks', it, 8, 8);
+  for (const it of (scene.vehicles || [])) testObj('vehicles', it, 3, 5);
+  for (const it of (scene.trees || [])) testObj('trees', it, 2, 2);
+  for (const it of (scene.pads || [])) testObj('pads', it, it.w || 20, it.d || 14);
+  for (let i = 0; i < (scene.spawns || []).length; i++) { const it = scene.spawns[i]; testObj('spawns', it, 2, 2); }
+  return best;
+}
+
+$('#canvas3d').addEventListener('mousedown', (e) => {
+  if (!fs3d) return;
+  if (document.activeElement && document.activeElement.tagName !== 'CANVAS') document.activeElement.blur();
+  if (e.button === 1 || e.button === 2 || e.shiftKey) return; // pan handled by orbit
+  const gHit = fs3dWorldHit(e);
+  if (!gHit) return;
+
+  if (tool === 'select') {
+    const objHit = fs3dObjectHit(gHit.x, gHit.z);
+    if (objHit) {
+      selected = { cat: objHit.cat, idx: objHit.idx };
+      const it = scene[objHit.cat][objHit.idx];
+      const ix = it.x !== undefined ? it.x : (Array.isArray(it) ? it[0] : 0);
+      const iz = it.z !== undefined ? it.z : (Array.isArray(it) ? it[1] : 0);
+      fs3dDrag = { cat: objHit.cat, idx: objHit.idx, startWorld: gHit.clone(), startObj: { x: ix, z: iz } };
+      renderInspector();
+    } else {
+      selected = null;
+      renderInspector();
+      oMouse = { x: e.clientX, y: e.clientY, b: 0 };
+    }
+  } else if (tool === 'building') {
+    const w = +$('#roadW').value || 12, d = +$('#padD').value || 12;
+    const kind = $('#kindSel').value || 'box';
+    scene.buildings.push({ ...buildDefaults, kind, x: snap1(gHit.x), z: snap1(gHit.z), w, d });
+    selected = { cat: 'buildings', idx: scene.buildings.length - 1 };
+    redrawAll();
+  } else if (tool === 'tree') {
+    scene.trees.push({ x: snap1(gHit.x), z: snap1(gHit.z), s: 1, dead: false });
+    redrawAll();
+  } else if (tool === 'spawn') {
+    scene.spawns.push([snap1(gHit.x), snap1(gHit.z)]);
+    redrawAll();
+  } else if (tool === 'startpoint') {
+    scene.startPoint.x = snap1(gHit.x);
+    scene.startPoint.z = snap1(gHit.z);
+    redrawAll();
+  } else if (tool === 'pad') {
+    const pw = +$('#padW').value || 20, pd = +$('#padD').value || 14;
+    scene.pads.push({ x: snap1(gHit.x), z: snap1(gHit.z), w: pw, d: pd, ry: 0, m: 'plaza' });
+    selected = { cat: 'pads', idx: scene.pads.length - 1 };
+    redrawAll();
+  } else if (tool === 'prop') {
+    const kind = $('#kindSel').value || 'crate';
+    scene.props.push({ ...propDefaults[kind], x: snap1(gHit.x), z: snap1(gHit.z) });
+    selected = { cat: 'props', idx: scene.props.length - 1 };
+    redrawAll();
+  } else if (tool === 'vehicle') {
+    const kind = $('#kindSel').value || 'car';
+    scene.vehicles.push({ x: snap1(gHit.x), z: snap1(gHit.z), ry: 0, kind });
+    selected = { cat: 'vehicles', idx: scene.vehicles.length - 1 };
+    redrawAll();
+  } else if (tool === 'cover') {
+    scene.cover.push([snap1(gHit.x), snap1(gHit.z)]);
+    selected = { cat: 'cover', idx: scene.cover.length - 1 };
+    redrawAll();
+  } else if (tool === 'loot') {
+    scene.loot.push([snap1(gHit.x), snap1(gHit.z)]);
+    selected = { cat: 'loot', idx: scene.loot.length - 1 };
+    redrawAll();
+  } else if (tool === 'landmark') {
+    const kind = $('#kindSel').value || 'fuel';
+    scene.landmarks.push({ ...landmarkDefaults[kind], x: snap1(gHit.x), z: snap1(gHit.z) });
+    selected = { cat: 'landmarks', idx: scene.landmarks.length - 1 };
+    redrawAll();
+  } else if (tool === 'road') {
+    if (!roadDraft) roadDraft = { points: [], mouse: null };
+    roadDraft.points.push([snap1(gHit.x), snap1(gHit.z)]);
+    redrawAll();
+  } else if (tool === 'text') {
+    const objHit = fs3dObjectHit(gHit.x, gHit.z);
+    if (objHit && (objHit.cat === 'buildings' || objHit.cat === 'landmarks')) {
+      selected = { cat: objHit.cat, idx: objHit.idx };
+      const it = scene[objHit.cat][objHit.idx];
+      const txt = prompt('Enter text:', 'TEXT');
+      if (txt) addOverlay(it, txt, gHit.x, gHit.z);
+      redrawAll();
+    }
+  } else if (tool === 'erase') {
+    const objHit = fs3dObjectHit(gHit.x, gHit.z);
+    if (objHit) {
+      scene[objHit.cat].splice(objHit.idx, 1);
+      if (selected && selected.cat === objHit.cat && selected.idx === objHit.idx) selected = null;
+      redrawAll();
+    }
+  }
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (!fs3d || !fs3dDrag || !selected) return;
+  const gHit = fs3dWorldHit(e);
+  if (!gHit) return;
+  const it = scene[fs3dDrag.cat][fs3dDrag.idx];
+  const dx = gHit.x - fs3dDrag.startWorld.x;
+  const dz = gHit.z - fs3dDrag.startWorld.z;
+  if (it.x !== undefined) { it.x = snap1(fs3dDrag.startObj.x + dx); it.z = snap1(fs3dDrag.startObj.z + dz); }
+  else if (Array.isArray(it)) { it[0] = snap1(fs3dDrag.startObj.x + dx); it[1] = snap1(fs3dDrag.startObj.z + dz); }
+  redrawAll();
+});
+
+window.addEventListener('mouseup', () => { fs3dDrag = null; });
+
+// Q/E rotate in 3D mode
+window.addEventListener('keydown', (e) => {
+  if (!fs3d) return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if (selected && (e.key === 'q' || e.key === 'Q')) {
+    const it = scene[selected.cat][selected.idx];
+    if (it && it.ry !== undefined) { it.ry = (it.ry || 0) - (e.shiftKey ? 0.5 : 0.15); redrawAll(); }
+  }
+  if (selected && (e.key === 'e' || e.key === 'E')) {
+    const it = scene[selected.cat][selected.idx];
+    if (it && it.ry !== undefined) { it.ry = (it.ry || 0) + (e.shiftKey ? 0.5 : 0.15); redrawAll(); }
+  }
+  if (e.key === 'Escape' && fs3d) toggleFullscreen3d();
+});
+</script>
+</body>
+</html>
