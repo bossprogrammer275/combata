@@ -908,7 +908,9 @@ export class World {
         // Door bounds were collected before collision generation so the wall
         // colliders can leave an opening at the entrance.
         if (doorMeshes.length > 0) {
-          this._registerBuildingDoors(a, model, doorMeshes, buildingIdx);
+          this._registerBuildingDoors(a, model, doorMeshes, buildingIdx, {
+            localBBox: afterScaleBBox, x: a.x || 0, z: a.z || 0, yaw: a.ry || 0,
+          });
         }
 
         // Hide col_* proxy meshes if present
@@ -1204,7 +1206,7 @@ export class World {
     return vol > 8 || aspect > 4;
   }
 
-  _registerBuildingDoors(a, model, doorMeshes, buildingIdx) {
+  _registerBuildingDoors(a, model, doorMeshes, buildingIdx, transform = null) {
     const bd = this._buildingData[buildingIdx];
     const wallMargin = 1.0;
     const interiorMin = new THREE.Vector3(bd.min.x + wallMargin, bd.min.y, bd.min.z + wallMargin);
@@ -1214,18 +1216,44 @@ export class World {
       this.addInterior(interiorMin, interiorMax);
     }
 
-    const bCenterX = (bd.min.x + bd.max.x) / 2;
-    const bCenterZ = (bd.min.z + bd.max.z) / 2;
+    const originX = transform?.x ?? a.x ?? 0;
+    const originZ = transform?.z ?? a.z ?? 0;
+    const yaw = transform?.yaw ?? a.ry ?? 0;
+    const c = Math.cos(yaw), sn = Math.sin(yaw);
+    const localBBox = transform?.localBBox;
+    const toLocal = (x, z) => {
+      const dx = x - originX, dz = z - originZ;
+      return { x: dx * c - dz * sn, z: dx * sn + dz * c };
+    };
+    const toWorldDirection = (x, z) => new THREE.Vector3(x * c + z * sn, 0, -x * sn + z * c).normalize();
 
     for (const door of doorMeshes) {
-      const thinAxis = door.size.x < door.size.z ? 'x' : 'z';
-      const outward = new THREE.Vector3(0, 0, 0);
-      if (thinAxis === 'x') {
-        outward.z = door.center.z > bCenterZ ? 1 : -1;
+      const local = toLocal(door.center.x, door.center.z);
+      let side;
+      if (localBBox) {
+        const min = localBBox.min, max = localBBox.max;
+        side = [
+          ['west', Math.abs(local.x - min.x)],
+          ['east', Math.abs(local.x - max.x)],
+          ['north', Math.abs(local.z - min.z)],
+          ['south', Math.abs(local.z - max.z)],
+        ].sort((p, q) => p[1] - q[1])[0][0];
       } else {
-        outward.x = door.center.x > bCenterX ? 1 : -1;
+        const bCenterX = (bd.min.x + bd.max.x) / 2;
+        const bCenterZ = (bd.min.z + bd.max.z) / 2;
+        side = [
+          ['west', Math.abs(door.center.x - bd.min.x)],
+          ['east', Math.abs(door.center.x - bd.max.x)],
+          ['north', Math.abs(door.center.z - bd.min.z)],
+          ['south', Math.abs(door.center.z - bd.max.z)],
+        ].sort((p, q) => p[1] - q[1])[0][0];
       }
-
+      // Outward normal is based on the local building side, then rotated into
+      // world coordinates. This stays correct for buildings placed at 30–60°.
+      const localOut = side === 'west' ? [-1, 0]
+        : side === 'east' ? [1, 0]
+        : side === 'north' ? [0, -1] : [0, 1];
+      const outward = toWorldDirection(localOut[0], localOut[1]);
       const entrancePos = door.center.clone();
       entrancePos.y = 0;
       const interiorPos = entrancePos.clone().sub(outward.clone().multiplyScalar(2.0));
@@ -1233,7 +1261,6 @@ export class World {
 
       this.addPortal(entrancePos, outward.clone().negate(), interiorPos, 'enter', buildingIdx);
       this.addPortal(interiorPos, outward.clone(), exitPos, 'exit', buildingIdx);
-
       bd.doors.push({
         name: door.name,
         entrance: entrancePos.clone(),
@@ -1251,7 +1278,7 @@ export class World {
         wp.setFromMatrixPosition(o.matrixWorld);
         bd.rooms = bd.rooms || [];
         bd.rooms.push({ idx: roomIdx, pos: wp });
-        console.log(`[World] Room ${roomIdx} marker at (${wp.x.toFixed(1)}, ${wp.y.toFixed(1)}, ${wp.z.toFixed(1)})`);
+        console.log(`[World] Room ${roomIdx} marker at (${wp.x.toFixed(1)}, ${wp.z.toFixed(1)})`);
       }
     });
   }
