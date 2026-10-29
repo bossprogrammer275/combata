@@ -150,6 +150,7 @@ export class World {
     if (climb) this.climbables.push(c);
     if (this.bvhWorld) {
       this.bvhWorld.aabbColliders.push(c);
+      this.bvhWorld.indexAABB(c);
       if (climb) this.bvhWorld._climbables.push(c);
     }
     return c;
@@ -1300,6 +1301,7 @@ export class World {
     this.bvhWorld._climbables.length = 0;
     for (const c of this.colliders) this.bvhWorld.aabbColliders.push(c);
     for (const c of this.climbables) this.bvhWorld._climbables.push(c);
+    this.bvhWorld.rebuildAABBIndex();
   }
 
   // Material spec: string role or {m, c:[r,g,b]} with optional tint.
