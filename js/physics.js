@@ -73,12 +73,15 @@ export class Physics {
 
   registerStaticBatch(colliders) {
     if (!this.world || !Array.isArray(colliders) || !colliders.length) return 0;
+    // Avoid registering the same source twice when a world reloads or a
+    // collision manifest is re-injected after initial physics setup.
+    const pending = colliders.filter(source => source?.min && source?.max && !source.physicsCollider);
+    if (!pending.length) return 0;
     // A single fixed body can own thousands of static cuboids. One rigid body
     // per box made detailed collision manifests needlessly expensive.
     const body = this.world.createRigidBody(RAPIER.RigidBodyDesc.fixed());
     let count = 0;
-    for (const source of colliders) {
-      if (!source?.min || !source?.max) continue;
+    for (const source of pending) {
       const min = source.min, max = source.max;
       const hx = (max.x - min.x) / 2;
       const hy = (max.y - min.y) / 2;
