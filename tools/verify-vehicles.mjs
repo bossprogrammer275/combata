@@ -188,6 +188,8 @@ try {
   physics.createWorld();
   physics.addGroundPlane();
   physics.createPlayerBody(0, 3, 0);
+  // Rapier refreshes broadphase/query state during its first world step.
+  physics.step(1 / 60);
   const groundRay = physics.castRay(
     new THREE.Vector3(0, 2, 0),
     new THREE.Vector3(0, -1, 0),
