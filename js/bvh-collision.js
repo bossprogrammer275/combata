@@ -30,13 +30,21 @@ export class BVHWorld {
     model.traverse(child => {
       if (!child.isMesh || !child.visible) return;
       const name = (child.name || '').toLowerCase();
-      // Authoring-only collision proxies and portal/room markers belong in
-      // AABB/portal systems, not mesh raycasts (otherwise invisible hits remain).
+      // Blender/GLTF exporters often put the semantic prefix on an empty parent
+      // and leave the actual mesh named "Cube". Check the full ancestry too.
+      const hasPrefix = (prefix) => {
+        let node = child;
+        while (node) {
+          if ((node.name || '').toLowerCase().startsWith(prefix)) return true;
+          node = node.parent;
+        }
+        return false;
+      };
+      // Authoring-only collision proxies and visual accents should not create
+      // ray hits. Movement collision for col_* lives in the AABB registry.
       if (
-        name.startsWith('col_') || name.startsWith('door_') ||
-        name.startsWith('window_') || name.startsWith('trim_') ||
-        name.startsWith('roof_detail') || name.startsWith('sign') ||
-        name.startsWith('awning') || /^room_\d+_marker$/.test(name)
+        ['col_', 'door_', 'window_', 'trim_', 'roof_detail', 'sign', 'awning'].some(hasPrefix) ||
+        /^room_\d+_marker$/.test(name)
       ) return;
       const geo = child.geometry;
       if (!geo || !geo.attributes.position) return;
