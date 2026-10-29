@@ -213,6 +213,21 @@ check('diagonal road surface stores a real oriented footprint', () => {
     'test needs a broad AABB that differs significantly from its real diagonal footprint');
   assert.ok(Math.abs(road.orientedBox.yaw + Math.PI / 4) < 1e-5,
     'road yaw does not match its diagonal segment');
+
+  // Point lies inside the broad world AABB but well outside the visible road.
+  const ghostHit = world.bvhWorld.raycast(
+    new THREE.Vector3(9, 0.5, 1),
+    new THREE.Vector3(0, -1, 0),
+    1,
+  );
+  assert.equal(ghostHit, null, 'diagonal road AABB produced an invisible raycast hit');
+  const pavementHit = world.bvhWorld.raycast(
+    new THREE.Vector3(5, 0.5, 5),
+    new THREE.Vector3(0, -1, 0),
+    1,
+  );
+  assert.ok(pavementHit && Math.abs(pavementHit.dist - 0.44) < 1e-4,
+    'raycast failed to hit the real diagonal road surface');
 });
 
 check('pedestrian is not pushed by empty corners of a diagonal road AABB', () => {
