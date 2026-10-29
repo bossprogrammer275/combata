@@ -392,9 +392,11 @@ export class Physics {
     if (!this.world) return null;
 
     const ray = new RAPIER.Ray(origin, dir);
-    ray.maxDist = maxDist;
-
-    const hit = this.world.castRay(ray, true);
+    // Rapier 0.14 expects maxToi and solid as separate positional arguments.
+    // Passing only (ray, true) silently casts a one-unit ray and omits normals.
+    const hit = this.world.castRayAndGetNormal
+      ? this.world.castRayAndGetNormal(ray, maxDist, true)
+      : this.world.castRay(ray, maxDist, true);
     if (!hit) return null;
 
     return {
