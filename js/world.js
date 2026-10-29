@@ -848,13 +848,19 @@ export class World {
           } else if (collisionManifest?.boxes?.length) {
             const injected = this._injectManifestColliders(collisionManifest, a, scaleFactor, yOffset, doorMeshes, bbox);
             if (!injected) {
-              if (a.building) this._addBuildingWallColliders(bbox, doorMeshes);
+              if (a.building) this._addBuildingWallColliders(bbox, doorMeshes, {
+                localBBox: afterScaleBBox, x: a.x || 0, z: a.z || 0,
+                yOffset, yaw: a.ry || 0,
+              });
               else this.addCollider(center.x, bbox.min.y, center.z, size.x, size.y, size.z, !!a.climbable, a.type || null);
             }
             console.log(`[World] Injected ${injected} collision boxes from ${a.collisionManifest || a.url.replace(/\.(glb|gltf)(?:[?#].*)?$/i, '_col.json')}`);
           } else if (a.building) {
             // Safe fallback when no authored proxies or generated sidecar exists.
-            this._addBuildingWallColliders(bbox, doorMeshes);
+            this._addBuildingWallColliders(bbox, doorMeshes, {
+                localBBox: afterScaleBBox, x: a.x || 0, z: a.z || 0,
+                yOffset, yaw: a.ry || 0,
+              });
           } else {
             this.addCollider(center.x, bbox.min.y, center.z, size.x, size.y, size.z, !!a.climbable, a.type || null);
           }
@@ -929,44 +935,112 @@ export class World {
     }
   }
 
-  _addBuildingWallColliders(bbox, doors = []) {
-    const min = bbox.min, max = bbox.max;
+  _addBuildingWallColliders(bbox, doors = [], transform = null) {
+    const localBBox = transform?.localBBox;
+    if (!localBBox) return;
+    const min = localBBox.min, max = localBBox.max;
     const width = max.x - min.x, depth = max.z - min.z, height = max.y - min.y;
     if (width < 1 || depth < 1 || height < 1) return;
-    const thickness = THREE.MathUtils.clamp(Math.min(width, depth) * 0.035, 0.25, 0.6);
-    const door = doors.length
-      ? doors.reduce((best, d) => !best || Math.abs(d.center.y - (min.y + 1.0)) < Math.abs(best.center.y - (min.y + 1.0)) ? d : best, null)
-      : null;
-    let side = null;
-    if (door) {
-      side = [
-        ['west', Math.abs(door.center.x - min.x)],
-        ['east', Math.abs(door.center.x - max.x)],
-        ['north', Math.abs(door.center.z - min.z)],
-        ['south', Math.abs(door.center.z - max.z)],
+
+    const originX = transform.x || 0, originZ = transform.z || 0;
+    const yaw = transform.yaw || 0;
+    const c = Math.cos(yaw), sn = Math.sin(yaw);
+    const yOffset = transform.yOffset || 0;
+    const thickness = THREE.MathUtils.clamp(Math.min(width, depth) * 0.025, 0.22, 0.45);
+    const doorHeight = Math.min(height, 2.2);
+    const toWorld = (x, z) => ({
+      x: originX + x * c + z * sn,
+      z: originZ - x * sn + z * c,
+    });
+    const toLocal = (x, z) => {
+      const dx = x - originX, dz = z - originZ;
+      return { x: dx * c - dz * sn, z: dx * sn + dz * c };
+    };
+    const addLocalBox = (x, y, z, w, h, d) => {
+      if (w <= 0.05 || h <= 0.05 || d <= 0.05) return;
+      const p = toWorld(x, z);
+      // Movement uses AABBs, so approximate a rotated wall with short boxes.
+      // Segmenting the wall keeps diagonal building colliders close to the
+      // visible facade instead of enclosing half the building in one huge box.
+      const worldW = Math.abs(c) * w + Math.abs(sn) * d;
+      const worldD = Math.abs(sn) * w + Math.abs(c) * d;
+      this.addCollider(p.x, yOffset + y, p.z, worldW, h, worldD);
+    };
+
+    const sideOpenings = { west: [], east: [], north: [], south: [] };
+    for (const door of doors) {
+      const p = toLocal(door.center.x, door.center.z);
+      const side = [
+        ['west', Math.abs(p.x - min.x)],
+        ['east', Math.abs(p.x - max.x)],
+        ['north', Math.abs(p.z - min.z)],
+        ['south', Math.abs(p.z - max.z)],
       ].sort((a, b) => a[1] - b[1])[0][0];
+      // A door marker is a world-space AABB; recover a conservative local width
+      // even when the building is rotated relative to the city axes.
+      const scaleAxis = Math.max(0.5, Math.max(Math.abs(c), Math.abs(sn)));
+      const span = THREE.MathUtils.clamp(
+        Math.max(door.size.x, door.size.z) / scaleAxis + 0.25,
+        1.1,
+        (side === 'west' || side === 'east' ? depth : width) * 0.6,
+      );
+      const center = side === 'west' || side === 'east' ? p.z : p.x;
+      const alongMin = side === 'west' || side === 'east' ? min.z : min.x;
+      const alongMax = side === 'west' || side === 'east' ? max.z : max.x;
+      const openStart = THREE.MathUtils.clamp(center - span / 2, alongMin, alongMax);
+      const openEnd = THREE.MathUtils.clamp(center + span / 2, alongMin, alongMax);
+      sideOpenings[side].push({ start: openStart, end: openEnd, center, span });
     }
-    const spanX = door ? Math.min(width * 0.75, Math.max(door.size.x, 1.1) + 0.35) : 0;
-    const spanZ = door ? Math.min(depth * 0.75, Math.max(door.size.z, 1.1) + 0.35) : 0;
-    const add = (x, z, w, d) => { if (w > 0.15 && d > 0.15) this.addCollider(x, min.y, z, w, height, d); };
-    const xWall = (z, opening) => {
-      if (!opening || !door) { add((min.x + max.x) / 2, z, width, thickness); return; }
-      const a = THREE.MathUtils.clamp(door.center.x - spanX / 2, min.x, max.x);
-      const b = THREE.MathUtils.clamp(door.center.x + spanX / 2, min.x, max.x);
-      add((min.x + a) / 2, z, a - min.x, thickness);
-      add((b + max.x) / 2, z, max.x - b, thickness);
+
+    const addWallRuns = (side) => {
+      const horizontal = side === 'north' || side === 'south';
+      const runMin = horizontal ? min.x : min.z;
+      const runMax = horizontal ? max.x : max.z;
+      const fixed = side === 'west' ? min.x + thickness / 2
+        : side === 'east' ? max.x - thickness / 2
+        : side === 'north' ? min.z + thickness / 2
+        : max.z - thickness / 2;
+      const openings = sideOpenings[side].sort((a, b) => a.start - b.start);
+      const addRun = (a, b) => {
+        if (b - a < 0.08) return;
+        const segmentMax = 1.25;
+        const count = Math.max(1, Math.ceil((b - a) / segmentMax));
+        for (let i = 0; i < count; i++) {
+          const s = a + (b - a) * i / count;
+          const e = a + (b - a) * (i + 1) / count;
+          const alongCenter = (s + e) / 2;
+          const alongSize = e - s + 0.04;
+          if (horizontal) {
+            addLocalBox(alongCenter, min.y, fixed, alongSize, height, thickness);
+          } else {
+            addLocalBox(fixed, min.y, alongCenter, thickness, height, alongSize);
+          }
+        }
+      };
+      let cursor = runMin;
+      for (const opening of openings) {
+        const a = THREE.MathUtils.clamp(opening.start, runMin, runMax);
+        const b = THREE.MathUtils.clamp(opening.end, runMin, runMax);
+        addRun(cursor, a);
+        cursor = Math.max(cursor, b);
+      }
+      addRun(cursor, runMax);
+
+      // Keep the wall above each doorway solid so players cannot jump or fall
+      // through a full-height cutout where the entrance should only be ~2.2m.
+      for (const opening of openings) {
+        if (height <= doorHeight + 0.05) continue;
+        const span = Math.max(0.05, opening.end - opening.start);
+        const center = (opening.start + opening.end) / 2;
+        if (horizontal) addLocalBox(center, min.y + doorHeight, fixed, span, height - doorHeight, thickness);
+        else addLocalBox(fixed, min.y + doorHeight, center, thickness, height - doorHeight, span);
+      }
     };
-    const zWall = (x, opening) => {
-      if (!opening || !door) { add(x, (min.z + max.z) / 2, thickness, depth); return; }
-      const a = THREE.MathUtils.clamp(door.center.z - spanZ / 2, min.z, max.z);
-      const b = THREE.MathUtils.clamp(door.center.z + spanZ / 2, min.z, max.z);
-      add(x, (min.z + a) / 2, thickness, a - min.z);
-      add(x, (b + max.z) / 2, thickness, max.z - b);
-    };
-    zWall(min.x + thickness / 2, side === 'west');
-    zWall(max.x - thickness / 2, side === 'east');
-    xWall(min.z + thickness / 2, side === 'north');
-    xWall(max.z - thickness / 2, side === 'south');
+
+    addWallRuns('west');
+    addWallRuns('east');
+    addWallRuns('north');
+    addWallRuns('south');
   }
 
   _hasAncestorPrefix(object, prefix) {
