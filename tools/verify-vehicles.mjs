@@ -210,7 +210,7 @@ try {
 
   for (let i = 0; i < 90; i++) {
     physics.applyVehicleControls(rb, {
-      throttle: 1, steer: 0.35, handbrake: false, dt: 1 / 60,
+      throttle: 1, steer: 0.8, handbrake: false, dt: 1 / 60,
     });
     physics.step(1 / 60);
   }
