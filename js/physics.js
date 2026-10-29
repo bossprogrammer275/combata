@@ -193,6 +193,11 @@ export class Physics {
     };
   }
 
+  setPlayerCollisionEnabled(enabled) {
+    if (!this._playerCollider) return;
+    this._playerCollider.setEnabled(!!enabled);
+  }
+
   setPlayerPosition(x, y, z) {
     if (!this._playerBody) return;
     this._playerBody.setNextKinematicTranslation({ x, y, z });
