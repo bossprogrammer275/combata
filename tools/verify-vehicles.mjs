@@ -124,6 +124,23 @@ try {
     spawnCalls.length === 2 && spawnCalls.every(v => Math.hypot(v.x - 5, v.z - 225) < 15),
     `count=${spawnCalls.length} distances=${spawnCalls.map(v => Math.hypot(v.x - 5, v.z - 225).toFixed(1)).join(',')}`);
 
+  const hotkeySpawnHarness = Object.create(VehicleSystem.prototype);
+  hotkeySpawnHarness.vehicles = [];
+  hotkeySpawnHarness.driver = null;
+  hotkeySpawnHarness.world = { groundHeightAt: () => 0.06 };
+  let hotkeySpawn = null;
+  hotkeySpawnHarness.spawn = (def) => { hotkeySpawn = def; };
+  const spawnPlayer = { pos: { x: 5, y: 0, z: 225 }, yaw: 0 };
+  const bugattiSpawn = hotkeySpawnHarness.spawnNearPlayer('bugatti', spawnPlayer);
+  check('hotkey spawning places the requested vehicle ahead on sampled ground',
+    bugattiSpawn?.kind === 'bugatti' && bugattiSpawn.z < spawnPlayer.pos.z && bugattiSpawn.elevation === 0.06 && hotkeySpawn?.kind === 'bugatti',
+    `kind=${hotkeySpawn?.kind} x=${hotkeySpawn?.x?.toFixed(1)} z=${hotkeySpawn?.z?.toFixed(1)} y=${hotkeySpawn?.elevation}`);
+  hotkeySpawnHarness.vehicles = [{ pos: { x: bugattiSpawn.x, z: bugattiSpawn.z } }];
+  const teslaSpawn = hotkeySpawnHarness.spawnNearPlayer('cybertruck', spawnPlayer);
+  check('hotkey spawning avoids occupied vehicle footprints',
+    teslaSpawn?.kind === 'cybertruck' && Math.hypot(teslaSpawn.x - bugattiSpawn.x, teslaSpawn.z - bugattiSpawn.z) >= 5.2,
+    `distance=${Math.hypot(teslaSpawn.x - bugattiSpawn.x, teslaSpawn.z - bugattiSpawn.z).toFixed(1)}`);
+
   check('world yaw includes the GLB nose-axis correction', () => {
     const yaw = VehicleSystem.prototype._worldYaw({ yaw: 0.42, yawOffset: Math.PI });
     assert.ok(Math.abs(yaw - (0.42 + Math.PI)) < 1e-8);
@@ -137,6 +154,9 @@ try {
     assert.equal(CAR_PHYSICS.lambo.drivetrain, 'rwd');
     assert.equal(CAR_PHYSICS.cybertruck.drivetrain, 'awd');
     assert.ok(CAR_PHYSICS.cybertruck.springRate > CAR_PHYSICS.lambo.springRate);
+    assert.ok(CAR_PHYSICS.bugatti.maxSpeed > CAR_PHYSICS.lambo.maxSpeed);
+    assert.ok(CAR_MODELS.bugatti && CAR_MODELS.bugatti.url);
+    assert.equal(CAR_MODELS.bugatti.targetLen, 4.9);
   });
 
   const dynamicVehicleSpecs = {};

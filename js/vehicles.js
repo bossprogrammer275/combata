@@ -8,6 +8,9 @@ export const CAR_MODELS = {
   //        +1 = nose faces local +Z (compensated with a PI yaw offset).
   lambo:  { url: './data/models/cars/CAR Model by Ignition Labs - 5zUWP5UsLg-.glb', targetLen: 4.7, color: 0xda2828, nose: 1 },
   cybertruck: { url: './data/models/cars/tesla_cybertruk_low_poly/scene.gltf', targetLen: 5.7, color: 0x888888, nose: 1 },
+  // Temporary Bugatti preset: the repo does not yet contain a dedicated Bugatti GLB.
+  // Keep the existing bundled sports-car GLB so spawning works offline; replace this URL when the Bugatti asset is added.
+  bugatti: { url: './data/models/cars/CAR Model by Ignition Labs - 5zUWP5UsLg-.glb', targetLen: 4.9, color: 0x1767e8, nose: 1 },
 };
 
 // Handling is deliberately different per chassis. Values are tuned for a fun,
@@ -37,6 +40,18 @@ export const CAR_PHYSICS = {
     springRate: 54000, springDamping: 5600,
     uprightStrength: 5.2, uprightDamping: 4.2, uprightInertiaScale: 1.8,
     angularDamping: 1.3,
+  },
+  bugatti: {
+    mass: 1580, drivetrain: 'awd',
+    engineAcceleration: 15.5, reverseAcceleration: 5.0, brakeAcceleration: 18.0,
+    maxSpeed: 88, maxReverseSpeed: 12,
+    steeringAngle: 0.30, handbrakeSteerAngle: 0.44,
+    frontGrip: 8.2, rearGrip: 9.4, handbrakeRearGrip: 0.8,
+    tireFriction: 1.45, handbrakeRearFriction: 0.55,
+    suspensionRestLength: 0.20, suspensionTravel: 0.17,
+    springRate: 36000, springDamping: 3800,
+    uprightStrength: 4.6, uprightDamping: 3.8, uprightInertiaScale: 1.8,
+    angularDamping: 0.85,
   },
 };
 
@@ -424,6 +439,37 @@ export class VehicleSystem {
       }
     }
     for (const s of chosen) this.spawn({ ...s, elevation: s.elevation || 0 });
+  }
+
+  // Spawn a requested car ahead of the player/current driver, choosing a nearby
+  // unoccupied position and sampling the correct ground/flyover elevation.
+  spawnNearPlayer(kind, player) {
+    const driving = this.driver;
+    const origin = driving?.pos || player?.pos;
+    if (!origin) return null;
+    const spawnYaw = driving ? (driving.yaw || 0) : (Number.isFinite(player?.yaw) ? player.yaw : 0);
+    const heading = driving ? this._worldYaw(driving) : spawnYaw;
+    const baseY = Number.isFinite(origin.y) ? origin.y : 0;
+    const candidates = [[7, 0], [7, 3.5], [7, -3.5], [10, 0], [10, 4.5], [10, -4.5], [14, 0]];
+    let spot = null;
+    for (const [forward, lateral] of candidates) {
+      const x = origin.x - Math.sin(heading) * forward + Math.cos(heading) * lateral;
+      const z = origin.z - Math.cos(heading) * forward - Math.sin(heading) * lateral;
+      if (this.vehicles.some(v => Math.hypot(v.pos.x - x, v.pos.z - z) < 5.2)) continue;
+      const sampledY = this.world?.groundHeightAt?.(x, z, baseY + 1.5);
+      const elevation = Number.isFinite(sampledY) ? sampledY : Math.max(0, baseY);
+      spot = { x, z, elevation };
+      break;
+    }
+    if (!spot) {
+      const x = origin.x - Math.sin(heading) * 16;
+      const z = origin.z - Math.cos(heading) * 16;
+      const sampledY = this.world?.groundHeightAt?.(x, z, baseY + 1.5);
+      spot = { x, z, elevation: Number.isFinite(sampledY) ? sampledY : Math.max(0, baseY) };
+    }
+    const def = { ...spot, kind, ry: spawnYaw };
+    this.spawn(def);
+    return def;
   }
 
   // The visible model, Rapier body and camera all use the same world yaw.

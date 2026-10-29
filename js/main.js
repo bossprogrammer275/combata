@@ -601,7 +601,20 @@ class Game {
         case 'KeyX': if (this.state === 'playing' && !this.player.skydive && !(this.vehicles && this.vehicles.driver)) this.input.throwGrenade = true; break;
         case 'KeyF': if (this.state === 'playing' && this.nearLoot) this.lootPickup(); else I.climb = true; e.preventDefault(); break;
         case 'KeyZ': if (this.state === 'playing') I.climb = true; e.preventDefault(); break;
+        case 'KeyK':
+          if (this.state === 'playing' && this.player && !this.player.skydive && this.vehicles) {
+            this.vehicles.spawnNearPlayer('bugatti', this.player);
+            this.hud.toast('BUGATTI SPAWNED · PRESS E TO ENTER');
+          }
+          break;
         case 'KeyT':
+          if (this.state === 'playing' && this.player && !this.player.skydive && this.vehicles) {
+            if (this.transitMenuOpen) { this.transitMenuOpen = false; this.hud.hideTransitMenu(); }
+            this.vehicles.spawnNearPlayer('cybertruck', this.player);
+            this.hud.toast('TESLA CYBERTRUCK SPAWNED · PRESS E TO ENTER');
+          }
+          break;
+        case 'KeyU':
           if (this.state === 'playing' && !this.player.skydive && !(this.vehicles && this.vehicles.driver) && this.nearTransit && this.world.namedLocations) {
             this.transitMenuOpen = !this.transitMenuOpen;
             if (this.transitMenuOpen) this.hud.showTransitMenu(this.world.namedLocations);
@@ -990,7 +1003,7 @@ class Game {
       tpEl.classList.toggle('hidden', !show);
       if (show) {
         const coin = this.profile ? this.profile.coins : 0;
-        tpEl.textContent = 'PRESS [T] TO FAST-TRAVEL  ◈' + coin;
+        tpEl.textContent = 'PRESS [U] TO FAST-TRAVEL  ◈' + coin;
       }
     }
     if (this.transitMenuOpen && !this.nearTransit) {
