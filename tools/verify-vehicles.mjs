@@ -585,17 +585,35 @@ try {
   } else {
     check('Cybertruck dynamic suspension spec exists', false);
   }
+  const supportBody = physics.createVehicleBody(110, 0, 0, vehicleYawOffset, [dynamicVehicleSpec.physicsBox], {
+    dynamic: true, centerY: dynamicVehicleSpec.centerY,
+    mass: CAR_PHYSICS.lambo.mass, yawOffset: vehicleYawOffset,
+    tuning: CAR_PHYSICS.lambo, angularDamping: CAR_PHYSICS.lambo.angularDamping,
+  });
+  physics.step(1 / 60);
+  physics.updateVehicleBody(supportBody, 110, 0, 0, vehicleYawOffset);
+  physics.step(1 / 60);
+  let supportWarmup = null;
+  for (let i = 0; i < 8; i++) {
+    supportWarmup = physics.applyVehicleControls(supportBody, {
+      throttle: 0, steer: 0, handbrake: false, dt: 1 / 60,
+      wheels, tuning: CAR_PHYSICS.lambo,
+      surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
+    });
+    physics.step(1 / 60);
+  }
   const originalCast = physics.world.castRayAndGetNormal;
   physics.world.castRayAndGetNormal = function (...args) { return null; };
-  const gapMotion = physics.applyVehicleControls(rb, {
+  const gapMotion = physics.applyVehicleControls(supportBody, {
     throttle: 0, steer: 0, handbrake: false, dt: 1 / 60,
     wheels, tuning: CAR_PHYSICS.lambo,
     surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
   });
   physics.world.castRayAndGetNormal = originalCast;
   check('one-frame suspension ray miss does not drop every wheel at a road seam',
-    (gapMotion?.wheelContacts || 0) >= 3,
-    `contacts=${gapMotion?.wheelContacts ?? 0}`);
+    (supportWarmup?.wheelContacts || 0) >= 3 && (gapMotion?.wheelContacts || 0) >= 3,
+    `warmup=${supportWarmup?.wheelContacts ?? 0} contacts=${gapMotion?.wheelContacts ?? 0}`);
+
 
   const reverseBody = physics.createVehicleBody(40, 0, 0, vehicleYawOffset, [dynamicVehicleSpec.physicsBox], {
     dynamic: true, centerY: dynamicVehicleSpec.centerY,
