@@ -281,11 +281,20 @@ function meshNeedsSubdivision(mesh) {
   return s.x * s.y * s.z > 8 || Math.max(s.x, s.y, s.z) / (Math.min(s.x, s.y, s.z) + 0.01) > 4;
 }
 
-function shouldSkip(name) {
-  const n = (name || '').toLowerCase();
-  return n.startsWith('col_') || n.startsWith('trim_') || n.startsWith('window_')
-    || n.startsWith('roof_detail') || n.startsWith('sign') || n.startsWith('awning')
-    || n.startsWith('door_') || /^room_\d+_marker$/.test(n);
+function shouldSkip(object) {
+  // Semantic prefixes are allowed on either the mesh or a parent collection.
+  // This is common when GLB assets are exported from Blender.
+  let current = object;
+  while (current) {
+    const n = (current.name || '').toLowerCase();
+    if (
+      n.startsWith('col_') || n.startsWith('trim_') || n.startsWith('window_') ||
+      n.startsWith('roof_detail') || n.startsWith('sign') || n.startsWith('awning') ||
+      n.startsWith('door_') || /^room_\d+_marker$/.test(n)
+    ) return true;
+    current = current.parent;
+  }
+  return false;
 }
 
 // ─── Main ───
@@ -316,7 +325,7 @@ async function processGLB(inputPath) {
   let subdivCount = 0;
 
   scene.traverse((obj) => {
-    if (!obj.isMesh || shouldSkip(obj.name)) return;
+    if (!obj.isMesh || shouldSkip(obj)) return;
     obj.updateWorldMatrix(true, false);
     const geo = obj.geometry;
     if (!geo || !geo.attributes.position) return;
