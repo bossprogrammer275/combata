@@ -919,28 +919,28 @@ export class World {
   }
 
   _isDoorMesh(name) {
-    return (name || '').startsWith('door_');
+    return (name || '').toLowerCase().startsWith('door_');
   }
 
   _isCollisionMesh(name) {
-    return (name || '').startsWith('col_');
+    return (name || '').toLowerCase().startsWith('col_');
   }
 
   _isRoomMarker(name) {
-    const m = (name || '').match(/^room_(\d+)_marker$/);
+    const m = (name || '').toLowerCase().match(/^room_(\d+)_marker$/);
     return m ? parseInt(m[1]) : -1;
   }
 
   _isStairMesh(name) {
-    return (name || '').startsWith('stairs_');
+    return (name || '').toLowerCase().startsWith('stairs_');
   }
 
   _isFloorMesh(name) {
-    return (name || '').startsWith('floor_');
+    return (name || '').toLowerCase().startsWith('floor_');
   }
 
   _isWindowMesh(name) {
-    return (name || '').startsWith('window_');
+    return (name || '').toLowerCase().startsWith('window_');
   }
 
   _isSkipMesh(name) {
