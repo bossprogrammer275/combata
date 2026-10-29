@@ -188,6 +188,21 @@ try {
   physics.createWorld();
   physics.addGroundPlane();
   physics.createPlayerBody(0, 3, 0);
+  const groundRay = physics.castRay(
+    new THREE.Vector3(0, 2, 0),
+    new THREE.Vector3(0, -1, 0),
+    5,
+  );
+  check('Rapier raycast respects max distance and returns a real normal',
+    !!groundRay && Math.abs(groundRay.dist - 2) < 0.08 && groundRay.normal.y > 0.9,
+    groundRay ? `dist=${groundRay.dist.toFixed(2)} normalY=${groundRay.normal.y.toFixed(2)}` : 'no hit');
+  const shortRay = physics.castRay(
+    new THREE.Vector3(0, 2, 0),
+    new THREE.Vector3(0, -1, 0),
+    1,
+  );
+  check('Rapier raycast does not hit beyond its max distance', shortRay === null);
+
   for (let i = 0; i < 60; i++) {
     physics.movePlayer(0, -1, 0);
     physics.step(1 / 60);
