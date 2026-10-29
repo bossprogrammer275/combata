@@ -173,6 +173,12 @@ check('lane markings stop at road junctions', () => {
       assert.ok(Math.hypot(p.x, p.z) > 5, 'yellow center-line leaks into the junction');
     }
   }
+  const crossings = world.ribbons.filter(r => r.mat.key === 'crosswalk-mark');
+  assert.ok(crossings.length >= 10, 'junctions did not generate pedestrian crossings');
+  for (const stripe of crossings) {
+    assert.ok(stripe.width <= 0.15, 'crosswalk stripe thickness is too large');
+    assert.ok(stripe.pts.some(p => Math.hypot(p.x, p.z) > 5), 'crosswalk unexpectedly painted inside junction center');
+  }
 });
 
 console.log(failures ? `[collision verify] ${failures} FAILURES` : '[collision verify] ALL CHECKS PASSED');
