@@ -17,6 +17,7 @@ export class Physics {
     this._playerCollider = null;
     this._playerController = null;
     this._vehicleBodies = new Map();
+    this._staticBatchBodies = [];
   }
 
   static async init() {
@@ -71,17 +72,48 @@ export class Physics {
   }
 
   registerStaticBatch(colliders) {
+    if (!this.world || !Array.isArray(colliders) || !colliders.length) return 0;
+    // A single fixed body can own thousands of static cuboids. One rigid body
+    // per box made detailed collision manifests needlessly expensive.
+    const body = this.world.createRigidBody(RAPIER.RigidBodyDesc.fixed());
     let count = 0;
-    for (const c of colliders) {
-      if (this.registerStaticAABB(c.min, c.max)) count++;
+    for (const source of colliders) {
+      if (!source?.min || !source?.max) continue;
+      const min = source.min, max = source.max;
+      const hx = (max.x - min.x) / 2;
+      const hy = (max.y - min.y) / 2;
+      const hz = (max.z - min.z) / 2;
+      if (![hx, hy, hz].every(Number.isFinite) || hx <= 0.001 || hy <= 0.001 || hz <= 0.001) continue;
+      const cx = (min.x + max.x) / 2;
+      const cy = (min.y + max.y) / 2;
+      const cz = (min.z + max.z) / 2;
+      const desc = RAPIER.ColliderDesc.cuboid(hx, hy, hz)
+        .setTranslation(cx, cy, cz)
+        .setFriction(0.8)
+        .setRestitution(0);
+      const collider = this.world.createCollider(desc, body);
+      source.physicsCollider = {
+        handle: collider.handle, min, max, userData: source,
+        rigidBody: body, _collider: collider, _sharedStaticBatch: true,
+      };
+      count++;
     }
-    console.log(`[Physics] Registered ${count} static colliders`);
+    if (!count) this.world.removeRigidBody(body);
+    else this._staticBatchBodies.push(body);
+    console.log(`[Physics] Registered ${count} static colliders in ${count ? 1 : 0} fixed batch body`);
     return count;
   }
 
   removeCollider(entry) {
-    if (!entry || !entry.rigidBody) return;
-    this.world.removeRigidBody(entry.rigidBody);
+    if (!entry || !this.world) return;
+    if (entry._sharedStaticBatch && entry._collider) {
+      // Remove only this collider. Removing its shared body would delete every
+      // static wall and prop in the city.
+      this.world.removeCollider(entry._collider, true);
+      if (entry.userData?.physicsCollider === entry) entry.userData.physicsCollider = null;
+      return;
+    }
+    if (entry.rigidBody) this.world.removeRigidBody(entry.rigidBody);
   }
 
   addGroundPlane() {
