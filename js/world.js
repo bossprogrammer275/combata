@@ -1402,16 +1402,24 @@ export class World {
       const length = Math.hypot(dx, dz);
       if (length < 0.05) continue;
       const ux = dx / length, uz = dz / length;
-      // AABB of the rotated thin road/slab strip. These thin colliders support
-      // Rapier wheel rays but are ignored by horizontal character push-out.
-      const boxW = Math.abs(ux) * length + Math.abs(uz) * width;
-      const boxD = Math.abs(uz) * length + Math.abs(ux) * width;
       const centerX = (a.x + b.x) * 0.5;
       const centerZ = (a.z + b.z) * 0.5;
-      this.addCollider(
+      // A small longitudinal overlap closes gaps at curved-road joins. Keep the
+      // broad world AABB for fast CPU queries, but retain the actual orientation
+      // for Rapier and exact player-footprint checks.
+      const overlap = Math.min(0.18, length * 0.08);
+      const segmentLength = length + overlap * 2;
+      const boxW = Math.abs(ux) * segmentLength + Math.abs(uz) * width;
+      const boxD = Math.abs(uz) * segmentLength + Math.abs(ux) * width;
+      const collider = this.addCollider(
         centerX, topY - thickness, centerZ,
-        boxW + 0.035, thickness, boxD + 0.035,
+        boxW + 0.035, thickness, boxD + 0.035, false, 'road_surface',
       );
+      collider.orientedBox = {
+        center: { x: centerX, y: topY - thickness / 2, z: centerZ },
+        halfExtents: { x: segmentLength / 2, y: thickness / 2, z: width / 2 },
+        yaw: Math.atan2(-uz, ux),
+      };
       added++;
     }
     return added;
@@ -1426,6 +1434,12 @@ export class World {
       const h = c.max.y - c.min.y;
       if (h > 0.15 || c.min.y < -0.1 || c.max.y > 0.3) continue;
       if (x < c.min.x || x > c.max.x || z < c.min.z || z > c.max.z) continue;
+      if (c.orientedBox) {
+        const o = c.orientedBox, dx = x - o.center.x, dz = z - o.center.z;
+        const cs = Math.cos(o.yaw), sn = Math.sin(o.yaw);
+        const lx = dx * cs - dz * sn, lz = dx * sn + dz * cs;
+        if (Math.abs(lx) > o.halfExtents.x || Math.abs(lz) > o.halfExtents.z) continue;
+      }
       height = Math.max(height, c.max.y);
     }
     return height;
