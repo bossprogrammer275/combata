@@ -78,10 +78,13 @@ export class BVHWorld {
   }
 
   removeAABB(col) {
-    let i = this.aabbColliders.indexOf(col);
-    if (i >= 0) { this.aabbColliders.splice(i, 1); return; }
-    i = this._climbables.indexOf(col);
-    if (i >= 0) this._climbables.splice(i, 1);
+    // One collider may be both solid movement geometry and climbable metadata.
+    // Remove it from both indexes; early-returning from the first list left
+    // stale climb prompts after a fence/prop was removed.
+    const i = this.aabbColliders.indexOf(col);
+    if (i >= 0) this.aabbColliders.splice(i, 1);
+    const j = this._climbables.indexOf(col);
+    if (j >= 0) this._climbables.splice(j, 1);
   }
 
   removeMesh(mesh) {
