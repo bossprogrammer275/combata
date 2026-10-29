@@ -107,6 +107,7 @@ try {
   const { loadCarModel, CAR_MODELS } = await import('../js/vehicles.js');
   const { Physics } = await import('../js/physics.js');
 
+  let dynamicVehicleSpec = null;
   for (const kind of Object.keys(CAR_MODELS)) {
     console.log(`[verify] model: ${kind}`);
     const targetLen = CAR_MODELS[kind].targetLen;
@@ -126,6 +127,48 @@ try {
     // ---- wheels ----
     const wheels = scene.userData.wheels || [];
     console.log(`    wheels detected: ${wheels.length}`);
+
+    // Capture the first real vehicle's runtime-equivalent suspension spec.
+    // This exercises the actual normalized GLB pivots/radii below, not only a
+    // synthetic set of four wheel points.
+    if (!dynamicVehicleSpec && wheels.length === 4 && scene.userData.bodyBox) {
+      const bodyBox = scene.userData.bodyBox;
+      const wheelSpecs = wheels.map((w) => {
+        w.pivot.updateWorldMatrix(true, false);
+        const center = w.pivot.getWorldPosition(new THREE.Vector3());
+        let radius = 0;
+        for (const mesh of w.meshes || []) {
+          mesh.updateWorldMatrix(true, false);
+          if (!mesh.geometry?.boundingBox) mesh.geometry?.computeBoundingBox();
+          const bounds = new THREE.Box3().setFromObject(mesh);
+          if (!bounds.isEmpty()) radius = Math.max(radius, bounds.getSize(new THREE.Vector3()).y * 0.5);
+        }
+        return {
+          x: center.x, y: center.y, z: center.z,
+          radius: THREE.MathUtils.clamp(radius || 0.32, 0.18, 0.5),
+          front: !!w.front,
+        };
+      });
+      const physicsBox = { min: bodyBox.min.clone(), max: bodyBox.max.clone() };
+      const minWheelY = Math.min(...wheelSpecs.map(w => w.y));
+      const meanRadius = wheelSpecs.reduce((sum, w) => sum + w.radius, 0) / wheelSpecs.length;
+      physicsBox.min.y = THREE.MathUtils.clamp(
+        minWheelY + meanRadius * 0.18,
+        bodyBox.min.y + 0.05,
+        bodyBox.max.y - 0.3,
+      );
+      const cx = (bodyBox.min.x + bodyBox.max.x) * 0.5;
+      const cz = (bodyBox.min.z + bodyBox.max.z) * 0.5;
+      const hx = (bodyBox.max.x - bodyBox.min.x) * 0.44;
+      const hz = (bodyBox.max.z - bodyBox.min.z) * 0.46;
+      physicsBox.min.x = cx - hx; physicsBox.max.x = cx + hx;
+      physicsBox.min.z = cz - hz; physicsBox.max.z = cz + hz;
+      dynamicVehicleSpec = {
+        physicsBox,
+        centerY: (physicsBox.min.y + physicsBox.max.y) * 0.5,
+        wheels: wheelSpecs,
+      };
+    }
     if (wheels.length === 4) {
       const quads = new Set(wheels.map((w) => `${Math.sign(w.center.x)},${Math.sign(w.center.z)}`));
       check('4 wheels in 4 quadrants', quads.size === 4);
@@ -240,20 +283,15 @@ try {
   console.log(`    INFO player rest y=${rest.y.toFixed(3)}`);
   check('player capsule rests at feet height', Math.abs(rest.y) < 0.15, `y=${rest.y.toFixed(2)}`);
 
-  const chassisBox = {
-    min: { x: -0.95, y: 0.5, z: -2.0 },
-    max: { x: 0.95, y: 1.3, z: 2.0 },
-  };
-  const rb = physics.createVehicleBody(10, 0, 20, 0, [chassisBox], {
-    dynamic: true, centerY: 0.9, mass: 1200,
+  check('real GLB produces a dynamic suspension spec',
+    !!dynamicVehicleSpec && dynamicVehicleSpec.wheels.length === 4,
+    dynamicVehicleSpec ? `centerY=${dynamicVehicleSpec.centerY.toFixed(2)} wheels=${dynamicVehicleSpec.wheels.length}` : 'no real wheel spec');
+  if (!dynamicVehicleSpec) throw new Error('No real GLB wheel suspension spec could be built');
+  const rb = physics.createVehicleBody(10, 0, 20, 0, [dynamicVehicleSpec.physicsBox], {
+    dynamic: true, centerY: dynamicVehicleSpec.centerY, mass: 1200,
   });
   check('vehicle chassis is dynamic', !!rb?._openWorldDynamic);
-  const wheels = [
-    { x: -0.75, y: 0.33, z: -1.4, radius: 0.32, front: true },
-    { x:  0.75, y: 0.33, z: -1.4, radius: 0.32, front: true },
-    { x: -0.75, y: 0.33, z:  1.4, radius: 0.32, front: false },
-    { x:  0.75, y: 0.33, z:  1.4, radius: 0.32, front: false },
-  ];
+  const wheels = dynamicVehicleSpec.wheels;
   physics.step(1 / 60);
   physics.updateVehicleBody(rb, 12, 0, 22, 0);
   physics.step(1 / 60);
