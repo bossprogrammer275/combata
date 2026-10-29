@@ -211,10 +211,20 @@ try {
   console.log(`    INFO player rest y=${rest.y.toFixed(3)}`);
   check('player capsule rests at feet height', Math.abs(rest.y) < 0.15, `y=${rest.y.toFixed(2)}`);
 
-  const rb = physics.createVehicleBody(10, 0, 20, 0.5, null, {
-    dynamic: true, centerY: 0.6, mass: 1200,
+  const chassisBox = {
+    min: { x: -0.95, y: 0.5, z: -2.0 },
+    max: { x: 0.95, y: 1.3, z: 2.0 },
+  };
+  const rb = physics.createVehicleBody(10, 0, 20, 0, [chassisBox], {
+    dynamic: true, centerY: 0.9, mass: 1200,
   });
   check('vehicle chassis is dynamic', !!rb?._openWorldDynamic);
+  const wheels = [
+    { x: -0.75, y: 0.33, z: -1.4, radius: 0.32, front: true },
+    { x:  0.75, y: 0.33, z: -1.4, radius: 0.32, front: true },
+    { x: -0.75, y: 0.33, z:  1.4, radius: 0.32, front: false },
+    { x:  0.75, y: 0.33, z:  1.4, radius: 0.32, front: false },
+  ];
   physics.step(1 / 60);
   physics.updateVehicleBody(rb, 12, 0, 22, 0);
   physics.step(1 / 60);
@@ -223,12 +233,18 @@ try {
     Math.abs(t.x - 12) < 0.05 && Math.abs(t.z - 22) < 0.05,
     `(${t.x.toFixed(2)}, ${t.z.toFixed(2)})`);
 
+  let lastMotion = null;
   for (let i = 0; i < 90; i++) {
-    physics.applyVehicleControls(rb, {
-      throttle: 1, steer: 0.8, handbrake: false, dt: 1 / 60,
+    lastMotion = physics.applyVehicleControls(rb, {
+      throttle: 1, steer: 0.8, handbrake: false, dt: 1 / 60, wheels,
     });
     physics.step(1 / 60);
   }
+  check('raycast suspension detects grounded wheel contact', (lastMotion?.wheelContacts || 0) >= 3,
+    `contacts=${lastMotion?.wheelContacts ?? 0}`);
+  check('wheel contact states are exposed for wheel animation',
+    Array.isArray(rb._openWorldWheelStates) && rb._openWorldWheelStates.length === 4,
+    `states=${rb._openWorldWheelStates?.length ?? 0}`);
   t = rb.translation();
   const bodyRotation = rb.rotation();
   const bodyYaw = new THREE.Euler().setFromQuaternion(
