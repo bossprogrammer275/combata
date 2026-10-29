@@ -104,7 +104,8 @@ export class Civilian {
       const away = this.pos.clone().sub(this.fleeTo);
       away.y = 0;
       if (away.lengthSq() > 0.01) away.normalize(); else away.set(Math.sin(this.yaw), 0, Math.cos(this.yaw));
-      this.dir.lerp(away, .25).normalize();
+      // Exponential steering response: same turn rate at every frame rate.
+      this.dir.lerp(away, 1 - Math.exp(-7.5 * dt)).normalize();
       this.speed = 3.8;
     } else if (this.idleT > 0) {
       this.idleT -= dt;
@@ -119,12 +120,19 @@ export class Civilian {
       this.speed = 1.4;
     }
 
-    const nx = this.pos.x + this.dir.x * this.speed * dt;
-    const nz = this.pos.z + this.dir.z * this.speed * dt;
-    if (this.world.colliderAt(nx, nz, .45)) {
-      this.dir.set(-this.dir.x, 0, -this.dir.z);
-      this.walkT = Math.min(this.walkT, .4);
-    } else {
+    // Substep long frames so pedestrians do not tunnel through narrow props.
+    const travel = this.speed * Math.min(dt, 0.1);
+    const steps = Math.max(1, Math.ceil(travel / 0.18));
+    const stepX = this.dir.x * travel / steps;
+    const stepZ = this.dir.z * travel / steps;
+    for (let i = 0; i < steps; i++) {
+      const nx = this.pos.x + stepX;
+      const nz = this.pos.z + stepZ;
+      if (this.world.colliderAt(nx, nz, .45)) {
+        this.dir.set(-this.dir.x, 0, -this.dir.z);
+        this.walkT = Math.min(this.walkT, .4);
+        break;
+      }
       this.pos.set(nx, 0, nz);
     }
     this.yaw = Math.atan2(this.dir.x, this.dir.z);
