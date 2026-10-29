@@ -552,21 +552,10 @@ export class Player {
       if (this.pos.x + r <= c.min.x || this.pos.x - r >= c.max.x) continue;
       if (this.pos.z + r <= c.min.z || this.pos.z - r >= c.max.z) continue;
       if (head <= c.min.y || feet >= c.max.y) continue;
-      // When inside a building interior, skip push-out from colliders that are
-      // fully contained within the interior volume (walls of the building we're in).
-      if (this.insideBuilding && this.world.interiors) {
-        let inside = false;
-        for (const v of this.world.interiors) {
-          if (c.min.x >= v.min.x && c.max.x <= v.max.x &&
-              c.min.z >= v.min.z && c.max.z <= v.max.z) {
-            inside = true; break;
-          }
-        }
-        if (inside) {
-          if (dy < 0) { this.pos.y = c.max.y; this.vel.y = 0; this.onGround = true; landedOnCollider = true; }
-          continue;
-        }
-      }
+      // Interior AABBs must remain solid. The old "skip every collider inside
+      // the room volume" rule made invisible internal walls and props ghostlike.
+      // Exterior walls now have real doorway gaps, so no global interior bypass
+      // is needed here.
       // step-up: low cover / stair treads. We snap feet onto the top of the step so the
       // player walks up smoothly WITHOUT needing the mantle (climb) key.
       if (dy === 0 && c.max.y - feet <= 1.2 && this.onGround) {
