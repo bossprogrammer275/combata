@@ -175,9 +175,15 @@ try {
           const bounds = new THREE.Box3().setFromObject(mesh);
           if (!bounds.isEmpty()) radius = Math.max(radius, center.y - bounds.min.y);
         }
+        // Match the runtime wheel fit: nearby rim/hardware can inflate the
+        // mesh AABB radius and put the suspension hardpoint below the ramp.
+        const fittedRadius = Math.min(
+          radius || center.y || 0.32,
+          Math.max(0.18, center.y + 0.04),
+        );
         return {
           x: center.x, y: center.y, z: center.z,
-          radius: THREE.MathUtils.clamp(radius || 0.32, 0.18, 0.5),
+          radius: THREE.MathUtils.clamp(fittedRadius, 0.18, 0.5),
           front: !!w.front,
         };
       });
