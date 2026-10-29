@@ -255,7 +255,7 @@ export class BVHWorld {
       Math.max(origin.x, rayEndX), Math.max(origin.z, rayEndZ),
     );
     for (const c of candidates) {
-      const hit = _rayAABB(origin, dir, c, maxDist);
+      const hit = _rayCollider(origin, dir, maxDist, c);
       if (hit && (!best || hit.dist < best.dist)) {
         best = { dist: hit.dist, point: hit.point, normal: hit.normal };
       }
@@ -303,7 +303,7 @@ export class BVHWorld {
     );
     for (const c of candidates) {
       if (c.max.y < 1.2) continue;
-      const hit = _rayAABB(origin, dir, c, maxDist);
+      const hit = _rayCollider(origin, dir, maxDist, c);
       if (hit && (!best || hit.dist < best.dist)) {
         best = { dist: hit.dist, point: hit.point, normal: hit.normal };
       }
@@ -323,12 +323,14 @@ export class BVHWorld {
 
   // Point overlap — fast AABB collision for movement/steering/spawning
   colliderAt(x, z, r = 0.4) {
-    for (let i = 0, len = this.aabbColliders.length; i < len; i++) {
-      const c = this.aabbColliders[i];
+    const candidates = this._queryAABBCandidates(x - r, z - r, x + r, z + r);
+    for (const c of candidates) {
       if (c.max.y < 0.3) continue;
-      if (x + r > c.min.x && x - r < c.max.x && z + r > c.min.z && z - r < c.max.z) {
-        return true;
+      if (c.orientedBox) {
+        if (_circleOverlapsOrientedBox(x, z, r, c.orientedBox)) return true;
+        continue;
       }
+      if (x + r > c.min.x && x - r < c.max.x && z + r > c.min.z && z - r < c.max.z) return true;
     }
     return false;
   }
@@ -343,6 +345,10 @@ export class BVHWorld {
     const candidates = this._queryAABBCandidates(x - radius, z - radius, x + radius, z + radius);
     for (const c of candidates) {
       if (c.max.y < 0.3) continue;
+      if (c.orientedBox) {
+        if (_circleOverlapsOrientedBox(x, z, radius, c.orientedBox)) out.push(c);
+        continue;
+      }
       const cx = Math.max(c.min.x, Math.min(x, c.max.x));
       const cz = Math.max(c.min.z, Math.min(z, c.max.z));
       const dx = cx - x, dz = cz - z;
@@ -364,6 +370,51 @@ export class BVHWorld {
 
   get allColliders() { return this.aabbColliders; }
   get climbables() { return this._climbables; }
+}
+
+function _circleOverlapsOrientedBox(x, z, radius, box) {
+  const dx = x - box.center.x, dz = z - box.center.z;
+  const c = Math.cos(box.yaw), sn = Math.sin(box.yaw);
+  const localX = dx * c - dz * sn;
+  const localZ = dx * sn + dz * c;
+  const closestX = THREE.MathUtils.clamp(localX, -box.halfExtents.x, box.halfExtents.x);
+  const closestZ = THREE.MathUtils.clamp(localZ, -box.halfExtents.z, box.halfExtents.z);
+  const ox = localX - closestX, oz = localZ - closestZ;
+  return ox * ox + oz * oz <= radius * radius;
+}
+
+function _rayCollider(origin, dir, maxDist, collider) {
+  const box = collider.orientedBox;
+  if (!box) return _rayAABB(origin, dir, collider, maxDist);
+  const dx = origin.x - box.center.x, dz = origin.z - box.center.z;
+  const c = Math.cos(box.yaw), sn = Math.sin(box.yaw);
+  const localOrigin = {
+    x: dx * c - dz * sn,
+    y: origin.y - box.center.y,
+    z: dx * sn + dz * c,
+  };
+  const localDir = {
+    x: dir.x * c - dir.z * sn,
+    y: dir.y,
+    z: dir.x * sn + dir.z * c,
+  };
+  const localBox = {
+    min: { x: -box.halfExtents.x, y: -box.halfExtents.y, z: -box.halfExtents.z },
+    max: { x: box.halfExtents.x, y: box.halfExtents.y, z: box.halfExtents.z },
+  };
+  const hit = _rayAABB(localOrigin, localDir, localBox, maxDist);
+  if (!hit) return null;
+  const nx = hit.normal.x * c + hit.normal.z * sn;
+  const nz = -hit.normal.x * sn + hit.normal.z * c;
+  return {
+    dist: hit.dist,
+    point: new THREE.Vector3(
+      origin.x + dir.x * hit.dist,
+      origin.y + dir.y * hit.dist,
+      origin.z + dir.z * hit.dist,
+    ),
+    normal: new THREE.Vector3(nx, hit.normal.y, nz),
+  };
 }
 
 function _rayAABB(origin, dir, box, maxDist) {
