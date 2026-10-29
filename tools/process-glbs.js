@@ -43,6 +43,36 @@ function loadGLB(filePath) {
 
 // ─── Surface subdivision ───
 
+// Test triangle coverage in XZ with the separating-axis theorem. A raw triangle
+// bounding box covers large empty regions around diagonal walls and door frames,
+// which were then converted into invisible solid collision cells.
+function triangleIntersectsRectXZ(a, b, c, minX, maxX, minZ, maxZ) {
+  const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
+  const hx = (maxX - minX) / 2, hz = (maxZ - minZ) / 2;
+  const tri = [
+    [a.x - cx, a.z - cz],
+    [b.x - cx, b.z - cz],
+    [c.x - cx, c.z - cz],
+  ];
+  const axes = [[1, 0], [0, 1]];
+  for (let i = 0; i < 3; i++) {
+    const p = tri[i], q = tri[(i + 1) % 3];
+    const ex = q[0] - p[0], ez = q[1] - p[1];
+    axes.push([-ez, ex]);
+  }
+  for (const [ax, az] of axes) {
+    const axisLengthSq = ax * ax + az * az;
+    if (axisLengthSq < 1e-12) continue;
+    const p0 = tri[0][0] * ax + tri[0][1] * az;
+    const p1 = tri[1][0] * ax + tri[1][1] * az;
+    const p2 = tri[2][0] * ax + tri[2][1] * az;
+    const triMin = Math.min(p0, p1, p2), triMax = Math.max(p0, p1, p2);
+    const rectRadius = hx * Math.abs(ax) + hz * Math.abs(az);
+    if (triMin > rectRadius || triMax < -rectRadius) return false;
+  }
+  return true;
+}
+
 function subdivideMeshCollision(mesh, cellSize) {
   const geo = mesh.geometry;
   if (!geo || !geo.attributes.position) return [];
@@ -98,7 +128,12 @@ function subdivideMeshCollision(mesh, cellSize) {
     const yMax = Math.max(a.y, b.y, c.y);
 
     for (let ci = c0; ci <= c1; ci++) {
+      const cellMinX = minX + ci * cellSize;
+      const cellMaxX = cellMinX + cellSize;
       for (let ri = r0; ri <= r1; ri++) {
+        const cellMinZ = minZ + ri * cellSize;
+        const cellMaxZ = cellMinZ + cellSize;
+        if (!triangleIntersectsRectXZ(a, b, c, cellMinX, cellMaxX, cellMinZ, cellMaxZ)) continue;
         const key = ci * rows + ri;
         let cell = cells.get(key);
         if (!cell) {
