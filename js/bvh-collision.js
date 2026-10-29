@@ -240,7 +240,13 @@ export class BVHWorld {
       }
     }
 
-    for (const c of this.aabbColliders) {
+    const rayEndX = origin.x + dir.x * maxDist;
+    const rayEndZ = origin.z + dir.z * maxDist;
+    const candidates = this._queryAABBCandidates(
+      Math.min(origin.x, rayEndX), Math.min(origin.z, rayEndZ),
+      Math.max(origin.x, rayEndX), Math.max(origin.z, rayEndZ),
+    );
+    for (const c of candidates) {
       const hit = _rayAABB(origin, dir, c, maxDist);
       if (hit && (!best || hit.dist < best.dist)) {
         best = { dist: hit.dist, point: hit.point, normal: hit.normal };
@@ -281,7 +287,13 @@ export class BVHWorld {
       }
     }
 
-    for (const c of this.aabbColliders) {
+    const rayEndX = origin.x + dir.x * maxDist;
+    const rayEndZ = origin.z + dir.z * maxDist;
+    const candidates = this._queryAABBCandidates(
+      Math.min(origin.x, rayEndX), Math.min(origin.z, rayEndZ),
+      Math.max(origin.x, rayEndX), Math.max(origin.z, rayEndZ),
+    );
+    for (const c of candidates) {
       if (c.max.y < 1.2) continue;
       const hit = _rayAABB(origin, dir, c, maxDist);
       if (hit && (!best || hit.dist < best.dist)) {
