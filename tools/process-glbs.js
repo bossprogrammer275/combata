@@ -328,7 +328,10 @@ async function processGLB(inputPath) {
     const max = lb.max.clone().applyMatrix4(obj.matrixWorld);
     const s = new THREE.Vector3().subVectors(max, min);
     const minExtent = sceneHeight * 0.0005;
-    if (s.x < minExtent || s.z < minExtent || s.y < minExtent) return;
+    // A facade, window opening or floor is often a zero-thickness plane. Do not
+    // discard it just because one AABB axis is tiny; give fallback boxes a thin
+    // physical thickness instead.
+    if (Math.max(s.x, s.y, s.z) < minExtent) return;
 
     if (meshNeedsSubdivision(obj)) {
       const cellSize = modelCellSize;
@@ -344,7 +347,12 @@ async function processGLB(inputPath) {
     }
 
     const center = [min.x + s.x / 2, min.y + s.y / 2, min.z + s.z / 2];
-    boxes.push([...center, s.x, s.y, s.z]);
+    boxes.push([
+      ...center,
+      Math.max(s.x, modelThickness),
+      Math.max(s.y, modelThickness),
+      Math.max(s.z, modelThickness),
+    ]);
     console.log(`  [BOX] "${obj.name}"`);
   });
 
