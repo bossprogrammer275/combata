@@ -137,24 +137,38 @@ function subdivideMeshCollision(mesh, cellSize) {
         const key = ci * rows + ri;
         let cell = cells.get(key);
         if (!cell) {
-          cell = { ci, ri, yMin, yMax };
+          cell = { ci, ri, intervals: [] };
           cells.set(key, cell);
-        } else {
-          cell.yMin = Math.min(cell.yMin, yMin);
-          cell.yMax = Math.max(cell.yMax, yMax);
         }
+        cell.intervals.push([yMin, yMax]);
       }
     }
   }
 
   const boxes = [];
   for (const cell of cells.values()) {
-    const h = cell.yMax - cell.yMin + THICKNESS;
-    if (h < MIN_CELL_H) continue;
+    // Do not merge all geometry in one XZ cell into one minY..maxY column.
+    // That filled the entire interior of multi-floor buildings with invisible
+    // solid boxes. Merge only touching/overlapping surface intervals so floors
+    // remain walkable while the empty space between floors stays empty.
+    const sorted = cell.intervals.sort((a, b) => a[0] - b[0]);
+    const merged = [];
+    for (const interval of sorted) {
+      const last = merged[merged.length - 1];
+      if (last && interval[0] <= last[1] + 0.08) {
+        last[1] = Math.max(last[1], interval[1]);
+      } else {
+        merged.push(interval.slice());
+      }
+    }
     const x = minX + cell.ci * cellSize + cellSize / 2;
     const z = minZ + cell.ri * cellSize + cellSize / 2;
-    const cy = cell.yMin + h / 2 - 0.05;
-    boxes.push([x, cy, z, cellSize, h, cellSize]);
+    for (const [yMin, yMax] of merged) {
+      const h = yMax - yMin + THICKNESS;
+      if (h < MIN_CELL_H) continue;
+      const cy = yMin + h / 2 - 0.05;
+      boxes.push([x, cy, z, cellSize, h, cellSize]);
+    }
   }
   return boxes;
 }
