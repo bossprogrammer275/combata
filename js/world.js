@@ -754,9 +754,6 @@ export class World {
       const isRoad = assetUrl.includes('road.glb') || (assetUrl.includes('road') && !assetUrl.includes('barrier'));
 
       const bbox = new THREE.Box3().setFromObject(model, true);
-      // process-glbs.js emits sibling *_col.json sidecars. The loader used to
-      // never read them, so all that generated collision data was silently ignored.
-      const collisionManifest = await this._loadCollisionManifest(a);
       const collisionProxyBoxes = [];
       const doorMeshes = [];
       model.traverse((o) => {
@@ -778,6 +775,12 @@ export class World {
       });
       // Collision helpers are hidden only after their dimensions have been read.
       model.traverse((o) => { if (o.isMesh && this._isCollisionMesh(o.name)) o.visible = false; });
+
+      // Prefer authored col_* meshes. Only request a sidecar if none exist and
+      // this is not foliage/pole geometry, which has a cheaper purpose-built proxy.
+      const collisionManifest = !collisionProxyBoxes.length && !isTree && !isLamp
+        ? await this._loadCollisionManifest(a)
+        : null;
 
       if (!a.noCollision && !isRoad && !bbox.isEmpty()) {
         const size = bbox.getSize(new THREE.Vector3());
