@@ -20,8 +20,11 @@ export const CAR_PHYSICS = {
     maxSpeed: 64, maxReverseSpeed: 10.5,
     steeringAngle: 0.32, handbrakeSteerAngle: 0.48,
     frontGrip: 7.4, rearGrip: 9.8, handbrakeRearGrip: 0.65,
+    tireFriction: 1.35, handbrakeRearFriction: 0.48,
     suspensionRestLength: 0.21, suspensionTravel: 0.18,
-    springRate: 32000, springDamping: 3400, angularDamping: 0.78,
+    springRate: 32000, springDamping: 3400,
+    uprightStrength: 4.2, uprightDamping: 3.5, uprightInertiaScale: 1.8,
+    angularDamping: 0.78,
   },
   cybertruck: {
     mass: 3050, drivetrain: 'awd',
@@ -29,8 +32,11 @@ export const CAR_PHYSICS = {
     maxSpeed: 40, maxReverseSpeed: 8.5,
     steeringAngle: 0.23, handbrakeSteerAngle: 0.34,
     frontGrip: 6.4, rearGrip: 7.6, handbrakeRearGrip: 1.35,
+    tireFriction: 1.05, handbrakeRearFriction: 0.72,
     suspensionRestLength: 0.25, suspensionTravel: 0.21,
-    springRate: 54000, springDamping: 5600, angularDamping: 1.3,
+    springRate: 54000, springDamping: 5600,
+    uprightStrength: 5.2, uprightDamping: 4.2, uprightInertiaScale: 1.8,
+    angularDamping: 1.3,
   },
 };
 
