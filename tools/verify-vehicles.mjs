@@ -223,8 +223,10 @@ try {
   const onRoadRay = physics.castRay(
     new THREE.Vector3(5, 2, 5), new THREE.Vector3(0, -1, 0), 4,
   );
+  // The ground collider is a 1m-thick cuboid centered at y=-0.5, so its
+  // top is y=0. An off-road ray should hit that ground, not the raised road.
   check('diagonal road physics does not extend into its broad AABB corners',
-    !!offRoadRay && Math.abs(offRoadRay.dist - 2.5) < 0.08,
+    !!offRoadRay && Math.abs(offRoadRay.dist - 2.0) < 0.08,
     offRoadRay ? `off-road dist=${offRoadRay.dist.toFixed(2)}` : 'no ground hit');
   check('diagonal road is physically present under the actual ribbon',
     !!onRoadRay && Math.abs(onRoadRay.dist - 1.94) < 0.08,
