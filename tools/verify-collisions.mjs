@@ -79,6 +79,29 @@ check('spatial grid limits movement queries to nearby collider cells', () => {
   assert.deepEqual(byBox, [nearby], 'AABB query did not resolve the correct spatial cell');
 });
 
+check('raycasts query nearby AABB cells instead of scanning all colliders', () => {
+  const world = worldHarness();
+  const near = world.addCollider(2, 0, 3, 1, 2, 1);
+  world.addCollider(700, 0, 700, 2, 2, 2);
+  world.addCollider(-800, 0, 950, 2, 2, 2);
+  const query = world.bvhWorld._queryAABBCandidates.bind(world.bvhWorld);
+  let candidatesSeen = 0;
+  world.bvhWorld._queryAABBCandidates = (...args) => {
+    const result = query(...args);
+    candidatesSeen = result.size ?? result.length;
+    return result;
+  };
+  const hit = world.bvhWorld.raycast(
+    new THREE.Vector3(2, 1, 0),
+    new THREE.Vector3(0, 0, 1),
+    10,
+  );
+  assert.ok(hit, 'ray failed to hit the nearby wall');
+  assert.ok(Math.abs(hit.dist - 2.5) < 1e-5, 'ray did not hit the correct wall face');
+  assert.equal(candidatesSeen, 1, 'raycast considered colliders outside its spatial cells');
+  assert.ok(world.bvhWorld.aabbColliders.includes(near));
+});
+
 check('removed collider disappears from the spatial grid', () => {
   const world = worldHarness();
   const c = world.addCollider(0, 0, 0, 1, 2, 1);
