@@ -1975,18 +1975,26 @@ export class World {
   }
 
   colliderAt(x, z, r = 0.4) {
-    if (this.grid) {
-      const near = this.grid.queryPoint(x, z, r + 0.05);
-      for (const c of near) {
-        if (c.max.y < 0.3) continue;
-        if (x + r > c.min.x && x - r < c.max.x && z + r > c.min.z && z - r < c.max.z) return true;
-      }
-      return false;
-    }
-    r += 0.05;
-    for (const c of this.colliders) {
+    const radius = r + 0.05;
+    const near = this.grid
+      ? this.grid.queryPoint(x, z, radius)
+      : this.colliders;
+    for (const c of near) {
       if (c.max.y < 0.3) continue;
-      if (x + r > c.min.x && x - r < c.max.x && z + r > c.min.z && z - r < c.max.z) return true;
+      if (c.orientedBox) {
+        // Road/sidewalk AABBs are broadphase only. Use a circle-vs-oriented
+        // rectangle test so their empty corners never become invisible walls.
+        const o = c.orientedBox;
+        const dx = x - o.center.x, dz = z - o.center.z;
+        const cs = Math.cos(o.yaw), sn = Math.sin(o.yaw);
+        const lx = dx * cs - dz * sn, lz = dx * sn + dz * cs;
+        const cx = THREE.MathUtils.clamp(lx, -o.halfExtents.x, o.halfExtents.x);
+        const cz = THREE.MathUtils.clamp(lz, -o.halfExtents.z, o.halfExtents.z);
+        if ((lx - cx) ** 2 + (lz - cz) ** 2 <= radius * radius) return true;
+        continue;
+      }
+      if (x + radius > c.min.x && x - radius < c.max.x &&
+          z + radius > c.min.z && z - radius < c.max.z) return true;
     }
     return false;
   }
