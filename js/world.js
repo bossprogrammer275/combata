@@ -361,9 +361,13 @@ export class World {
         geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
         geo.setIndex(indices);
         geo.computeVertexNormals();
+        // Road polylines can be authored in either direction. Double-sided
+        // surfaces prevent reversed winding from making whole road sections vanish.
+        mat.side = THREE.DoubleSide;
+        mat.needsUpdate = true;
         const mesh = new THREE.Mesh(geo, mat);
         mesh.receiveShadow = true;
-        mesh.frustumCulled = false;
+        mesh.frustumCulled = true;
         this.group.add(mesh);
       }
     }
