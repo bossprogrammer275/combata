@@ -104,8 +104,14 @@ try {
   await waitForServer();
   console.log('[verify] server up on ' + BASE);
 
-  const { loadCarModel, CAR_MODELS } = await import('../js/vehicles.js');
+  const { loadCarModel, CAR_MODELS, VehicleSystem } = await import('../js/vehicles.js');
   const { Physics } = await import('../js/physics.js');
+
+  check('world yaw includes the GLB nose-axis correction', () => {
+    const yaw = VehicleSystem.prototype._worldYaw({ yaw: 0.42, yawOffset: Math.PI });
+    assert.ok(Math.abs(yaw - (0.42 + Math.PI)) < 1e-8);
+    assert.ok(Math.abs(VehicleSystem.prototype._worldYaw({ yaw: 0.42 }) - 0.42) < 1e-8);
+  });
 
   let dynamicVehicleSpec = null;
   for (const kind of Object.keys(CAR_MODELS)) {
