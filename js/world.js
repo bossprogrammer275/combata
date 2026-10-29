@@ -1967,10 +1967,14 @@ export class World {
       for (const p of [a, b, c, d]) positions.push(p.x, p.y, p.z);
       indices.push(base, base + 1, base + 2, base + 2, base + 1, base + 3);
     };
-    const pointY = p => (Number.isFinite(p.y) ? p.y : 0) + roadOffset;
+    const profileY = p => Number.isFinite(p.y) ? p.y : 0;
+    const pointY = p => profileY(p) + roadOffset;
+    // Taper the underside thickness near ground-level ramp ends so the concrete
+    // does not bury itself into the terrain; full slab depth is used aloft.
+    const thicknessAt = p => Math.min(slabThickness, Math.max(0.035, profileY(p) + roadOffset - 0.04));
     const crossSection = (p, nx, nz, side, bottom = false) => ({
       x: p.x + nx * side,
-      y: pointY(p) - 0.035 - (bottom ? slabThickness : 0),
+      y: pointY(p) - 0.035 - (bottom ? thicknessAt(p) : 0),
       z: p.z + nz * side,
     });
 
