@@ -28,7 +28,11 @@ export class BVHWorld {
     const layer = opts.layer != null ? opts.layer : 1;
 
     model.traverse(child => {
-      if (!child.isMesh) return;
+      if (!child.isMesh || !child.visible) return;
+      const name = (child.name || '').toLowerCase();
+      // Authoring-only collision proxies and portal/room markers belong in
+      // AABB/portal systems, not mesh raycasts (otherwise invisible hits remain).
+      if (name.startsWith('col_') || name.startsWith('door_') || /^room_\\d+_marker$/.test(name)) return;
       const geo = child.geometry;
       if (!geo || !geo.attributes.position) return;
       if (geo.index && geo.index.count < 9) return;
@@ -113,6 +117,7 @@ export class BVHWorld {
       const entry = this.bvhMeshes[i];
       if (!(entry.layer & layerMask)) continue;
       const mesh = entry.mesh;
+      if (!mesh.visible) continue;
 
       const box = entry.worldBox || (mesh.geometry.boundingBox ? _box.copy(mesh.geometry.boundingBox).applyMatrix4(mesh.matrixWorld) : null);
       if (box && !_raycaster.ray.intersectsBox(box)) continue;
@@ -153,6 +158,7 @@ export class BVHWorld {
       const entry = this.bvhMeshes[i];
       if (!(entry.layer & layerMask)) continue;
       const mesh = entry.mesh;
+      if (!mesh.visible) continue;
 
       const box = entry.worldBox || (mesh.geometry.boundingBox ? _box.copy(mesh.geometry.boundingBox).applyMatrix4(mesh.matrixWorld) : null);
       if (box && !_raycaster.ray.intersectsBox(box)) continue;
