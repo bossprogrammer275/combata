@@ -1392,6 +1392,45 @@ export class World {
   // Roads: polylines of [x,z] waypoints, drawn as continuous mitered polygons
   // (no corner gaps, no overlaps). Optional 2.4m raised sidewalks with curbs.
   // Points are auto-smoothed via Catmull-Rom interpolation for realistic curves.
+  _addRoadSurfaceColliders(pts, width, topY, closed = false, thickness = 0.05) {
+    if (!pts || pts.length < 2 || width <= 0 || thickness <= 0) return 0;
+    let added = 0;
+    const segmentCount = pts.length - 1 + (closed ? 1 : 0);
+    for (let i = 0; i < segmentCount; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length];
+      const dx = b.x - a.x, dz = b.z - a.z;
+      const length = Math.hypot(dx, dz);
+      if (length < 0.05) continue;
+      const ux = dx / length, uz = dz / length;
+      // AABB of the rotated thin road/slab strip. These thin colliders support
+      // Rapier wheel rays but are ignored by horizontal character push-out.
+      const boxW = Math.abs(ux) * length + Math.abs(uz) * width;
+      const boxD = Math.abs(uz) * length + Math.abs(ux) * width;
+      const centerX = (a.x + b.x) * 0.5;
+      const centerZ = (a.z + b.z) * 0.5;
+      this.addCollider(
+        centerX, topY - thickness, centerZ,
+        boxW + 0.035, thickness, boxD + 0.035,
+      );
+      added++;
+    }
+    return added;
+  }
+
+  groundHeightAt(x, z) {
+    let height = 0;
+    const candidates = this.bvhWorld
+      ? this.bvhWorld.queryPoint(x, z, 0.12)
+      : this.colliders;
+    for (const c of candidates) {
+      const h = c.max.y - c.min.y;
+      if (h > 0.15 || c.min.y < -0.1 || c.max.y > 0.3) continue;
+      if (x < c.min.x || x > c.max.x || z < c.min.z || z > c.max.z) continue;
+      height = Math.max(height, c.max.y);
+    }
+    return height;
+  }
+
   async _buildAuthoredRoads(roads) {
     const roadMat = this.mRoad();
     const walkMat = this._sceneMat('walk');
@@ -1448,9 +1487,12 @@ export class World {
       const pts = ch.closed ? ch.pts : this._trimChain(ch.pts, ch.cutStart, ch.cutEnd);
       if (pts.length < 2) continue;
 
-      // Road surface: textured mitered ribbon (roadtex.jpg), no collision boxes
+      // Rendered road and matching thin collision strip. Vehicles raycast these
+      // surfaces, so tires sit on asphalt at y=0.06 instead of cutting through it
+      // to the lower ground plane.
       const roadY = 0.06;
       this._strokeMitered(pts, ch.W, roadY, roadMat, ch.closed);
+      this._addRoadSurfaceColliders(pts, ch.W, roadY, ch.closed, 0.05);
 
       this._roadChains.push({ pts, W: ch.W, sidewalk: ch.sidewalk, roadY, closed: ch.closed });
       if (!ch.sidewalk) continue;
@@ -1460,10 +1502,13 @@ export class World {
         // normal shrinks offsets at corners, causing sidewalk seams and pinholes.
         const offPts = this._offsetRoadPolyline(pts, side * (edge + 1.2));
         this._strokeMitered(offPts, 2.4, walkY, walkMat, ch.closed);
+        this._addRoadSurfaceColliders(offPts, 2.4, walkY, ch.closed, 0.04);
       }
       for (const side of [-1, 1]) {
         const curbPts = this._offsetRoadPolyline(pts, side * (edge + 0.12));
         this._strokeMitered(curbPts, 0.36, 0.10, curbMat, ch.closed);
+        // The curb strip fills the 6cm rise between asphalt and sidewalk.
+        this._addRoadSurfaceColliders(curbPts, 0.36, walkY, ch.closed, 0.06);
       }
     }
     // Paint is independent geometry so road markings can stop before junctions.
