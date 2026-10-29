@@ -108,7 +108,12 @@ export class World {
     // separate geometry from the authored road polylines so they stop at junctions.
     const tex = TEX.makeRoadTexture(1024, false);
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    return new THREE.MeshStandardMaterial({ map: tex, roughness: .94, metalness: 0, side: THREE.DoubleSide });
+    // Several authored road ribbons overlap at intersections. Disable depth
+    // writes for asphalt so equal-height road meshes do not z-fight or leave
+    // raised 2–6cm strips; later paint geometry is drawn above this surface.
+    return new THREE.MeshStandardMaterial({
+      map: tex, roughness: .94, metalness: 0, side: THREE.DoubleSide, depthWrite: false,
+    });
   }); }
   mCurb() { return this._mat('curb', () => new THREE.MeshStandardMaterial({ map: TEX.makeConcreteTexture(256, [142, 142, 140]), roughness: .9, metalness: 0 })); }
   mSand() { return this._mat('sand', () => new THREE.MeshStandardMaterial({ map: TEX.makeSandTexture(), roughness: .98, metalness: 0 })); }
@@ -1404,12 +1409,12 @@ export class World {
     }
     for (let ci = 0; ci < chains.length; ci++) {
       const ch = chains[ci];
-      const walkY = 0.12 + (ci % 4) * 0.004;
+      const walkY = 0.12;
       const pts = ch.closed ? ch.pts : this._trimChain(ch.pts, ch.cutStart, ch.cutEnd);
       if (pts.length < 2) continue;
 
       // Road surface: textured mitered ribbon (roadtex.jpg), no collision boxes
-      const roadY = 0.06 + (ci % 4) * 0.02;
+      const roadY = 0.06;
       this._strokeMitered(pts, ch.W, roadY, roadMat, ch.closed);
 
       this._roadChains.push({ pts, W: ch.W, sidewalk: ch.sidewalk, roadY, closed: ch.closed });
@@ -1635,7 +1640,7 @@ export class World {
       for (let d = startDistance; d + dash <= endDistance; d += period) {
         if (blocked(ranges, d, d + dash)) continue;
         const line = this._sliceRoadPolyline(offsetPts, data.cumulative, d, d + dash);
-        if (line.length >= 2) this._strokeMitered(line, width, chain.roadY + 0.024, mat, false);
+        if (line.length >= 2) this._strokeMitered(line, width, chain.roadY + 0.008, mat, false);
       }
     };
     const drawSolid = (chain, data, offsetPts, ranges, startDistance, endDistance, width, mat) => {
@@ -1644,14 +1649,14 @@ export class World {
         if (b <= cursor || a >= endDistance) continue;
         if (a > cursor + 0.05) {
           const line = this._sliceRoadPolyline(offsetPts, data.cumulative, cursor, Math.min(a, endDistance));
-          if (line.length >= 2) this._strokeMitered(line, width, chain.roadY + 0.024, mat, false);
+          if (line.length >= 2) this._strokeMitered(line, width, chain.roadY + 0.008, mat, false);
         }
         cursor = Math.max(cursor, b);
         if (cursor >= endDistance) break;
       }
       if (cursor < endDistance - 0.05) {
         const line = this._sliceRoadPolyline(offsetPts, data.cumulative, cursor, endDistance);
-        if (line.length >= 2) this._strokeMitered(line, width, chain.roadY + 0.024, mat, false);
+        if (line.length >= 2) this._strokeMitered(line, width, chain.roadY + 0.008, mat, false);
       }
     };
 
