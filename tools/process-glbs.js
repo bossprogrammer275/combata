@@ -13,9 +13,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import fs from 'fs';
 import path from 'path';
 
-const CELL_SIZE = 1.0;
-const THICKNESS = 0.3;
-const MIN_CELL_H = 0.1;
+// Collision cell dimensions/thickness are derived from each source model's height
+// so they remain sensible after the game's targetH normalization.
 
 // ─── Browser API shims for Node.js GLTFLoader ───
 // Some Sketchfab GLBs embed image textures. Collision preprocessing only needs
@@ -130,7 +129,7 @@ function triangleIntersectsRectXZ(a, b, c, minX, maxX, minZ, maxZ) {
   return true;
 }
 
-function subdivideMeshCollision(mesh, cellSize) {
+function subdivideMeshCollision(mesh, cellSize, verticalQuantum, thickness, minCellHeight, mergeGap) {
   const geo = mesh.geometry;
   if (!geo || !geo.attributes.position) return [];
 
@@ -202,29 +201,67 @@ function subdivideMeshCollision(mesh, cellSize) {
     }
   }
 
-  const boxes = [];
+  // Merge only touching vertical intervals. Keeping gaps between these
+  // intervals prevents floor decks at different heights from filling the whole
+  // building interior with an invisible solid column.
+  const layers = new Map();
   for (const cell of cells.values()) {
-    // Do not merge all geometry in one XZ cell into one minY..maxY column.
-    // That filled the entire interior of multi-floor buildings with invisible
-    // solid boxes. Merge only touching/overlapping surface intervals so floors
-    // remain walkable while the empty space between floors stays empty.
     const sorted = cell.intervals.sort((a, b) => a[0] - b[0]);
     const merged = [];
     for (const interval of sorted) {
       const last = merged[merged.length - 1];
-      if (last && interval[0] <= last[1] + 0.08) {
+      if (last && interval[0] <= last[1] + mergeGap) {
         last[1] = Math.max(last[1], interval[1]);
       } else {
         merged.push(interval.slice());
       }
     }
-    const x = minX + cell.ci * cellSize + cellSize / 2;
-    const z = minZ + cell.ri * cellSize + cellSize / 2;
     for (const [yMin, yMax] of merged) {
-      const h = yMax - yMin + THICKNESS;
-      if (h < MIN_CELL_H) continue;
-      const cy = yMin + h / 2 - 0.05;
-      boxes.push([x, cy, z, cellSize, h, cellSize]);
+      const key = Math.round(yMin / verticalQuantum) + ':' + Math.round(yMax / verticalQuantum);
+      let layer = layers.get(key);
+      if (!layer) {
+        layer = { yMin, yMax, cells: new Set() };
+        layers.set(key, layer);
+      } else {
+        layer.yMin = Math.min(layer.yMin, yMin);
+        layer.yMax = Math.max(layer.yMax, yMax);
+      }
+      layer.cells.add(cell.ci + ',' + cell.ri);
+    }
+  }
+
+  // Merge horizontally adjacent cells with the same vertical interval into
+  // larger rectangles. This reduces several thousand floor/wall cells to a
+  // manageable number of collision cuboids without filling holes in the mesh.
+  const boxes = [];
+  for (const layer of layers.values()) {
+    const remaining = new Set(layer.cells);
+    while (remaining.size) {
+      const first = remaining.values().next().value;
+      const [ci, ri] = first.split(',').map(Number);
+      let spanX = 1;
+      while (remaining.has((ci + spanX) + ',' + ri)) spanX++;
+      let spanZ = 1;
+      while (true) {
+        const nextZ = ri + spanZ;
+        let fullRow = true;
+        for (let x = ci; x < ci + spanX; x++) {
+          if (!remaining.has(x + ',' + nextZ)) { fullRow = false; break; }
+        }
+        if (!fullRow) break;
+        spanZ++;
+      }
+      for (let x = ci; x < ci + spanX; x++) {
+        for (let z = ri; z < ri + spanZ; z++) remaining.delete(x + ',' + z);
+      }
+
+      const w = spanX * cellSize, d = spanZ * cellSize;
+      const x = minX + ci * cellSize + w / 2;
+      const z = minZ + ri * cellSize + d / 2;
+      const h = Math.max(0, layer.yMax - layer.yMin) + thickness;
+      if (h < minCellHeight) continue;
+      const cy = layer.yMin + h / 2 - thickness / 6;
+      boxes.push([x, cy, z, w, h, d]);
     }
   }
   return boxes;
@@ -269,6 +306,10 @@ async function processGLB(inputPath) {
   // size proportional to the raw model height so a 0.01-unit Sketchfab model
   // and a 50-unit Blender model both end up with ~2%-of-height cells in-game.
   const modelCellSize = sceneHeight * 0.02;
+  const modelThickness = sceneHeight * 0.0075;
+  const verticalQuantum = Math.max(sceneHeight * 0.00025, 1e-9);
+  const minCellHeight = sceneHeight * 0.001;
+  const mergeGap = sceneHeight * 0.002;
 
   const boxes = [];
   let subdivCount = 0;
@@ -289,8 +330,10 @@ async function processGLB(inputPath) {
 
     if (meshNeedsSubdivision(obj)) {
       const cellSize = modelCellSize;
-      const sub = subdivideMeshCollision(obj, cellSize);
-      if (sub.length > 2) {
+      const sub = subdivideMeshCollision(
+        obj, cellSize, verticalQuantum, modelThickness, minCellHeight, mergeGap,
+      );
+      if (sub.length > 0) {
         boxes.push(...sub);
         subdivCount++;
         console.log(`  [SUBDIVIDED] "${obj.name}" → ${sub.length} cells`);
@@ -310,7 +353,8 @@ async function processGLB(inputPath) {
     // Centers/dimensions are in model-local coordinates after GLTF node transforms.
     // The runtime applies the world entry's targetH/scale, x/z, elevation and ry.
     coordinateSpace: 'model-local',
-    cellSize: CELL_SIZE,
+    cellSize: modelCellSize,
+    collisionThickness: modelThickness,
     boxes,
   };
 
