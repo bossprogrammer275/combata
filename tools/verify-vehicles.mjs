@@ -312,6 +312,23 @@ try {
   check('flat road surface has no invisible vertical edge wall', fakeRoadSideWall === null,
     fakeRoadSideWall ? `unexpected edge hit=${fakeRoadSideWall.dist.toFixed(3)}` : 'no side-wall hit');
 
+  // A sloped triangle mesh is the actual collision representation used by
+  // authored flyover ramps. Check its contact height at two points.
+  const rampGeometry = new THREE.BufferGeometry();
+  rampGeometry.setAttribute('position', new THREE.Float32BufferAttribute([
+    35, 0.06, -10, 45, 0.06, -10,
+    35, 6.06,  20, 45, 6.06,  20,
+  ], 3));
+  rampGeometry.setIndex([0, 2, 1, 1, 2, 3]);
+  physics.registerStaticRoadMeshes([{ kind: 'road', geometry: rampGeometry }]);
+  physics.step(1 / 60);
+  const rampLowRay = physics.castRay(new THREE.Vector3(40, 2, -5), new THREE.Vector3(0, -1, 0), 5);
+  const rampHighRay = physics.castRay(new THREE.Vector3(40, 8, 15), new THREE.Vector3(0, -1, 0), 5);
+  check('ramp physics follows the sloped deck height',
+    !!rampLowRay && Math.abs((2 - rampLowRay.dist) - 1.06) < 0.10
+      && !!rampHighRay && Math.abs((8 - rampHighRay.dist) - 5.06) < 0.10,
+    `lowY=${rampLowRay ? (2 - rampLowRay.dist).toFixed(2) : 'none'} highY=${rampHighRay ? (8 - rampHighRay.dist).toFixed(2) : 'none'}`);
+
   for (let i = 0; i < 60; i++) {
     physics.movePlayer(0, -1, 0);
     physics.step(1 / 60);
@@ -385,6 +402,30 @@ try {
   const lamboTireBottom = estimatedWheelBottom(rb, wheels, dynamicVehicleSpec.centerY);
   check('Lambo visible tyres sit at ground level, not half buried', Math.abs(lamboTireBottom) < 0.14,
     `estimated tire-bottom Y=${lamboTireBottom.toFixed(3)}`);
+
+  // Drive a real chassis up a ramp collider (nose points +Z). This verifies
+  // throttle, wheel-ray contact, and rising ground height together.
+  const rampCar = physics.createVehicleBody(40, 0.26, -9, 0, [dynamicVehicleSpec.physicsBox], {
+    dynamic: true, centerY: dynamicVehicleSpec.centerY,
+    mass: CAR_PHYSICS.lambo.mass, yawOffset: vehicleYawOffset,
+    tuning: CAR_PHYSICS.lambo, angularDamping: CAR_PHYSICS.lambo.angularDamping,
+  });
+  for (let i = 0; i < 3; i++) physics.step(1 / 60);
+  let rampMotion = null;
+  for (let i = 0; i < 90; i++) {
+    rampMotion = physics.applyVehicleControls(rampCar, {
+      throttle: 1, steer: 0, handbrake: false, dt: 1 / 60,
+      wheels, tuning: CAR_PHYSICS.lambo,
+    });
+    physics.step(1 / 60);
+  }
+  const rampCarPosition = rampCar.translation();
+  check('vehicle has wheel contacts on the slope',
+    (rampMotion?.wheelContacts || 0) >= 3,
+    `contacts=${rampMotion?.wheelContacts ?? 0}`);
+  check('vehicle drives uphill and gains elevation',
+    rampCarPosition.z > -5 && rampCarPosition.y > dynamicVehicleSpec.centerY + 0.7,
+    `z=${rampCarPosition.z.toFixed(2)} bodyY=${rampCarPosition.y.toFixed(2)}`);
 
   // Repeat the actual dynamic test using the larger/heavier AWD Cybertruck GLB.
   const truckSpec = dynamicVehicleSpecs.cybertruck;
