@@ -551,6 +551,16 @@ export class Player {
     for (const c of moveCandidates) {
       if (this.pos.x + r <= c.min.x || this.pos.x - r >= c.max.x) continue;
       if (this.pos.z + r <= c.min.z || this.pos.z - r >= c.max.z) continue;
+      // Road/sidewalk collision AABBs are only broad-phase bounds. An actual
+      // diagonal ribbon is much narrower than its enclosing world rectangle;
+      // ignore the false-positive corners for movement and step-up resolution.
+      if (c.type === 'road_surface' && c.orientedBox) {
+        const o = c.orientedBox;
+        const dx = this.pos.x - o.center.x, dz = this.pos.z - o.center.z;
+        const cs = Math.cos(o.yaw), sn = Math.sin(o.yaw);
+        const lx = dx * cs - dz * sn, lz = dx * sn + dz * cs;
+        if (Math.abs(lx) > o.halfExtents.x + r || Math.abs(lz) > o.halfExtents.z + r) continue;
+      }
       if (head <= c.min.y || feet >= c.max.y) continue;
       // Interior AABBs must remain solid. The old "skip every collider inside
       // the room volume" rule made invisible internal walls and props ghostlike.
