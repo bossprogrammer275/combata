@@ -349,7 +349,7 @@ export class Physics {
       body.applyImpulse({ x: forward.x * impulse, y: 0, z: forward.z * impulse }, true);
     }
 
-    const wheelAngle = steer * (handbrake ? 0.38 : 0.12);
+    const wheelAngle = steer * (handbrake ? 0.45 : 0.28);
     const targetYawRate = Math.abs(forwardSpeed) > 0.25
       ? THREE.MathUtils.clamp(-(forwardSpeed / 2.8) * Math.tan(wheelAngle), -1.0, 1.0)
       : 0;
