@@ -850,9 +850,16 @@ export class World {
       // including child meshes nested beneath a col_* node.
       model.traverse((o) => { if (o.isMesh && this._hasAncestorPrefix(o, 'col_')) o.visible = false; });
 
-      // Prefer authored col_* meshes. Only request a sidecar if none exist and
-      // this is not foliage/pole geometry, which has a cheaper purpose-built proxy.
-      const collisionManifest = !collisionProxyBoxes.length && !isTree && !isLamp
+      // Empty/degenerate col_* meshes must not suppress sidecar or fallback
+      // collision. Only a usable proxy counts as an authored collision source.
+      const usableCollisionProxyBoxes = collisionProxyBoxes.filter(
+        p => p.size.x > 0.05 && p.size.y > 0.05 && p.size.z > 0.05,
+      );
+
+      // Prefer usable authored col_* meshes. Avoid fetching a manifest when a
+      // dedicated proxy type or explicit per-world collision dimensions win.
+      const collisionManifest = !usableCollisionProxyBoxes.length && !isTree && !isLamp &&
+        !a.collisionSize && !a.collisionH
         ? await this._loadCollisionManifest(a)
         : null;
       // True only if this loading path actually injected sidecar colliders.
@@ -867,11 +874,9 @@ export class World {
           // Explicit col_* boxes are the preferred authoring format. They are
           // hidden visuals but become solid gameplay colliders, for buildings
           // as well as climbable props.
-          if (collisionProxyBoxes.length) {
-            for (const p of collisionProxyBoxes) {
-              if (p.size.x > 0.05 && p.size.y > 0.05 && p.size.z > 0.05) {
-                this.addCollider(p.center.x, p.min.y, p.center.z, p.size.x, p.size.y, p.size.z, !!a.climbable, a.type || null);
-              }
+          if (usableCollisionProxyBoxes.length) {
+            for (const p of usableCollisionProxyBoxes) {
+              this.addCollider(p.center.x, p.min.y, p.center.z, p.size.x, p.size.y, p.size.z, !!a.climbable, a.type || null);
             }
           } else if (isTree) {
             // Avoid blocking the road with foliage: trees collide at the trunk.
@@ -922,7 +927,7 @@ export class World {
         }
         // Simple stair meshes without a sidecar still get top-tread colliders.
         // Detailed assets should use *_col.json, which provides denser cells.
-        const hasStairProxy = collisionProxyBoxes.some(p => /stairs?/i.test(p.name));
+        const hasStairProxy = usableCollisionProxyBoxes.some(p => /stairs?/i.test(p.name));
         if (!hasStairProxy) {
           let treadCount = 0;
           for (const stair of stairMeshes) {
