@@ -12,7 +12,7 @@ Procedural JavaScript mesh generators are deprecated. All buildings, props, envi
 - **Rendering**: Three.js PBR (`MeshStandardMaterial` / `MeshPhysicalMaterial`) with automatic environment map reflections and dynamic time-of-day atmospheric lighting.
 - **Raycasting & LOS**: `three-mesh-bvh` provides mesh-accurate BVH acceleration for weapon hitscans, bullet penetration, camera occlusion avoidance, and line-of-sight checks.
 - **Movement Colliders**: Solid AABBs are indexed for player, civilian and vehicle movement; climbable fences are both physical obstacles and interaction targets.
-- **Physics**: Rapier 3D (WASM) handles player character-controller queries and static-world collision. The current car controller is still kinematic with a custom steering/grip approximation; dynamic suspension and full tire-force simulation are not implemented yet.
+- **Physics**: Rapier 3D (WASM) handles the player's character controller, static-world collision and dynamic vehicle chassis. Cars use mass-bearing rigid bodies, compound colliders, CCD, throttle/braking impulses, lateral tire-grip impulses and speed-dependent steering. Full raycast wheel suspension, per-wheel tire forces and transmission/gear simulation are still future work.
 - **Collision priority**: GLB `col_*` proxies first, generated sibling `*_col.json` manifests second, then purpose-built fallback colliders (including split building perimeter walls and doorway openings).
 
 ---
