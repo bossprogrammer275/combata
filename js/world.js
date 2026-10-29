@@ -756,11 +756,13 @@ export class World {
       const bbox = new THREE.Box3().setFromObject(model, true);
       const collisionProxyBoxes = [];
       const doorMeshes = [];
+      const floorCollisionBoxes = [];
       model.traverse((o) => {
         if (!o.isMesh) return;
         const isProxy = this._isCollisionMesh(o.name);
         const isDoor = this._isDoorMesh(o.name);
-        if (!isProxy && !isDoor) return;
+        const isFloor = this._isFloorMesh(o.name);
+        if (!isProxy && !isDoor && !isFloor) return;
         o.updateWorldMatrix(true, false);
         const geo = o.geometry;
         if (!geo || !geo.attributes.position) return;
@@ -772,6 +774,7 @@ export class World {
         const record = { name: o.name, min: meshBox.min.clone(), max: meshBox.max.clone(), center, size };
         if (isProxy) collisionProxyBoxes.push(record);
         if (isDoor) doorMeshes.push(record);
+        if (isFloor) floorCollisionBoxes.push(record);
       });
       // Collision helpers are hidden only after their dimensions have been read.
       model.traverse((o) => { if (o.isMesh && this._isCollisionMesh(o.name)) o.visible = false; });
@@ -781,6 +784,7 @@ export class World {
       const collisionManifest = !collisionProxyBoxes.length && !isTree && !isLamp
         ? await this._loadCollisionManifest(a)
         : null;
+      const usesCollisionManifest = !!collisionManifest?.boxes?.length && !collisionProxyBoxes.length;
 
       if (!a.noCollision && !isRoad && !bbox.isEmpty()) {
         const size = bbox.getSize(new THREE.Vector3());
@@ -816,6 +820,19 @@ export class World {
             this._addBuildingWallColliders(bbox, doorMeshes);
           } else {
             this.addCollider(center.x, bbox.min.y, center.z, size.x, size.y, size.z, !!a.climbable, a.type || null);
+          }
+        }
+      }
+
+      // A floor_* mesh is an actual walkable slab. The GLB manifest normally
+      // provides finer per-cell boxes; when none exists, create a thin slab at
+      // the mesh's real top height rather than leaving the visible floor ghosted.
+      if (!a.noCollision && !isRoad && !usesCollisionManifest) {
+        for (const floor of floorCollisionBoxes) {
+          const h = Math.max(floor.size.y, 0.12);
+          const bottomY = floor.max.y - h;
+          if (floor.size.x > 0.2 && floor.size.z > 0.2) {
+            this.addCollider(floor.center.x, bottomY, floor.center.z, floor.size.x, h, floor.size.z);
           }
         }
       }
