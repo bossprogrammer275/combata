@@ -107,6 +107,23 @@ try {
   const { loadCarModel, CAR_MODELS, CAR_PHYSICS, VehicleSystem } = await import('../js/vehicles.js');
   const { Physics } = await import('../js/physics.js');
 
+  const spawnHarness = Object.create(VehicleSystem.prototype);
+  const spawnCalls = [];
+  spawnHarness.world = {
+    startPoint: { x: 5, z: 225, yaw: 0 },
+    vehicleSpawns: [
+      { x: 31, z: -169, kind: 'lambo' },
+      { x: 6, z: 229, kind: 'cybertruck' },
+      { x: 4, z: 217, kind: 'lambo' },
+      { x: 94, z: -133, kind: 'cybertruck' },
+    ],
+  };
+  spawnHarness.spawn = (def) => spawnCalls.push(def);
+  spawnHarness.buildFromWorld();
+  check('initial world spawns exactly two vehicles nearest the player',
+    spawnCalls.length === 2 && spawnCalls.every(v => Math.hypot(v.x - 5, v.z - 225) < 15),
+    `count=${spawnCalls.length} distances=${spawnCalls.map(v => Math.hypot(v.x - 5, v.z - 225).toFixed(1)).join(',')}`);
+
   check('world yaw includes the GLB nose-axis correction', () => {
     const yaw = VehicleSystem.prototype._worldYaw({ yaw: 0.42, yawOffset: Math.PI });
     assert.ok(Math.abs(yaw - (0.42 + Math.PI)) < 1e-8);
