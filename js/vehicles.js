@@ -646,25 +646,30 @@ export class VehicleSystem {
     const curSpd = Math.abs(v.speed);
     const fwd = v.speed >= 0 ? 1 : -1;
 
-    // ===== STEERING — heading-based, speed-gated =====
-    // Steering only works when moving (prevents spin-in-place donuts).
-    // In Three.js, positive rotation.y = counterclockwise = left.
-    if (curSpd > 0.5) {
-      const lowSpeedFactor = Math.min(1, curSpd / 8);
-      const highSpeedFactor = Math.max(0.3, 1 - curSpd / 50);
-      const steerRate = 2.4 * lowSpeedFactor * highSpeedFactor;
-      v.yaw -= steerInput * steerRate * dt * fwd;
+    // ===== STEERING + TIRE GRIP =====
+    // Bicycle-model steering: wheel angle creates curvature, so steering
+    // naturally tightens at low speed and opens up as speed rises.
+    const wheelAngle = steerInput * (handbrake ? 0.34 : 0.20);
+    if (curSpd > 0.25) {
+      const wheelbase = 2.7;
+      const yawRate = (v.speed / wheelbase) * Math.tan(wheelAngle);
+      v.yaw -= THREE.MathUtils.clamp(yawRate, -1.15, 1.15) * dt;
     }
 
-    // Handbrake drift: extra yaw boost while braking into turns
-    if (handbrake && curSpd > 3) {
-      v.yaw -= steerInput * 1.2 * dt * fwd;
+    // Lateral tire velocity decays with grip. A handbrake lowers rear grip,
+    // allowing a controlled slide instead of the old instant heading-only turn.
+    const targetSlip = steerInput * curSpd * (handbrake ? 0.38 : 0.055);
+    const gripRate = handbrake ? 1.7 : 7.5;
+    v.lateralVel += (targetSlip - v.lateralVel) * (1 - Math.exp(-gripRate * dt));
+    if (Math.abs(steerInput) < 0.05 && !handbrake) {
+      v.lateralVel *= Math.exp(-5.5 * dt);
     }
 
-    // ===== MOVEMENT — always along current heading =====
+    // ===== MOVEMENT — forward velocity plus tire slip =====
     const fx = -Math.sin(v.yaw), fz = -Math.cos(v.yaw);
-    const moveX = fx * v.speed * dt;
-    const moveZ = fz * v.speed * dt;
+    const rx = Math.cos(v.yaw), rz = -Math.sin(v.yaw);
+    const moveX = (fx * v.speed + rx * v.lateralVel) * dt;
+    const moveZ = (fz * v.speed + rz * v.lateralVel) * dt;
 
     // ===== COLLISION — per-shape boxes rotated by vehicle yaw =====
     let blocked = false;
@@ -722,6 +727,7 @@ export class VehicleSystem {
     // Bounce / slow on collision
     if (blocked && curSpd > 2) {
       v.speed *= 0.4;
+      v.lateralVel *= 0.2;
       if (curSpd > 5) this._pushPlayerNearby(v, curSpd);
     } else {
       this._pushPlayerNearby(v, curSpd);
