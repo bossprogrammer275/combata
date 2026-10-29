@@ -257,7 +257,9 @@ export class Physics {
           (b.min.y + b.max.y) / 2 - (dynamic ? centerY : 0),
           (b.min.z + b.max.z) / 2,
         )
-        .setFriction(0.95)
+        // Low chassis-contact friction avoids a full-width box sticking to
+        // the ground. Lateral tyre grip is applied explicitly in controls.
+        .setFriction(dynamic ? 0.12 : 0.95)
         .setRestitution(0.025);
       this.world.createCollider(cd, body);
       created++;
