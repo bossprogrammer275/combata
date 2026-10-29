@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import fs from 'fs';
 import path from 'path';
+import { createHash } from 'node:crypto';
 
 // Collision cell dimensions/thickness are derived from each source model's height
 // so they remain sensible after the game's targetH normalization.
@@ -365,9 +366,14 @@ async function processGLB(inputPath) {
     console.log(`  [BOX] "${obj.name}"`);
   });
 
+  const sourceSha256 = createHash('sha256')
+    .update(fs.readFileSync(inputPath))
+    .digest('hex');
   const manifest = {
     schemaVersion: 1,
     source: path.basename(inputPath),
+    sourceSha256,
+    generatorVersion: 2,
     generated: new Date().toISOString(),
     // Centers/dimensions are in model-local coordinates after GLTF node transforms.
     // The runtime applies the world entry's targetH/scale, x/z, elevation and ry.
