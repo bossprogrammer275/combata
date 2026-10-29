@@ -98,8 +98,8 @@ export function makeGroundTexture(size = 512, tint = null) {
 // ASPHALT ROAD — dark gray aggregate with patches, cracks and baked lane marks.
 // Markings are drawn relative to the tile, so they scale with road width.
 // ---------------------------------------------------------------------------
-export function makeRoadTexture(size = 1024) {
-  const key = 'road|' + size;
+export function makeRoadTexture(size = 1024, laneMarks = true) {
+  const key = 'road|' + size + '|' + (laneMarks ? 'marked' : 'plain');
   const c = canvas(size), ctx = c.getContext('2d');
   noiseLayer(ctx, size, [58, 60, 63], 15, 3);
   speckle(ctx, size, 2800, ['rgba(38,40,43,.5)', 'rgba(72,74,78,.4)', 'rgba(48,50,53,.55)', 'rgba(30,31,33,.4)'], 0.4, 1.5);
@@ -119,24 +119,25 @@ export function makeRoadTexture(size = 1024) {
     ctx.fill();
   }
   cracks(ctx, size, 46);
-  // ---- lane markings (relative to tile: center dash + edge solids) ----
-  const line = (fx, width, y0, y1, alpha) => {
-    ctx.fillStyle = `rgba(236,234,224,${alpha})`;
-    ctx.fillRect(fx * size - width / 2, y0, width, y1);
-  };
-  const dw = 10; // dash length in px
-  ctx.globalAlpha = 1;
-  for (let y = 0; y < size; y += dw * 2) {
-    const worn = 0.72 + Math.random() * 0.22;
-    ctx.fillStyle = `rgba(228,226,214,${worn})`;
-    ctx.fillRect(size * 0.5 - 2.2, y, 4.4, dw * 0.9);
-  }
-  ctx.fillRect(size * 0.045, 0, 2.4, size);
-  ctx.fillRect(size * 0.955 - 2.4, 0, 2.4, size);
-  // worn marks: chop random bits of the center line
-  for (let i = 0; i < 14; i++) {
-    ctx.fillStyle = 'rgba(58,60,63,1)';
-    ctx.fillRect(size * 0.5 - 2.2, Math.random() * size, 4.4, 1 + Math.random() * 4);
+  if (laneMarks) {
+    // For a 6m longitudinal UV tile, a half-tile dash gives roughly 3m paint
+    // with a 3m gap. The former 10px dash repeated every 6m looked like noise.
+    const dashLength = size * 0.5;
+    const centerWidth = Math.max(5, size * 0.008);
+    const edgeWidth = Math.max(5, size * 0.008);
+    for (let y = 0; y < size; y += dashLength * 2) {
+      const worn = 0.72 + Math.random() * 0.22;
+      ctx.fillStyle = `rgba(228,226,214,${worn})`;
+      ctx.fillRect(size * 0.5 - centerWidth / 2, y, centerWidth, dashLength * 0.96);
+    }
+    ctx.fillStyle = 'rgba(236,234,224,.82)';
+    ctx.fillRect(size * 0.03 - edgeWidth / 2, 0, edgeWidth, size);
+    ctx.fillRect(size * 0.97 - edgeWidth / 2, 0, edgeWidth, size);
+    // Worn paint chips should be subtle, not erase whole dash segments.
+    for (let i = 0; i < 14; i++) {
+      ctx.fillStyle = 'rgba(58,60,63,.8)';
+      ctx.fillRect(size * 0.5 - centerWidth / 2, Math.random() * size, centerWidth, 2 + Math.random() * 5);
+    }
   }
   return tex(c, 1, true, key);
 }
