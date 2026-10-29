@@ -1205,14 +1205,23 @@ class Game {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.2;
     this.renderer.domElement.className = 'game';
+    this.renderer.domElement.addEventListener('webglcontextlost', (event) => {
+      event.preventDefault();
+      console.warn('[Renderer] WebGL context lost; waiting for browser restoration.');
+    }, false);
+    this.renderer.domElement.addEventListener('webglcontextrestored', () => {
+      console.info('[Renderer] WebGL context restored.');
+    }, false);
     document.getElementById('app').appendChild(this.renderer.domElement);
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, .05, 400);
     this.scene.add(this.camera);
     addEventListener('resize', () => {
-      const dpr = Math.min(devicePixelRatio || 1, this.profile?.data?.settings?.quality === 'ultra-low' ? 1 : 1.25);
+      const q = this.profile?.data?.settings?.quality || 'medium';
+      const scale = q === 'ultra-low' ? 0.5 : q === 'low' ? 0.65 : 1;
+      const dpr = Math.min(devicePixelRatio || 1, q === 'ultra-low' || q === 'low' ? 1 : 1.25);
       this.renderer.setPixelRatio(dpr);
-      this.renderer.setSize(innerWidth, innerHeight, false);
+      this.renderer.setSize(Math.max(1, Math.round(innerWidth * scale)), Math.max(1, Math.round(innerHeight * scale)), false);
       this.renderer.domElement.style.width = '100%';
       this.renderer.domElement.style.height = '100%';
       this.camera.aspect = innerWidth / Math.max(1, innerHeight);
@@ -1222,6 +1231,7 @@ class Game {
 
   applyQuality(q) {
     this.profile.data.settings.quality = q; this.profile.save();
+    this.renderScale = q === 'ultra-low' ? 0.5 : q === 'low' ? 0.65 : 1;
     const qSel = document.getElementById('quality'); if (qSel) qSel.value = q;
     if (q === 'ultra-low') {
       this.renderer.setPixelRatio(1);
