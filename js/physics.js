@@ -210,51 +210,173 @@ export class Physics {
 
   // ===== VEHICLE =====
 
-  // Kinematic body driven directly by the arcade driving code (position set every
-  // frame via setNextKinematicTranslation/Rotation, which is only valid on
-  // kinematic bodies — a dynamic body silently ignores those calls).
-  // Colliders are model-fitted cuboids in vehicle-local space so the physics
-  // shell matches the visible car instead of a generic fixed-size box.
-  createVehicleBody(x, y, z, yaw = 0, boxes = null) {
+  // Dynamic Rapier chassis. Collision boxes are model-local and the body origin
+  // is moved to the chassis centre so yaw rotates around the correct point.
+  createVehicleBody(x, y, z, yaw = 0, boxes = null, options = {}) {
     if (!RAPIER || !this.world) return null;
-
-    const rigidBodyDesc = RAPIER.RigidBodyDesc.kinematicPositionBased()
-      .setTranslation(x, y, z);
-    const rigidBody = this.world.createRigidBody(rigidBodyDesc);
-
-    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0));
-    rigidBody.setNextKinematicRotation({ x: q.x, y: q.y, z: q.z, w: q.w });
-
     const list = (boxes && boxes.length ? boxes : [{
       min: { x: -1.05, y: 0, z: -2.35 }, max: { x: 1.05, y: 1.2, z: 2.35 },
     }]);
+    const minY = Math.min(...list.map(b => b.min.y));
+    const maxY = Math.max(...list.map(b => b.max.y));
+    const centerY = Number.isFinite(options.centerY) ? options.centerY : (minY + maxY) * 0.5;
+    const dynamic = options.dynamic !== false;
+    let desc;
+    if (dynamic) {
+      desc = RAPIER.RigidBodyDesc.dynamic()
+        .setTranslation(x, y + centerY, z)
+        .setLinearDamping(0.08)
+        .setAngularDamping(0.85)
+        .setCcdEnabled(true)
+        .enabledRotations(false, true, false)
+        .setCanSleep(false)
+        .setAdditionalMass(options.mass || 1450);
+    } else {
+      desc = RAPIER.RigidBodyDesc.kinematicPositionBased()
+        .setTranslation(x, y, z);
+    }
+    const body = this.world.createRigidBody(desc);
+    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0));
+    if (dynamic) body.setRotation({ x: q.x, y: q.y, z: q.z, w: q.w }, true);
+    else body.setNextKinematicRotation({ x: q.x, y: q.y, z: q.z, w: q.w });
+
+    let created = 0;
     for (const b of list) {
       const hx = (b.max.x - b.min.x) / 2;
       const hy = (b.max.y - b.min.y) / 2;
       const hz = (b.max.z - b.min.z) / 2;
-      if (!(hx > 0.001 && hy > 0.001 && hz > 0.001)) continue;
+      if (![hx, hy, hz].every(Number.isFinite) || hx <= 0.025 || hy <= 0.025 || hz <= 0.025) continue;
       const cd = RAPIER.ColliderDesc.cuboid(hx, hy, hz)
-        .setTranslation((b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2, (b.min.z + b.max.z) / 2)
-        .setFriction(0.5)
-        .setRestitution(0.1);
-      this.world.createCollider(cd, rigidBody);
+        .setTranslation(
+          (b.min.x + b.max.x) / 2,
+          (b.min.y + b.max.y) / 2 - (dynamic ? centerY : 0),
+          (b.min.z + b.max.z) / 2,
+        )
+        .setFriction(0.95)
+        .setRestitution(0.025);
+      this.world.createCollider(cd, body);
+      created++;
+    }
+    body._openWorldDynamic = dynamic;
+    body._openWorldCenterY = dynamic ? centerY : 0;
+    body._openWorldGroundY = y;
+    body._openWorldColliderCount = created;
+    this._vehicleBodies.set(body.handle, body);
+    return body;
+  }
+
+  // Apply throttle, braking and lateral tyre grip as impulses on the dynamic
+  // chassis. Steering is expressed as a bounded yaw-rate target, but translation
+  // and all collisions remain under Rapier's rigid-body solver.
+  applyVehicleControls(body, controls = {}) {
+    if (!body || !this.world || !body._openWorldDynamic) return null;
+    const dt = Math.min(Math.max(controls.dt || 1 / 60, 0), 1 / 30);
+    if (dt <= 0) return null;
+
+    const translation = body.translation();
+    const rotation = body.rotation();
+    const q = new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
+    const yaw = new THREE.Euler().setFromQuaternion(q, 'YXZ').y;
+    const forward = { x: -Math.sin(yaw), z: -Math.cos(yaw) };
+    const right = { x: Math.cos(yaw), z: -Math.sin(yaw) };
+    const velocity = body.linvel();
+    const forwardSpeed = velocity.x * forward.x + velocity.z * forward.z;
+    const lateralSpeed = velocity.x * right.x + velocity.z * right.z;
+    const horizontalSpeed = Math.hypot(velocity.x, velocity.z);
+    const mass = Math.max(600, body.mass());
+    const throttle = THREE.MathUtils.clamp(controls.throttle || 0, -1, 1);
+    const steer = THREE.MathUtils.clamp(controls.steer || 0, -1, 1);
+    const handbrake = !!controls.handbrake;
+
+    let acceleration = 0;
+    if (throttle > 0.01) {
+      const powerFade = THREE.MathUtils.clamp(1 - Math.max(0, forwardSpeed) / 48 * 0.72, 0.18, 1);
+      acceleration = forwardSpeed < -0.8 ? 9 * throttle : 7.2 * throttle * powerFade;
+    } else if (throttle < -0.01) {
+      acceleration = forwardSpeed > 1.0
+        ? -11 * Math.abs(throttle)
+        : -3.8 * Math.abs(throttle);
     }
 
-    this._vehicleBodies.set(rigidBody.handle, rigidBody);
-    return rigidBody;
+    if (Math.abs(acceleration) > 1e-4) {
+      body.applyImpulse({
+        x: forward.x * acceleration * mass * dt,
+        y: 0,
+        z: forward.z * acceleration * mass * dt,
+      }, true);
+    }
+
+    // Rolling/air drag prevents indefinite coasting while preserving momentum.
+    if (Math.abs(throttle) < 0.02 && horizontalSpeed > 0.05) {
+      const dragRate = 0.11 + horizontalSpeed * 0.0018;
+      body.applyImpulse({
+        x: -velocity.x * mass * (1 - Math.exp(-dragRate * dt)),
+        y: 0,
+        z: -velocity.z * mass * (1 - Math.exp(-dragRate * dt)),
+      }, true);
+    }
+
+    // Lateral tyre force acts against velocity across the car. A handbrake
+    // intentionally reduces rear grip for a controlled but not instant drift.
+    const gripRate = handbrake ? 0.9 : 8.5;
+    const lateralImpulse = -lateralSpeed * mass * (1 - Math.exp(-gripRate * dt));
+    body.applyImpulse({
+      x: right.x * lateralImpulse,
+      y: 0,
+      z: right.z * lateralImpulse,
+    }, true);
+
+    if (handbrake && Math.abs(forwardSpeed) > 0.2) {
+      const brakeImpulse = -forwardSpeed * mass * (1 - Math.exp(-3.2 * dt));
+      body.applyImpulse({ x: forward.x * brakeImpulse, y: 0, z: forward.z * brakeImpulse }, true);
+    }
+
+    // Soft speed limits let collisions and gravity remain physical instead of
+    // clamping the car's position or velocity directly.
+    const maxForward = 40, maxReverse = 9;
+    if (forwardSpeed > maxForward) {
+      const impulse = -(forwardSpeed - maxForward) * mass * Math.min(1, dt * 3.5);
+      body.applyImpulse({ x: forward.x * impulse, y: 0, z: forward.z * impulse }, true);
+    } else if (forwardSpeed < -maxReverse) {
+      const impulse = (-maxReverse - forwardSpeed) * mass * Math.min(1, dt * 3.5);
+      body.applyImpulse({ x: forward.x * impulse, y: 0, z: forward.z * impulse }, true);
+    }
+
+    const wheelAngle = steer * (handbrake ? 0.38 : 0.12);
+    const targetYawRate = Math.abs(forwardSpeed) > 0.25
+      ? THREE.MathUtils.clamp(-(forwardSpeed / 2.8) * Math.tan(wheelAngle), -1.0, 1.0)
+      : 0;
+    const angular = body.angvel();
+    const steeringResponse = 1 - Math.exp(-(handbrake ? 3.2 : 5.5) * dt);
+    body.setAngvel({
+      x: angular.x,
+      y: angular.y + (targetYawRate - angular.y) * steeringResponse,
+      z: angular.z,
+    }, true);
+
+    return { yaw, forwardSpeed, lateralSpeed, horizontalSpeed };
   }
 
-  updateVehicleBody(rigidBody, x, y, z, yaw = 0) {
-    if (!rigidBody) return;
+  updateVehicleBody(body, x, y, z, yaw = 0) {
+    if (!body) return;
     const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw || 0, 0));
-    rigidBody.setNextKinematicTranslation({ x, y, z });
-    rigidBody.setNextKinematicRotation({ x: q.x, y: q.y, z: q.z, w: q.w });
+    if (body._openWorldDynamic) {
+      const centerY = body._openWorldCenterY || 0;
+      body.setTranslation({ x, y: y + centerY, z }, true);
+      body.setRotation({ x: q.x, y: q.y, z: q.z, w: q.w }, true);
+      body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+      body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+      body._openWorldGroundY = y;
+    } else {
+      body.setNextKinematicTranslation({ x, y, z });
+      body.setNextKinematicRotation({ x: q.x, y: q.y, z: q.z, w: q.w });
+    }
   }
 
-  removeVehicleBody(rigidBody) {
-    if (!rigidBody || !this.world) return;
-    this.world.removeRigidBody(rigidBody);
-    this._vehicleBodies.delete(rigidBody.handle);
+  removeVehicleBody(body) {
+    if (!body || !this.world) return;
+    this.world.removeRigidBody(body);
+    this._vehicleBodies.delete(body.handle);
   }
 
   // ===== RAYCASTING =====
