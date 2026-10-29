@@ -67,6 +67,26 @@ check('climbable collider is also a solid movement collider', () => {
   assert.ok(!world.bvhWorld._climbables.includes(c), 'removed fence remains in climb index');
 });
 
+check('spatial grid limits movement queries to nearby collider cells', () => {
+  const world = worldHarness();
+  const nearby = world.addCollider(2, 0, 3, 1, 2, 1);
+  world.addCollider(700, 0, 700, 2, 2, 2);
+  world.addCollider(-800, 0, 950, 2, 2, 2);
+  const byRadius = world.bvhWorld.queryRadius(2, 3, 2);
+  assert.ok(byRadius.includes(nearby), 'nearby collider was omitted by the grid');
+  assert.equal(byRadius.length, 1, 'nearby query scanned or returned distant cells');
+  const byBox = world.bvhWorld.queryAABB(1.4, 2.4, 2.6, 3.6);
+  assert.deepEqual(byBox, [nearby], 'AABB query did not resolve the correct spatial cell');
+});
+
+check('removed collider disappears from the spatial grid', () => {
+  const world = worldHarness();
+  const c = world.addCollider(0, 0, 0, 1, 2, 1);
+  assert.ok(world.bvhWorld.queryRadius(0, 0, 2).includes(c));
+  world._removeWorldCollider(c);
+  assert.ok(!world.bvhWorld.queryRadius(0, 0, 2).includes(c), 'removed collider remained in cell buckets');
+});
+
 check('collision sidecar applies scale, yaw, translation and ground offset', () => {
   const world = worldHarness();
   const count = world._injectManifestColliders(
