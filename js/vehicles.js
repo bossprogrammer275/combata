@@ -21,7 +21,7 @@ export const CAR_PHYSICS = {
     steeringAngle: 0.32, handbrakeSteerAngle: 0.48,
     frontGrip: 7.4, rearGrip: 9.8, handbrakeRearGrip: 0.65,
     suspensionRestLength: 0.21, suspensionTravel: 0.18,
-    springRate: 32000, springDamping: 3400,
+    springRate: 32000, springDamping: 3400, angularDamping: 0.78,
   },
   cybertruck: {
     mass: 3050, drivetrain: 'awd',
@@ -30,7 +30,7 @@ export const CAR_PHYSICS = {
     steeringAngle: 0.23, handbrakeSteerAngle: 0.34,
     frontGrip: 6.4, rearGrip: 7.6, handbrakeRearGrip: 1.35,
     suspensionRestLength: 0.25, suspensionTravel: 0.21,
-    springRate: 54000, springDamping: 5600,
+    springRate: 54000, springDamping: 5600, angularDamping: 1.3,
   },
 };
 
@@ -349,7 +349,9 @@ export class VehicleSystem {
     ctx.stroke();
 
     // Speed arc
-    const maxSpeed = 160;
+    // Lambo profile tops out around 230 km/h; leave headroom for braking
+    // and collision momentum rather than saturating the gauge at 160.
+    const maxSpeed = 260;
     const speedRatio = Math.min(kmh / maxSpeed, 1);
     const speedAngle = startAngle + speedRatio * (endAngle - startAngle);
     const gradient = ctx.createLinearGradient(cx - r, cy, cx + r, cy);
@@ -412,7 +414,7 @@ export class VehicleSystem {
     const cx = (e.minX + e.maxX) / 2 + v.pos.x;
     const cz = (e.minZ + e.maxZ) / 2 + v.pos.z;
     return {
-      x: cx, y: v.bodyBox.min.y + (v.def.elevation || 0), z: cz,
+      x: cx, y: v.pos.y + v.bodyBox.min.y, z: cz,
       w: Math.max(e.maxX - e.minX, 0.5),
       h: Math.max(v.bodyBox.max.y - v.bodyBox.min.y, 0.5),
       d: Math.max(e.maxZ - e.minZ, 0.5),
@@ -454,17 +456,24 @@ export class VehicleSystem {
     const rotation = v.rapierBody.rotation();
     const q = new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
     const bodyYaw = new THREE.Euler().setFromQuaternion(q, 'YXZ').y;
-    v.pos.set(t.x, t.y - (v.physicsCenterY || 0), t.z);
-    // Body yaw rotates the imported model; gameplay yaw is the true travel
-    // heading after removing its source GLB's nose-axis correction.
+    // The rigid body is centered at the chassis COM, while the visible GLB root
+    // is at the wheel-ground origin. Rotate that offset with the full quaternion
+    // so roll/pitch does not sink or float the visual car.
+    const centerOffset = new THREE.Vector3(0, v.physicsCenterY || 0, 0).applyQuaternion(q);
+    v.pos.set(t.x - centerOffset.x, t.y - centerOffset.y, t.z - centerOffset.z);
+    // Body yaw rotates the imported model; gameplay yaw removes its GLB axis fix.
     v.yaw = bodyYaw - (v.yawOffset || 0);
     const velocity = v.rapierBody.linvel();
-    const fx = -Math.sin(v.yaw), fz = -Math.cos(v.yaw);
-    const rx = Math.cos(bodyYaw), rz = -Math.sin(bodyYaw);
-    v.speed = velocity.x * fx + velocity.z * fz;
-    v.lateralVel = velocity.x * rx + velocity.z * rz;
+    const forward = new THREE.Vector3(0, 0, -Math.cos(v.yawOffset || 0)).applyQuaternion(q);
+    forward.y = 0; if (forward.lengthSq() < 1e-8) forward.set(-Math.sin(v.yaw), 0, -Math.cos(v.yaw));
+    forward.normalize();
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+    right.y = 0; if (right.lengthSq() < 1e-8) right.set(Math.cos(bodyYaw), 0, -Math.sin(bodyYaw));
+    right.normalize();
+    v.speed = velocity.x * forward.x + velocity.z * forward.z;
+    v.lateralVel = velocity.x * right.x + velocity.z * right.z;
     v.root.position.copy(v.pos);
-    v.root.rotation.set(0, bodyYaw, 0);
+    v.root.quaternion.copy(q);
     const wheelStates = v.rapierBody._openWorldWheelStates || [];
     const blend = 1 - Math.exp(-18 * Math.min(Math.max(dt, 0), 0.05));
     for (let i = 0; i < v.wheels.length; i++) {
@@ -609,7 +618,7 @@ export class VehicleSystem {
             def.x, def.elevation || 0, def.z, yaw + yawOffset, [physicsBox],
             {
               dynamic: true, centerY: physicsCenterY, mass: v.mass,
-              yawOffset, tuning: physicsProfile,
+              yawOffset, tuning: physicsProfile, angularDamping: physicsProfile.angularDamping,
             },
           );
           v.physicsDynamic = !!v.rapierBody?._openWorldDynamic;
@@ -913,15 +922,16 @@ export class VehicleSystem {
   
     }
 
-    // ===== WHEEL MECHANICS — steer (front) + rolling spin =====
-    // Spin rate from signed speed and a nominal 0.42m wheel radius.
-    v.wheelSpin = (v.wheelSpin || 0) - (v.speed * dt) / 0.42;
+    // ===== WHEEL MECHANICS — per-wheel steering + radius-correct spin =====
+    // Integrate travelled distance once, then divide by each actual GLB tyre radius.
+    v.wheelTravel = (v.wheelTravel || 0) - (v.speed * dt);
     if (v.wheels && v.wheels.length) {
       const steerAngle = curSpd > 0.5 ? steerInput * 0.42 : 0;
       for (const w of v.wheels) {
         if (w.front) w.pivot.rotation.y = -steerAngle;
-        if (w.axle === 'z') w.spinner.rotation.z = v.wheelSpin;
-        else w.spinner.rotation.x = v.wheelSpin;
+        const spin = v.wheelTravel / Math.max(0.18, w.radius || 0.42);
+        if (w.axle === 'z') w.spinner.rotation.z = spin;
+        else w.spinner.rotation.x = spin;
       }
     }
 
