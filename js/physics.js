@@ -400,6 +400,7 @@ export class Physics {
         point: contactPoint,
         hardpoint,
         radius,
+        normalLoad: springForce,
         front: !!wheel.front,
       };
       wheelStates.push(state);
@@ -434,12 +435,17 @@ export class Physics {
     const powered = tune.drivetrain === 'awd' ? grounded : (driveWheels.length ? driveWheels : grounded);
     const applyWheelImpulse = (indices, ix, iz, strength) => {
       if (!indices.length || Math.abs(strength) < 1e-5) return;
-      const perWheelImpulse = strength * mass * dt / indices.length;
+      const requestedImpulse = strength * mass * dt / indices.length;
+      const mu = tune.tireFriction ?? 1.2;
       for (const index of indices) {
         const state = wheelStates[index];
         if (!state?.contact) continue;
+        // Engine and brakes share the tyre friction budget with cornering. This
+        // prevents infinite grip when steering hard while accelerating/braking.
+        const maxImpulse = Math.max(0, state.normalLoad || 0) * mu * dt;
+        const wheelImpulse = THREE.MathUtils.clamp(requestedImpulse, -maxImpulse, maxImpulse);
         body.applyImpulseAtPoint(
-          { x: ix * perWheelImpulse, y: 0, z: iz * perWheelImpulse },
+          { x: ix * wheelImpulse, y: 0, z: iz * wheelImpulse },
           state.point,
           true,
         );
@@ -511,7 +517,12 @@ export class Physics {
           : (wheel.front
             ? (tune.frontGrip ?? 7.0)
             : (tune.rearGrip ?? 9.0));
-        const lateralImpulse = -lateralAtWheel * (mass / grounded.length) * (1 - Math.exp(-gripRate * dt));
+        let lateralImpulse = -lateralAtWheel * (mass / grounded.length) * (1 - Math.exp(-gripRate * dt));
+        const rearHandbrakeMu = handbrake && !wheel.front
+          ? (tune.handbrakeRearFriction ?? 0.55)
+          : (tune.tireFriction ?? 1.2);
+        const maxLateralImpulse = Math.max(0, state.normalLoad || 0) * rearHandbrakeMu * dt;
+        lateralImpulse = THREE.MathUtils.clamp(lateralImpulse, -maxLateralImpulse, maxLateralImpulse);
         body.applyImpulseAtPoint(
           { x: wheelRight.x * lateralImpulse, y: 0, z: wheelRight.z * lateralImpulse },
           state.point,
@@ -546,6 +557,21 @@ export class Physics {
         z: angular.z,
       }, true);
     }
+
+    // A gentle upright assist keeps this arcade/open-world controller fun
+    // and recoverable, while still allowing chassis pitch and roll over bumps.
+    // Spring/damper struts handle heave; this only corrects excessive tilt.
+    const chassisUp = new THREE.Vector3(0, 1, 0).applyQuaternion(q).normalize();
+    const uprightError = chassisUp.clone().cross(new THREE.Vector3(0, 1, 0));
+    const uprightStrength = tune.uprightStrength ?? 4.0;
+    const uprightDamping = tune.uprightDamping ?? 3.0;
+    const inertiaScale = tune.uprightInertiaScale ?? 1.8;
+    const torqueScale = mass * inertiaScale * dt;
+    body.applyTorqueImpulse({
+      x: (uprightError.x * uprightStrength - angular.x * uprightDamping) * torqueScale,
+      y: 0,
+      z: (uprightError.z * uprightStrength - angular.z * uprightDamping) * torqueScale,
+    }, true);
 
     return {
       yaw, forwardSpeed, lateralSpeed, horizontalSpeed,
