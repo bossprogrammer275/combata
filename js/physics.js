@@ -475,7 +475,7 @@ export class Physics {
       for (const index of grounded) {
         const wheel = wheelSpecs[index];
         const state = wheelStates[index];
-        const wheelYaw = yaw - (wheel.front ? wheelAngle : 0);
+        const wheelYaw = bodyYaw - (wheel.front ? wheelAngle : 0);
         const wheelRight = { x: Math.cos(wheelYaw), z: -Math.sin(wheelYaw) };
         const rx = state.point.x - translation.x;
         const rz = state.point.z - translation.z;
