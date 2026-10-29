@@ -570,6 +570,13 @@ export class VehicleSystem {
           // mesh's Y span: imported wheel hubs and tire meshes are not always centered.
           radius = Math.max(radius, center.y - localBox.min.y);
         }
+        // Hub/rim meshes can extend below the actual tyre and inflate the
+        // measured radius. The normalized tyre bottom is at (or near) root Y=0,
+        // so a wheel radius much larger than its hub height sinks the tyre and
+        // makes the suspension ray start inside ramps. Keep the mesh-derived
+        // estimate, but cap it to a small tolerance above the hub's ground-space Y.
+        const radiusLimit = Math.max(0.18, center.y + 0.04);
+        const fittedRadius = Math.min(radius || center.y || 0.32, radiusLimit);
         wheels.push({
           pivot: o,
           spinner,
@@ -579,7 +586,7 @@ export class VehicleSystem {
           basePivotY: o.position.y,
           modelScale: Math.max(1e-4, Math.abs(clone.scale.y || 1)),
           suspensionOffset: 0,
-          radius: THREE.MathUtils.clamp(radius || 0.32, 0.18, 0.5),
+          radius: THREE.MathUtils.clamp(fittedRadius, 0.18, 0.5),
           meshes,
         });
       });
