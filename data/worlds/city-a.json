@@ -806,6 +806,50 @@
           68
         ]
       ]
+    },
+    {
+      "w": 10,
+      "sidewalk": false,
+      "smooth": true,
+      "points": [
+        [
+          5,
+          225,
+          0
+        ],
+        [
+          8,
+          210,
+          0
+        ],
+        [
+          12,
+          195,
+          0
+        ],
+        [
+          15,
+          180,
+          0
+        ],
+        [
+          18,
+          165,
+          0
+        ],
+        [
+          20,
+          150,
+          0
+        ],
+        [
+          24,
+          135,
+          0
+        ]
+      ],
+      "bridge": false,
+      "guardrails": false
     }
   ],
   "buildings": [],
@@ -1432,52 +1476,18 @@
   "landmarks": [],
   "vehicles": [
     {
-      "x": 31,
-      "z": -169,
-      "ry": 1.57,
-      "kind": "lambo"
-    },
-    {
-      "x": 94,
-      "z": -133,
-      "ry": 1.57,
-      "kind": "cybertruck"
-    },
-    {
-      "x": 106,
-      "z": -22,
+      "x": 4,
+      "z": 217,
       "ry": 0,
-      "kind": "lambo"
+      "kind": "lambo",
+      "elevation": 0
     },
     {
-      "x": 173,
-      "z": 109,
-      "ry": 1.57,
-      "kind": "cybertruck"
-    },
-    {
-      "x": -179,
-      "z": 8,
+      "x": 10,
+      "z": 207,
       "ry": 0,
-      "kind": "lambo"
-    },
-    {
-      "x": -42,
-      "z": 164,
-      "ry": 1.57,
-      "kind": "cybertruck"
-    },
-    {
-      "x": 208,
-      "z": 148,
-      "ry": 3.14,
-      "kind": "lambo"
-    },
-    {
-      "x": 32,
-      "z": 211,
-      "ry": 3.14,
-      "kind": "cybertruck"
+      "kind": "cybertruck",
+      "elevation": 0
     }
   ],
   "spawns": [
