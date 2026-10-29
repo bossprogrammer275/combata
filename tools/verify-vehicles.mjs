@@ -353,6 +353,39 @@ try {
   check('steering rotates a moving chassis in corrected model space', Math.abs(headingDelta) > 0.05,
     `bodyYaw=${bodyYaw.toFixed(2)} delta=${headingDelta.toFixed(2)}`);
   check('vehicle stays above the ground plane', t.y > 0.3, `centerY=${t.y.toFixed(2)}`);
+
+  // Repeat the actual dynamic test using the larger/heavier AWD Cybertruck GLB.
+  const truckSpec = dynamicVehicleSpecs.cybertruck;
+  if (truckSpec) {
+    const truck = physics.createVehicleBody(35, 0, 22, vehicleYawOffset, [truckSpec.physicsBox], {
+      dynamic: true, centerY: truckSpec.centerY,
+      mass: CAR_PHYSICS.cybertruck.mass,
+      yawOffset: vehicleYawOffset,
+      tuning: CAR_PHYSICS.cybertruck,
+      angularDamping: CAR_PHYSICS.cybertruck.angularDamping,
+    });
+    physics.step(1 / 60);
+    physics.updateVehicleBody(truck, 35, 0, 22, vehicleYawOffset);
+    physics.step(1 / 60);
+    let truckMotion = null;
+    for (let i = 0; i < 90; i++) {
+      truckMotion = physics.applyVehicleControls(truck, {
+        throttle: 1, steer: 0.35, handbrake: false, dt: 1 / 60,
+        wheels: truckSpec.wheels, tuning: CAR_PHYSICS.cybertruck,
+      });
+      physics.step(1 / 60);
+    }
+    const truckPosition = truck.translation();
+    const truckGrounded = (truckMotion?.wheelContacts || 0) >= 3;
+    check('Cybertruck suspension maintains at least three wheel contacts', truckGrounded,
+      `contacts=${truckMotion?.wheelContacts ?? 0}`);
+    check('Cybertruck AWD throttle moves the heavier chassis', truckPosition.z < 21.5,
+      `z=${truckPosition.z.toFixed(2)}`);
+    check('Cybertruck chassis does not sink through the ground', truckPosition.y > 0.35,
+      `centerY=${truckPosition.y.toFixed(2)}`);
+  } else {
+    check('Cybertruck dynamic suspension spec exists', false);
+  }
 } catch (e) {
   failures++;
   console.log('[verify] ERROR', e && e.stack ? e.stack : e);
