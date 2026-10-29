@@ -205,6 +205,31 @@ try {
   );
   check('Rapier raycast does not hit beyond its max distance', shortRay === null);
 
+  const diagonalRoad = {
+    min: new THREE.Vector3(-0.8, 0.01, -0.8),
+    max: new THREE.Vector3(10.8, 0.06, 10.8),
+    type: 'road_surface',
+    orientedBox: {
+      center: { x: 5, y: 0.035, z: 5 },
+      halfExtents: { x: 5.18, y: 0.025, z: 1 },
+      yaw: -Math.PI / 4,
+    },
+  };
+  physics.registerStaticBatch([diagonalRoad]);
+  physics.step(1 / 60);
+  const offRoadRay = physics.castRay(
+    new THREE.Vector3(9, 2, 1), new THREE.Vector3(0, -1, 0), 4,
+  );
+  const onRoadRay = physics.castRay(
+    new THREE.Vector3(5, 2, 5), new THREE.Vector3(0, -1, 0), 4,
+  );
+  check('diagonal road physics does not extend into its broad AABB corners',
+    !!offRoadRay && Math.abs(offRoadRay.dist - 2.5) < 0.08,
+    offRoadRay ? `off-road dist=${offRoadRay.dist.toFixed(2)}` : 'no ground hit');
+  check('diagonal road is physically present under the actual ribbon',
+    !!onRoadRay && Math.abs(onRoadRay.dist - 1.94) < 0.08,
+    onRoadRay ? `on-road dist=${onRoadRay.dist.toFixed(2)}` : 'no road hit');
+
   for (let i = 0; i < 60; i++) {
     physics.movePlayer(0, -1, 0);
     physics.step(1 / 60);
