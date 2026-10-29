@@ -329,8 +329,11 @@ check('flyover builds a solid deck, raised supports, and concrete edge barriers'
   assert.ok(deck?.geometry?.attributes?.position?.count > 0, 'flyover deck geometry is missing');
   assert.ok(supports?.geometry?.attributes?.position?.count > 0, 'flyover piers/crossheads are missing');
   assert.ok(barriers?.geometry?.attributes?.position?.count > 0, 'flyover guardrail geometry is missing');
-  assert.ok(deck.geometry.attributes.position.array.some(y => y > 5.5),
-    'raised road deck did not reach the authored elevation');
+  const deckPositions = deck.geometry.attributes.position;
+  let highestDeckY = -Infinity;
+  for (let i = 0; i < deckPositions.count; i++) highestDeckY = Math.max(highestDeckY, deckPositions.getY(i));
+  assert.ok(highestDeckY > 5.5,
+    `raised road deck did not reach the authored elevation: maxY=${highestDeckY}`);
 });
 
 console.log(failures ? `[collision verify] ${failures} FAILURES` : '[collision verify] ALL CHECKS PASSED');
