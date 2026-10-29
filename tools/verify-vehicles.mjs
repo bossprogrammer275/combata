@@ -191,8 +191,8 @@ try {
       const minWheelY = Math.min(...wheelSpecs.map(w => w.y));
       const meanRadius = wheelSpecs.reduce((sum, w) => sum + w.radius, 0) / wheelSpecs.length;
       physicsBox.min.y = THREE.MathUtils.clamp(
-        minWheelY + meanRadius * 0.18,
-        bodyBox.min.y + 0.05,
+        minWheelY + meanRadius * 0.42,
+        bodyBox.min.y + 0.10,
         bodyBox.max.y - 0.3,
       );
       const cx = (bodyBox.min.x + bodyBox.max.x) * 0.5;
