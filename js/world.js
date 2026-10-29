@@ -1993,8 +1993,8 @@ export class World {
       addQuad(deckPositions, deckIndices, rbA, rbB, lbA, lbB);
       addQuad(deckPositions, deckIndices, ltA, lbA, ltB, lbB);
       addQuad(deckPositions, deckIndices, rtA, rtB, rbA, rbB);
-      addQuad(deckPositions, deckIndices, ltA, rtA, lbA, rbA);
-      addQuad(deckPositions, deckIndices, rtB, ltB, rbB, lbB);
+      if (i === 0) addQuad(deckPositions, deckIndices, ltA, rtA, lbA, rbA);
+      if (i === pts.length - 2) addQuad(deckPositions, deckIndices, rtB, ltB, rbB, lbB);
     }
     const deckGeometry = new THREE.BufferGeometry();
     deckGeometry.setAttribute('position', new THREE.Float32BufferAttribute(deckPositions, 3));
