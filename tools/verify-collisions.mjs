@@ -290,6 +290,27 @@ check('lane markings stop at road junctions', () => {
   }
 });
 
+check('vehicle surface sampling distinguishes asphalt, loose ground, and stacked roads', () => {
+  const world = worldHarness();
+  world._roadChains = [
+    { pts: [{ x: -20, z: 0, y: 0 }, { x: 20, z: 0, y: 0 }], W: 18, roadY: 0.06, closed: false, surface: 'asphalt' },
+    { pts: [{ x: -20, z: 0, y: 6 }, { x: 20, z: 0, y: 6 }], W: 18, roadY: 0.06, closed: false, surface: 'asphalt' },
+    { pts: [{ x: -20, z: 20, y: 0 }, { x: 20, z: 20, y: 0 }], W: 10, roadY: 0.06, closed: false, surface: 'dirt' },
+  ];
+  const groundRoad = world.vehicleSurfaceAt(0, 0, 0.06);
+  const flyover = world.vehicleSurfaceAt(0, 0, 6.06);
+  const looseGround = world.vehicleSurfaceAt(0, 20, 0.06);
+  const offroad = world.vehicleSurfaceAt(0, 12, 0);
+  assert.equal(groundRoad.surface, 'asphalt');
+  assert.equal(flyover.surface, 'asphalt');
+  assert.equal(looseGround.surface, 'dirt');
+  assert.ok(looseGround.grip < groundRoad.grip, 'dirt should provide less grip than asphalt');
+  assert.ok(looseGround.rollingDrag > groundRoad.rollingDrag, 'dirt should have greater rolling resistance');
+  assert.equal(offroad.surface, 'offroad');
+  assert.ok(offroad.speedLimitMultiplier < groundRoad.speedLimitMultiplier,
+    'offroad should lower the available speed target');
+});
+
 check('flyover ground support selects the correct elevation under stacked roads', () => {
   const world = worldHarness();
   world._addRoadSurfaceColliders(

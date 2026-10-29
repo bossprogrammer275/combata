@@ -360,6 +360,10 @@ export class Physics {
     const handbrake = !!controls.handbrake;
     const wheelSpecs = Array.isArray(controls.wheels) ? controls.wheels : [];
     const tune = controls.tuning || body._openWorldTuning || {};
+    const downforceCoefficient = tune.downforceCoefficient ?? 0.25;
+    const maxDownforce = mass * 9.81 * (tune.maxDownforceG ?? 0.2);
+    const downforce = Math.min(maxDownforce, downforceCoefficient * horizontalSpeed * horizontalSpeed);
+    const aeroLoadPerWheel = wheelSpecs.length ? downforce / wheelSpecs.length : 0;
 
     // ---- Four raycast suspension struts ----
     // Spring, damper, ride-height and tire tuning are per vehicle model.
@@ -370,7 +374,7 @@ export class Physics {
     const wheelStates = [];
     const rayHits = [];
     const bodyCenterY = body._openWorldCenterY || 0;
-    const gravityLoadPerWheel = mass * 9.81 / Math.max(1, wheelSpecs.length);
+    const gravityLoadPerWheel = (mass * 9.81 / Math.max(1, wheelSpecs.length)) + aeroLoadPerWheel;
 
     for (const wheel of wheelSpecs) {
       const lx = wheel.x || 0;
@@ -439,6 +443,11 @@ export class Physics {
         y: hardpoint.y - hit.timeOfImpact,
         z: hardpoint.z,
       };
+      let surface = null;
+      if (typeof controls.surfaceAt === 'function') {
+        try { surface = controls.surfaceAt(contactPoint.x, contactPoint.z, contactPoint.y); } catch {}
+      }
+      if (!surface) surface = { surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 };
       const state = {
         contact: true,
         offset: THREE.MathUtils.clamp(restLength - suspensionLength, -travel, travel),
@@ -449,6 +458,7 @@ export class Physics {
         hardpoint,
         radius,
         normalLoad: springForce,
+        surface,
         front: !!wheel.front,
       };
       wheelStates.push(state);
@@ -491,12 +501,24 @@ export class Physics {
       );
     }
     body._openWorldWheelStates = wheelStates;
+    const grounded = wheelStates.map((state, index) => state.contact ? index : -1).filter(index => index >= 0);
+    const meanSurface = (key, fallback = 1) => grounded.length
+      ? grounded.reduce((sum, index) => sum + (Number.isFinite(wheelStates[index].surface?.[key]) ? wheelStates[index].surface[key] : fallback), 0) / grounded.length
+      : fallback;
+    const surfaceSpeedMultiplier = THREE.MathUtils.clamp(meanSurface('speedLimitMultiplier', 1), 0.35, 1.05);
+    const surfaceRollingDrag = THREE.MathUtils.clamp(meanSurface('rollingDrag', 1), 0.4, 2.5);
+
+    // Aero load is passed through the suspension springs to increase tyre normal
+    // force at speed; applying the matching downward impulse keeps it grounded.
+    if (downforce > 0 && grounded.length >= 1) {
+      body.applyImpulse({ x: 0, y: -downforce * dt, z: 0 }, true);
+    }
 
     // Longitudinal engine/brake forces go through grounded wheel contacts. If
     // every wheel is airborne, throttle cannot magically accelerate the car.
     let driveAcceleration = 0;
     let brakeAcceleration = 0;
-    const maxForward = tune.maxSpeed ?? 40;
+    const maxForward = (tune.maxSpeed ?? 40) * surfaceSpeedMultiplier;
     const engineAcceleration = tune.engineAcceleration ?? 7.2;
     const reverseAcceleration = tune.reverseAcceleration ?? 3.8;
     const serviceBrake = tune.brakeAcceleration ?? 11;
@@ -514,9 +536,10 @@ export class Physics {
       }
     }
 
-    const grounded = wheelStates.map((state, index) => state.contact ? index : -1).filter(index => index >= 0);
     const driveWheels = grounded.filter(index => !wheelSpecs[index].front);
-    const powered = tune.drivetrain === 'awd' ? grounded : (driveWheels.length ? driveWheels : grounded);
+    const frontDriveWheels = grounded.filter(index => wheelSpecs[index].front);
+    const rearDriveWheels = grounded.filter(index => !wheelSpecs[index].front);
+    const powered = tune.drivetrain === 'awd' ? grounded : (rearDriveWheels.length ? rearDriveWheels : grounded);
     const longitudinalImpulseByWheel = new Array(wheelSpecs.length).fill(0);
     const applyWheelImpulse = (indices, ix, iz, strength) => {
       if (!indices.length || Math.abs(strength) < 1e-5) return;
@@ -527,7 +550,8 @@ export class Physics {
         if (!state?.contact) continue;
         // Engine and brakes share the tyre friction budget with cornering. This
         // prevents infinite grip when steering hard while accelerating/braking.
-        const maxImpulse = Math.max(0, state.normalLoad || 0) * mu * dt;
+        const surfaceGrip = THREE.MathUtils.clamp(state.surface?.grip ?? 1, 0.2, 1.4);
+        const maxImpulse = Math.max(0, state.normalLoad || 0) * mu * surfaceGrip * dt;
         const wheelImpulse = THREE.MathUtils.clamp(requestedImpulse, -maxImpulse, maxImpulse);
         longitudinalImpulseByWheel[index] += Math.abs(wheelImpulse);
         body.applyImpulseAtPoint(
@@ -538,7 +562,13 @@ export class Physics {
       }
     };
     if (wheelSpecs.length && grounded.length) {
-      applyWheelImpulse(powered, forward.x, forward.z, driveAcceleration);
+      if (tune.drivetrain === 'awd' && frontDriveWheels.length && rearDriveWheels.length) {
+        const frontBias = THREE.MathUtils.clamp(tune.frontDriveBias ?? 0.5, 0.25, 0.75);
+        applyWheelImpulse(frontDriveWheels, forward.x, forward.z, driveAcceleration * frontBias);
+        applyWheelImpulse(rearDriveWheels, forward.x, forward.z, driveAcceleration * (1 - frontBias));
+      } else {
+        applyWheelImpulse(powered, forward.x, forward.z, driveAcceleration);
+      }
       if (brakeAcceleration > 0) {
         const brakeSign = forwardSpeed === 0 ? 0 : -Math.sign(forwardSpeed);
         applyWheelImpulse(grounded, forward.x * brakeSign, forward.z * brakeSign, brakeAcceleration);
@@ -563,23 +593,18 @@ export class Physics {
       }
     }
 
-    // Speed-dependent aero load grows with v² and is bounded per chassis. It
-    // helps high-speed tyres stay planted without gluing the car to the road.
-    const downforceCoefficient = tune.downforceCoefficient ?? 0.25;
-    const maxDownforce = mass * 9.81 * (tune.maxDownforceG ?? 0.2);
-    const downforce = Math.min(maxDownforce, downforceCoefficient * horizontalSpeed * horizontalSpeed);
-    if (downforce > 0 && grounded.length >= 2) {
-      body.applyImpulse({ x: 0, y: -downforce * dt, z: 0 }, true);
-    }
-
-    // Aerodynamic/rolling drag acts horizontally but never applies an upward
-    // magic force. It slows coasting without stealing the suspension response.
-    if (Math.abs(throttle) < 0.02 && horizontalSpeed > 0.05) {
-      const dragRate = 0.11 + horizontalSpeed * 0.0018;
+    // Aerodynamic drag acts even under throttle; rolling resistance is amplified
+    // on loose terrain. The drag impulse is bounded so it cannot reverse a car.
+    if (horizontalSpeed > 0.03) {
+      const dragArea = tune.aeroDragArea ?? 0.95; // Cd*A, m²
+      const aeroDragForce = 0.5 * 1.225 * dragArea * horizontalSpeed * horizontalSpeed;
+      const rollingResistance = (tune.rollingResistance ?? 0.014) * surfaceRollingDrag;
+      const rollingForce = mass * 9.81 * rollingResistance;
+      const dragImpulse = Math.min(mass * horizontalSpeed, (aeroDragForce + rollingForce) * dt);
       body.applyImpulse({
-        x: -velocity.x * mass * (1 - Math.exp(-dragRate * dt)),
+        x: -velocity.x / horizontalSpeed * dragImpulse,
         y: 0,
-        z: -velocity.z * mass * (1 - Math.exp(-dragRate * dt)),
+        z: -velocity.z / horizontalSpeed * dragImpulse,
       }, true);
     }
 
@@ -619,13 +644,14 @@ export class Physics {
         const rearHandbrakeMu = handbrake && !wheel.front
           ? (tune.handbrakeRearFriction ?? 0.55)
           : (tune.tireFriction ?? 1.2);
-        const normalImpulse = Math.max(0, state.normalLoad || 0) * (tune.tireFriction ?? 1.2) * dt;
+        const surfaceGrip = THREE.MathUtils.clamp(state.surface?.grip ?? 1, 0.2, 1.4);
+        const normalImpulse = Math.max(0, state.normalLoad || 0) * (tune.tireFriction ?? 1.2) * surfaceGrip * dt;
         const usedLongitudinal = Math.min(normalImpulse, longitudinalImpulseByWheel[index] || 0);
         const combinedGripScale = normalImpulse > 1e-6
           ? Math.sqrt(Math.max(0, 1 - (usedLongitudinal / normalImpulse) ** 2))
           : 0;
         const maxLateralImpulse = Math.max(0, state.normalLoad || 0)
-          * rearHandbrakeMu * dt * combinedGripScale;
+          * rearHandbrakeMu * surfaceGrip * dt * combinedGripScale;
         lateralImpulse = THREE.MathUtils.clamp(lateralImpulse, -maxLateralImpulse, maxLateralImpulse);
         body.applyImpulseAtPoint(
           { x: wheelRight.x * lateralImpulse, y: 0, z: wheelRight.z * lateralImpulse },

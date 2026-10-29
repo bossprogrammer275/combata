@@ -172,8 +172,13 @@ try {
     assert.equal(CAR_PHYSICS.cybertruck.drivetrain, 'awd');
     assert.ok(CAR_PHYSICS.cybertruck.springRate > CAR_PHYSICS.lambo.springRate);
     assert.equal(CAR_PHYSICS.cybertruck.speedometerMaxKmh, 180);
+    assert.equal(CAR_PHYSICS.cybertruck.mass, 3009);
+    assert.ok(Math.abs(CAR_PHYSICS.cybertruck.maxSpeed - 50) < 1e-8);
     assert.equal(CAR_PHYSICS.lambo.speedometerMaxKmh, 230);
-    assert.equal(CAR_PHYSICS.bugatti.speedometerMaxKmh, 420);
+    assert.equal(CAR_PHYSICS.bugatti.speedometerMaxKmh, 380);
+    assert.equal(CAR_PHYSICS.bugatti.mass, 1450);
+    assert.ok(Math.abs(CAR_PHYSICS.bugatti.maxSpeed - 380 / 3.6) < 1e-8);
+    assert.ok(CAR_PHYSICS.bugatti.maxDownforceG > 2.0);
     assert.ok(CAR_PHYSICS.bugatti.maxSpeed > CAR_PHYSICS.lambo.maxSpeed);
     assert.ok(CAR_PHYSICS.cybertruck.maxSpeed < CAR_PHYSICS.lambo.maxSpeed);
     assert.ok(CAR_PHYSICS.bugatti.maxSpeed > CAR_PHYSICS.lambo.maxSpeed);
@@ -430,6 +435,7 @@ try {
     lastMotion = physics.applyVehicleControls(rb, {
       throttle: 1, steer: 0.8, handbrake: false, dt: 1 / 60,
       wheels, tuning: CAR_PHYSICS.lambo,
+      surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
     });
     physics.step(1 / 60);
   }
@@ -438,6 +444,9 @@ try {
   check('wheel contact states are exposed for wheel animation',
     Array.isArray(rb._openWorldWheelStates) && rb._openWorldWheelStates.length === 4,
     `states=${rb._openWorldWheelStates?.length ?? 0}`);
+  check('tyre raycasts carry the sampled surface modifiers into physics',
+    rb._openWorldWheelStates.filter(s => s.contact).every(s => s.surface?.surface === 'asphalt' && s.surface.grip === 1),
+    `surfaces=${rb._openWorldWheelStates.map(s => s.surface?.surface || 'no-contact').join(',')}`);
   t = rb.translation();
   const bodyRotation = rb.rotation();
   const bodyYaw = new THREE.Euler().setFromQuaternion(
@@ -462,6 +471,33 @@ try {
   check('hard steering keeps the sports car planted instead of rolling onto two wheels',
     (lastMotion?.wheelContacts || 0) >= 3 && lamboTilt < 0.40,
     `contacts=${lastMotion?.wheelContacts ?? 0} tilt=${(lamboTilt * 180 / Math.PI).toFixed(1)}deg`);
+
+  const highSpeedTurn = physics.createVehicleBody(80, 0, 0, vehicleYawOffset, [dynamicVehicleSpec.physicsBox], {
+    dynamic: true, centerY: dynamicVehicleSpec.centerY,
+    mass: CAR_PHYSICS.lambo.mass, yawOffset: vehicleYawOffset,
+    tuning: CAR_PHYSICS.lambo, angularDamping: CAR_PHYSICS.lambo.angularDamping,
+  });
+  physics.step(1 / 60);
+  physics.updateVehicleBody(highSpeedTurn, 80, 0, 0, vehicleYawOffset);
+  highSpeedTurn.setLinvel({ x: 0, y: 0, z: -27 }, true);
+  let highSpeedTurnMotion = null;
+  for (let i = 0; i < 150; i++) {
+    highSpeedTurnMotion = physics.applyVehicleControls(highSpeedTurn, {
+      throttle: 0, steer: 1, handbrake: false, dt: 1 / 60,
+      wheels, tuning: CAR_PHYSICS.lambo,
+      surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
+    });
+    physics.step(1 / 60);
+  }
+  const turnPose = highSpeedTurn.translation();
+  const turnRot = highSpeedTurn.rotation();
+  const turnUp = new THREE.Vector3(0, 1, 0).applyQuaternion(
+    new THREE.Quaternion(turnRot.x, turnRot.y, turnRot.z, turnRot.w),
+  );
+  const turnTilt = Math.acos(THREE.MathUtils.clamp(turnUp.y, -1, 1));
+  check('sustained fast turn retains suspension contact and avoids extreme chassis lift',
+    (highSpeedTurnMotion?.wheelContacts || 0) >= 3 && turnPose.y < dynamicVehicleSpec.centerY + 1.0 && turnTilt < 0.65,
+    `contacts=${highSpeedTurnMotion?.wheelContacts ?? 0} chassisY=${turnPose.y.toFixed(2)} tilt=${(turnTilt * 180 / Math.PI).toFixed(1)}deg`);
 
   // Drive a real chassis up a ramp collider (nose points +Z). This verifies
   // throttle, wheel-ray contact, and rising ground height together.

@@ -1492,6 +1492,56 @@ export class World {
     return height;
   }
 
+  // Sample the physical surface under a tyre, including stacked roads/flyovers.
+  // This mirrors the terrainAt() model: surface grip, rolling resistance and
+  // speed allowance alter the existing vehicle physics rather than creating a second controller.
+  vehicleSurfaceAt(x, z, y = 0) {
+    const profiles = {
+      asphalt: { surface: 'asphalt', grip: 1.0, rollingDrag: 1.0, speedLimitMultiplier: 1.0 },
+      concrete: { surface: 'concrete', grip: 0.88, rollingDrag: 1.16, speedLimitMultiplier: 0.9 },
+      dirt: { surface: 'dirt', grip: 0.66, rollingDrag: 1.48, speedLimitMultiplier: 0.68 },
+      gravel: { surface: 'gravel', grip: 0.56, rollingDrag: 1.72, speedLimitMultiplier: 0.6 },
+      mud: { surface: 'mud', grip: 0.42, rollingDrag: 2.05, speedLimitMultiplier: 0.45 },
+      offroad: { surface: 'offroad', grip: 0.62, rollingDrag: 1.55, speedLimitMultiplier: 0.62 },
+    };
+    let best = null;
+    let bestScore = Infinity;
+    for (const chain of this._roadChains || []) {
+      const pts = chain.pts || [];
+      if (pts.length < 2) continue;
+      const count = pts.length - 1 + (chain.closed ? 1 : 0);
+      for (let i = 0; i < count; i++) {
+        const a = pts[i], b = pts[(i + 1) % pts.length];
+        const dx = b.x - a.x, dz = b.z - a.z;
+        const lenSq = dx * dx + dz * dz;
+        if (lenSq < 1e-8) continue;
+        const t = THREE.MathUtils.clamp(((x - a.x) * dx + (z - a.z) * dz) / lenSq, 0, 1);
+        const px = a.x + dx * t, pz = a.z + dz * t;
+        const lateral = Math.hypot(x - px, z - pz);
+        const edge = (chain.W || 12) * 0.5;
+        let key = String(chain.surface || 'asphalt').toLowerCase();
+        if (lateral > edge + 0.25) {
+          if (chain.sidewalk && lateral <= edge + 3.55) key = 'concrete';
+          else continue;
+        }
+        if (key === 'off-road') key = 'offroad';
+        if (!profiles[key]) key = 'asphalt';
+        const height = THREE.MathUtils.lerp(Number(a.y) || 0, Number(b.y) || 0, t) + (chain.roadY ?? 0.06);
+        const verticalDelta = Math.abs(height - y);
+        if (verticalDelta > 1.25) continue; // Ignore a road above/below the vehicle.
+        const score = lateral + verticalDelta * 2.0;
+        if (score < bestScore) {
+          bestScore = score;
+          best = { key, height, distance: lateral, verticalDelta };
+        }
+      }
+    }
+    if (!best) {
+      return { ...profiles.offroad, height: Number.isFinite(y) ? y : 0, distance: Infinity };
+    }
+    return { ...profiles[best.key], height: best.height, distance: best.distance, verticalDelta: best.verticalDelta };
+  }
+
   async _buildAuthoredRoads(roads) {
     const roadMat = this.mRoad();
     const walkMat = this._sceneMat('walk');
@@ -1536,6 +1586,7 @@ export class World {
       const smoothed = rd.smooth !== false ? smoothPts(raw, 6) : raw;
       chains.push({
         pts: smoothed, W, sidewalk: !!rd.sidewalk, closed,
+        surface: String(rd.surface || 'asphalt').toLowerCase(),
         guardrails: !!(rd.guardrails || rd.bridge || rd.flyover),
         flyover: !!(rd.flyover || rd.bridge),
         keepEnds: !!rd.keepEnds,
@@ -1573,7 +1624,7 @@ export class World {
       if (ch.flyover) this._buildFlyoverStructure(pts, ch.W, roadY);
       if (ch.guardrails) this._buildRoadGuardrails(pts, ch.W, roadY);
 
-      this._roadChains.push({ pts, W: ch.W, sidewalk: ch.sidewalk, roadY, closed: ch.closed });
+      this._roadChains.push({ pts, W: ch.W, sidewalk: ch.sidewalk, roadY, closed: ch.closed, surface: ch.surface || 'asphalt' });
       if (!ch.sidewalk) continue;
       const edge = ch.W / 2;
       for (const side of [-1, 1]) {
