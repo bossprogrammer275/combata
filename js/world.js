@@ -855,7 +855,10 @@ export class World {
       const collisionManifest = !collisionProxyBoxes.length && !isTree && !isLamp
         ? await this._loadCollisionManifest(a)
         : null;
-      const usesCollisionManifest = !!collisionManifest?.boxes?.length && !collisionProxyBoxes.length;
+      // True only if this loading path actually injected sidecar colliders.
+      // Merely finding a sidecar must not suppress floor_/stairs_ fallbacks when
+      // a per-world collisionSize/collisionH override takes priority.
+      let usesCollisionManifest = false;
 
       if (!a.noCollision && !isRoad && !bbox.isEmpty()) {
         const size = bbox.getSize(new THREE.Vector3());
@@ -885,6 +888,7 @@ export class World {
             this.addCollider(center.x, bbox.min.y, center.z, size.x, a.collisionH, size.z, !!a.climbable, a.type || null);
           } else if (collisionManifest?.boxes?.length) {
             const injected = this._injectManifestColliders(collisionManifest, a, scaleFactor, yOffset, doorMeshes, bbox);
+            usesCollisionManifest = injected > 0;
             if (!injected) {
               if (a.building) this._addBuildingWallColliders(bbox, doorMeshes, {
                 localBBox: afterScaleBBox, x: a.x || 0, z: a.z || 0,
