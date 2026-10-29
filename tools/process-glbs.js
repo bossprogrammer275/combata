@@ -205,6 +205,13 @@ async function processGLB(inputPath) {
   const gltf = await loadGLB(inputPath);
   const scene = gltf.scene;
   scene.updateMatrixWorld(true);
+  const sceneBounds = new THREE.Box3().setFromObject(scene);
+  const sceneHeight = sceneBounds.max.y - sceneBounds.min.y;
+  if (!(sceneHeight > 1e-6)) throw new Error('Model has no measurable vertical bounds');
+  // The world loader later normalizes the GLB to targetH. Keep collision cell
+  // size proportional to the raw model height so a 0.01-unit Sketchfab model
+  // and a 50-unit Blender model both end up with ~2%-of-height cells in-game.
+  const modelCellSize = sceneHeight * 0.02;
 
   const boxes = [];
   let subdivCount = 0;
@@ -224,7 +231,7 @@ async function processGLB(inputPath) {
     if (s.x < 0.05 || s.z < 0.05 || s.y < 0.05) return;
 
     if (meshNeedsSubdivision(obj)) {
-      const cellSize = Math.max(0.8, Math.min(s.x, s.z) * 0.15);
+      const cellSize = modelCellSize;
       const sub = subdivideMeshCollision(obj, cellSize);
       if (sub.length > 2) {
         boxes.push(...sub);
