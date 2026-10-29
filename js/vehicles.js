@@ -639,7 +639,7 @@ export class VehicleSystem {
     if (this.physics) this.physics.setPlayerCollisionEnabled(false);
     this._lookYaw = 0;
     this._lookPitch = 0.2;
-    const totalYaw = veh.yaw + this._lookYaw;
+    const totalYaw = this._worldYaw(veh) + this._lookYaw;
     const cx = -Math.sin(totalYaw), cz = -Math.cos(totalYaw);
     const camDist = 5.5;
     const camH = 3.2;
