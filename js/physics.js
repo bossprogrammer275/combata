@@ -236,9 +236,11 @@ export class Physics {
       desc = RAPIER.RigidBodyDesc.dynamic()
         .setTranslation(x, y + centerY, z)
         .setLinearDamping(0.08)
-        .setAngularDamping(0.85)
+        .setAngularDamping(options.angularDamping ?? 0.95)
         .setCcdEnabled(true)
-        .enabledRotations(false, true, false)
+        // Allow chassis pitch and roll as well as yaw. The four suspension
+        // struts now act at rotated hardpoints, so impacts/curbs can lean the car.
+        .enabledRotations(true, true, true)
         .setCanSleep(false)
         .setAdditionalMass(options.mass || 1450);
     } else {
@@ -290,13 +292,22 @@ export class Physics {
     const translation = body.translation();
     const rotation = body.rotation();
     const q = new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
-    // bodyYaw rotates the imported GLB and its wheel hardpoints. The gameplay
-    // heading removes the model-axis correction, otherwise nose=+Z cars receive
-    // throttle in reverse and feel as if they're stuck against obstacles.
+    // bodyYaw rotates the imported GLB. Remove its axis correction to derive
+    // gameplay heading; use the rotated chassis axes for hardpoints, and project
+    // the nose/right vectors onto the road plane for throttle and tire forces.
+    const yawOffset = body._openWorldYawOffset || 0;
     const bodyYaw = new THREE.Euler().setFromQuaternion(q, 'YXZ').y;
-    const yaw = bodyYaw - (body._openWorldYawOffset || 0);
-    const forward = { x: -Math.sin(yaw), z: -Math.cos(yaw) };
-    const right = { x: Math.cos(bodyYaw), z: -Math.sin(bodyYaw) };
+    const yaw = bodyYaw - yawOffset;
+    const forwardV = new THREE.Vector3(0, 0, -Math.cos(yawOffset)).applyQuaternion(q);
+    forwardV.y = 0;
+    if (forwardV.lengthSq() < 1e-8) forwardV.set(-Math.sin(yaw), 0, -Math.cos(yaw));
+    forwardV.normalize();
+    const rightV = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+    rightV.y = 0;
+    if (rightV.lengthSq() < 1e-8) rightV.set(Math.cos(bodyYaw), 0, -Math.sin(bodyYaw));
+    rightV.normalize();
+    const forward = { x: forwardV.x, z: forwardV.z };
+    const right = { x: rightV.x, z: rightV.z };
     const velocity = body.linvel();
     const angular = body.angvel();
     let forwardSpeed = velocity.x * forward.x + velocity.z * forward.z;
@@ -324,11 +335,13 @@ export class Physics {
       const lx = wheel.x || 0;
       const lz = wheel.z || 0;
       const localHardpointY = (wheel.y || 0) - bodyCenterY + restLength;
-      // Three.js yaw convention: local +X/+Z rotates around world Y.
+      // Wheel hardpoints follow the complete body quaternion, including pitch
+      // and roll, instead of assuming the chassis stays perfectly upright.
+      const localOffset = new THREE.Vector3(lx, localHardpointY, lz).applyQuaternion(q);
       const hardpoint = {
-        x: translation.x + lx * Math.cos(bodyYaw) + lz * Math.sin(bodyYaw),
-        y: translation.y + localHardpointY,
-        z: translation.z - lx * Math.sin(bodyYaw) + lz * Math.cos(bodyYaw),
+        x: translation.x + localOffset.x,
+        y: translation.y + localOffset.y,
+        z: translation.z + localOffset.z,
       };
       const radius = THREE.MathUtils.clamp(wheel.radius || 0.32, 0.18, 0.5);
       const maxRay = radius + restLength + travel;
@@ -356,7 +369,11 @@ export class Physics {
       }
 
       const compression = THREE.MathUtils.clamp(restLength - suspensionLength, -travel * 0.55, travel);
-      const anchorVerticalSpeed = velocity.y;
+      const hardpointX = hardpoint.x - translation.x;
+      const hardpointZ = hardpoint.z - translation.z;
+      // Vertical velocity at the strut mount includes the chassis' angular
+      // velocity; this damps pitch/roll oscillations instead of only heave.
+      const anchorVerticalSpeed = velocity.y + angular.z * hardpointX - angular.x * hardpointZ;
       const springForce = THREE.MathUtils.clamp(
         gravityLoadPerWheel + springRate * compression - springDamping * anchorVerticalSpeed,
         0,
@@ -475,12 +492,19 @@ export class Physics {
       for (const index of grounded) {
         const wheel = wheelSpecs[index];
         const state = wheelStates[index];
-        const wheelYaw = bodyYaw - (wheel.front ? wheelAngle : 0);
-        const wheelRight = { x: Math.cos(wheelYaw), z: -Math.sin(wheelYaw) };
+        const chassisUp = new THREE.Vector3(0, 1, 0).applyQuaternion(q).normalize();
+        const wheelRightV = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+        if (wheel.front) wheelRightV.applyAxisAngle(chassisUp, -wheelAngle);
+        // Tyre lateral force stays tangent to the road plane.
+        wheelRightV.y = 0;
+        if (wheelRightV.lengthSq() < 1e-8) wheelRightV.set(Math.cos(bodyYaw), 0, -Math.sin(bodyYaw));
+        wheelRightV.normalize();
+        const wheelRight = { x: wheelRightV.x, z: wheelRightV.z };
         const rx = state.point.x - translation.x;
+        const ry = state.point.y - translation.y;
         const rz = state.point.z - translation.z;
-        const pointVX = velocity.x + angular.y * rz;
-        const pointVZ = velocity.z - angular.y * rx;
+        const pointVX = velocity.x + angular.y * rz - angular.z * ry;
+        const pointVZ = velocity.z + angular.x * ry - angular.y * rx;
         const lateralAtWheel = pointVX * wheelRight.x + pointVZ * wheelRight.z;
         const gripRate = handbrake && !wheel.front
           ? (tune.handbrakeRearGrip ?? 0.9)
