@@ -407,7 +407,12 @@ export class Physics {
       // plane. Keep that hit as a compressed strut so the spring can lift the
       // chassis back onto the road; rejecting it at -4cm drops all wheel forces
       // exactly when the vehicle needs recovery most.
-      const maxCompression = travel * 0.55;
+      // The inferred wheel hub may sit slightly below the normalized model
+      // origin, and a ramp can momentarily compress the suspension beyond normal
+      // travel before the spring recovers. Accept a hit through most of the tyre
+      // radius; otherwise one buried hub disables spring force and keeps the car
+      // permanently below the ramp. Keep the applied spring travel bounded.
+      const maxCompression = Math.max(travel * 0.55, radius * 0.85);
       if (suspensionLength < -maxCompression || suspensionLength > restLength + travel) {
         wheelStates.push({ contact: false, offset: -travel, front: !!wheel.front });
         rayHits.push(null);
