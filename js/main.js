@@ -928,6 +928,7 @@ class Game {
       this.player.update(dt, this.input);
     }
     if (this.physics && this.physics.world) this.physics.step(dt);
+    if (this.vehicles) this.vehicles.syncDynamicBodies();
 
     // update atmospheric sky (time-of-day, lighting, clouds)
     if (this.world.atmosphere) {
