@@ -21,6 +21,13 @@ export class BVHWorld {
     this._climbables = [];       // same format
     this._dirty = false;
     this.layers = 0xFFFFFFFF;
+    // 2D uniform grid for movement queries. Detailed GLB sidecars may contain
+    // hundreds of boxes per model; scanning the entire collider array every
+    // player/car frame scales badly as the city grows.
+    this._cellSize = 16;
+    this._spatialCells = new Map();
+    this._aabbIndexKeys = new Map();
+    this._largeAABBs = new Set();
   }
 
   // Register ALL meshes in a model for BVH raycasting (no selective filter)
@@ -78,21 +85,97 @@ export class BVHWorld {
     this.bvhMeshes.push({ mesh, bvh: geo.boundsTree, layer, worldBox });
   }
 
+  _cellKey(x, z) {
+    return x + ',' + z;
+  }
+
+  _unindexAABB(col) {
+    const keys = this._aabbIndexKeys.get(col);
+    if (keys === undefined) return;
+    this._aabbIndexKeys.delete(col);
+    if (keys === null) {
+      this._largeAABBs.delete(col);
+      return;
+    }
+    for (const key of keys) {
+      const bucket = this._spatialCells.get(key);
+      if (!bucket) continue;
+      bucket.delete(col);
+      if (!bucket.size) this._spatialCells.delete(key);
+    }
+  }
+
+  indexAABB(col) {
+    if (!col?.min || !col?.max || this._aabbIndexKeys.has(col)) return;
+    const x0 = Math.floor(col.min.x / this._cellSize);
+    const x1 = Math.floor(col.max.x / this._cellSize);
+    const z0 = Math.floor(col.min.z / this._cellSize);
+    const z1 = Math.floor(col.max.z / this._cellSize);
+    const nx = x1 - x0 + 1, nz = z1 - z0 + 1;
+    // Avoid filling thousands of cell buckets for map-scale trigger volumes.
+    if (nx <= 0 || nz <= 0 || nx * nz > 256) {
+      this._largeAABBs.add(col);
+      this._aabbIndexKeys.set(col, null);
+      return;
+    }
+    const keys = [];
+    for (let gx = x0; gx <= x1; gx++) {
+      for (let gz = z0; gz <= z1; gz++) {
+        const key = this._cellKey(gx, gz);
+        let bucket = this._spatialCells.get(key);
+        if (!bucket) {
+          bucket = new Set();
+          this._spatialCells.set(key, bucket);
+        }
+        bucket.add(col);
+        keys.push(key);
+      }
+    }
+    this._aabbIndexKeys.set(col, keys);
+  }
+
+  rebuildAABBIndex() {
+    this._spatialCells.clear();
+    this._aabbIndexKeys.clear();
+    this._largeAABBs.clear();
+    for (const col of this.aabbColliders) this.indexAABB(col);
+  }
+
+  _queryAABBCandidates(x1, z1, x2, z2) {
+    if (!this._spatialCells.size && !this._largeAABBs.size) return this.aabbColliders;
+    const gx0 = Math.floor(x1 / this._cellSize);
+    const gx1 = Math.floor(x2 / this._cellSize);
+    const gz0 = Math.floor(z1 / this._cellSize);
+    const gz1 = Math.floor(z2 / this._cellSize);
+    const nx = gx1 - gx0 + 1, nz = gz1 - gz0 + 1;
+    if (nx <= 0 || nz <= 0 || nx * nz > 4096) return this.aabbColliders;
+    const out = new Set(this._largeAABBs);
+    for (let gx = gx0; gx <= gx1; gx++) {
+      for (let gz = gz0; gz <= gz1; gz++) {
+        const bucket = this._spatialCells.get(this._cellKey(gx, gz));
+        if (bucket) for (const col of bucket) out.add(col);
+      }
+    }
+    return out;
+  }
+
   addAABB(min, max, climbable = false, type = null) {
     const c = { min: min.clone(), max: max.clone() };
     if (type) c.type = type;
-    if (climbable) this._climbables.push(c); else this.aabbColliders.push(c);
+    if (climbable) this._climbables.push(c);
+    this.aabbColliders.push(c);
+    this.indexAABB(c);
     return c;
   }
 
   removeAABB(col) {
-    // One collider may be both solid movement geometry and climbable metadata.
-    // Remove it from both indexes; early-returning from the first list left
-    // stale climb prompts after a fence/prop was removed.
-    const i = this.aabbColliders.indexOf(col);
+    // A climbable is also a solid collider. Remove it from both registries and
+    // from the spatial index to avoid stale collision hits after removal.
+    this._unindexAABB(col);
+    let i = this.aabbColliders.indexOf(col);
     if (i >= 0) this.aabbColliders.splice(i, 1);
-    const j = this._climbables.indexOf(col);
-    if (j >= 0) this._climbables.splice(j, 1);
+    i = this._climbables.indexOf(col);
+    if (i >= 0) this._climbables.splice(i, 1);
   }
 
   removeMesh(mesh) {
@@ -111,10 +194,16 @@ export class BVHWorld {
     this.bvhMeshes.length = 0;
     this.aabbColliders.length = 0;
     this._climbables.length = 0;
+    this._spatialCells.clear();
+    this._aabbIndexKeys.clear();
+    this._largeAABBs.clear();
   }
 
   // ---- COMPATIBILITY ALIASES ----
-  insert(col) { this.aabbColliders.push(col); }
+  insert(col) {
+    if (!this.aabbColliders.includes(col)) this.aabbColliders.push(col);
+    this.indexAABB(col);
+  }
   remove(col) { this.removeAABB(col); }
   queryPoint(x, z, r) { return this.queryRadius(x, z, r); }
 
@@ -231,31 +320,25 @@ export class BVHWorld {
   queryRadius(x, z, radius) {
     const out = [];
     const r2 = radius * radius;
-
-    for (const c of this.aabbColliders) {
+    const candidates = this._queryAABBCandidates(x - radius, z - radius, x + radius, z + radius);
+    for (const c of candidates) {
       if (c.max.y < 0.3) continue;
       const cx = Math.max(c.min.x, Math.min(x, c.max.x));
       const cz = Math.max(c.min.z, Math.min(z, c.max.z));
       const dx = cx - x, dz = cz - z;
-      if (dx * dx + dz * dz <= r2) {
-        out.push(c);
-      }
+      if (dx * dx + dz * dz <= r2) out.push(c);
     }
-
     return out;
   }
 
-  // queryAABB: returns ONLY AABB colliders in the region.
-  // BVH meshes are NOT returned as movement proxies.
+  // queryAABB: local movement query against cells intersecting the requested XZ area.
+  // BVH meshes remain raycast-only and are not movement proxies.
   queryAABB(x1, z1, x2, z2) {
+    const candidates = this._queryAABBCandidates(x1, z1, x2, z2);
     const out = [];
-
-    for (const c of this.aabbColliders) {
-      if (c.max.x >= x1 && c.min.x <= x2 && c.max.z >= z1 && c.min.z <= z2) {
-        out.push(c);
-      }
+    for (const c of candidates) {
+      if (c.max.x >= x1 && c.min.x <= x2 && c.max.z >= z1 && c.min.z <= z2) out.push(c);
     }
-
     return out;
   }
 
