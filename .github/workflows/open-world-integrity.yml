@@ -40,6 +40,9 @@ jobs:
             if git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
               changed_files="$(git diff --name-only "$BEFORE_SHA" "$GITHUB_SHA")"
             fi
+          elif [[ "$GITHUB_EVENT_NAME" == "pull_request" && -n "${GITHUB_BASE_REF:-}" ]]; then
+            git fetch --no-tags --depth=1 origin "$GITHUB_BASE_REF"
+            changed_files="$(git diff --name-only FETCH_HEAD "$GITHUB_SHA")"
           fi
           regenerate_all=false
           if grep -Fxq "tools/process-glbs.js" <<< "$changed_files"; then
