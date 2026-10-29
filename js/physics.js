@@ -403,13 +403,18 @@ export class Physics {
         continue;
       }
       const suspensionLength = hit.timeOfImpact - radius;
-      if (suspensionLength < -0.04 || suspensionLength > restLength + travel) {
+      // A ramp transition can briefly put a hub below the ideal tyre-radius
+      // plane. Keep that hit as a compressed strut so the spring can lift the
+      // chassis back onto the road; rejecting it at -4cm drops all wheel forces
+      // exactly when the vehicle needs recovery most.
+      const maxCompression = travel * 0.55;
+      if (suspensionLength < -maxCompression || suspensionLength > restLength + travel) {
         wheelStates.push({ contact: false, offset: -travel, front: !!wheel.front });
         rayHits.push(null);
         continue;
       }
 
-      const compression = THREE.MathUtils.clamp(restLength - suspensionLength, -travel * 0.55, travel);
+      const compression = THREE.MathUtils.clamp(restLength - suspensionLength, -maxCompression, travel);
       const hardpointX = hardpoint.x - translation.x;
       const hardpointZ = hardpoint.z - translation.z;
       // Vertical velocity at the strut mount includes the chassis' angular
