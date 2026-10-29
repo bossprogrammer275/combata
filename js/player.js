@@ -559,7 +559,11 @@ export class Player {
         const dx = this.pos.x - o.center.x, dz = this.pos.z - o.center.z;
         const cs = Math.cos(o.yaw), sn = Math.sin(o.yaw);
         const lx = dx * cs - dz * sn, lz = dx * sn + dz * cs;
-        if (Math.abs(lx) > o.halfExtents.x + r || Math.abs(lz) > o.halfExtents.z + r) continue;
+        const cx = THREE.MathUtils.clamp(lx, -o.halfExtents.x, o.halfExtents.x);
+        const cz = THREE.MathUtils.clamp(lz, -o.halfExtents.z, o.halfExtents.z);
+        // Exact circle-vs-rounded-rectangle overlap. Expanding both axes by r
+        // creates square corner regions that feel like invisible road-edge walls.
+        if ((lx - cx) ** 2 + (lz - cz) ** 2 > r * r) continue;
       }
       if (head <= c.min.y || feet >= c.max.y) continue;
       // Interior AABBs must remain solid. The old "skip every collider inside
