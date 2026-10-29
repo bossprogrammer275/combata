@@ -17,20 +17,77 @@ const CELL_SIZE = 1.0;
 const THICKNESS = 0.3;
 const MIN_CELL_H = 0.1;
 
-// ─── Polyfill FileReader for Node.js ───
+// ─── Browser API shims for Node.js GLTFLoader ───
+// Some Sketchfab GLBs embed image textures. Collision preprocessing only needs
+// geometry, but GLTFLoader still runs its image callbacks while parsing them.
 class FileReaderPolyfill {
-  constructor() { this.result = null; this.onload = null; }
+  constructor() {
+    this.result = null;
+    this.onload = null;
+    this.onerror = null;
+  }
+  _arrayBuffer(blob) {
+    if (blob instanceof ArrayBuffer) return Promise.resolve(blob);
+    if (ArrayBuffer.isView(blob)) {
+      return Promise.resolve(blob.buffer.slice(blob.byteOffset, blob.byteOffset + blob.byteLength));
+    }
+    if (blob && typeof blob.arrayBuffer === 'function') return blob.arrayBuffer();
+    if (blob && blob.buffer instanceof ArrayBuffer) return Promise.resolve(blob.buffer);
+    return Promise.reject(new Error('FileReader received an unsupported buffer type'));
+  }
   readAsArrayBuffer(blob) {
-    this.result = blob.buffer || new ArrayBuffer(0);
-    if (this.onload) this.onload({ target: this });
+    this._arrayBuffer(blob).then((buffer) => {
+      this.result = buffer;
+      this.onload?.({ target: this });
+    }).catch((error) => this.onerror?.({ target: this, error }));
   }
   readAsDataURL(blob) {
-    const buf = Buffer.from(blob.buffer || blob);
-    this.result = 'data:application/octet-stream;base64,' + buf.toString('base64');
-    if (this.onload) this.onload({ target: this });
+    this._arrayBuffer(blob).then((buffer) => {
+      this.result = 'data:application/octet-stream;base64,' + Buffer.from(buffer).toString('base64');
+      this.onload?.({ target: this });
+    }).catch((error) => this.onerror?.({ target: this, error }));
   }
 }
 if (typeof globalThis.FileReader === 'undefined') globalThis.FileReader = FileReaderPolyfill;
+if (typeof globalThis.self === 'undefined') globalThis.self = globalThis;
+if (typeof globalThis.ProgressEvent === 'undefined') {
+  globalThis.ProgressEvent = class ProgressEvent {
+    constructor(type, init = {}) { this.type = type; Object.assign(this, init); }
+  };
+}
+if (typeof globalThis.document === 'undefined') {
+  class FakeImage {
+    constructor() {
+      this._listeners = new Map();
+      this.width = 1;
+      this.height = 1;
+      this.complete = false;
+      this.crossOrigin = undefined;
+    }
+    addEventListener(type, fn) {
+      if (!this._listeners.has(type)) this._listeners.set(type, []);
+      this._listeners.get(type).push(fn);
+    }
+    removeEventListener(type, fn) {
+      const listeners = this._listeners.get(type) || [];
+      const i = listeners.indexOf(fn);
+      if (i >= 0) listeners.splice(i, 1);
+    }
+    set src(value) {
+      this._src = value;
+      // No pixel decoding is needed to extract collision geometry.
+      queueMicrotask(() => {
+        this.complete = true;
+        for (const fn of this._listeners.get('load') || []) fn.call(this);
+      });
+    }
+    get src() { return this._src; }
+  }
+  globalThis.document = {
+    createElementNS: () => new FakeImage(),
+    createElement: () => new FakeImage(),
+  };
+}
 
 function loadGLB(filePath) {
   return new Promise((resolve, reject) => {
