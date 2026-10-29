@@ -1,0 +1,31 @@
+name: Open-world integrity
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Check JavaScript syntax
+        run: |
+          node --check js/world.js
+          node --check js/physics.js
+          node --check js/bvh-collision.js
+          node --check js/player.js
+          node --check js/vehicles.js
+          node --check js/civilians.js
+          node --check js/main.js
+          node --check js/textures.js
+          node --check tools/process-glbs.js
+      - name: Verify vehicle models and Rapier basics
+        run: node tools/verify-vehicles.mjs
