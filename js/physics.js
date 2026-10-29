@@ -42,9 +42,19 @@ export class Physics {
 
   step(dt) {
     if (!this.world) return;
-    this.world.timestep = Math.min(dt, 1 / 30);
-    this.world.step(this._eventQueue);
-    this._stepCount++;
+    // Fixed-step Rapier integration avoids different gravity/collision results
+    // at 30, 60 and 144 Hz. Cap catch-up work after a tab stall.
+    const stepDt = 1 / 60;
+    const frameDt = Math.min(Math.max(dt || 0, 0), 0.1);
+    this._accumulator = Math.min((this._accumulator || 0) + frameDt, stepDt * 5);
+    let steps = 0;
+    while (this._accumulator >= stepDt && steps < 5) {
+      this.world.timestep = stepDt;
+      this.world.step(this._eventQueue);
+      this._accumulator -= stepDt;
+      this._stepCount++;
+      steps++;
+    }
   }
 
   // ===== COLLIDER REGISTRATION =====
