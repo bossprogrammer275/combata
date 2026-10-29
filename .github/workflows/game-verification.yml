@@ -1,0 +1,29 @@
+name: Game physics verification
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@10 --activate
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify world and collision geometry
+        run: node tools/verify-collisions.mjs
+      - name: Verify vehicle grounding and drive physics
+        run: node tools/verify-vehicles.mjs
