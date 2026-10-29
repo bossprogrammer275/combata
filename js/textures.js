@@ -95,8 +95,9 @@ export function makeGroundTexture(size = 512, tint = null) {
 }
 
 // ---------------------------------------------------------------------------
-// ASPHALT ROAD — dark gray aggregate with patches, cracks and baked lane marks.
-// Markings are drawn relative to the tile, so they scale with road width.
+// ASPHALT ROAD — dark gray aggregate with patches and cracks.
+// Optional tile markings are retained for other uses; the city renderer uses
+// plain asphalt plus junction-aware lane-marking geometry.
 // ---------------------------------------------------------------------------
 export function makeRoadTexture(size = 1024, laneMarks = true) {
   const key = 'road|' + size + '|' + (laneMarks ? 'marked' : 'plain');
