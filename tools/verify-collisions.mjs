@@ -148,6 +148,26 @@ check('small sidecar cells do not seal a door_* opening', () => {
   assert.equal(count, 0, 'manifest inserted a solid cell across the entrance');
 });
 
+check('rotated building interior uses model-local bounds', () => {
+  const world = Object.create(World.prototype);
+  world.interiors = [];
+  const yaw = Math.PI / 4;
+  const transform = { x: 30, z: -20, yaw };
+  world.addInterior(
+    new THREE.Vector3(-4, 0, -4),
+    new THREE.Vector3(4, 8, 4),
+    transform,
+  );
+  const toWorld = (x, z) => new THREE.Vector3(
+    transform.x + x * Math.cos(yaw) + z * Math.sin(yaw),
+    0,
+    transform.z - x * Math.sin(yaw) + z * Math.cos(yaw),
+  );
+  assert.ok(world.insideInterior(toWorld(0, 0)), 'center of rotated building must be interior');
+  assert.ok(world.insideInterior(toWorld(3, 0)), 'point inside rotated wall rectangle must be interior');
+  assert.ok(!world.insideInterior(toWorld(5.5, 5.5)), 'exterior corner of world AABB must not count as interior');
+});
+
 check('rotated fallback wall colliders leave the doorway passable', () => {
   const world = worldHarness();
   const yaw = Math.PI / 4;
@@ -162,6 +182,8 @@ check('rotated fallback wall colliders leave the doorway passable', () => {
     name: 'door_main',
     center: doorCenter,
     size: new THREE.Vector3(1.0, 2.1, 0.2),
+    localCenter: new THREE.Vector3(localDoorX, 1.0, localDoorZ),
+    localSize: new THREE.Vector3(1.0, 2.1, 0.2),
     min: doorCenter.clone().add(new THREE.Vector3(-0.7, -1.05, -0.7)),
     max: doorCenter.clone().add(new THREE.Vector3(0.7, 1.05, 0.7)),
   };
