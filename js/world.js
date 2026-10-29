@@ -1423,31 +1423,13 @@ export class World {
       if (!ch.sidewalk) continue;
       const edge = ch.W / 2;
       for (const side of [-1, 1]) {
-        const offPts = pts.map((p, pi) => {
-          const prev = pts[Math.max(0, pi - 1)];
-          const next = pts[Math.min(pts.length - 1, pi + 1)];
-          let ux = p.x - prev.x, uz = p.z - prev.z;
-          let vx = next.x - p.x, vz = next.z - p.z;
-          const l1 = Math.hypot(ux, uz) || 1, l2 = Math.hypot(vx, vz) || 1;
-          ux /= l1; uz /= l1; vx /= l2; vz /= l2;
-          let nx = -(uz + vz) / 2, nz = (ux + vx) / 2;
-          const nl = Math.hypot(nx, nz) || 1;
-          return { x: p.x + nx / nl * side * (edge + 1.2), z: p.z + nz / nl * side * (edge + 1.2) };
-        });
+        // Use the same mitered offset for pavement and curb. A normalized average
+        // normal shrinks offsets at corners, causing sidewalk seams and pinholes.
+        const offPts = this._offsetRoadPolyline(pts, side * (edge + 1.2));
         this._strokeMitered(offPts, 2.4, walkY, walkMat, ch.closed);
       }
       for (const side of [-1, 1]) {
-        const curbPts = pts.map((p, pi) => {
-          const prev = pts[Math.max(0, pi - 1)];
-          const next = pts[Math.min(pts.length - 1, pi + 1)];
-          let ux = p.x - prev.x, uz = p.z - prev.z;
-          let vx = next.x - p.x, vz = next.z - p.z;
-          const l1 = Math.hypot(ux, uz) || 1, l2 = Math.hypot(vx, vz) || 1;
-          ux /= l1; uz /= l1; vx /= l2; vz /= l2;
-          let nx = -(uz + vz) / 2, nz = (ux + vx) / 2;
-          const nl = Math.hypot(nx, nz) || 1;
-          return { x: p.x + nx / nl * side * (edge + 0.12), z: p.z + nz / nl * side * (edge + 0.12) };
-        });
+        const curbPts = this._offsetRoadPolyline(pts, side * (edge + 0.12));
         this._strokeMitered(curbPts, 0.36, 0.10, curbMat, ch.closed);
       }
     }
