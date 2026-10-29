@@ -448,71 +448,7 @@ try {
     rb._openWorldWheelStates.filter(s => s.contact).every(s => s.surface?.surface === 'asphalt' && s.surface.grip === 1),
     `surfaces=${rb._openWorldWheelStates.map(s => s.surface?.surface || 'no-contact').join(',')}`);
 
-  const originalCast = physics.world.castRayAndGetNormal;
-  physics.world.castRayAndGetNormal = function (...args) { return null; };
-  const gapMotion = physics.applyVehicleControls(rb, {
-    throttle: 0, steer: 0, handbrake: false, dt: 1 / 60,
-    wheels, tuning: CAR_PHYSICS.lambo,
-    surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
-  });
-  physics.world.castRayAndGetNormal = originalCast;
-  check('one-frame suspension ray miss does not drop every wheel at a road seam',
-    (gapMotion?.wheelContacts || 0) >= 3,
-    `contacts=${gapMotion?.wheelContacts ?? 0}`);
 
-  const reverseBody = physics.createVehicleBody(40, 0, 0, vehicleYawOffset, [dynamicVehicleSpec.physicsBox], {
-    dynamic: true, centerY: dynamicVehicleSpec.centerY,
-    mass: CAR_PHYSICS.lambo.mass, yawOffset: vehicleYawOffset,
-    tuning: CAR_PHYSICS.lambo, angularDamping: CAR_PHYSICS.lambo.angularDamping,
-  });
-  physics.step(1 / 60);
-  physics.updateVehicleBody(reverseBody, 40, 0, 0, vehicleYawOffset);
-  physics.step(1 / 60);
-  let reverseMotion = null;
-  for (let i = 0; i < 90; i++) {
-    reverseMotion = physics.applyVehicleControls(reverseBody, {
-      throttle: -1, steer: 0.7, handbrake: false, dt: 1 / 60,
-      wheels, tuning: CAR_PHYSICS.lambo,
-      surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
-    });
-    physics.step(1 / 60);
-  }
-  const reversePose = reverseBody.translation();
-  const reverseRot = reverseBody.rotation();
-  const reverseYaw = new THREE.Euler().setFromQuaternion(
-    new THREE.Quaternion(reverseRot.x, reverseRot.y, reverseRot.z, reverseRot.w), 'YXZ',
-  ).y;
-  const reverseYawDelta = Math.atan2(Math.sin(reverseYaw - vehicleYawOffset), Math.cos(reverseYaw - vehicleYawOffset));
-  check('reverse throttle accelerates past walking pace while steering',
-    (reverseMotion?.forwardSpeed ?? 0) < -2.5 && Math.abs(reverseYawDelta) > 0.03,
-    `reverseSpeed=${reverseMotion?.forwardSpeed?.toFixed(2)} yawDelta=${reverseYawDelta.toFixed(2)} z=${reversePose.z.toFixed(2)}`);
-
-  const acceleratingTruckSpec = dynamicVehicleSpecs.cybertruck;
-  const truckBody = physics.createVehicleBody(-40, 0, 0, vehicleYawOffset, [acceleratingTruckSpec.physicsBox], {
-    dynamic: true, centerY: acceleratingTruckSpec.centerY,
-    mass: CAR_PHYSICS.cybertruck.mass, yawOffset: vehicleYawOffset,
-    tuning: CAR_PHYSICS.cybertruck, angularDamping: CAR_PHYSICS.cybertruck.angularDamping,
-  });
-  physics.step(1 / 60);
-  physics.updateVehicleBody(truckBody, -40, 0, 0, vehicleYawOffset);
-  physics.step(1 / 60);
-  let truckMotion = null;
-  for (let i = 0; i < 90; i++) {
-    truckMotion = physics.applyVehicleControls(truckBody, {
-      throttle: 1, steer: 0.8, handbrake: false, dt: 1 / 60,
-      wheels: acceleratingTruckSpec.wheels, tuning: CAR_PHYSICS.cybertruck,
-      surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
-    });
-    physics.step(1 / 60);
-  }
-  const truckRot = truckBody.rotation();
-  const truckYaw = new THREE.Euler().setFromQuaternion(
-    new THREE.Quaternion(truckRot.x, truckRot.y, truckRot.z, truckRot.w), 'YXZ',
-  ).y;
-  const truckYawDelta = Math.atan2(Math.sin(truckYaw - vehicleYawOffset), Math.cos(truckYaw - vehicleYawOffset));
-  check('AWD vehicle keeps steering authority while accelerating',
-    (truckMotion?.forwardSpeed ?? 0) > 2 && Math.abs(truckYawDelta) > 0.04,
-    `forwardSpeed=${truckMotion?.forwardSpeed?.toFixed(2)} yawDelta=${truckYawDelta.toFixed(2)} contacts=${truckMotion?.wheelContacts ?? 0}`);
   t = rb.translation();
   const bodyRotation = rb.rotation();
   const bodyYaw = new THREE.Euler().setFromQuaternion(
@@ -649,6 +585,71 @@ try {
   } else {
     check('Cybertruck dynamic suspension spec exists', false);
   }
+  const originalCast = physics.world.castRayAndGetNormal;
+  physics.world.castRayAndGetNormal = function (...args) { return null; };
+  const gapMotion = physics.applyVehicleControls(rb, {
+    throttle: 0, steer: 0, handbrake: false, dt: 1 / 60,
+    wheels, tuning: CAR_PHYSICS.lambo,
+    surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
+  });
+  physics.world.castRayAndGetNormal = originalCast;
+  check('one-frame suspension ray miss does not drop every wheel at a road seam',
+    (gapMotion?.wheelContacts || 0) >= 3,
+    `contacts=${gapMotion?.wheelContacts ?? 0}`);
+
+  const reverseBody = physics.createVehicleBody(40, 0, 0, vehicleYawOffset, [dynamicVehicleSpec.physicsBox], {
+    dynamic: true, centerY: dynamicVehicleSpec.centerY,
+    mass: CAR_PHYSICS.lambo.mass, yawOffset: vehicleYawOffset,
+    tuning: CAR_PHYSICS.lambo, angularDamping: CAR_PHYSICS.lambo.angularDamping,
+  });
+  physics.step(1 / 60);
+  physics.updateVehicleBody(reverseBody, 40, 0, 0, vehicleYawOffset);
+  physics.step(1 / 60);
+  let reverseMotion = null;
+  for (let i = 0; i < 90; i++) {
+    reverseMotion = physics.applyVehicleControls(reverseBody, {
+      throttle: -1, steer: 0.7, handbrake: false, dt: 1 / 60,
+      wheels, tuning: CAR_PHYSICS.lambo,
+      surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
+    });
+    physics.step(1 / 60);
+  }
+  const reversePose = reverseBody.translation();
+  const reverseRot = reverseBody.rotation();
+  const reverseYaw = new THREE.Euler().setFromQuaternion(
+    new THREE.Quaternion(reverseRot.x, reverseRot.y, reverseRot.z, reverseRot.w), 'YXZ',
+  ).y;
+  const reverseYawDelta = Math.atan2(Math.sin(reverseYaw - vehicleYawOffset), Math.cos(reverseYaw - vehicleYawOffset));
+  check('reverse throttle accelerates past walking pace while steering',
+    (reverseMotion?.forwardSpeed ?? 0) < -2.5 && Math.abs(reverseYawDelta) > 0.03,
+    `reverseSpeed=${reverseMotion?.forwardSpeed?.toFixed(2)} yawDelta=${reverseYawDelta.toFixed(2)} z=${reversePose.z.toFixed(2)}`);
+
+  const acceleratingTruckSpec = dynamicVehicleSpecs.cybertruck;
+  const truckBody = physics.createVehicleBody(-40, 0, 0, vehicleYawOffset, [acceleratingTruckSpec.physicsBox], {
+    dynamic: true, centerY: acceleratingTruckSpec.centerY,
+    mass: CAR_PHYSICS.cybertruck.mass, yawOffset: vehicleYawOffset,
+    tuning: CAR_PHYSICS.cybertruck, angularDamping: CAR_PHYSICS.cybertruck.angularDamping,
+  });
+  physics.step(1 / 60);
+  physics.updateVehicleBody(truckBody, -40, 0, 0, vehicleYawOffset);
+  physics.step(1 / 60);
+  let truckMotion = null;
+  for (let i = 0; i < 90; i++) {
+    truckMotion = physics.applyVehicleControls(truckBody, {
+      throttle: 1, steer: 0.8, handbrake: false, dt: 1 / 60,
+      wheels: acceleratingTruckSpec.wheels, tuning: CAR_PHYSICS.cybertruck,
+      surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
+    });
+    physics.step(1 / 60);
+  }
+  const truckRot = truckBody.rotation();
+  const truckYaw = new THREE.Euler().setFromQuaternion(
+    new THREE.Quaternion(truckRot.x, truckRot.y, truckRot.z, truckRot.w), 'YXZ',
+  ).y;
+  const truckYawDelta = Math.atan2(Math.sin(truckYaw - vehicleYawOffset), Math.cos(truckYaw - vehicleYawOffset));
+  check('AWD vehicle keeps steering authority while accelerating',
+    (truckMotion?.forwardSpeed ?? 0) > 2 && Math.abs(truckYawDelta) > 0.04,
+    `forwardSpeed=${truckMotion?.forwardSpeed?.toFixed(2)} yawDelta=${truckYawDelta.toFixed(2)} contacts=${truckMotion?.wheelContacts ?? 0}`);
 } catch (e) {
   failures++;
   console.log('[verify] ERROR', e && e.stack ? e.stack : e);
