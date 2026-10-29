@@ -376,9 +376,15 @@ export class VehicleSystem {
     for (const s of this.world.vehicleSpawns || []) this.spawn(s);
   }
 
+  // The visible model, Rapier body and camera all use the same world yaw.
+  // yaw is the gameplay heading; yawOffset fixes the source GLB's nose axis.
+  _worldYaw(v) {
+    return (v?.yaw || 0) + (v?.yawOffset || 0);
+  }
+
   // Fitted, yaw-aware footprint AABB for a parked vehicle (root space -> world).
   _parkedAABB(v) {
-    const e = rotBoxXZ(v.bodyBox, v.yaw + v.yawOffset, {});
+    const e = rotBoxXZ(v.bodyBox, this._worldYaw(v), {});
     const cx = (e.minX + e.maxX) / 2 + v.pos.x;
     const cz = (e.minZ + e.maxZ) / 2 + v.pos.z;
     return {
@@ -396,7 +402,7 @@ export class VehicleSystem {
     const b = this._parkedAABB(v);
     v.parkedCol = this.world.addCollider(b.x, b.y, b.z, b.w, b.h, b.d);
     if (this.physics && v.rapierBody) {
-      this.physics.updateVehicleBody(v.rapierBody, v.pos.x, v.def.elevation || 0, v.pos.z, v.yaw + v.yawOffset);
+      this.physics.updateVehicleBody(v.rapierBody, v.pos.x, v.def.elevation || 0, v.pos.z, this._worldYaw(v));
     }
   }
 
@@ -614,7 +620,7 @@ export class VehicleSystem {
     if (this.physics) this.physics.setPlayerCollisionEnabled(false);
     this._lookYaw = 0;
     this._lookPitch = 0.2;
-    const totalYaw = veh.yaw + this._lookYaw;
+    const totalYaw = this._worldYaw(veh) + this._lookYaw;
     const cx = -Math.sin(totalYaw), cz = -Math.cos(totalYaw);
     const camDist = 5.5;
     const camH = 3.2;
@@ -647,11 +653,12 @@ export class VehicleSystem {
     if (!veh) return;
     this.driver = null;
     veh.def.occupied = false;
-    player.pos.set(veh.pos.x + Math.cos(veh.yaw) * 3, 0.5, veh.pos.z - Math.sin(veh.yaw) * 3);
+    const carYaw = this._worldYaw(veh);
+    player.pos.set(veh.pos.x + Math.cos(carYaw) * 3, 0.5, veh.pos.z - Math.sin(carYaw) * 3);
     player.vel.set(0, 0, 0);
     if (this.physics) this.physics.setPlayerCollisionEnabled(true);
     player.onGround = true;
-    player.yaw = veh.yaw + Math.PI;
+    player.yaw = carYaw + Math.PI;
     player.char.root.visible = true;
     player.char.root.position.copy(player.pos);
     player.char.root.rotation.y = player.yaw + Math.PI;
@@ -670,8 +677,9 @@ export class VehicleSystem {
     const veh = es.veh;
 
     if (es.phase === 'approach') {
-      const tx = veh.pos.x + Math.cos(veh.yaw) * -2.5;
-      const tz = veh.pos.z - Math.sin(veh.yaw) * -2.5;
+      const carYaw = this._worldYaw(veh);
+      const tx = veh.pos.x + Math.cos(carYaw) * -2.5;
+      const tz = veh.pos.z - Math.sin(carYaw) * -2.5;
       const dx = tx - player.pos.x;
       const dz = tz - player.pos.z;
       const dist = Math.hypot(dx, dz);
@@ -796,7 +804,7 @@ export class VehicleSystem {
       const travel = Math.hypot(moveX, moveZ);
       const moveSteps = Math.max(1, Math.ceil(travel / 0.35));
       const stepX = moveX / moveSteps, stepZ = moveZ / moveSteps;
-      const wYaw = v.yaw + (v.yawOffset || 0);
+      const wYaw = this._worldYaw(v);
       const wY = v.def.elevation || 0;
       const rb = { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
   
@@ -855,12 +863,12 @@ export class VehicleSystem {
   
       // Rapier kinematic body sync
       if (v.rapierBody && this.physics) {
-        this.physics.updateVehicleBody(v.rapierBody, v.pos.x, v.def.elevation || 0, v.pos.z, v.yaw + (v.yawOffset || 0));
+        this.physics.updateVehicleBody(v.rapierBody, v.pos.x, v.def.elevation || 0, v.pos.z, this._worldYaw(v));
       }
   
       // Apply transform (same orientation parked and driven — no 180° snap)
       v.root.position.set(v.pos.x, v.def.elevation || 0, v.pos.z);
-      v.root.rotation.y = v.yaw + (v.yawOffset || 0);
+      v.root.rotation.y = this._worldYaw(v);
   
   
     }
@@ -889,7 +897,7 @@ export class VehicleSystem {
     this._lookPitch = THREE.MathUtils.clamp(this._lookPitch - mdy * 0.003, -0.9, 1.1);
     input.mouseDX = 0; input.mouseDY = 0;
 
-    const totalYaw = v.yaw + this._lookYaw;
+    const totalYaw = this._worldYaw(v) + this._lookYaw;
     const cx = -Math.sin(totalYaw), cz = -Math.cos(totalYaw);
 
     const turnAmount = Math.abs(steerInput);
@@ -912,7 +920,7 @@ export class VehicleSystem {
     }
 
     player.pos.set(v.pos.x, 0.5, v.pos.z);
-    player.yaw = v.yaw;
+    player.yaw = this._worldYaw(v);
     if (this.physics) this.physics.setPlayerPosition(player.pos.x, player.pos.y, player.pos.z);
 
     // Speedometer
