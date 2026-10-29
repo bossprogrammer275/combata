@@ -122,7 +122,7 @@ try {
     assert.ok(CAR_PHYSICS.cybertruck.springRate > CAR_PHYSICS.lambo.springRate);
   });
 
-  let dynamicVehicleSpec = null;
+  const dynamicVehicleSpecs = {};
   for (const kind of Object.keys(CAR_MODELS)) {
     console.log(`[verify] model: ${kind}`);
     const targetLen = CAR_MODELS[kind].targetLen;
@@ -146,7 +146,7 @@ try {
     // Capture the first real vehicle's runtime-equivalent suspension spec.
     // This exercises the actual normalized GLB pivots/radii below, not only a
     // synthetic set of four wheel points.
-    if (!dynamicVehicleSpec && wheels.length === 4 && scene.userData.bodyBox) {
+    if (!dynamicVehicleSpecs[kind] && wheels.length === 4 && scene.userData.bodyBox) {
       const bodyBox = scene.userData.bodyBox;
       const wheelSpecs = wheels.map((w) => {
         w.pivot.updateWorldMatrix(true, false);
@@ -178,7 +178,7 @@ try {
       const hz = (bodyBox.max.z - bodyBox.min.z) * 0.46;
       physicsBox.min.x = cx - hx; physicsBox.max.x = cx + hx;
       physicsBox.min.z = cz - hz; physicsBox.max.z = cz + hz;
-      dynamicVehicleSpec = {
+      dynamicVehicleSpecs[kind] = {
         physicsBox,
         centerY: (physicsBox.min.y + physicsBox.max.y) * 0.5,
         wheels: wheelSpecs,
@@ -297,6 +297,12 @@ try {
   const rest = physics.getPlayerPosition();
   console.log(`    INFO player rest y=${rest.y.toFixed(3)}`);
   check('player capsule rests at feet height', Math.abs(rest.y) < 0.15, `y=${rest.y.toFixed(2)}`);
+
+  const dynamicVehicleSpec = dynamicVehicleSpecs.lambo || Object.values(dynamicVehicleSpecs)[0];
+  check('both car types produce real GLB suspension specs',
+    !!dynamicVehicleSpecs.lambo && !!dynamicVehicleSpecs.cybertruck &&
+      dynamicVehicleSpecs.lambo.wheels.length === 4 && dynamicVehicleSpecs.cybertruck.wheels.length === 4,
+    `lambo=${dynamicVehicleSpecs.lambo?.wheels.length ?? 0} cybertruck=${dynamicVehicleSpecs.cybertruck?.wheels.length ?? 0}`);
 
   check('real GLB produces a dynamic suspension spec',
     !!dynamicVehicleSpec && dynamicVehicleSpec.wheels.length === 4,
