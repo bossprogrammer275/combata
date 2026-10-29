@@ -308,7 +308,7 @@ export class Physics {
         // Low chassis-contact friction avoids a full-width box sticking to
         // the ground. Lateral tyre grip is applied explicitly in controls.
         .setFriction(dynamic ? 0.12 : 0.95)
-        .setRestitution(0.025);
+        .setRestitution(0);
       this.world.createCollider(cd, body);
       created++;
     }
@@ -373,10 +373,12 @@ export class Physics {
     const springDamping = tune.springDamping ?? 3400;
     const wheelStates = [];
     const rayHits = [];
+    const supportCache = body._openWorldWheelSupportCache || (body._openWorldWheelSupportCache = []);
     const bodyCenterY = body._openWorldCenterY || 0;
     const gravityLoadPerWheel = (mass * 9.81 / Math.max(1, wheelSpecs.length)) + aeroLoadPerWheel;
 
-    for (const wheel of wheelSpecs) {
+    for (let wheelIndex = 0; wheelIndex < wheelSpecs.length; wheelIndex++) {
+      const wheel = wheelSpecs[wheelIndex];
       const lx = wheel.x || 0;
       const lz = wheel.z || 0;
       const localHardpointY = (wheel.y || 0) - bodyCenterY + restLength;
@@ -390,6 +392,7 @@ export class Physics {
       };
       const radius = THREE.MathUtils.clamp(wheel.radius || 0.32, 0.18, 0.5);
       const maxRay = radius + restLength + travel;
+      const maxCompression = Math.max(travel * 0.55, radius * 1.25);
       const ray = new RAPIER.Ray(hardpoint, { x: 0, y: -1, z: 0 });
       let hit = null;
       try {
@@ -401,7 +404,41 @@ export class Physics {
         hit = this.world.castRay(ray, maxRay, true, undefined, undefined, null, body);
       }
 
+      // At a curb/road-mesh seam a ray can hit a vertical fragment first.
+      // Ignore that single obstruction and retry for the drivable surface below.
+      if (hit && (!hit.normal || hit.normal.y < 0.45) && hit.collider && this.world.castRayAndGetNormal) {
+        try {
+          const obstruction = hit.collider;
+          const alternate = this.world.castRayAndGetNormal(
+            ray, maxRay, true, undefined, undefined, obstruction, body,
+          );
+          if (alternate) hit = alternate;
+        } catch {}
+      }
+
+      // Keep a valid support plane for one missed frame only, and only when the
+      // tyre is still within 35cm of its previous support. This filters single
+      // ray misses at road edges without letting a car float over real gaps.
       if (!hit || !hit.normal || hit.normal.y < 0.45) {
+        const cached = supportCache[wheelIndex];
+        if (cached && cached.age < 1
+          && Math.hypot(hardpoint.x - cached.hardpoint.x, hardpoint.z - cached.hardpoint.z) < 0.35
+          && Math.abs(hardpoint.y - cached.hardpoint.y) < 0.20) {
+          const timeOfImpact = hardpoint.y - cached.pointY;
+          const suspensionLength = timeOfImpact - radius;
+          if (suspensionLength >= -maxCompression && suspensionLength <= restLength + travel) {
+            hit = {
+              timeOfImpact,
+              normal: cached.normal,
+              _openWorldGrace: true,
+            };
+            cached.age += 1;
+          }
+        }
+      }
+
+      if (!hit || !hit.normal || hit.normal.y < 0.45) {
+        if (supportCache[wheelIndex]) supportCache[wheelIndex].age += 1;
         wheelStates.push({ contact: false, offset: -travel, front: !!wheel.front });
         rayHits.push(null);
         continue;
@@ -413,7 +450,6 @@ export class Physics {
       // and visually bury the car in the floor.
       // Give the ray enough recovery range to lift a car whose collider has started
       // resting on the ground. Applied spring travel remains bounded below.
-      const maxCompression = Math.max(travel * 0.55, radius * 1.25);
       if (suspensionLength < -maxCompression || suspensionLength > restLength + travel) {
         wheelStates.push({ contact: false, offset: -travel, front: !!wheel.front });
         rayHits.push(null);
@@ -443,6 +479,14 @@ export class Physics {
         y: hardpoint.y - hit.timeOfImpact,
         z: hardpoint.z,
       };
+      if (!hit._openWorldGrace) {
+        supportCache[wheelIndex] = {
+          pointY: contactPoint.y,
+          hardpoint: { x: hardpoint.x, y: hardpoint.y, z: hardpoint.z },
+          normal: { x: hit.normal.x, y: hit.normal.y, z: hit.normal.z },
+          age: 0,
+        };
+      }
       let surface = null;
       if (typeof controls.surfaceAt === 'function') {
         try { surface = controls.surfaceAt(contactPoint.x, contactPoint.z, contactPoint.y); } catch {}
@@ -523,13 +567,16 @@ export class Physics {
     const reverseAcceleration = tune.reverseAcceleration ?? 3.8;
     const serviceBrake = tune.brakeAcceleration ?? 11;
     if (throttle > 0.01) {
-      const powerFade = THREE.MathUtils.clamp(1 - Math.max(0, forwardSpeed) / maxForward * 0.72, 0.18, 1);
-      driveAcceleration = forwardSpeed < -0.8
-        ? reverseAcceleration * 1.6 * throttle
-        : engineAcceleration * throttle * powerFade;
+      if (forwardSpeed < -0.8) {
+        // W while rolling backwards is a brake command until speed is low.
+        brakeAcceleration = serviceBrake * throttle;
+      } else {
+        const powerFade = THREE.MathUtils.clamp(1 - Math.max(0, forwardSpeed) / maxForward * 0.72, 0.18, 1);
+        driveAcceleration = engineAcceleration * throttle * powerFade;
+      }
     } else if (throttle < -0.01) {
-      if (Math.abs(forwardSpeed) > 1.0) {
-        // Brake first; direction reverses only after rolling speed falls.
+      if (forwardSpeed > 0.8) {
+        // S brakes forward travel, but must never brake a car already reversing.
         brakeAcceleration = serviceBrake * Math.abs(throttle);
       } else {
         driveAcceleration = -reverseAcceleration * Math.abs(throttle);
@@ -541,17 +588,18 @@ export class Physics {
     const rearDriveWheels = grounded.filter(index => !wheelSpecs[index].front);
     const powered = tune.drivetrain === 'awd' ? grounded : (rearDriveWheels.length ? rearDriveWheels : grounded);
     const longitudinalImpulseByWheel = new Array(wheelSpecs.length).fill(0);
-    const applyWheelImpulse = (indices, ix, iz, strength) => {
+    const applyWheelImpulse = (indices, ix, iz, strength, gripBudget = 1) => {
       if (!indices.length || Math.abs(strength) < 1e-5) return;
       const requestedImpulse = strength * mass * dt / indices.length;
       const mu = tune.tireFriction ?? 1.2;
       for (const index of indices) {
         const state = wheelStates[index];
         if (!state?.contact) continue;
-        // Engine and brakes share the tyre friction budget with cornering. This
-        // prevents infinite grip when steering hard while accelerating/braking.
+        // Reserve part of the tyre's friction circle for lateral force: full
+        // engine torque must not make steering disappear on AWD cars.
         const surfaceGrip = THREE.MathUtils.clamp(state.surface?.grip ?? 1, 0.2, 1.4);
-        const maxImpulse = Math.max(0, state.normalLoad || 0) * mu * surfaceGrip * dt;
+        const maxImpulse = Math.max(0, state.normalLoad || 0) * mu * surfaceGrip * dt
+          * THREE.MathUtils.clamp(gripBudget, 0.2, 1);
         const wheelImpulse = THREE.MathUtils.clamp(requestedImpulse, -maxImpulse, maxImpulse);
         longitudinalImpulseByWheel[index] += Math.abs(wheelImpulse);
         body.applyImpulseAtPoint(
@@ -564,20 +612,20 @@ export class Physics {
     if (wheelSpecs.length && grounded.length) {
       if (tune.drivetrain === 'awd' && frontDriveWheels.length && rearDriveWheels.length) {
         const frontBias = THREE.MathUtils.clamp(tune.frontDriveBias ?? 0.5, 0.25, 0.75);
-        applyWheelImpulse(frontDriveWheels, forward.x, forward.z, driveAcceleration * frontBias);
-        applyWheelImpulse(rearDriveWheels, forward.x, forward.z, driveAcceleration * (1 - frontBias));
+        applyWheelImpulse(frontDriveWheels, forward.x, forward.z, driveAcceleration * frontBias, tune.driveGripUsageLimit ?? 0.76);
+        applyWheelImpulse(rearDriveWheels, forward.x, forward.z, driveAcceleration * (1 - frontBias), tune.driveGripUsageLimit ?? 0.76);
       } else {
-        applyWheelImpulse(powered, forward.x, forward.z, driveAcceleration);
+        applyWheelImpulse(powered, forward.x, forward.z, driveAcceleration, tune.driveGripUsageLimit ?? 0.76);
       }
       if (brakeAcceleration > 0) {
         const brakeSign = forwardSpeed === 0 ? 0 : -Math.sign(forwardSpeed);
-        applyWheelImpulse(grounded, forward.x * brakeSign, forward.z * brakeSign, brakeAcceleration);
+        applyWheelImpulse(grounded, forward.x * brakeSign, forward.z * brakeSign, brakeAcceleration, tune.brakingGripUsageLimit ?? 0.92);
       }
       if (handbrake && Math.abs(forwardSpeed) > 0.2) {
         const rear = grounded.filter(index => !wheelSpecs[index].front);
         const brakeWheels = rear.length ? rear : grounded;
         const brakeSign = -Math.sign(forwardSpeed);
-        applyWheelImpulse(brakeWheels, forward.x * brakeSign, forward.z * brakeSign, 5.5);
+        applyWheelImpulse(brakeWheels, forward.x * brakeSign, forward.z * brakeSign, 5.5, tune.handbrakeGripUsageLimit ?? 0.82);
       }
     } else if (!wheelSpecs.length) {
       // Compatibility path for simple test bodies/vehicles without wheel rigs.
