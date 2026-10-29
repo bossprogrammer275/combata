@@ -12,11 +12,24 @@ Procedural JavaScript mesh generators are deprecated. All buildings, props, envi
 - **Rendering**: Three.js PBR (`MeshStandardMaterial` / `MeshPhysicalMaterial`) with automatic environment map reflections and dynamic time-of-day atmospheric lighting.
 - **Raycasting & LOS**: `three-mesh-bvh` provides mesh-accurate BVH acceleration for weapon hitscans, bullet penetration, camera occlusion avoidance, and line-of-sight checks.
 - **Movement Colliders**: Solid AABBs are indexed for player, civilian and vehicle movement; climbable fences are both physical obstacles and interaction targets.
-- **Physics**: Rapier 3D (WASM) handles the player's character controller, static-world collision and dynamic vehicle chassis. Cars use mass-bearing rigid bodies, CCD, ground raycasts at the four GLB wheel pivots, spring/damper suspension impulses, wheel-contact throttle/braking and per-wheel lateral tyre forces. The chassis is still simplified (no per-wheel rigid bodies, full drivetrain/gears, differential or engine torque curve).
+- **Physics**: Rapier 3D (WASM) handles the player's character controller, static-world collision and dynamic vehicle chassis. Cars use mass-bearing rigid bodies, CCD, ground raycasts at the four GLB wheel pivots, spring/damper suspension impulses, wheel-contact throttle/braking and per-wheel lateral tyre forces. Chassis pitch and roll are dynamic, with a tuned recovery assist. The model is still simplified: wheels are suspension/force points rather than separate rigid bodies, and full gearboxes, differentials and engine torque curves are not implemented.
+- **Vehicle handling**: each car has its own mass, drivetrain, acceleration, braking, top speed, steering angle, tyre grip, handbrake grip, suspension and stability tune. The GLB's forward-axis correction is kept separate from the actual travel heading so imported cars accelerate in the direction their nose points.
 - **Collision selection**: valid GLB `col_*` proxies first; dedicated tree/lamp and explicit per-world `collisionSize`/`collisionH` overrides next; otherwise the runtime uses the sibling `*_col.json` manifest, then purpose-built fallbacks (including split building walls with doorway openings).
+- **Road collision**: road, sidewalk and curb strips keep oriented footprints. Their large world-space AABBs are only broad-phase bounds; player movement, nearby-object checks and raycasts test the real rotated strip so empty corners do not become invisible walls.
 - **Vehicle collision**: the chassis is a dynamic Rapier body with wheel clearance; wheel contact rays exclude their own chassis. The game keeps a swept-AABB controller as fallback if Rapier initialization fails.
 
 ---
+
+### In-game vehicle profiles
+
+These are gameplay tuning values, not claims about exact real-world performance. Units are metres, seconds and kilograms.
+
+| Profile | Mass | Drive | Acceleration tune | Speed cap | Handling focus |
+|---|---:|---|---:|---:|---|
+| Lambo | 1,480 kg | Rear-wheel drive | 12.5 m/s² | 64 m/s (about 230 km/h) | Fast response, stronger rear grip, loose handbrake |
+| Cybertruck | 3,050 kg | All-wheel drive | 8.8 m/s² | 40 m/s (about 144 km/h) | Heavier feel, firmer suspension, calmer steering |
+
+Controls in the current game: **W/Up** throttle, **S/Down** brake/reverse, **A/D** or **Left/Right** steering, **Space** handbrake, and **E** to enter or exit.
 
 ## 2. GLB Model Authoring Specifications
 
