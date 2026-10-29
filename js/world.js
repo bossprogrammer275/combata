@@ -104,9 +104,11 @@ export class World {
   mCorrugated(tint) { return this._mat('corr' + (tint || ''), () => new THREE.MeshStandardMaterial({ map: TEX.makeCorrugatedTexture(512, tint || [126, 128, 124]), roughness: .55, metalness: .7 })); }
   mSidewalk() { return this._mat('walk', () => new THREE.MeshStandardMaterial({ map: TEX.makeSidewalkTexture(), roughness: .95, metalness: 0 })); }
   mRoad() { return this._mat('road', () => {
-    const tex = new THREE.TextureLoader().load('./data/models/textures/roadtex.jpg', (t) => { t.colorSpace = THREE.SRGBColorSpace; });
+    // Keep paint out of the asphalt bitmap. Lane markings are generated as
+    // separate geometry from the authored road polylines so they stop at junctions.
+    const tex = TEX.makeRoadTexture(1024, false);
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    return new THREE.MeshStandardMaterial({ map: tex, roughness: .92, metalness: 0, side: THREE.DoubleSide });
+    return new THREE.MeshStandardMaterial({ map: tex, roughness: .94, metalness: 0, side: THREE.DoubleSide });
   }); }
   mCurb() { return this._mat('curb', () => new THREE.MeshStandardMaterial({ map: TEX.makeConcreteTexture(256, [142, 142, 140]), roughness: .9, metalness: 0 })); }
   mSand() { return this._mat('sand', () => new THREE.MeshStandardMaterial({ map: TEX.makeSandTexture(), roughness: .98, metalness: 0 })); }
