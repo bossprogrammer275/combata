@@ -368,9 +368,9 @@ export class World {
           let acc = 0;
           for (let i = 0; i < L; i++) {
             const u = i === 0 ? 0 : acc / totalLen;
-            positions.push(r.left[i].x, r.y, r.left[i].z);
+            positions.push(r.left[i].x, r.y + (r.left[i].y || 0), r.left[i].z);
             uvs.push(0, u * (totalLen / 6));
-            positions.push(r.right[i].x, r.y, r.right[i].z);
+            positions.push(r.right[i].x, r.y + (r.right[i].y || 0), r.right[i].z);
             uvs.push(1, u * (totalLen / 6));
             if (i < L - 1) {
               const a = vi, b = vi + 1, c = vi + 2, d = vi + 3;
@@ -1563,6 +1563,7 @@ export class World {
       const roadY = 0.06;
       this._strokeMitered(pts, ch.W, roadY, roadMat, ch.closed);
       this._addRoadSurfaceColliders(pts, ch.W, roadY, ch.closed, 0.05);
+      if (ch.guardrails) this._buildRoadGuardrails(pts, ch.W, roadY);
 
       this._roadChains.push({ pts, W: ch.W, sidewalk: ch.sidewalk, roadY, closed: ch.closed });
       if (!ch.sidewalk) continue;
@@ -1641,7 +1642,7 @@ export class World {
 
   _offsetRoadPolyline(pts, offset) {
     const n = pts.length;
-    if (n < 2 || Math.abs(offset) < 1e-6) return pts.map(p => ({ x: p.x, z: p.z }));
+    if (n < 2 || Math.abs(offset) < 1e-6) return pts.map(p => ({ x: p.x, z: p.z, y: p.y || 0 }));
     return pts.map((p, i) => {
       const prev = pts[Math.max(0, i - 1)];
       const next = pts[Math.min(n - 1, i + 1)];
@@ -1663,7 +1664,7 @@ export class World {
         const miterLen = Math.hypot(nx, nz);
         if (miterLen > 2.2) { nx *= 2.2 / miterLen; nz *= 2.2 / miterLen; }
       }
-      return { x: p.x + nx * offset, z: p.z + nz * offset };
+      return { x: p.x + nx * offset, z: p.z + nz * offset, y: p.y || 0 };
     });
   }
 
@@ -1703,6 +1704,9 @@ export class World {
             const tA = THREE.MathUtils.clamp(ta, 0, 1);
             const tB = THREE.MathUtils.clamp(tb, 0, 1);
             const x = p.x + rx * tA, z = p.z + rz * tA;
+            const yA = THREE.MathUtils.lerp(p.y || 0, p2.y || 0, tA);
+            const yB = THREE.MathUtils.lerp(q.y || 0, q2.y || 0, tB);
+            if (Math.abs(yA - yB) > 1.25) continue;
             addHit(ia, ma.cumulative[ai] + rLen * tA, ib, mb.cumulative[bi] + sLen * tB, x, z);
           }
         }
@@ -1919,7 +1923,11 @@ export class World {
     const ax = pts[i0].x, az = pts[i0].z;
     let ddx = pts[i0 + 1].x - ax, ddz = pts[i0 + 1].z - az;
     const dl = Math.hypot(ddx, ddz) || 1;
-    out.push({ x: ax + ddx / dl * (s - acc), z: az + ddz / dl * (s - acc) });
+    const startT = segLens[i0] > 1e-6 ? THREE.MathUtils.clamp((s - acc) / segLens[i0], 0, 1) : 0;
+    out.push({
+      x: ax + ddx / dl * (s - acc), z: az + ddz / dl * (s - acc),
+      y: THREE.MathUtils.lerp(pts[i0].y || 0, pts[i0 + 1].y || 0, startT),
+    });
     for (let i = i0 + 1; i < L; i++) out.push(pts[i]);
     let rem = e;
     while (out.length > 1) {
@@ -1928,7 +1936,11 @@ export class World {
       if (l <= rem) { out.pop(); rem -= l; }
       else {
         const f = 1 - rem / l;
-        out[out.length - 1] = { x: prev.x + (last.x - prev.x) * f, z: prev.z + (last.z - prev.z) * f };
+        out[out.length - 1] = {
+          x: prev.x + (last.x - prev.x) * f,
+          z: prev.z + (last.z - prev.z) * f,
+          y: THREE.MathUtils.lerp(prev.y || 0, last.y || 0, f),
+        };
         break;
       }
     }
@@ -1936,6 +1948,23 @@ export class World {
   }
 
   // Place road.glb model clones along a polyline, adding thin road collision
+  _buildRoadGuardrails(pts, width, yOffset = 0.06, height = 0.78, thickness = 0.22) {
+    if (!pts || pts.length < 2) return;
+    const positions = [], indices = [];
+    const quad = (a,b,c,d) => { const i=positions.length/3; for(const p of [a,b,c,d]) positions.push(p.x,p.y,p.z); indices.push(i,i+1,i+2,i+2,i+1,i+3); };
+    for(const side of [-1,1]) for(let i=0;i<pts.length-1;i++) {
+      const a=pts[i],b=pts[i+1],dx=b.x-a.x,dz=b.z-a.z,len=Math.hypot(dx,dz); if(len<0.05)continue;
+      const nx=-dz/len,nz=dx/len,p=(v,o,h=0)=>({x:v.x+nx*o,y:(v.y||0)+yOffset+h,z:v.z+nz*o});
+      const inner=side*(width/2-thickness),outer=side*width/2;
+      const ai=p(a,inner),bi=p(b,inner),ao=p(a,outer),bo=p(b,outer),ait=p(a,inner,height),bit=p(b,inner,height),aot=p(a,outer,height),bot=p(b,outer,height);
+      quad(ai,bi,ait,bit); quad(ao,aot,bo,bot); quad(ait,bit,aot,bot);
+    }
+    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.setIndex(indices);geo.computeVertexNormals();
+    const mat=this.mCurb();mat.side=THREE.DoubleSide;mat.needsUpdate=true;
+    const mesh=new THREE.Mesh(geo,mat);mesh.castShadow=true;mesh.receiveShadow=true;this.group.add(mesh);
+    this.roadPhysicsMeshes.push({kind:'barrier',geometry:geo});
+  }
+
   // Stroke a polyline as a solid mitered polygon (correct corners, no gaps) into _ribbonBatch.
   _strokeMitered(pts, w, y, mat, closed = false) {
     const L = pts.length;
