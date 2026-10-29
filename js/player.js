@@ -254,7 +254,9 @@ export class Player {
     const targetVX = dirX * speed, targetVZ = dirZ * speed;
     // accelerate current velocity toward target
     const accel = this.onGround ? (this.sprinting ? 80 : 60) : 14;
-    const accelK = Math.min(accel * dt, 1);
+    // Exponential response is stable across 30/60/144 Hz and avoids abrupt
+    // velocity snaps when a frame stalls.
+    const accelK = 1 - Math.exp(-accel * Math.min(dt, 0.05));
     this.vel.x += (targetVX - this.vel.x) * accelK;
     this.vel.z += (targetVZ - this.vel.z) * accelK;
     // clamp horizontal speed
