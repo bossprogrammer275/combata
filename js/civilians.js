@@ -1,8 +1,6 @@
-// CIVILIANS — living city streets. Pedestrians who walk, idle, flee gunfire,
-// and can be caught in the crossfire (with penalties). Never armed.
+// CIVILIANS — FBX-only, same rig as enemies/player
 import * as THREE from 'three';
 import { Character } from './character.js';
-import { OUTFIT_PRESETS } from './utils/sa-wardrobe.js';
 
 const OUTFITS = ['casual', 'urban', 'cadpat', 'navy'];
 const SHIRTS = [
@@ -42,14 +40,6 @@ export class Civilian {
       weaponTint: [0.15, 0.15, 0.18],
     });
     this.ch.setAppearance({ outfit: OUTFITS[(Math.random() * OUTFITS.length) | 0], glasses: Math.random() < .3, showCap: Math.random() < .4 });
-    // Apply SA Wardrobe preset for modular civilian clothing
-    if (this.ch.wardrobe) {
-      const civPreset = Math.random() > 0.5 ? OUTFIT_PRESETS.casual : OUTFIT_PRESETS.minimal;
-      for (const [slot, item] of Object.entries(civPreset)) {
-        if (item) this.ch.wardrobe.equip(slot, item);
-        else this.ch.wardrobe.unequip(slot);
-      }
-    }
     this.ch.root.position.copy(this.pos);
     this.ch.root.rotation.y = this.yaw;
     this.scene.add(this.ch.root);
@@ -145,6 +135,7 @@ export class Civilian {
       crouch: 0, aim: 0, moveX: 0, moveZ: 1, sprint: 0, lean: 0,
       speed: this.speed, phase: this.phase, weaponType: 'pistol', airborne: 0, landDip: 0
     });
+    if (this.ch.update) this.ch.update(dt);
   }
 }
 

@@ -13,11 +13,18 @@
   /* LEFT TOOL RAIL */
   #toolrail { width:56px; background:var(--panel); border-right:1px solid var(--line); display:flex; flex-direction:column; align-items:center; padding:6px 0; gap:2px; z-index:10; flex-shrink:0; }
   #toolrail .logo { font-size:10px; font-weight:700; color:var(--acc); letter-spacing:1px; padding:6px 0 8px; text-align:center; width:100%; border-bottom:1px solid var(--line); margin-bottom:4px; }
-  #toolrail button { width:40px; height:40px; background:none; border:none; color:var(--dim); border-radius:8px; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; font-size:9px; transition:background .12s,color .12s; }
+  #toolrail button { width:40px; height:40px; background:none; border:none; color:var(--dim); border-radius:8px; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; font-size:9px; transition:background .12s,color .12s; position:relative; }
   #toolrail button svg { width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
   #toolrail button:hover { background:var(--panel2); color:var(--txt); }
   #toolrail button.active { background:rgba(255,210,74,.12); color:var(--acc); }
   #toolrail .rail-sep { width:28px; height:1px; background:var(--line); margin:4px 0; }
+  .tool-group { position:relative; width:40px; }
+  .tool-group .group-btn { width:40px; }
+  .tool-group .group-menu { display:none; position:absolute; left:48px; top:0; background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:4px 0; z-index:100; min-width:160px; box-shadow:0 4px 16px rgba(0,0,0,.5); }
+  .tool-group.open .group-menu { display:block; }
+  .tool-group .group-menu button { width:auto; height:auto; padding:6px 14px; font-size:12px; border-radius:0; display:flex; gap:8px; align-items:center; justify-content:flex-start; }
+  .tool-group .group-menu button:hover { background:rgba(255,210,74,.12); color:var(--acc); }
+  .tool-group .group-menu button.active { color:var(--acc); }
 
   /* CENTER AREA */
   #center { flex:1; display:flex; flex-direction:column; min-width:0; }
@@ -51,9 +58,13 @@
   #canvas-area { flex:1; display:flex; min-height:0; position:relative; }
   #pane2d { flex:1; position:relative; min-width:200px; }
   #canvas2d { position:absolute; inset:0; width:100%; height:100%; display:block; background:#0c0e11; cursor:crosshair; }
-  #pane3d { width:45%; min-width:280px; display:flex; flex-direction:column; border-left:1px solid var(--line); }
-  #view3d { flex:1; min-height:0; position:relative; background:#0c0e11; }
-  #canvas3d { position:absolute; inset:0; width:100%; height:100%; display:block; }
+  #pane3d { flex:1; position:relative; min-width:200px; display:none; }
+  #pane3d.active { display:block; }
+  #pane2d.hidden { display:none; }
+  #canvas3d { position:absolute; inset:0; width:100%; height:100%; display:block; background:#0c0e11; }
+  #viewToggle { position:absolute; top:8px; right:8px; z-index:5; background:var(--acc); color:#111; border:none; border-radius:5px; padding:6px 14px; font-size:12px; font-weight:700; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.5); }
+  #viewToggle:hover { background:#ffe060; }
+  #viewToggle.active { background:#40e0ff; color:#111; }
 
   /* OVERLAYS */
   #coords { position:absolute; left:10px; bottom:8px; color:var(--dim); font-size:11px; background:rgba(0,0,0,.6); padding:3px 8px; border-radius:4px; pointer-events:none; }
@@ -107,34 +118,7 @@
   /* ASSET EDITOR (fullscreen overlay) */
   #assetEditor { display:none; position:fixed; inset:0; z-index:100; background:#0c0e11; flex-direction:column; }
 
-  /* FULLSCREEN 3D MODE */
-  body.fullscreen3d #toolrail, body.fullscreen3d #topbar, body.fullscreen3d #toolopts, body.fullscreen3d #rightpanel { display:none !important; }
-  body.fullscreen3d #center { flex:1; }
-  body.fullscreen3d #canvas-area { flex:1; }
-  body.fullscreen3d #pane2d { display:none; }
-  body.fullscreen3d #pane3d { width:100%; border-left:none; }
-  #float-toolbar { display:none; position:fixed; left:12px; top:50%; transform:translateY(-50%); z-index:50; background:rgba(24,28,34,.92); backdrop-filter:blur(8px); border:1px solid var(--line); border-radius:12px; padding:6px; flex-direction:column; gap:2px; }
-  body.fullscreen3d #float-toolbar { display:flex; }
-  #float-inspector { display:none; position:fixed; right:12px; top:50%; transform:translateY(-50%); z-index:50; background:rgba(24,28,34,.92); backdrop-filter:blur(8px); border:1px solid var(--line); border-radius:12px; padding:10px; width:220px; max-height:70vh; overflow-y:auto; color:var(--txt); font-size:12px; }
-  body.fullscreen3d #float-inspector.has-sel { display:block; }
-  #float-inspector h4 { margin:0 0 6px; font-size:13px; color:var(--acc); }
-  #float-inspector label { display:block; margin:3px 0 1px; color:var(--dim); font-size:10px; text-transform:uppercase; letter-spacing:.5px; }
-  #float-inspector input, #float-inspector select { width:100%; box-sizing:border-box; background:rgba(255,255,255,.06); border:1px solid var(--line); border-radius:4px; color:var(--txt); padding:4px 6px; font-size:12px; }
-  #float-inspector .fi-row { display:flex; gap:4px; }
-  #float-inspector .fi-row input { flex:1; }
-  #float-inspector .fi-btn { margin-top:6px; padding:4px 8px; background:rgba(255,255,255,.08); border:1px solid var(--line); border-radius:4px; color:var(--txt); cursor:pointer; font-size:11px; }
-  #float-toolbar button { width:42px; height:42px; background:none; border:none; color:var(--dim); border-radius:8px; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; font-size:9px; transition:background .12s,color .12s; }
-  #float-toolbar button svg { width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
-  #float-toolbar button:hover { background:rgba(255,255,255,.08); color:var(--txt); }
-  #float-toolbar button.active { background:rgba(255,210,74,.15); color:var(--acc); }
-  #float-toolbar .ft-sep { width:28px; height:1px; background:var(--line); margin:2px auto; }
-  #float-exit { position:fixed; top:12px; right:12px; z-index:50; background:rgba(24,28,34,.9); backdrop-filter:blur(8px); border:1px solid var(--line); border-radius:8px; padding:6px 14px; color:var(--txt); cursor:pointer; font-size:12px; display:none; }
-  body.fullscreen3d #float-exit { display:block; }
-  #float-exit:hover { border-color:var(--acc); color:var(--acc); }
-  #float-coords { position:fixed; left:12px; bottom:12px; z-index:50; color:var(--dim); font-size:11px; background:rgba(0,0,0,.6); padding:3px 8px; border-radius:4px; display:none; pointer-events:none; }
-  body.fullscreen3d #float-coords { display:block; }
-  #float-hint { position:fixed; right:12px; bottom:12px; z-index:50; color:#4a5158; font-size:11px; display:none; pointer-events:none; }
-  body.fullscreen3d #float-hint { display:block; }
+
 </style>
 </head>
 <body>
@@ -142,21 +126,48 @@
 <div id="toolrail">
   <div class="logo">MAP</div>
   <button data-tool="select" class="active" title="Select / move"><svg><path d="M3 3l7 18 3-8 8-3z"/></svg><span>Sel</span></button>
-  <button data-tool="road" title="Draw road"><svg><path d="M2 20 C8 12, 16 12, 22 20"/><path d="M2 16 C8 8, 16 8, 22 16"/></svg><span>Road</span></button>
-  <button data-tool="pad" title="Place pad"><svg><rect x="3" y="3" width="18" height="18" rx="2"/></svg><span>Pad</span></button>
-  <button data-tool="building" title="Place building"><svg><path d="M3 21V7l9-4 9 4v14"/><path d="M9 21v-6h6v6"/></svg><span>Bldg</span></button>
-  <button data-tool="prop" title="Place prop"><svg><rect x="5" y="5" width="14" height="14" rx="3"/><circle cx="12" cy="12" r="3"/></svg><span>Prop</span></button>
-  <button data-tool="vehicle" title="Place vehicle"><svg><rect x="2" y="8" width="20" height="8" rx="3"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Car</span></button>
-  <button data-tool="landmark" title="Place landmark"><svg><path d="M12 2l8 18H4z"/></svg><span>Lmrk</span></button>
-  <div class="rail-sep"></div>
-  <button data-tool="text" title="Add text sign"><svg><path d="M4 7V4h16v3"/><path d="M12 4v16"/><path d="M8 20h8"/></svg><span>Text</span></button>
-  <button data-tool="tree" title="Plant tree"><svg><circle cx="12" cy="8" r="5"/><path d="M12 13v8"/></svg><span>Tree</span></button>
-  <button data-tool="spawn" title="Enemy spawn"><svg><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg><span>Spawn</span></button>
-  <button data-tool="cover" title="Cover point"><svg><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 12h8"/></svg><span>Cover</span></button>
-  <button data-tool="loot" title="Loot drop"><svg><path d="M12 2l6 6-6 6-6-6z"/><path d="M12 14v8"/></svg><span>Loot</span></button>
-  <button data-tool="startpoint" title="Player start"><svg><polygon points="12,2 15,10 12,8 9,10"/><path d="M12 10v12"/></svg><span>Start</span></button>
-  <div class="rail-sep"></div>
   <button data-tool="erase" title="Delete object"><svg><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12"/><path d="M9 7V4h6v3"/></svg><span>Del</span></button>
+  <div class="rail-sep"></div>
+  <!-- INFRA group -->
+  <div class="tool-group" data-group="infra">
+    <button class="group-btn" title="Infrastructure tools"><svg><path d="M2 20 C8 12, 16 12, 22 20"/><path d="M2 16 C8 8, 16 8, 22 16"/></svg><span>Infra</span></button>
+    <div class="group-menu">
+      <button data-tool="road">Road</button>
+      <button data-tool="pad">Pad</button>
+    </div>
+  </div>
+  <!-- BUILD group -->
+  <div class="tool-group" data-group="build">
+    <button class="group-btn" title="Buildings & structures"><svg><path d="M3 21V7l9-4 9 4v14"/><path d="M9 21v-6h6v6"/></svg><span>Build</span></button>
+    <div class="group-menu">
+      <button data-tool="building">Procedural Building</button>
+      <button data-tool="glb">GLB Model</button>
+      <button data-tool="landmark">Landmark</button>
+    </div>
+  </div>
+  <!-- PROPS group -->
+  <div class="tool-group" data-group="props">
+    <button class="group-btn" title="Props & nature"><svg><rect x="5" y="5" width="14" height="14" rx="3"/><circle cx="12" cy="12" r="3"/></svg><span>Props</span></button>
+    <div class="group-menu">
+      <button data-tool="prop">Procedural Prop</button>
+      <button data-tool="tree">Tree</button>
+      <button data-tool="vehicle">Vehicle</button>
+    </div>
+  </div>
+  <!-- MAP group -->
+  <div class="tool-group" data-group="map">
+    <button class="group-btn" title="Map info & markers"><svg><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg><span>Map</span></button>
+    <div class="group-menu">
+      <button data-tool="text">Text Sign</button>
+      <button data-tool="spawn">Enemy Spawn</button>
+      <button data-tool="cover">Cover Point</button>
+      <button data-tool="loot">Loot Drop</button>
+      <button data-tool="transit">Transit Stop</button>
+      <button data-tool="named">Named Spot</button>
+      <button data-tool="react">Reactive Prop</button>
+      <button data-tool="startpoint">Player Start</button>
+    </div>
+  </div>
 </div>
 
 <!-- CENTER -->
@@ -174,11 +185,7 @@
     <button id="btnValidate">Validate</button>
     <button id="btnOpenGame" class="primary">Play</button>
     <div class="sep"></div>
-    <label>Quality <select id="previewQ"><option>high</option><option>low</option><option>ultra-low</option></select></label>
-    <label><input type="checkbox" id="autoPreview" checked> Auto</label>
-    <button id="btnRebuild">Rebuild 3D</button>
     <button id="btnFit">Fit</button>
-    <button id="btnFullscreen3d" title="Toggle fullscreen 3D editing mode">3D Full</button>
     <div class="spacer"></div>
     <div class="status-group">
       <span id="saveState"></span>
@@ -208,8 +215,11 @@
       <div id="legend"></div>
     </div>
     <div id="pane3d">
-      <div id="view3d"><canvas id="canvas3d"></canvas></div>
+      <canvas id="canvas3d"></canvas>
+      <div id="coords3d" style="position:absolute;left:10px;bottom:8px;color:var(--dim);font-size:11px;background:rgba(0,0,0,.6);padding:3px 8px;border-radius:4px;pointer-events:none;"></div>
+      <div id="hint3d" style="position:absolute;right:10px;bottom:8px;color:#4a5158;font-size:11px;pointer-events:none;">LMB orbit · RMB pan · Scroll zoom</div>
     </div>
+    <button id="viewToggle" title="Toggle 2D/3D view">3D</button>
   </div>
 </div>
 
@@ -224,29 +234,6 @@
     </div>
   </div>
 </div>
-
-<!-- FLOATING TOOLBAR (fullscreen 3D) -->
-<div id="float-toolbar">
-  <button data-tool="select" class="active" title="Select"><svg><path d="M3 3l7 18 3-8 8-3z"/></svg><span>Sel</span></button>
-  <button data-tool="road" title="Road"><svg><path d="M2 20 C8 12, 16 12, 22 20"/><path d="M2 16 C8 8, 16 8, 22 16"/></svg><span>Road</span></button>
-  <button data-tool="pad" title="Pad"><svg><rect x="3" y="3" width="18" height="18" rx="2"/></svg><span>Pad</span></button>
-  <button data-tool="building" title="Building"><svg><path d="M3 21V7l9-4 9 4v14"/><path d="M9 21v-6h6v6"/></svg><span>Bldg</span></button>
-  <button data-tool="prop" title="Prop"><svg><rect x="5" y="5" width="14" height="14" rx="3"/><circle cx="12" cy="12" r="3"/></svg><span>Prop</span></button>
-  <button data-tool="vehicle" title="Vehicle"><svg><rect x="2" y="8" width="20" height="8" rx="3"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Car</span></button>
-  <button data-tool="text" title="Text"><svg><path d="M4 7V4h16v3"/><path d="M12 4v16"/><path d="M8 20h8"/></svg><span>Text</span></button>
-  <div class="ft-sep"></div>
-  <button data-tool="tree" title="Tree"><svg><circle cx="12" cy="8" r="5"/><path d="M12 13v8"/></svg><span>Tree</span></button>
-  <button data-tool="spawn" title="Spawn"><svg><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg><span>Spawn</span></button>
-  <button data-tool="cover" title="Cover"><svg><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 12h8"/></svg><span>Cover</span></button>
-  <button data-tool="loot" title="Loot"><svg><path d="M12 2l6 6-6 6-6-6z"/><path d="M12 14v8"/></svg><span>Loot</span></button>
-  <button data-tool="startpoint" title="Start"><svg><polygon points="12,2 15,10 12,8 9,10"/><path d="M12 10v12"/></svg><span>Start</span></button>
-  <div class="ft-sep"></div>
-  <button data-tool="erase" title="Delete"><svg><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12"/><path d="M9 7V4h6v3"/></svg><span>Del</span></button>
-</div>
-<button id="float-exit">Exit 3D</button>
-<div id="float-coords"></div>
-<div id="float-hint">Click=select · Drag=move · Q/E=rotate · Scroll=zoom · Middle-click=pan</div>
-<div id="float-inspector"></div>
 
 <div id="assetEditor" style="display:none;position:fixed;inset:0;z-index:100;background:#0c0e11;flex-direction:column;">
   <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--panel);border-bottom:1px solid var(--line);">
@@ -270,15 +257,15 @@
   </div>
 </div>
 
-<script type="importmap">{"imports":{"three":"./js/lib/three.module.js"}}</script>
+<script type="importmap">{"imports":{"three":"./js/lib/three.module.js","three-mesh-bvh":"./js/lib/three-mesh-bvh.module.js"}}</script>
 <script type="module">
 import * as THREE from 'three';
 import { World } from './js/world.js';
 
 // ============ state ============
 const $ = (s) => document.querySelector(s);
-const catOrder = ['roads','vehicles','pads','buildings','props','landmarks','trees','spawns','cover','loot','transit','named','reactives'];
-const catLabel = { roads:'Roads', vehicles:'Vehicles', pads:'Pads', buildings:'Buildings', props:'Props', landmarks:'Landmarks', trees:'Trees', spawns:'Spawns', cover:'Cover', loot:'Loot', transit:'Transit stops', named:'Named spots', reactives:'Reactives' };
+const catOrder = ['roads','glbAssets','vehicles','pads','buildings','props','landmarks','trees','spawns','cover','loot','transit','named','reactives'];
+const catLabel = { roads:'Roads', glbAssets:'GLB Models', vehicles:'Vehicles', pads:'Pads', buildings:'Buildings', props:'Props', landmarks:'Landmarks', trees:'Trees', spawns:'Spawns', cover:'Cover', loot:'Loot', transit:'Transit stops', named:'Named spots', reactives:'Reactives' };
 const TOOL_HINTS = {
   select: 'click=select · drag=move · Q/E=rotate · drag blue ring=rotate · drag gold corners=resize',
   road: 'click=add point · smooth curves auto-generated · Enter/dblclick=finish · esc=cancel',
@@ -297,9 +284,10 @@ const TOOL_HINTS = {
   vehicle: 'click=place the vehicle',
   startpoint: 'click=set player start',
   erase: 'click an object to delete it',
+  glb: 'click=place a GLB model · set url + targetH in inspector',
 };
 const LEGEND = [
-  ['Road', '#5a5650'], ['Pad', '#7a7468'], ['Building', '#827870'], ['Vehicle', '#c06060'],
+  ['Road', '#5a5650'], ['GLB Model', '#60c0e0'], ['Pad', '#7a7468'], ['Building', '#827870'], ['Vehicle', '#c06060'],
   ['Tree', '#3a6a3a'], ['Weed', '#4a7a4a'], ['Prop', '#9a9fa6'], ['Landmark', '#e8a040'],
   ['Spawn', '#e05050'], ['Cover', '#e8a040'], ['Loot', '#ffd24a'], ['Transit', '#4ab8ff'],
   ['Named', '#ffd24a'], ['Reactive', '#c060e0'],
@@ -309,100 +297,20 @@ const LIBRARY = [
     { tool:'road', name:'Road', desc:'Click points to draw a road; Enter to finish', color:'#5a5650' },
     { tool:'pad', name:'Pad', desc:'Drag to place a flat plaza pad', color:'#7a7468' },
   ]},
-  { cat: 'Buildings — Simple', items: [
-    { tool:'building', kind:'box', name:'Box', desc:'Simple block; set W/D/H in inspector', color:'#827870' },
-    { tool:'building', kind:'tower', name:'Tower', desc:'Multi-floor tower', color:'#666d7a' },
-    { tool:'building', kind:'shell', name:'Shell', desc:'U-shaped shell with opening', color:'#7a726a' },
-    { tool:'building', kind:'container', name:'Container', desc:'Enterable container; drops loot', color:'#5a6a5a' },
+  { cat: 'GLB Models', items: [
+    { tool:'glb', name:'GLB Model', desc:'Import any GLB; set url + targetH in inspector', color:'#60c0e0' },
   ]},
-  { cat: 'Buildings — Houses', items: [
-    { tool:'building', kind:'house', name:'House', desc:'Residential house with gable roof', color:'#8a6a4a' },
-    { tool:'building', kind:'housedetailed', name:'Detailed House', desc:'House with balcony & shutters', color:'#9a7a5a' },
-    { tool:'building', kind:'townhouse', name:'Townhouse', desc:'Narrow townhouse', color:'#7a6a58' },
-    { tool:'building', kind:'rowhouse', name:'Row House', desc:'Attached row house', color:'#8a7260' },
-    { tool:'building', kind:'lcorner', name:'L-Corner', desc:'L-shaped corner building', color:'#7a7268' },
-    { tool:'building', kind:'luxuryvilla', name:'Luxury Villa', desc:'Big villa with pool & garden', color:'#c8a878' },
-  ]},
-  { cat: 'Buildings — Shops & Retail', items: [
-    { tool:'building', kind:'shop', name:'Shopfront', desc:'Store with glass display & awning', color:'#a57050' },
-    { tool:'building', kind:'store', name:'Store', desc:'Retail store with signage', color:'#7a7060' },
-    { tool:'building', kind:'supermarket', name:'Supermarket', desc:'Large retail building', color:'#8a8a80' },
-    { tool:'building', kind:'mall', name:'Mall', desc:'Shopping mall', color:'#8a8a82' },
-  ]},
-  { cat: 'Buildings — Residential', items: [
-    { tool:'building', kind:'apartment', name:'Apartment', desc:'Multi-story block with balconies', color:'#7a7a82' },
-    { tool:'building', kind:'motel', name:'Motel', desc:'Two-story motel with corridor', color:'#8a8070' },
-  ]},
-  { cat: 'Buildings — Tall', items: [
-    { tool:'building', kind:'highrise', name:'Highrise', desc:'Tall highrise tower', color:'#6a6a74' },
-    { tool:'building', kind:'penthousetower', name:'Penthouse Tower', desc:'Luxury tower with helipad', color:'#5a6a82' },
-    { tool:'building', kind:'artdeco', name:'Art Deco Hotel', desc:'Art deco style hotel', color:'#b0a080' },
-  ]},
-  { cat: 'Buildings — Services', items: [
-    { tool:'building', kind:'hospital', name:'Hospital', desc:'Hospital building', color:'#8a8a90' },
-    { tool:'building', kind:'bank', name:'Bank', desc:'Bank with columns', color:'#8a8a84' },
-    { tool:'building', kind:'policestation', name:'Police Station', desc:'LSPD police station', color:'#4a5a8a' },
-    { tool:'building', kind:'firestation', name:'Fire Station', desc:'Fire station with garage', color:'#a04030' },
-    { tool:'building', kind:'school', name:'School', desc:'School building', color:'#a09070' },
-    { tool:'building', kind:'warehouse', name:'Warehouse', desc:'Industrial warehouse', color:'#6a6a62' },
-  ]},
-  { cat: 'Buildings — Entertainment', items: [
-    { tool:'building', kind:'nightclub', name:'Nightclub', desc:'Nightclub / club building', color:'#6a3a7a' },
-    { tool:'building', kind:'stadium', name:'Stadium', desc:'Sports stadium', color:'#6a7a8a' },
-    { tool:'building', kind:'mosque', name:'Mosque', desc:'Mosque building', color:'#8a8a7a' },
-  ]},
-  { cat: 'Buildings — Transport', items: [
-    { tool:'building', kind:'gasstation', name:'Gas Station', desc:'Fuel station with canopy', color:'#7a8070' },
-    { tool:'building', kind:'modernpetrol', name:'Modern Petrol', desc:'Modern fuel station', color:'#5080a0' },
-    { tool:'building', kind:'parking', name:'Parking', desc:'Multi-story parking garage', color:'#7a7a78' },
-    { tool:'building', kind:'trainstation', name:'Train Station', desc:'Train station building', color:'#9a8a70' },
-    { tool:'building', kind:'transitstation', name:'Transit Station', desc:'Public transit hub', color:'#4a8aaa' },
-    { tool:'building', kind:'marinapier', name:'Marina Pier', desc:'Waterfront marina pier', color:'#5088aa' },
-    { tool:'building', kind:'airporthangar', name:'Airport Hangar', desc:'Large airplane hangar', color:'#8a8a88' },
-  ]},
-  { cat: 'Props — Street', items: [
-    { tool:'prop', kind:'bench', name:'Bench', desc:'Wooden sidewalk bench', color:'#8a6a4a' },
-    { tool:'prop', kind:'lamp', name:'Street Lamp', desc:'Light pole', color:'#d0c060' },
-    { tool:'prop', kind:'hydrant', name:'Hydrant', desc:'Fire hydrant', color:'#a83228' },
-    { tool:'prop', kind:'trashcan', name:'Trash Can', desc:'Public trash can', color:'#5a5a52' },
-    { tool:'prop', kind:'mailbox', name:'Mailbox', desc:'Street mailbox', color:'#3a5a8a' },
-    { tool:'prop', kind:'busstop', name:'Bus Stop', desc:'Bus stop shelter', color:'#5a6a7a' },
-    { tool:'prop', kind:'trafficlight', name:'Traffic Light', desc:'Traffic signal', color:'#4a4a42' },
-    { tool:'prop', kind:'pole', name:'Pole', desc:'Utility pole', color:'#6a5a4a' },
-    { tool:'prop', kind:'planter', name:'Planter', desc:'Street planter box', color:'#4a7a3a' },
-    { tool:'prop', kind:'bollard', name:'Bollard', desc:'Short protective post', color:'#7a7a72' },
-  ]},
-  { cat: 'Props — Cargo', items: [
-    { tool:'prop', kind:'crate', name:'Crate', desc:'Wooden crate', color:'#a08050' },
-    { tool:'prop', kind:'woodcrate', name:'Wood Crate', desc:'Wooden shipping crate', color:'#8a6a40' },
-    { tool:'prop', kind:'crates', name:'Crate Stack', desc:'Stack of crates', color:'#907040' },
-    { tool:'prop', kind:'box', name:'Box', desc:'Generic box prop', color:'#9a8a6a' },
-    { tool:'prop', kind:'barrel', name:'Barrel', desc:'Fuel barrel; reactive', color:'#c07050' },
-    { tool:'prop', kind:'barrels', name:'Barrel Cluster', desc:'Cluster of explosive barrels', color:'#b06040' },
-    { tool:'prop', kind:'stairs', name:'Stairs', desc:'Portable metal stairs', color:'#6a6a62' },
-  ]},
-  { cat: 'Props — Outdoor', items: [
-    { tool:'prop', kind:'dumpster', name:'Dumpster', desc:'Metal dumpster bin', color:'#466e46' },
-    { tool:'prop', kind:'billboard', name:'Billboard', desc:'Advertising billboard', color:'#8a8a82' },
-    { tool:'prop', kind:'umbrella', name:'Umbrella', desc:'Patio umbrella', color:'#c04040' },
-    { tool:'prop', kind:'cafetable', name:'Cafe Table', desc:'Outdoor cafe table', color:'#8a7a60' },
-    { tool:'prop', kind:'wreck', name:'Wreck', desc:'Destroyed vehicle wreck', color:'#5a5a52' },
-  ]},
-  { cat: 'Landmarks', items: [
-    { tool:'landmark', kind:'fuel', name:'Fuel Tank', desc:'Explosive fuel tank', color:'#e06050' },
-    { tool:'landmark', kind:'port', name:'Port', desc:'Docks / port structure', color:'#60a8e0' },
-    { tool:'landmark', kind:'trainstation', name:'Train Station', desc:'Train station landmark', color:'#e8a040' },
-    { tool:'landmark', kind:'warehouse', name:'Warehouse', desc:'Big warehouse landmark', color:'#a08050' },
-    { tool:'landmark', kind:'transit', name:'Transit', desc:'Transit station landmark', color:'#4ab8ff' },
-    { tool:'landmark', kind:'mall', name:'Mall', desc:'Shopping mall landmark', color:'#8a8a82' },
-    { tool:'landmark', kind:'stadium', name:'Stadium', desc:'Sports stadium landmark', color:'#6a7a8a' },
-    { tool:'landmark', kind:'mosque', name:'Mosque', desc:'Mosque landmark', color:'#8a8a7a' },
-    { tool:'landmark', kind:'policestation', name:'Police Station', desc:'LSPD HQ landmark', color:'#4a5a8a' },
-    { tool:'landmark', kind:'nightclub', name:'Nightclub', desc:'Nightclub landmark', color:'#6a3a7a' },
-    { tool:'landmark', kind:'firestation', name:'Fire Station', desc:'Fire station landmark', color:'#a04030' },
-    { tool:'landmark', kind:'school', name:'School', desc:'School landmark', color:'#a09070' },
-    { tool:'landmark', kind:'hill', name:'Hill', desc:'Terrain hill', color:'#4a6a3a' },
-    { tool:'landmark', kind:'rockfield', name:'Rock Field', desc:'Scattered rocks', color:'#7a7a72' },
+  { cat: 'GLB Presets', items: [
+    { tool:'glb', kind:'building', name:'low_poly_urban_building', desc:'scene.gltf — targetH=12m', color:'#60c0e0' },
+    { tool:'glb', kind:'fence', name:'Fence Section', desc:'Jarlan Perez — targetH=1.2m', color:'#60c0e0' },
+    { tool:'glb', kind:'light', name:'low_poly_street_light', desc:'GLB — targetH=4.5m', color:'#60c0e0' },
+    { tool:'glb', kind:'tree', name:'tree_low-poly', desc:'GLB — targetH=7m', color:'#60c0e0' },
+    { tool:'glb', kind:'coconut', name:'coconut_tree_low_poly', desc:'GLB — targetH=9m', color:'#60c0e0' },
+    { tool:'glb', kind:'lambo', name:'CAR Model Ignition Labs', desc:'GLB — targetH=1.5m', color:'#c06060' },
+    { tool:'glb', kind:'cybertruck', name:'tesla_cybertruk_low_poly', desc:'scene.gltf — targetH=2m', color:'#c06060' },
+    { tool:'glb', kind:'hub', name:'ilorin_innovation_hub', desc:'GLB — Ilorin Innovation Hub, targetH=14m', color:'#4ac08a' },
+    { tool:'glb', kind:'barrier', name:'concrete_road_barrier', desc:'Photoscanned GLB — targetH=1.2m', color:'#8a8a82' },
+    { tool:'glb', kind:'skyscraper', name:'low_poly_skyscraper', desc:'GLB — targetH=25m', color:'#6a6a74' },
   ]},
   { cat: 'Vehicles', items: [
     { tool:'vehicle', kind:'car', name:'Car', desc:'Fast civilian car — drivable', color:'#c06060' },
@@ -413,7 +321,7 @@ const LIBRARY = [
     { tool:'tree', kind:'live', name:'Tree', desc:'Living tree', color:'#3a6a3a' },
     { tool:'tree', kind:'dead', name:'Dead Tree', desc:'Dry dead tree', color:'#6a5a3a' },
   ]},
-  { cat: 'Combat & loot', items: [
+  { cat: 'Combat & Loot', items: [
     { tool:'spawn', name:'Enemy Spawn', desc:'Where enemies appear', color:'#e05050' },
     { tool:'cover', name:'Cover Point', desc:'AI cover spot', color:'#e8a040' },
     { tool:'loot', name:'Loot Drop', desc:'Item drop spot', color:'#ffd24a' },
@@ -487,7 +395,7 @@ const newScene = () => ({
   bounds: 900,
   startPoint: { x: 0, z: 70, yaw: Math.PI },
   ground: { size: 2600, color: 0x4a3a2a },
-  roads: [], vehicles: [], pads: [], buildings: [], props: [], landmarks: [],
+  roads: [], glbAssets: [], vehicles: [], pads: [], buildings: [], props: [], landmarks: [],
   trees: [], spawns: [], cover: [], loot: [], transit: [], named: [], reactives: [],
 });
 function normalizeScene(s) {
@@ -507,8 +415,6 @@ let view = { cx: 0, cz: 0, scale: 2.2 };  // px per meter
 let roadDraft = null;       // {points:[[x,z],...], replaceCat, replaceIdx}
 let dragRect = null;        // {cat, x0,z0,x1,z1, kind fields}
 let dragged = null;         // {cat, idx, ox, oz} while moving selection
-let selBox3d = null;
-let pScene = new THREE.Scene();
 let issues = [];
 
 // ============ scene helpers ============
@@ -534,6 +440,11 @@ function bRect(cat, item) {
   if (cat === 'buildings' || cat === 'pads') return worldRect(item);
   if (cat === 'vehicles') return worldRect({ x: item.x, z: item.z, w: ({ car: 2.2, truck: 2.7, jeep: 2.3 }[item.kind] || 2.2), d: ({ car: 4.6, truck: 5.8, jeep: 4.8 }[item.kind] || 4.6), ry: item.ry || 0 });
   if (cat === 'landmarks') return landmarkRect(item);
+  if (cat === 'glbAssets') {
+    const w = item.building ? 6 : 3;
+    const d = item.building ? 6 : 3;
+    return worldRect({ x: item.x, z: item.z, w, d, ry: item.ry || 0 });
+  }
   if (item && item.x !== undefined) return worldRect({ x: item.x, z: item.z, w: item.w || 2, d: item.d || 2, ry: item.ry || 0 });
   return null;
 }
@@ -565,7 +476,7 @@ function contentBounds() {
     ok = true;
   };
   for (const r of scene.roads || []) for (const p of r.points || []) pt(p[0], p[1]);
-  for (const c of ['vehicles', 'pads', 'buildings', 'props', 'landmarks', 'trees', 'transit', 'named', 'reactives']) for (const it of scene[c] || []) pt(it.x, it.z);
+  for (const c of ['vehicles', 'pads', 'buildings', 'props', 'landmarks', 'trees', 'glbAssets', 'transit', 'named', 'reactives']) for (const it of scene[c] || []) pt(it.x, it.z);
   for (const c of ['spawns', 'cover', 'loot']) for (const p of scene[c] || []) pt(p[0], p[1]);
   pt(scene.startPoint && scene.startPoint.x, scene.startPoint && scene.startPoint.z);
   return { minX, maxX, minZ, maxZ, ok };
@@ -583,15 +494,6 @@ function fitView() {
   }
   view.scale = Math.max(0.03, Math.min(40, view.scale));
   draw2d();
-}
-function fit3d() {
-  const cb = contentBounds();
-  if (!cb.ok) { pTarget.set(0, 20, 0); orbit.dist = 500; updateOrbit(); return; }
-  const cx = (cb.minX + cb.maxX) / 2, cz = (cb.minZ + cb.maxZ) / 2;
-  const size = Math.max(cb.maxX - cb.minX, cb.maxZ - cb.minZ, 40);
-  pTarget.set(cx, 12, cz);
-  orbit.dist = Math.max(30, size * 0.9 / Math.tan(pCam.fov * Math.PI / 360) + 30);
-  updateOrbit();
 }
 function draw2d() {
   ctx2.clearRect(0, 0, vw(), vh());
@@ -633,6 +535,7 @@ function draw2d() {
   drawOverlays();
   drawCat('props', (p) => { const r = Math.max(2, 0.7 * sc); dot(p.x, p.z, r, '#9a9fa6'); });
   drawCat('landmarks', drawLandmark);
+  drawCat('glbAssets', (g) => { const sz = g.building ? 6 : 3; const pts = worldRect({ x: g.x, z: g.z, w: sz, d: sz, ry: g.ry || 0 }).map(([wx, wz]) => toScreen2(wx, wz)); pathPts(pts); ctx2.fillStyle = '#60c0e0'; ctx2.globalAlpha = 0.6; ctx2.fill(); ctx2.globalAlpha = 1; ctx2.strokeStyle = '#60c0e0'; ctx2.lineWidth = 1.5; ctx2.stroke(); const [sx, sy] = toScreen2(g.x, g.z); ctx2.font = 'bold 9px Segoe UI, sans-serif'; ctx2.fillStyle = '#fff'; ctx2.fillText('GLB', sx - 8, sy + 3); if (g.name) label(g.name, sx + 10, sy, '#60c0e0'); });
   drawCat('spawns', (p) => { const [sx, sy] = toScreen2(p[0], p[1]); ctx2.beginPath(); ctx2.arc(sx, sy, 4, 0, 7); ctx2.fillStyle = '#e05050'; ctx2.fill(); ctx2.beginPath(); ctx2.arc(sx, sy, 1.6, 0, 7); ctx2.fillStyle = '#fff'; ctx2.fill(); });
   drawCat('cover', (p) => { const [sx, sy] = toScreen2(p[0], p[1]); ctx2.strokeStyle = '#e8a040'; ctx2.lineWidth = 2; ctx2.strokeRect(sx-4, sy-4, 8, 8); });
   drawCat('loot', (p) => { const [sx, sy] = toScreen2(p[0], p[1]); ctx2.fillStyle = '#ffd24a'; ctx2.beginPath(); ctx2.moveTo(sx, sy-5); ctx2.lineTo(sx+4, sy); ctx2.lineTo(sx, sy+5); ctx2.lineTo(sx-4, sy); ctx2.closePath(); ctx2.fill(); });
@@ -651,7 +554,6 @@ function draw2d() {
   }
   drawSelection();
   drawDraft();
-  updateSel3d();
 }
 function dot(wx, wz, r, color) {
   const [sx, sy] = toScreen2(wx, wz);
@@ -858,6 +760,7 @@ function pick(wx, wz) {
   h = scan('landmarks', (p) => (insideRect(wx, wz, p) ? 0 : 1e9)); if (h) return h;
   h = scan('props', (p) => Math.hypot(p.x - wx, p.z - wz) - 1.6); if (h) return h;
   h = scan('buildings', (p) => (insideRect(wx, wz, p) ? 0 : 1e9)); if (h) return h;
+  h = scan('glbAssets', (p) => (insideRect(wx, wz, { x: p.x, z: p.z, w: p.building ? 6 : 3, d: p.building ? 6 : 3, ry: p.ry || 0 }) ? 0 : 1e9)); if (h) return h;
   h = scan('pads', (p) => (insideRect(wx, wz, p) ? 0 : 1e9)); if (h) return h;
   h = scan('trees', (p) => Math.hypot(p.x - wx, p.z - wz) - 2); if (h) return h;
   h = scan('spawns', (p) => Math.hypot(p[0] - wx, p[1] - wz) - 1.5); if (h) return h;
@@ -990,7 +893,7 @@ c2.addEventListener('mousemove', (e) => {
     if (ov) {
       ov.offX = textDragStart.ox + (wx - textDragStart.fx);
       ov.offZ = textDragStart.oz + (wz - textDragStart.fz);
-      draw2d(); schedulePreview();
+      draw2d();
     }
     return;
   }
@@ -1002,7 +905,7 @@ c2.addEventListener('mousemove', (e) => {
       const angle = Math.atan2(e.offsetX - scx, -(e.offsetY - scy));
       const baseAngle = Math.atan2(handleStart.mx - scx, -(handleStart.my - scy));
       it.ry = snap5(handleStart.origRy + (angle - baseAngle));
-      draw2d(); schedulePreview();
+      draw2d();
     } else if (handleMode.startsWith('resize-') && it.w !== undefined) {
       const corner = handleMode.split('-')[1];
       const [cx, cz] = [handleStart.cx || it.x, handleStart.cz || it.z];
@@ -1015,7 +918,7 @@ c2.addEventListener('mousemove', (e) => {
       if (corner === 'se' || corner === 'sw') newD = snap5(Math.max(4, handleStart.origD + worldDy));
       else newD = snap5(Math.max(4, handleStart.origD - worldDy));
       it.w = newW; it.d = newD;
-      draw2d(); schedulePreview();
+      draw2d();
     }
     return;
   }
@@ -1026,7 +929,7 @@ c2.addEventListener('mousemove', (e) => {
     if (it.x !== undefined) { it.x = nx; it.z = nz; }
     else { scene[dragged.cat][dragged.idx] = [nx, nz]; }
     dragged.moved = true;
-    draw2d(); schedulePreview();
+    draw2d();
   } else if (dragRect) {
     dragRect.x1 = snap1(wx); dragRect.z1 = snap1(wz);
     draw2d();
@@ -1085,8 +988,17 @@ function placePoint(tool, wx, wz) {
   else if (tool === 'prop') scene.props.push({ ...propDefaults[kindSel.value], x, z });
   else if (tool === 'landmark') scene.landmarks.push({ ...landmarkDefaults[kindSel.value], x, z });
   else if (tool === 'vehicle') scene.vehicles.push({ x, z, ry: 0, kind: kindSel.value || 'car' });
+  else if (tool === 'glb') {
+    const preset = GLB_PRESETS[kindSel.value] || {};
+    scene.glbAssets.push({
+      url: preset.url || '', x, z, ry: 0,
+      targetH: preset.targetH || 10,
+      building: preset.building || false,
+      collisionH: preset.collisionH || 0,
+    });
+  }
   else if (tool === 'startpoint') { scene.startPoint.x = x; scene.startPoint.z = z; selected = null; redrawAll(); return; }
-  selected = { cat: tool === 'prop' ? 'props' : tool === 'landmark' ? 'landmarks' : tool === 'vehicle' ? 'vehicles' : tool === 'tree' ? 'trees' : tool === 'react' ? 'reactives' : tool, idx: scene[tool === 'prop' ? 'props' : tool === 'landmark' ? 'landmarks' : tool === 'vehicle' ? 'vehicles' : tool === 'tree' ? 'trees' : tool === 'react' ? 'reactives' : tool].length - 1 };
+  selected = { cat: tool === 'prop' ? 'props' : tool === 'landmark' ? 'landmarks' : tool === 'vehicle' ? 'vehicles' : tool === 'glb' ? 'glbAssets' : tool === 'tree' ? 'trees' : tool === 'react' ? 'reactives' : tool, idx: scene[tool === 'prop' ? 'props' : tool === 'landmark' ? 'landmarks' : tool === 'vehicle' ? 'vehicles' : tool === 'glb' ? 'glbAssets' : tool === 'tree' ? 'trees' : tool === 'react' ? 'reactives' : tool].length - 1 };
   redrawAll();
 }
 function finishRoad() {
@@ -1129,11 +1041,11 @@ window.addEventListener('keydown', (e) => {
     else { scene[selected.cat][selected.idx] = [snap1(it[0] + dx), snap1(it[1] + dz)]; }
     redrawAll();
   }
-  if (selected && !fs3d && (e.key === 'q' || e.key === 'Q')) {
+  if (selected && (e.key === 'q' || e.key === 'Q')) {
     const it = scene[selected.cat][selected.idx];
     if (it.ry !== undefined || it.x !== undefined) { it.ry = (it.ry || 0) - (e.shiftKey ? 0.5 : 0.15); redrawAll(); }
   }
-  if (selected && !fs3d && (e.key === 'e' || e.key === 'E')) {
+  if (selected && (e.key === 'e' || e.key === 'E')) {
     const it = scene[selected.cat][selected.idx];
     if (it.ry !== undefined || it.x !== undefined) { it.ry = (it.ry || 0) + (e.shiftKey ? 0.5 : 0.15); redrawAll(); }
   }
@@ -1186,6 +1098,7 @@ const KIND_OPTIONS = {
   vehicle: ['car', 'truck', 'jeep'],
   react: ['flex', 'fire', 'firex'],
   tree: ['live', 'dead'],
+  glb: ['building', 'fence', 'light', 'tree', 'prop', 'custom', 'skyscraper', 'hub', 'barrier', 'lambo', 'cybertruck', 'coconut'],
 };
 document.querySelectorAll('#toolrail button[data-tool]').forEach((btn) => {
   btn.addEventListener('click', () => setTool(btn.dataset.tool));
@@ -1194,7 +1107,6 @@ document.querySelectorAll('#toolrail button[data-tool]').forEach((btn) => {
 function setTool(t, kind) {
   tool = t;
   document.querySelectorAll('#toolrail button[data-tool]').forEach((b) => b.classList.toggle('active', b.dataset.tool === t));
-  document.querySelectorAll('#float-toolbar button[data-tool]').forEach((b) => b.classList.toggle('active', b.dataset.tool === t));
   const opts = KIND_OPTIONS[t];
   $('#kindLabel').style.display = opts ? '' : 'none';
   if (opts) {
@@ -1214,6 +1126,27 @@ function setTool(t, kind) {
   draw2d();
 }
 setTool('select');
+
+// ============ tool group dropdowns ============
+document.querySelectorAll('.tool-group').forEach((g) => {
+  const btn = g.querySelector('.group-btn');
+  const menu = g.querySelector('.group-menu');
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const wasOpen = g.classList.contains('open');
+    document.querySelectorAll('.tool-group.open').forEach((x) => x.classList.remove('open'));
+    if (!wasOpen) g.classList.add('open');
+  });
+  menu.querySelectorAll('button[data-tool]').forEach((mb) => {
+    mb.addEventListener('click', () => {
+      setTool(mb.dataset.tool);
+      g.classList.remove('open');
+    });
+  });
+});
+document.addEventListener('click', () => {
+  document.querySelectorAll('.tool-group.open').forEach((x) => x.classList.remove('open'));
+});
 
 // ============ asset library ============
 function renderLibrary(filter = '') {
@@ -1253,6 +1186,18 @@ function renderLibrary(filter = '') {
   }
   $('#libCount').textContent = shown + ' assets';
 }
+const GLB_PRESETS = {
+  building: { url: 'data/models/assets/low_poly_urban_building/scene.gltf', targetH: 12, building: true },
+  fence: { url: 'data/models/assets/Fence Section by Jarlan Perez - 1lOFMI3Pg8v.glb', targetH: 1.2 },
+  light: { url: 'data/models/assets/low_poly_street_light.glb', targetH: 4.5 },
+  tree: { url: 'data/models/assets/tree_low-poly.glb', targetH: 7 },
+  coconut: { url: 'data/models/assets/coconut_tree_low_poly.glb', targetH: 9 },
+  lambo: { url: 'data/models/cars/CAR Model by Ignition Labs - 5zUWP5UsLg-.glb', targetH: 1.5 },
+  cybertruck: { url: 'data/models/cars/tesla_cybertruk_low_poly/scene.gltf', targetH: 2 },
+  skyscraper: { url: 'data/models/assets/low_poly_skyscraper.glb', targetH: 25 },
+  hub: { url: 'data/models/assets/ilorin_innovation_hub.glb', targetH: 14, building: true },
+  barrier: { url: 'data/models/assets/concrete_road_barrier_photoscanned.glb', targetH: 1.2 },
+};
 function pickLibrary(it) {
   setTool(it.tool, it.kind);
   selected = null;
@@ -1377,6 +1322,7 @@ function renderInspector() {
     insp.append(numField('X', it.x, (v) => { it.x = v; redrawAll(); }));
     insp.append(numField('Z', it.z, (v) => { it.z = v; redrawAll(); }));
     insp.append(numField('Rot', it.ry || 0, (v) => { it.ry = v; redrawAll(); }, 0.05));
+    insp.append(numField('Elevation', it.elevation || 0, (v) => { it.elevation = v; redrawAll(); }, 0.1));
     insp.append(textField('Name', it.name || '', (v) => { it.name = v; redrawAll(); }));
   } else if (cat === 'pads') {
     insp.append(numField('X', it.x, (v) => { it.x = v; redrawAll(); }));
@@ -1475,6 +1421,18 @@ function renderInspector() {
     if (it.n !== undefined) insp.append(numField('N', it.n, (v) => { it.n = v; redrawAll(); }));
     if (it.solid !== undefined) insp.append(boolField('Solid', it.solid, (v) => { it.solid = v; redrawAll(); }));
     if (it.name !== undefined) insp.append(textField('Name', it.name || '', (v) => { it.name = v; redrawAll(); }));
+  } else if (cat === 'glbAssets') {
+    insp.append(textField('URL', it.url || '', (v) => { it.url = v; redrawAll(); }));
+    insp.append(numField('Target Height', it.targetH || 10, (v) => { it.targetH = v; redrawAll(); }));
+    insp.append(numField('X', it.x, (v) => { it.x = v; redrawAll(); }));
+    insp.append(numField('Z', it.z, (v) => { it.z = v; redrawAll(); }));
+    insp.append(numField('Rot', it.ry || 0, (v) => { it.ry = v; redrawAll(); }, 0.05));
+    insp.append(numField('Elevation', it.elevation || 0, (v) => { it.elevation = v; redrawAll(); }, 0.1));
+    insp.append(boolField('Building', it.building, (v) => { it.building = v; redrawAll(); }));
+    insp.append(boolField('Climbable', it.climbable, (v) => { it.climbable = v; redrawAll(); }));
+    insp.append(numField('Collision H', it.collisionH || 0, (v) => { it.collisionH = v; redrawAll(); }, 0.1));
+    insp.append(textField('Tags', (it.tags || []).join(','), (v) => { it.tags = v.split(',').map(s => s.trim()).filter(Boolean); redrawAll(); }));
+    insp.append(textField('Name', it.name || '', (v) => { it.name = v; redrawAll(); }));
   } else if (cat === 'trees') {
     insp.append(numField('X', it.x, (v) => { it.x = v; redrawAll(); }));
     insp.append(numField('Z', it.z, (v) => { it.z = v; redrawAll(); }));
@@ -1522,64 +1480,7 @@ function renderInspector() {
   }
 
   renderIssues();
-  updateFloatInspector();
 }
-function updateFloatInspector() {
-  const fi = $('#float-inspector');
-  if (!fs3d || !selected) { fi.classList.remove('has-sel'); fi.innerHTML = ''; return; }
-  fi.classList.add('has-sel');
-  const { cat, idx } = selected;
-  const it = scene[cat][idx];
-  let html = `<h4>${catLabel[cat]}</h4>`;
-  const num = (label, val, key) => `<label>${label}</label><input type="number" step="any" data-key="${key}" value="${val}">`;
-  const txt = (label, val, key) => `<label>${label}</label><input type="text" data-key="${key}" value="${val || ''}">`;
-  const sel = (label, val, opts, key) => `<label>${label}</label><select data-key="${key}">${opts.map(o => `<option${o === val ? ' selected' : ''}>${o}</option>`).join('')}</select>`;
-  const bool = (label, val, key) => `<label><input type="checkbox" data-key="${key}"${val ? ' checked' : ''}> ${label}</label>`;
-  if (it.x !== undefined) { html += num('X', it.x, 'x') + num('Z', it.z, 'z'); }
-  else if (Array.isArray(it)) { html += num('X', it[0], '_a0') + num('Z', it[1], '_a1'); }
-  if (it.ry !== undefined) html += num('Rot', it.ry, 'ry');
-  if (it.w !== undefined) html += num('W', it.w, 'w');
-  if (it.d !== undefined) html += num('D', it.d, 'd');
-  if (it.h !== undefined) html += num('H', it.h, 'h');
-  if (it.kind !== undefined) html += sel('Kind', it.kind, KIND_OPTIONS[cat] || ['box'], 'kind');
-  if (it.name !== undefined) html += txt('Name', it.name || '', 'name');
-  else if (cat !== 'spawns' && cat !== 'cover' && cat !== 'loot') html += txt('Name', '', 'name');
-  if (it.m !== undefined) {
-    const m = typeof it.m === 'object' && it.m ? it.m.m : it.m;
-    html += sel('Mat', m || 'concrete', MATERIALS, '_mat');
-  }
-  if (cat === 'buildings') {
-    html += bool('Roof', it.roof, 'roof');
-    html += bool('Windows', it.windows, 'windows');
-    html += bool('Enterable', it.enterable, 'enterable');
-  }
-  html += `<div class="fi-row"><button class="fi-btn" id="fi-del">Delete</button><button class="fi-btn" id="fi-center">Center</button></div>`;
-  fi.innerHTML = html;
-  fi.querySelectorAll('input[data-key], select[data-key]').forEach(el => {
-    const handler = () => {
-      const k = el.dataset.key;
-      if (k === '_a0') { it[0] = +el.value; }
-      else if (k === '_a1') { it[1] = +el.value; }
-      else if (k === '_mat') { it.m = el.value; }
-      else if (k === 'name') { it.name = el.value; }
-      else if (el.type === 'checkbox') it[k] = el.checked;
-      else if (el.type === 'number') it[k] = +el.value;
-      else it[k] = el.value;
-      redrawAll();
-    };
-    el.addEventListener('input', handler);
-    el.addEventListener('change', handler);
-  });
-  const delBtn = fi.querySelector('#fi-del');
-  if (delBtn) delBtn.addEventListener('click', () => { scene[cat].splice(idx, 1); selected = null; redrawAll(); });
-  const centerBtn = fi.querySelector('#fi-center');
-  if (centerBtn) centerBtn.addEventListener('click', () => {
-    const cx = it.x !== undefined ? it.x : (Array.isArray(it) ? it[0] : 0);
-    const cz = it.z !== undefined ? it.z : (Array.isArray(it) ? it[1] : 0);
-    pTarget.set(cx, 0, cz); updateOrbit();
-  });
-}
-
 // ============ validation ============
 function validate() {
   issues = [];
@@ -1833,10 +1734,10 @@ function renderAeControls() {
     row.append(lb, sel); visual.append(row);
   };
 
-  addColor('Wall tint', it._tint || '#969696', (v) => { it._tint = v; schedulePreview(); openAssetEditor(aeCat, aeIdx); });
-  addColor('Roof tint', it._roofTint || '#808080', (v) => { it._roofTint = v; schedulePreview(); openAssetEditor(aeCat, aeIdx); });
-  addSelect('Wall mat', it.m || 'default', { default: 'Default', brick: 'Brick', wood: 'Wood', concrete: 'Concrete', panel: 'Panel', corrugated: 'Metal' }, (v) => { it.m = v === 'default' ? undefined : v; schedulePreview(); openAssetEditor(aeCat, aeIdx); });
-  addSelect('Roof mat', it.roofM || 'default', { default: 'Default', shingle: 'Shingle', tile: 'Tile', metal: 'Metal' }, (v) => { it.roofM = v === 'default' ? undefined : v; schedulePreview(); openAssetEditor(aeCat, aeIdx); });
+  addColor('Wall tint', it._tint || '#969696', (v) => { it._tint = v; openAssetEditor(aeCat, aeIdx); });
+  addColor('Roof tint', it._roofTint || '#808080', (v) => { it._roofTint = v; openAssetEditor(aeCat, aeIdx); });
+  addSelect('Wall mat', it.m || 'default', { default: 'Default', brick: 'Brick', wood: 'Wood', concrete: 'Concrete', panel: 'Panel', corrugated: 'Metal' }, (v) => { it.m = v === 'default' ? undefined : v; openAssetEditor(aeCat, aeIdx); });
+  addSelect('Roof mat', it.roofM || 'default', { default: 'Default', shingle: 'Shingle', tile: 'Tile', metal: 'Metal' }, (v) => { it.roofM = v === 'default' ? undefined : v; openAssetEditor(aeCat, aeIdx); });
 
   // overlay text controls
   if (aeCat === 'buildings' || aeCat === 'landmarks') {
@@ -1846,11 +1747,11 @@ function renderAeControls() {
     overlays.forEach((ov, oi) => {
       const row = document.createElement('div'); row.style.cssText = 'display:flex;gap:4px;margin:2px 0;';
       const ti = document.createElement('input'); ti.type = 'text'; ti.value = ov.text; ti.style.cssText = 'flex:1;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:3px;padding:2px 4px;font-size:11px;';
-      ti.addEventListener('change', () => { ov.text = ti.value; schedulePreview(); });
+      ti.addEventListener('change', () => { ov.text = ti.value; });
       const ci = document.createElement('input'); ci.type = 'color'; ci.value = ov.color || '#ffffff'; ci.style.cssText = 'width:24px;height:22px;padding:0;border:1px solid var(--line);';
-      ci.addEventListener('input', () => { ov.color = ci.value; schedulePreview(); });
+      ci.addEventListener('input', () => { ov.color = ci.value; });
       const db = document.createElement('button'); db.textContent = '×'; db.style.cssText = 'background:var(--panel2);color:var(--err);border:1px solid var(--line);border-radius:3px;cursor:pointer;font-size:11px;padding:0 5px;';
-      db.addEventListener('click', () => { overlays.splice(oi, 1); it._overlays = overlays; schedulePreview(); renderAeControls(); });
+      db.addEventListener('click', () => { overlays.splice(oi, 1); it._overlays = overlays; renderAeControls(); });
       row.append(ti, ci, db); ovDiv.append(row);
     });
     const addOvBtn = document.createElement('button'); addOvBtn.textContent = '+ Add overlay';
@@ -1858,7 +1759,7 @@ function renderAeControls() {
     addOvBtn.addEventListener('click', () => {
       if (!it._overlays) it._overlays = [];
       it._overlays.push({ text: 'TEXT', color: '#ffffff', offX: 0, offZ: 0, fontSize: 1.0 });
-      schedulePreview(); renderAeControls();
+      renderAeControls();
     });
     ovDiv.append(addOvBtn);
     visual.append(ovDiv);
@@ -1866,7 +1767,7 @@ function renderAeControls() {
 }
 
 $('#aeClose').addEventListener('click', closeAssetEditor);
-$('#aeApply').addEventListener('click', () => { closeAssetEditor(); redrawAll(); schedulePreview(); });
+$('#aeApply').addEventListener('click', () => { closeAssetEditor(); redrawAll(); });
 
 // open asset editor on double-click from library
 // (also callable from inspector via button — see renderInspector)
@@ -1895,172 +1796,26 @@ $('#aeCanvas3d').addEventListener('wheel', (e) => {
   updateAeOrbit();
 }, { passive: true });
 
-// ============ 3D preview ============
-const c3 = $('#canvas3d'), ctx3 = c3.getContext('webgl2', { antialias: true }) || c3.getContext('webgl', { antialias: true });
-const renderer = new THREE.WebGLRenderer({ canvas: c3, antialias: true });
-renderer.shadowMap.enabled = true;
-let pWorld = null;
-const pCam = new THREE.PerspectiveCamera(60, 1, 0.1, 10000);
-const pTarget = new THREE.Vector3(0, 20, 0);
-let orbit = { yaw: 0.8, pitch: 0.45, dist: 500 };
-let oMouse = null;
-function resize3d() {
-  const r = $('#view3d').getBoundingClientRect();
-  if (!r.width) return;
-  renderer.setSize(r.width, r.height);
-  pCam.aspect = r.width / r.height;
-  pCam.updateProjectionMatrix();
-}
-function updateOrbit() {
-  pCam.position.set(
-    pTarget.x + orbit.dist * Math.cos(orbit.pitch) * Math.sin(orbit.yaw),
-    pTarget.y + orbit.dist * Math.sin(orbit.pitch),
-    pTarget.z + orbit.dist * Math.cos(orbit.pitch) * Math.cos(orbit.yaw));
-  pCam.lookAt(pTarget);
-}
-$('#canvas3d').addEventListener('mousedown', (e) => {
-  if (document.activeElement && document.activeElement.tagName !== 'CANVAS') document.activeElement.blur();
-  oMouse = null;
-  if (e.button !== 0) { oMouse = { x: e.clientX, y: e.clientY, b: e.button }; return; }
-  if (fs3d) return; // fullscreen 3D has its own handler
-  const pt = planePointFromEvent(e);
-  if (!pt) return;
-  const wx = pt.x, wz = pt.z;
-  if (tool === 'select') {
-    const h = pick(wx, wz);
-    if (h) {
-      selected = h;
-      const it = scene[h.cat][h.idx];
-      const ix = it.x !== undefined ? it.x : it[0];
-      const iz = it.z !== undefined ? it.z : it[1];
-      dragged = { cat: h.cat, idx: h.idx, ox: ix, oz: iz, fx: wx, fz: wz, moved: false, from3d: true };
-      renderInspector(); draw2d();
-      return;
-    }
-    selected = null;
-    renderInspector(); draw2d();
-    oMouse = { x: e.clientX, y: e.clientY, b: 0 };
-  } else if (tool === 'road') {
-    if (!roadDraft) roadDraft = { points: [], mouse: null };
-    roadDraft.points.push([snap1(wx), snap1(wz)]);
-    roadDraft.mouse = null;
-    draw2d();
-  } else if (tool === 'pad' || tool === 'building') {
-    dragRect = { cat: tool, x0: snap1(wx), z0: snap1(wz), x1: snap1(wx), z1: snap1(wz), from3d: true };
-    draw2d();
-  } else if (tool === 'erase') {
-    const h = pick(wx, wz);
-    if (h) { scene[h.cat].splice(h.idx, 1); if (selected && selected.cat === h.cat && selected.idx === h.idx) selected = null; redrawAll(); }
-  } else {
-    placePoint(tool, wx, wz);
-  }
-});
-window.addEventListener('mousemove', (e) => {
-  if (dragged && dragged.from3d) {
-    const pt = planePointFromEvent(e);
-    if (pt) {
-      const it = scene[dragged.cat][dragged.idx];
-      const nx = snap1(dragged.ox + (pt.x - dragged.fx));
-      const nz = snap1(dragged.oz + (pt.z - dragged.fz));
-      if (it.x !== undefined) { it.x = nx; it.z = nz; }
-      else { scene[dragged.cat][dragged.idx] = [nx, nz]; }
-      dragged.moved = true;
-      updateSel3d(); draw2d(); schedulePreview(150);
-    }
-    return;
-  }
-  if (dragRect && dragRect.from3d) {
-    const pt = planePointFromEvent(e);
-    if (pt) { dragRect.x1 = snap1(pt.x); dragRect.z1 = snap1(pt.z); draw2d(); schedulePreview(150); }
-    return;
-  }
-  if (tool === 'road' && roadDraft && e.target === c3) {
-    const pt = planePointFromEvent(e);
-    if (pt) { roadDraft.mouse = toScreen2(snap1(pt.x), snap1(pt.z)); draw2d(); }
-    return;
-  }
-  if (!oMouse) return;
-  const dx = e.clientX - oMouse.x, dy = e.clientY - oMouse.y;
-  oMouse.x = e.clientX; oMouse.y = e.clientY;
-  if (oMouse.b === 0) { orbit.yaw -= dx * 0.005; orbit.pitch = Math.max(0.05, Math.min(1.5, orbit.pitch + dy * 0.005)); }
-  else if (oMouse.b === 2) { const f = orbit.dist * 0.0015; pTarget.x -= Math.sin(orbit.yaw) * dx * f; pTarget.z -= Math.cos(orbit.yaw) * dx * f; pTarget.x += Math.cos(orbit.yaw) * dy * f; pTarget.z -= Math.sin(orbit.yaw) * dy * f; }
-});
-window.addEventListener('mouseup', () => {
-  if (dragRect) finishDragRect();
-  if (dragged) { dragged = null; }
-  oMouse = null;
-});
-$('#canvas3d').addEventListener('wheel', (e) => { e.preventDefault(); orbit.dist = Math.max(8, Math.min(3000, orbit.dist * (e.deltaY > 0 ? 1.15 : 1 / 1.15))); }, { passive: false });
-$('#canvas3d').addEventListener('contextmenu', (e) => e.preventDefault());
-function disposeScene(sc) {
-  sc.traverse((o) => {
-    if (o.geometry) o.geometry.dispose();
-    if (o.material) {
-      const ms = Array.isArray(o.material) ? o.material : [o.material];
-      for (const m of ms) {
-        // Don't dispose textures — they're cached globally and reused across rebuilds.
-        m.dispose();
-      }
-    }
-  });
-}
-const raycaster3 = new THREE.Raycaster();
-const planeY0 = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-function planePointFromEvent(e) {
-  const r = c3.getBoundingClientRect();
-  const ndc = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-  raycaster3.setFromCamera(ndc, pCam);
-  return raycaster3.ray.intersectPlane(planeY0, new THREE.Vector3());
-}
-function updateSel3d() {
-  if (!selBox3d) selBox3d = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color: 0xffd24a }));
-  if (selBox3d.parent !== pScene) pScene.add(selBox3d);
-  const it = selected && scene[selected.cat] ? scene[selected.cat][selected.idx] : null;
-  if (!it) { selBox3d.visible = false; return; }
-  const pts = bRect(selected.cat, it);
-  if (!pts) { selBox3d.visible = false; return; }
-  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-  for (const p of pts) { if (p[0] < minX) minX = p[0]; if (p[0] > maxX) maxX = p[0]; if (p[1] < minZ) minZ = p[1]; if (p[1] > maxZ) maxZ = p[1]; }
-  selBox3d.visible = true;
-  selBox3d.position.set((minX + maxX) / 2, (it.h || 2) / 2, (minZ + maxZ) / 2);
-  selBox3d.scale.set(maxX - minX + 0.8, it.h || 2, maxZ - minZ + 0.8);
-  selBox3d.rotation.set(0, 0, 0);
-}
-let previewTimer = null;
-let lastPreviewJson = '';
-function schedulePreview(delay = 400) { if ($('#autoPreview').checked) { clearTimeout(previewTimer); previewTimer = setTimeout(buildPreview, delay); } }
-function buildPreview() {
-  const snap = JSON.stringify(scene);
-  if (snap === lastPreviewJson) return; // no changes — skip rebuild entirely
-  lastPreviewJson = snap;
-  const t0 = performance.now();
-  disposeScene(pScene);
-  pScene = new THREE.Scene();
-  try {
-    const sd = JSON.parse(snap);
-    pWorld = new World(pScene, $('#previewQ').value, sd);
-    const ms = Math.round(performance.now() - t0);
-    $('#status').textContent = `3D rebuilt in ${ms}ms (${sd.buildings.length} buildings, ${sd.roads.length} roads)`;
-  } catch (err) {
-    $('#status').textContent = '3D error: ' + err.message;
-  }
-  if (camResetNeeded) { fit3d(); camResetNeeded = false; }
-  updateOrbit();
-  updateSel3d();
-}
 function animate() {
   requestAnimationFrame(animate);
-  updateOrbit();
-  renderer.render(pScene, pCam);
-  // render asset editor if open
   if (aeRenderer && aeScene && aeCam && $('#assetEditor').style.display === 'flex') {
     updateAeOrbit();
     aeRenderer.render(aeScene, aeCam);
   }
 }
 animate();
-$('#btnRebuild').addEventListener('click', buildPreview);
-$('#previewQ').addEventListener('change', buildPreview);
+
+function disposeScene(sc) {
+  sc.traverse((o) => {
+    if (o.geometry) o.geometry.dispose();
+    if (o.material) {
+      const ms = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of ms) {
+        m.dispose();
+      }
+    }
+  });
+}
 
 // ============ save / load ============
 function sceneFileName() { return (scene.id || 'map').replace(/[^\w-]/g, '_') + '.json'; }
@@ -2105,7 +1860,7 @@ $('#btnDelete').addEventListener('click', async () => {
     refreshList();
   } catch (err) { $('#status').textContent = 'Delete failed: ' + err.message; }
 });
-$('#btnNew').addEventListener('click', () => { if (!confirm('Create new map? Unsaved changes will be lost.')) return; scene = normalizeScene(newScene()); selected = null; roadDraft = null; camResetNeeded = true; fitView(); redrawAll(); buildPreview(); });
+$('#btnNew').addEventListener('click', () => { if (!confirm('Create new map? Unsaved changes will be lost.')) return; scene = normalizeScene(newScene()); selected = null; roadDraft = null; camResetNeeded = true; fitView(); redrawAll(); });
 async function refreshList() {
   try {
     const r = await fetch('/api/scenes');
@@ -2125,35 +1880,265 @@ $('#btnLoad').addEventListener('click', async () => {
     scene.id = name.replace('.json', '');
     selected = null; roadDraft = null;
     fitView(); redrawAll();
-    camResetNeeded = true; buildPreview();
     $('#status').textContent = `Loaded ${name}`;
   } catch (err) { $('#status').textContent = 'Load failed: ' + err.message; }
 });
 $('#btnValidate').addEventListener('click', () => { validate(); renderInspector(); $('#status').textContent = issues.length ? `${issues.length} issues` : 'All clear'; });
 $('#btnOpenGame').addEventListener('click', () => { save().then(() => { window.open('/?scene=' + sceneFileName(), '_blank'); }); });
-$('#btnFit').addEventListener('click', () => { fitView(); fit3d(); });
+$('#btnFit').addEventListener('click', () => { fitView(); });
 
-function redrawAll() { draw2d(); renderInspector(); schedulePreview(); dirty(); }
-window.addEventListener('resize', () => { resize2d(); resize3d(); resizeAssetEditor(); });
+function redrawAll() { draw2d(); renderInspector(); if (view3d) build3dScene(); dirty(); }
+window.addEventListener('resize', () => { resize2d(); resizeAssetEditor(); resize3d(); });
+
+// ============ 3D EDITOR MODE ============
+let view3d = false;
+let r3d = null, scene3d = null, cam3d = null, world3d = null;
+let orbit3d = { yaw: 0.8, pitch: 0.5, dist: 120, target: new THREE.Vector3(0, 0, 0) };
+let mouse3d = { down: false, b: 0, lx: 0, ly: 0 };
+
+function toggle3d() {
+  view3d = !view3d;
+  $('#pane2d').classList.toggle('hidden', view3d);
+  $('#pane3d').classList.toggle('active', view3d);
+  $('#viewToggle').textContent = view3d ? '2D' : '3D';
+  $('#viewToggle').classList.toggle('active', view3d);
+  if (view3d) init3d(); else destroy3d();
+  resize2d(); resize3d();
+}
+$('#viewToggle').addEventListener('click', toggle3d);
+
+function init3d() {
+  if (r3d) return;
+  const c = $('#canvas3d');
+  r3d = new THREE.WebGLRenderer({ canvas: c, antialias: true, powerPreference: 'high-performance' });
+  r3d.shadowMap.enabled = true;
+  r3d.shadowMap.type = THREE.PCFSoftShadowMap;
+  r3d.toneMapping = THREE.ACESFilmicToneMapping;
+  r3d.toneMappingExposure = 1.0;
+  r3d.outputColorSpace = THREE.SRGBColorSpace;
+  scene3d = new THREE.Scene();
+  scene3d.background = new THREE.Color(0x87CEEB);
+  scene3d.fog = new THREE.FogExp2(0x9aa8c8, 0.003);
+  cam3d = new THREE.PerspectiveCamera(60, 1, 0.5, 5000);
+
+  const amb = new THREE.AmbientLight(0xffffff, 0.5);
+  scene3d.add(amb);
+  const sun = new THREE.DirectionalLight(0xfff4dd, 2.5);
+  sun.position.set(200, 300, 100);
+  sun.castShadow = true;
+  const S = 300;
+  Object.assign(sun.shadow.camera, { left: -S, right: S, top: S, bottom: -S, near: 10, far: 800 });
+  sun.shadow.mapSize.setScalar(2048);
+  sun.shadow.bias = -0.001;
+  scene3d.add(sun);
+  const hemi = new THREE.HemisphereLight(0xcfe3ff, 0x6a6c60, 1.0);
+  scene3d.add(hemi);
+
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(scene.ground?.size || 2600, scene.ground?.size || 2600),
+    new THREE.MeshStandardMaterial({ color: scene.ground?.color || 0x4a3a2a, roughness: 0.95 })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene3d.add(ground);
+
+  build3dScene();
+  resize3d();
+  updateOrbit3d();
+}
+
+function build3dScene() {
+  if (!scene3d) return;
+  while (scene3d.children.length > 3) scene3d.remove(scene3d.children[scene3d.children.length - 1]);
+
+  for (const b of scene.buildings || []) {
+    const w = b.w || 12, d = b.d || 12, h = b.h || 4;
+    const m = new THREE.Mesh(
+      new THREE.BoxGeometry(w, h, d),
+      new THREE.MeshStandardMaterial({ color: 0x827870, roughness: 0.85 })
+    );
+    m.position.set(b.x, h / 2, b.z);
+    m.rotation.y = b.ry || 0;
+    m.castShadow = true; m.receiveShadow = true;
+    scene3d.add(m);
+  }
+
+  for (const p of scene.pads || []) {
+    const m = new THREE.Mesh(
+      new THREE.BoxGeometry(p.w, 0.2, p.d),
+      new THREE.MeshStandardMaterial({ color: 0x9a958c, roughness: 0.9 })
+    );
+    m.position.set(p.x, 0.1, p.z);
+    m.rotation.y = p.ry || 0;
+    m.receiveShadow = true;
+    scene3d.add(m);
+  }
+
+  for (const t of scene.trees || []) {
+    const trunk = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.2, 0.3, 3),
+      new THREE.MeshStandardMaterial({ color: 0x6a5040 })
+    );
+    trunk.position.set(t.x, 1.5, t.z);
+    scene3d.add(trunk);
+    const leaves = new THREE.Mesh(
+      new THREE.SphereGeometry(2 * (t.s || 1)),
+      new THREE.MeshStandardMaterial({ color: t.dead ? 0x6a5a3a : 0x3a6a3a })
+    );
+    leaves.position.set(t.x, 4, t.z);
+    scene3d.add(leaves);
+  }
+
+  for (const v of scene.vehicles || []) {
+    const el = v.elevation || 0;
+    const sz = { car: [2, 1.2, 4.5], truck: [2.5, 1.8, 5.5], jeep: [2.2, 1.5, 4.5] }[v.kind] || [2, 1.2, 4.5];
+    const m = new THREE.Mesh(
+      new THREE.BoxGeometry(sz[0], sz[1], sz[2]),
+      new THREE.MeshStandardMaterial({ color: { car: 0xc06060, truck: 0x6080b0, jeep: 0x70a060 }[v.kind] || 0xc06060, roughness: 0.4, metalness: 0.6 })
+    );
+    m.position.set(v.x, el + sz[1] / 2, v.z);
+    m.rotation.y = v.ry || 0;
+    m.castShadow = true;
+    scene3d.add(m);
+  }
+
+  for (const r of scene.roads || []) {
+    const pts = r.points || [];
+    if (pts.length < 2) continue;
+    const drawPts = r.smooth !== false ? smoothRoadPoints(pts, 6) : pts;
+    const w = (r.w || 12) / 2;
+    for (let i = 0; i < drawPts.length - 1; i++) {
+      const [x1, z1] = drawPts[i], [x2, z2] = drawPts[i + 1];
+      const dx = x2 - x1, dz = z2 - z1;
+      const len = Math.hypot(dx, dz);
+      if (len < 0.1) continue;
+      const nx = -dz / len, nz = dx / len;
+      const shape = new THREE.Shape();
+      shape.moveTo(-w, 0); shape.lineTo(w, 0); shape.lineTo(w, len); shape.lineTo(-w, len); shape.closePath();
+      const geo = new THREE.ShapeGeometry(shape);
+      const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x3d3d3d, roughness: 0.9 }));
+      m.rotation.x = -Math.PI / 2;
+      const mx = (x1 + x2) / 2, mz = (z1 + z2) / 2;
+      const angle = Math.atan2(dx, dz);
+      m.position.set(mx, 0.05, mz);
+      m.rotation.z = -angle;
+      m.receiveShadow = true;
+      scene3d.add(m);
+    }
+  }
+
+  for (const g of scene.glbAssets || []) {
+    const sz = [3, 3, 3];
+    const col = 0x60c0e0;
+    const m = new THREE.Mesh(
+      new THREE.BoxGeometry(sz[0], sz[1], sz[2]),
+      new THREE.MeshStandardMaterial({ color: col, roughness: 0.7, transparent: true, opacity: 0.6 })
+    );
+    const elev = g.elevation || 0;
+    m.position.set(g.x, elev + sz[1] / 2, g.z);
+    m.rotation.y = g.ry || 0;
+    m.castShadow = true;
+    scene3d.add(m);
+    if (g.url) {
+      const lbl = g.name || g.url.split('/').pop().split('.')[0];
+      const canvas = document.createElement('canvas');
+      canvas.width = 256; canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(0, 0, 256, 64);
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(lbl.substring(0, 24), 128, 40);
+      const tex = new THREE.CanvasTexture(canvas);
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+      sprite.position.set(g.x, elev + sz[1] + 2, g.z);
+      sprite.scale.set(8, 2, 1);
+      scene3d.add(sprite);
+    }
+  }
+
+  const sp = scene.startPoint;
+  if (sp) {
+    const marker = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.5, 0.5, 2),
+      new THREE.MeshStandardMaterial({ color: 0x40e0ff, emissive: 0x40e0ff, emissiveIntensity: 0.5 })
+    );
+    marker.position.set(sp.x, 1, sp.z);
+    scene3d.add(marker);
+  }
+}
+
+function destroy3d() {
+  if (scene3d) { scene3d.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { const ms = Array.isArray(o.material) ? o.material : [o.material]; for (const m of ms) m.dispose(); } }); }
+  scene3d = null; cam3d = null; world3d = null;
+  if (r3d) { r3d.dispose(); r3d = null; }
+}
+
+function resize3d() {
+  if (!r3d || !view3d) return;
+  const r = $('#pane3d').getBoundingClientRect();
+  if (!r.width) return;
+  r3d.setSize(r.width, r.height);
+  cam3d.aspect = r.width / r.height;
+  cam3d.updateProjectionMatrix();
+}
+
+function updateOrbit3d() {
+  if (!cam3d) return;
+  const o = orbit3d;
+  cam3d.position.set(
+    o.target.x + o.dist * Math.cos(o.pitch) * Math.sin(o.yaw),
+    o.target.y + o.dist * Math.sin(o.pitch),
+    o.target.z + o.dist * Math.cos(o.pitch) * Math.cos(o.yaw)
+  );
+  cam3d.lookAt(o.target);
+}
+
+$('#canvas3d').addEventListener('mousedown', (e) => { mouse3d = { down: true, b: e.button, lx: e.clientX, ly: e.clientY }; });
+window.addEventListener('mousemove', (e) => {
+  if (!mouse3d.down || !view3d) return;
+  const dx = e.clientX - mouse3d.lx, dy = e.clientY - mouse3d.ly;
+  mouse3d.lx = e.clientX; mouse3d.ly = e.clientY;
+  if (mouse3d.b === 0) {
+    orbit3d.yaw -= dx * 0.005;
+    orbit3d.pitch = Math.max(0.05, Math.min(1.5, orbit3d.pitch + dy * 0.005));
+  } else if (mouse3d.b === 2 || mouse3d.b === 1) {
+    const right = new THREE.Vector3();
+    const fwd = new THREE.Vector3();
+    cam3d.getWorldDirection(fwd); fwd.y = 0; fwd.normalize();
+    right.crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
+    orbit3d.target.addScaledVector(right, -dx * 0.1);
+    orbit3d.target.y += dy * 0.1;
+  }
+  updateOrbit3d();
+});
+$('#canvas3d').addEventListener('mouseup', () => { mouse3d.down = false; });
+$('#canvas3d').addEventListener('contextmenu', (e) => e.preventDefault());
+$('#canvas3d').addEventListener('wheel', (e) => {
+  e.preventDefault();
+  orbit3d.dist = Math.max(5, Math.min(800, orbit3d.dist * (e.deltaY > 0 ? 1.1 : 1 / 1.1)));
+  updateOrbit3d();
+}, { passive: false });
+
+function anim3d() {
+  requestAnimationFrame(anim3d);
+  if (r3d && scene3d && cam3d && view3d) {
+    r3d.render(scene3d, cam3d);
+    const p = cam3d.position;
+    const el = $('#coords3d');
+    if (el) el.textContent = `x:${p.x.toFixed(0)} y:${p.y.toFixed(0)} z:${p.z.toFixed(0)}`;
+  }
+}
+anim3d();
+
 refreshList();
 renderLibrary();
 // boot
-resize2d(); resize3d();
+resize2d();
 fitView();
 renderInspector();
-// deep-link: ?map=city-a.json&yaw=&pitch=&dist=&tx=&tz= frames the 3D view
-const qp = new URLSearchParams(location.search);
-const hasBootCam = ['yaw', 'pitch', 'dist', 'tx', 'tz'].some(k => !isNaN(parseFloat(qp.get(k))));
-if (hasBootCam) {
-  if (!isNaN(parseFloat(qp.get('yaw')))) orbit.yaw = parseFloat(qp.get('yaw'));
-  if (!isNaN(parseFloat(qp.get('pitch')))) orbit.pitch = parseFloat(qp.get('pitch'));
-  if (!isNaN(parseFloat(qp.get('dist')))) orbit.dist = parseFloat(qp.get('dist'));
-  if (!isNaN(parseFloat(qp.get('tx')))) pTarget.x = parseFloat(qp.get('tx'));
-  if (!isNaN(parseFloat(qp.get('tz')))) pTarget.z = parseFloat(qp.get('tz'));
-  pTarget.y = 12;
-  camResetNeeded = false;
-}
-const qm = qp.get('map');
+const qm = new URLSearchParams(location.search).get('map');
 if (qm) {
   (async () => {
     try {
@@ -2162,188 +2147,9 @@ if (qm) {
       scene.id = qm.replace('.json', '');
       selected = null; roadDraft = null;
       fitView(); redrawAll();
-      camResetNeeded = false;
-      buildPreview();
     } catch (err) { console.error('boot map load failed', err); }
   })();
-} else {
-  buildPreview();
 }
-
-// ============ FULLSCREEN 3D MODE ============
-let fs3d = false;
-const raycaster3d = new THREE.Raycaster();
-const ground3d = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-let fs3dDrag = null; // {cat, idx, startWorld, startObj}
-
-function toggleFullscreen3d() {
-  fs3d = !fs3d;
-  document.body.classList.toggle('fullscreen3d', fs3d);
-  setTimeout(() => { resize3d(); resize2d(); draw2d(); redrawAll(); }, 100);
-  updateFloatInspector();
-}
-
-$('#btnFullscreen3d').addEventListener('click', toggleFullscreen3d);
-$('#float-exit').addEventListener('click', toggleFullscreen3d);
-
-// wire floating toolbar buttons
-document.querySelectorAll('#float-toolbar button[data-tool]').forEach(btn => {
-  btn.addEventListener('click', () => setTool(btn.dataset.tool));
-});
-
-// 3D click → raycast against scene objects
-function fs3dWorldHit(e) {
-  const rect = $('#canvas3d').getBoundingClientRect();
-  const mx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-  const my = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-  raycaster3d.setFromCamera(new THREE.Vector2(mx, my), pCam);
-  // ground intersection
-  const gHit = raycaster3d.ray.intersectPlane(ground3d, new THREE.Vector3());
-  return gHit;
-}
-
-function fs3dObjectHit(wx, wz) {
-  let best = null, bestD = 8; // 8m snap radius
-  const testObj = (cat, it, w, d) => {
-    const ix = it.x !== undefined ? it.x : (Array.isArray(it) ? it[0] : null);
-    const iz = it.z !== undefined ? it.z : (Array.isArray(it) ? it[1] : null);
-    if (ix === null) return;
-    const ry = it.ry || 0;
-    const dx = wx - ix, dz = wz - iz;
-    const cos = Math.cos(-ry), sin = Math.sin(-ry);
-    const lx = dx * cos - dz * sin, lz = dx * sin + dz * cos;
-    const hw = (w || 2) / 2 + 1, hd = (d || 2) / 2 + 1;
-    if (Math.abs(lx) < hw && Math.abs(lz) < hd) {
-      const d = Math.hypot(dx, dz);
-      if (d < bestD) { bestD = d; best = { cat, idx: scene[cat].indexOf(it) }; }
-    }
-  };
-  for (const it of (scene.buildings || [])) testObj('buildings', it, it.w || 12, it.d || 12);
-  for (const it of (scene.props || [])) testObj('props', it, 2, 2);
-  for (const it of (scene.landmarks || [])) testObj('landmarks', it, 8, 8);
-  for (const it of (scene.vehicles || [])) testObj('vehicles', it, 3, 5);
-  for (const it of (scene.trees || [])) testObj('trees', it, 2, 2);
-  for (const it of (scene.pads || [])) testObj('pads', it, it.w || 20, it.d || 14);
-  for (let i = 0; i < (scene.spawns || []).length; i++) { const it = scene.spawns[i]; testObj('spawns', it, 2, 2); }
-  return best;
-}
-
-$('#canvas3d').addEventListener('mousedown', (e) => {
-  if (!fs3d) return;
-  if (document.activeElement && document.activeElement.tagName !== 'CANVAS') document.activeElement.blur();
-  if (e.button === 1 || e.button === 2 || e.shiftKey) return; // pan handled by orbit
-  const gHit = fs3dWorldHit(e);
-  if (!gHit) return;
-
-  if (tool === 'select') {
-    const objHit = fs3dObjectHit(gHit.x, gHit.z);
-    if (objHit) {
-      selected = { cat: objHit.cat, idx: objHit.idx };
-      const it = scene[objHit.cat][objHit.idx];
-      const ix = it.x !== undefined ? it.x : (Array.isArray(it) ? it[0] : 0);
-      const iz = it.z !== undefined ? it.z : (Array.isArray(it) ? it[1] : 0);
-      fs3dDrag = { cat: objHit.cat, idx: objHit.idx, startWorld: gHit.clone(), startObj: { x: ix, z: iz } };
-      renderInspector();
-    } else {
-      selected = null;
-      renderInspector();
-      oMouse = { x: e.clientX, y: e.clientY, b: 0 };
-    }
-  } else if (tool === 'building') {
-    const w = +$('#roadW').value || 12, d = +$('#padD').value || 12;
-    const kind = $('#kindSel').value || 'box';
-    scene.buildings.push({ ...buildDefaults, kind, x: snap1(gHit.x), z: snap1(gHit.z), w, d });
-    selected = { cat: 'buildings', idx: scene.buildings.length - 1 };
-    redrawAll();
-  } else if (tool === 'tree') {
-    scene.trees.push({ x: snap1(gHit.x), z: snap1(gHit.z), s: 1, dead: false });
-    redrawAll();
-  } else if (tool === 'spawn') {
-    scene.spawns.push([snap1(gHit.x), snap1(gHit.z)]);
-    redrawAll();
-  } else if (tool === 'startpoint') {
-    scene.startPoint.x = snap1(gHit.x);
-    scene.startPoint.z = snap1(gHit.z);
-    redrawAll();
-  } else if (tool === 'pad') {
-    const pw = +$('#padW').value || 20, pd = +$('#padD').value || 14;
-    scene.pads.push({ x: snap1(gHit.x), z: snap1(gHit.z), w: pw, d: pd, ry: 0, m: 'plaza' });
-    selected = { cat: 'pads', idx: scene.pads.length - 1 };
-    redrawAll();
-  } else if (tool === 'prop') {
-    const kind = $('#kindSel').value || 'crate';
-    scene.props.push({ ...propDefaults[kind], x: snap1(gHit.x), z: snap1(gHit.z) });
-    selected = { cat: 'props', idx: scene.props.length - 1 };
-    redrawAll();
-  } else if (tool === 'vehicle') {
-    const kind = $('#kindSel').value || 'car';
-    scene.vehicles.push({ x: snap1(gHit.x), z: snap1(gHit.z), ry: 0, kind });
-    selected = { cat: 'vehicles', idx: scene.vehicles.length - 1 };
-    redrawAll();
-  } else if (tool === 'cover') {
-    scene.cover.push([snap1(gHit.x), snap1(gHit.z)]);
-    selected = { cat: 'cover', idx: scene.cover.length - 1 };
-    redrawAll();
-  } else if (tool === 'loot') {
-    scene.loot.push([snap1(gHit.x), snap1(gHit.z)]);
-    selected = { cat: 'loot', idx: scene.loot.length - 1 };
-    redrawAll();
-  } else if (tool === 'landmark') {
-    const kind = $('#kindSel').value || 'fuel';
-    scene.landmarks.push({ ...landmarkDefaults[kind], x: snap1(gHit.x), z: snap1(gHit.z) });
-    selected = { cat: 'landmarks', idx: scene.landmarks.length - 1 };
-    redrawAll();
-  } else if (tool === 'road') {
-    if (!roadDraft) roadDraft = { points: [], mouse: null };
-    roadDraft.points.push([snap1(gHit.x), snap1(gHit.z)]);
-    redrawAll();
-  } else if (tool === 'text') {
-    const objHit = fs3dObjectHit(gHit.x, gHit.z);
-    if (objHit && (objHit.cat === 'buildings' || objHit.cat === 'landmarks')) {
-      selected = { cat: objHit.cat, idx: objHit.idx };
-      const it = scene[objHit.cat][objHit.idx];
-      const txt = prompt('Enter text:', 'TEXT');
-      if (txt) addOverlay(it, txt, gHit.x, gHit.z);
-      redrawAll();
-    }
-  } else if (tool === 'erase') {
-    const objHit = fs3dObjectHit(gHit.x, gHit.z);
-    if (objHit) {
-      scene[objHit.cat].splice(objHit.idx, 1);
-      if (selected && selected.cat === objHit.cat && selected.idx === objHit.idx) selected = null;
-      redrawAll();
-    }
-  }
-});
-
-window.addEventListener('mousemove', (e) => {
-  if (!fs3d || !fs3dDrag || !selected) return;
-  const gHit = fs3dWorldHit(e);
-  if (!gHit) return;
-  const it = scene[fs3dDrag.cat][fs3dDrag.idx];
-  const dx = gHit.x - fs3dDrag.startWorld.x;
-  const dz = gHit.z - fs3dDrag.startWorld.z;
-  if (it.x !== undefined) { it.x = snap1(fs3dDrag.startObj.x + dx); it.z = snap1(fs3dDrag.startObj.z + dz); }
-  else if (Array.isArray(it)) { it[0] = snap1(fs3dDrag.startObj.x + dx); it[1] = snap1(fs3dDrag.startObj.z + dz); }
-  redrawAll();
-});
-
-window.addEventListener('mouseup', () => { fs3dDrag = null; });
-
-// Q/E rotate in 3D mode
-window.addEventListener('keydown', (e) => {
-  if (!fs3d) return;
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
-  if (selected && (e.key === 'q' || e.key === 'Q')) {
-    const it = scene[selected.cat][selected.idx];
-    if (it && it.ry !== undefined) { it.ry = (it.ry || 0) - (e.shiftKey ? 0.5 : 0.15); redrawAll(); }
-  }
-  if (selected && (e.key === 'e' || e.key === 'E')) {
-    const it = scene[selected.cat][selected.idx];
-    if (it && it.ry !== undefined) { it.ry = (it.ry || 0) + (e.shiftKey ? 0.5 : 0.15); redrawAll(); }
-  }
-  if (e.key === 'Escape' && fs3d) toggleFullscreen3d();
-});
 </script>
 </body>
 </html>

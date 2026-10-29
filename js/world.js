@@ -1,9 +1,10 @@
-// World: 4000x4000m organic city — Mega-City Core, Abandoned Docks, Overgrown Perimeter.
-// Curved Bezier roads, random-angle intersections, asymmetrical buildings. No grid.
+// World — GLB-only city with authored roads.
 import * as THREE from 'three';
 import * as TEX from './textures.js';
-import { installAssets } from '../assets/loader.js';
-import { SpatialGrid } from './spatial-grid.js';
+import { GLTFLoader } from './lib/GLTFLoader.js';
+import { BVHWorld } from './bvh-collision.js';
+import { Atmosphere } from './atmosphere.js';
+import { prefetch } from './model-loader.js';
 
 function rng(a, b) { return a + Math.random() * (b - a); }
 
@@ -36,6 +37,7 @@ export class World {
     this.colliders = [];     // {min:Vector3, max:Vector3} solid AABBs
     this.climbables = [];    // {min,max} climbable objects
     this.interiors = [];     // {min,max} enterable volumes
+    this.portals = [];       // {pos:Vector3, dir:Vector3, target:Vector3, type:'enter'|'exit', buildingIdx:number}
     this.coverPoints = [];   // positions bots can fight from
     this.spawnPoints = [];   // where waves spawn
     this.lootPoints = [];    // {x,z} lootable crates
@@ -44,80 +46,36 @@ export class World {
     this.roofAccess = [];     // {x,z,y,rx,rz} walkable rooftops
     this.reactiveObjects = []; // {mesh, kind, base, sway, ...}
     this.vehicleSpawns = [];  // {x,z,ry,kind} parked/drivable vehicles
+    this._buildingData = [];  // {url,min,max,x,z,doors[],interior} — auto-detected from GLB
     this.bounds = sceneData && sceneData.bounds ? sceneData.bounds : (quality === 'ultra-low' ? 1000 : 2000);
     this._quality = quality;
     this.group = new THREE.Group();
     scene.add(this.group);
-    this._branches = [];
-    this._leaves = [];
-    this._roadNodes = [];
-    this._roadSegments = [];
     this._boxBatch = [];     // {x,y,z,w,h,d,ry,mat,shadow} — static boxes to batch
     this._planeBatch = [];   // {x,y,z,rw,rh,rz,mat,w,h,shadow} — static planes to batch
     this._ribbonBatch = [];  // {left[], right[], y, mat, closed} — mitered road/sidewalk ribbons
     this._trimBatch = [];    // {x,y,z,w,h,d,ry,mat} — AO base skirts + roofline lips
 
     this.buildLighting(quality);
-    this.buildSky();
+    if (quality !== 'ultra-low') this.buildSky();
     this.buildGround(sceneData && sceneData.ground);
     this.startPoint = { x: 0, z: 40, yaw: Math.PI };
+    this.assetsReady = Promise.resolve();
     if (sceneData) {
-      this.buildFromScene(sceneData);
+      this.assetsReady = this.buildFromScene(sceneData).then(() => {
+        this._flushGeometry();
+        this.bvhWorld = new BVHWorld();
+        for (const c of this.colliders) this.bvhWorld.addAABB(c.min, c.max);
+        this.grid = this.bvhWorld; // alias for backward compat
+      });
     } else {
-      this.buildCity();
-      if (quality !== 'ultra-low') this.buildZones();
+      this._flushGeometry();
+      this.bvhWorld = new BVHWorld();
+      for (const c of this.colliders) this.bvhWorld.addAABB(c.min, c.max);
+      this.grid = this.bvhWorld;
     }
     this._finishSpawnPoints();
-    if (quality !== 'ultra-low') this._finalizeFoliage(quality);
-    this._flushGeometry();
-    this.grid = new SpatialGrid(12);
-    for (const c of this.colliders) this.grid.insert(c);
-  }
-
-  _finalizeFoliage(quality) {
-    const trunkMat = this.mTrunk();
-    const leafMats = [
-      new THREE.MeshStandardMaterial({ color: 0x2e6628, roughness: 0.85, metalness: 0.05, flatShading: false }),
-      new THREE.MeshStandardMaterial({ color: 0x3d7e32, roughness: 0.85, metalness: 0.05, flatShading: false }),
-      new THREE.MeshStandardMaterial({ color: 0x245520, roughness: 0.90, metalness: 0.05, flatShading: false }),
-    ];
-    if (this._branches.length) {
-      const g = new THREE.CylinderGeometry(1, 1, 1, 10);
-      const im = new THREE.InstancedMesh(g, trunkMat, this._branches.length);
-      im.castShadow = quality !== 'low';
-      im.receiveShadow = quality !== 'low';
-      im.frustumCulled = true;
-      const m = new THREE.Matrix4();
-      for (let i = 0; i < this._branches.length; i++) {
-        const b = this._branches[i];
-        m.compose(new THREE.Vector3(b.pos[0], b.pos[1], b.pos[2]),
-                  new THREE.Quaternion(b.quat[0], b.quat[1], b.quat[2], b.quat[3]),
-                  new THREE.Vector3(b.scale[0], b.scale[1], b.scale[2]));
-        im.setMatrixAt(i, m);
-      }
-      im.instanceMatrix.needsUpdate = true;
-      this.group.add(im);
-    }
-    if (this._leaves.length) {
-      const g = new THREE.SphereGeometry(1, 14, 10);
-      const buckets = [[], [], []];
-      for (const l of this._leaves) buckets[l.color[0] % 3].push(l);
-      for (let bi = 0; bi < 3; bi++) {
-        const arr = buckets[bi]; if (!arr.length) continue;
-        const im = new THREE.InstancedMesh(g, leafMats[bi], arr.length);
-        im.castShadow = quality !== 'low'; im.receiveShadow = quality !== 'low';
-        const m = new THREE.Matrix4();
-        for (let i = 0; i < arr.length; i++) {
-          const l = arr[i];
-          m.compose(new THREE.Vector3(l.pos[0], l.pos[1], l.pos[2]),
-                    new THREE.Quaternion(), new THREE.Vector3(l.scale[0], l.scale[1], l.scale[2]));
-          im.setMatrixAt(i, m);
-        }
-        im.instanceMatrix.needsUpdate = true;
-        this.group.add(im);
-      }
-    }
-    this._branches = null; this._leaves = null;
+    this._physics = null; // set by main.js after Physics.init()
   }
 
   // ===== MATERIALS =====
@@ -143,7 +101,11 @@ export class World {
   mRoller() { return this._mat('roller', () => new THREE.MeshStandardMaterial({ map: TEX.makeRollerTexture(), roughness: .6, metalness: .55 })); }
   mCorrugated(tint) { return this._mat('corr' + (tint || ''), () => new THREE.MeshStandardMaterial({ map: TEX.makeCorrugatedTexture(512, tint || [126, 128, 124]), roughness: .55, metalness: .7 })); }
   mSidewalk() { return this._mat('walk', () => new THREE.MeshStandardMaterial({ map: TEX.makeSidewalkTexture(), roughness: .95, metalness: 0 })); }
-  mRoad() { return this._mat('road', () => new THREE.MeshStandardMaterial({ map: TEX.makeRoadTexture(), roughness: .95, metalness: 0 })); }
+  mRoad() { return this._mat('road', () => {
+    const tex = new THREE.TextureLoader().load('./data/models/textures/roadtex.jpg', (t) => { t.colorSpace = THREE.SRGBColorSpace; });
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    return new THREE.MeshStandardMaterial({ map: tex, roughness: .92, metalness: 0, side: THREE.DoubleSide });
+  }); }
   mCurb() { return this._mat('curb', () => new THREE.MeshStandardMaterial({ map: TEX.makeConcreteTexture(256, [142, 142, 140]), roughness: .9, metalness: 0 })); }
   mSand() { return this._mat('sand', () => new THREE.MeshStandardMaterial({ map: TEX.makeSandTexture(), roughness: .98, metalness: 0 })); }
   mOcean() { return this._mat('ocean', () => new THREE.MeshStandardMaterial({ map: TEX.makeWaterTexture(), color: 0x2ae6f0, roughness: .1, metalness: .6, transparent: true, opacity: .82, envMapIntensity: 2.0 })); }
@@ -169,9 +131,13 @@ export class World {
   get _perimRoof()    { return [[90, 86, 80], [105, 95, 82], [78, 82, 88], [95, 88, 78], [84, 90, 82]]; }
 
   // ===== COLLIDERS =====
-  addCollider(x, y, z, w, h, d, climb = false) {
+  addCollider(x, y, z, w, h, d, climb = false, type = null) {
     const c = { min: new THREE.Vector3(x - w / 2, y, z - d / 2), max: new THREE.Vector3(x + w / 2, y + h, z + d / 2) };
+    if (type) c.type = type;
     if (climb) this.climbables.push(c); else this.colliders.push(c);
+    if (this.bvhWorld) {
+      if (climb) this.bvhWorld._climbables.push(c); else this.bvhWorld.aabbColliders.push(c);
+    }
     return c;
   }
 
@@ -201,6 +167,77 @@ export class World {
   }
 
   addInterior(min, max) { this.interiors.push({ min, max }); }
+
+  addPortal(pos, dir, target, type = 'enter', buildingIdx = -1) {
+    const p = { pos: pos.clone(), dir: dir.clone(), target: target.clone(), type, buildingIdx };
+    this.portals.push(p);
+    return p;
+  }
+
+  // Hollow box: 4 walls with a door gap in the front face. Interior is walkable.
+  // This replaces box() for buildings the player should be able to enter.
+  hollowBox(x, y, z, w, h, d, mat, ry = 0, doorW = 1.4, doorH = 2.6) {
+    const t = 0.3; // wall thickness
+    const cs = Math.cos(ry || 0), sn = Math.sin(ry || 0);
+    const l2w = (lx, lz) => ({ x: x + lx * cs + lz * sn, z: z - lx * sn + lz * cs });
+
+    // Back wall (full width)
+    const b = l2w(0, -d / 2);
+    this.box(b.x, y, b.z, w, h, t, mat, true, ry);
+    // Left wall (full depth)
+    const l = l2w(-w / 2, 0);
+    this.box(l.x, y, l.z, t, h, d, mat, true, ry);
+    // Right wall (full depth)
+    const r = l2w(w / 2, 0);
+    this.box(r.x, y, r.z, t, h, d, mat, true, ry);
+    // Front wall: split into two panels with door gap
+    const sideW = (w - doorW) / 2;
+    const fl = l2w(-w / 2 + sideW / 2, d / 2);
+    const fr = l2w(w / 2 - sideW / 2, d / 2);
+    this.box(fl.x, y, fl.z, sideW, h, t, mat, true, ry);
+    this.box(fr.x, y, fr.z, sideW, h, t, mat, true, ry);
+    // Lintle above door (non-collidable visual)
+    const lintelH = h - doorH;
+    if (lintelH > 0.1) {
+      const lc = l2w(0, d / 2);
+      this.box(lc.x, y + doorH + lintelH / 2, lc.z, doorW + 0.4, lintelH, t, mat, false, ry);
+    }
+  }
+
+  // Universal building entry: add enter/exit portals for ANY procedural building.
+  // Finds the front face (+Z in local frame), places entrance outside, exit inside.
+  addBuildingEntry(x, z, w, d, ry, h, buildingIdx = -1) {
+    const cs = Math.cos(ry || 0), sn = Math.sin(ry || 0);
+    // Front face center in world space (local +Z direction)
+    const frontX = x + sn * (d / 2);
+    const frontZ = z + cs * (d / 2);
+    // Entrance: 1.5m in front of the building
+    const entranceX = frontX + sn * 1.5;
+    const entranceZ = frontZ + cs * 1.5;
+    // Exit: 1.5m inside the building center
+    const exitX = x - sn * 0.5;
+    const exitZ = z - cs * 0.5;
+    const entrance = new THREE.Vector3(entranceX, 0, entranceZ);
+    const exit = new THREE.Vector3(exitX, 0, exitZ);
+    const dir = new THREE.Vector3(-sn, 0, -cs); // pointing into building
+    this.addPortal(entrance, dir.clone().negate(), exit, 'enter', buildingIdx);
+    this.addPortal(exit, dir, entrance, 'exit', buildingIdx);
+    // Register interior so world bounds don't clamp the player inside
+    const margin = 1.0;
+    this.addInterior(
+      new THREE.Vector3(x - w / 2 + margin, 0, z - d / 2 + margin),
+      new THREE.Vector3(x + w / 2 - margin, h || 4, z + d / 2 - margin)
+    );
+  }
+
+  nearestPortal(pos, range = 1.8) {
+    let best = null, bestD = range;
+    for (const p of this.portals) {
+      const d = pos.distanceTo(p.pos);
+      if (d < bestD) { bestD = d; best = p; }
+    }
+    return best;
+  }
   // Point `dist` in front of a building's +Z face (local frame aware).
   frontPoint(x, z, ry, dist) {
     const cs = Math.cos(ry), sn = Math.sin(ry);
@@ -416,7 +453,7 @@ export class World {
         if (o.col) {
           const i = this.colliders.indexOf(o.col);
           if (i >= 0) this.colliders.splice(i, 1);
-          if (this.grid) this.grid.remove(o.col);
+          if (this.bvhWorld) this.bvhWorld.removeAABB(o.col);
           const j = this.climbables.indexOf(o.col);
           if (j >= 0) this.climbables.splice(j, 1);
         }
@@ -426,31 +463,26 @@ export class World {
 
   // ===== LIGHTING & SKY =====
   buildLighting(quality) {
-    const sun = new THREE.DirectionalLight(0xfff1dd, quality === 'ultra-low' ? 1.8 : 2.6);
-    sun.position.set(200, 180, 80);
-    sun.castShadow = quality !== 'low' && quality !== 'ultra-low';
-    if (sun.castShadow) {
-      sun.shadow.mapSize.setScalar(quality === 'high' ? 4096 : 2048);
-      const S = quality === 'high' ? 300 : 150;
-      Object.assign(sun.shadow.camera, { left: -S, right: S, top: S, bottom: -S, near: 10, far: 600 });
-      sun.shadow.bias = -0.001; sun.shadow.normalBias = 0.02;
+    if (quality === 'ultra-low') {
+      const sun = new THREE.DirectionalLight(0xfff1dd, 1.8);
+      sun.position.set(200, 180, 80);
+      this.scene.add(sun);
+      this.scene.add(new THREE.HemisphereLight(0xcfe3ff, 0x5a5c50, 0.9));
+      this.scene.fog = new THREE.FogExp2(0x9aa3ac, 0.006);
+      this.sun = sun;
+      return;
     }
-    this.sun = sun;
-    this.scene.add(sun);
-    this.scene.add(new THREE.HemisphereLight(0xcfe3ff, 0x5a5c50, 0.9));
-    const fill = new THREE.DirectionalLight(0xa8bfd8, quality === 'ultra-low' ? 0.35 : 0.5);
-    fill.position.set(-60, 20, -80);
-    this.scene.add(fill);
-    this.scene.fog = new THREE.FogExp2(0x9aa3ac, quality === 'ultra-low' ? 0.006 : 0.0026);
+    this.atmosphere = new Atmosphere(this.scene, quality);
+    this.sun = this.atmosphere.sun;
   }
 
   buildSky() {
     if (this._quality === 'ultra-low') { this.scene.background = new THREE.Color(0x5a6a78); return; }
+    // Atmosphere handles the sky dome; just set env map for PBR reflections
     const sky = TEX.makeSkyTexture();
-    this.scene.background = sky;
-    this.scene.backgroundIntensity = 1.0;
     this.scene.environment = sky;
     this.scene.environmentIntensity = 0.45;
+    // Don't set background — atmosphere sky dome renders over it
   }
 
   buildGround(spec = null) {
@@ -494,11 +526,6 @@ export class World {
   buildCity() {
     this._generateRoadNetwork();
     this._buildRoadMeshes();
-    this._placeBuildingsAlongRoads();
-    this._placeInfillBuildings();
-    this._placeDedicatedForest();
-    this._addZoneSpecificContent();
-    // Spawn points at road nodes + mid-segment points
     for (const node of this._roadNodes) {
       if (Math.hypot(node.x, node.z) < this.bounds - 30) {
         this.spawnPoints.push(new THREE.Vector3(node.x, 0, node.z));
@@ -513,13 +540,11 @@ export class World {
         }
       }
     }
-    this._autoStreetProps();
+    this._spawnGLBAssets();
   }
 
   // ===== AUTHORED SCENE (map JSON) =====
-  // Builds the world from a handcrafted scene file (data/worlds/*.json).
-  // The map editor writes the same format. Everything is explicit — no RNG placement.
-  buildFromScene(sd) {
+  async buildFromScene(sd) {
     if (sd.startPoint) {
       this.startPoint = {
         x: sd.startPoint.x || 0,
@@ -527,37 +552,367 @@ export class World {
         yaw: sd.startPoint.yaw != null ? sd.startPoint.yaw : Math.PI,
       };
     }
-    if (sd.roads) this._buildAuthoredRoads(sd.roads);
-    if (sd.pads) for (const p of sd.pads) this._authoredPad(p);
-    if (sd.buildings) for (const b of sd.buildings) this._authoredBuilding(b);
-    if (sd.props) for (const p of sd.props) this._authoredProp(p);
-    if (sd.trees) for (const t of sd.trees) this.tree(t.x, t.z, t.s != null ? t.s : 1, !!t.dead);
-    if (sd.landmarks) for (const lm of sd.landmarks) this._authoredLandmark(lm);
+    if (sd.roads) await this._buildAuthoredRoads(sd.roads);
     if (sd.spawns) for (const sp of sd.spawns) this.spawnPoints.push(new THREE.Vector3(sp[0], 0, sp[1]));
     if (sd.cover) for (const c of sd.cover) this.coverPoints.push(new THREE.Vector3(c[0], 0, c[1]));
     if (sd.transit) for (const t of sd.transit) this.transitPoints.push({ x: t.x, z: t.z, name: t.name });
     if (sd.named) for (const n of sd.named) this.namedLocations.push({ x: n.x, z: n.z, name: n.name, color: n.color || '#ffd24a' });
-    if (sd.interiors) for (const v of sd.interiors) {
-      const c = Math.abs(Math.cos(v.ry || 0)), s = Math.abs(Math.sin(v.ry || 0));
-      const ex = (v.w / 2) * c + (v.d / 2) * s, ez = (v.w / 2) * s + (v.d / 2) * c;
-      this.addInterior(new THREE.Vector3(v.x - ex, 0, v.z - ez), new THREE.Vector3(v.x + ex, v.h || 4, v.z + ez));
+    if (sd.vehicles) for (const v of sd.vehicles) this.vehicleSpawns.push({ x: v.x, z: v.z, ry: v.ry || 0, kind: v.kind || 'car', elevation: v.elevation || 0 });
+    if (sd.loot) {
+      const crateMat = this.mCrate();
+      for (const lp of sd.loot) {
+        const lx = lp[0], lz = lp[1];
+        const m = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.9), crateMat);
+        m.position.set(lx, 0.45, lz);
+        m.castShadow = true;
+        m.receiveShadow = true;
+        this.group.add(m);
+        const col = this.addCollider(lx, 0, lz, 0.9, 0.9, 0.9);
+        this.lootPoints.push({ x: lx, z: lz, mesh: m, col, looted: false });
+      }
     }
-    if (sd.roofs) for (const r of sd.roofs) this.addRoof(r.x, r.z, r.y, r.rx, r.rz);
-    if (sd.reactives) for (const rc of sd.reactives) this._authoredReactive(rc);
-    if (sd.vehicles) for (const v of sd.vehicles) this.vehicleSpawns.push({ x: v.x, z: v.z, ry: v.ry || 0, kind: v.kind || 'car' });
-    if (sd.buildings) for (const b of sd.buildings) if (b._overlays && b._overlays.length) this._renderOverlays(b._overlays, b.x, b.z, b.ry || 0, b.w || 12, b.h || 4, b.d || 12);
-    if (sd.landmarks) for (const lm of sd.landmarks) if (lm._overlays && lm._overlays.length) { const ls = this._landmarkSize(lm); this._renderOverlays(lm._overlays, lm.x, lm.z, lm.ry || 0, ls[0], ls[1], ls[2]); }
+    await this._spawnGLBAssets(sd);
     this._dedupeNamed();
     const tSeen = new Map();
     for (const t of this.transitPoints) tSeen.set(t.name, t);
     this.transitPoints = [...tSeen.values()];
-    if (sd.streetProps === true) this._autoStreetProps();
   }
 
   _dedupeNamed() {
     const seen = new Map();
     for (const n of this.namedLocations) seen.set(n.name, n);
     this.namedLocations = [...seen.values()];
+  }
+
+  async _spawnGLBAssets(sd) {
+    const assets = (sd && sd.glbAssets) || [];
+    if (!assets.length) {
+      this._rebuildGrid();
+      return;
+    }
+
+    // Prefetch all GLB binaries off main thread in parallel before decoding
+    const glbUrls = assets.map(a => a.url).filter(u => u && (u.endsWith('.glb') || u.endsWith('.gltf')));
+    if (glbUrls.length) {
+      prefetch(glbUrls);
+      console.log(`[World] Prefetching ${glbUrls.length} model binaries in background`);
+    }
+
+    // Load assets in parallel batches of 4
+    const CONCURRENT = 4;
+    for (let i = 0; i < assets.length; i += CONCURRENT) {
+      const batch = assets.slice(i, i + CONCURRENT);
+      await Promise.allSettled(batch.map(a => this._loadGLBAsset(a)));
+    }
+
+    this._rebuildGrid();
+    if (this._physics && this._physics.world) {
+      this._physics.registerStaticBatch(this.colliders);
+    }
+    console.log('[World] Grid rebuilt with', this.colliders.length, 'colliders +', this.climbables.length, 'climbables +', this.portals.length, 'portals');
+    return;
+  }
+
+  async _loadGLBAsset(a) {
+    if (!this._gltfLoader) this._gltfLoader = new GLTFLoader();
+    if (!this._glbModelCache) this._glbModelCache = new Map();
+    try {
+      let baseScene = this._glbModelCache.get(a.url);
+      if (!baseScene) {
+        const gltf = await new Promise((res, rej) => this._gltfLoader.load(a.url, res, undefined, rej));
+        baseScene = gltf.scene;
+        this._glbModelCache.set(a.url, baseScene);
+      }
+      const model = baseScene.clone(true);
+
+      // Measure raw bbox BEFORE any transforms
+      const rawBBox = new THREE.Box3().setFromObject(model);
+      const rawH = rawBBox.max.y - rawBBox.min.y;
+
+      // Auto-scale: targetH normalizes model height to real-world meters.
+      if (a.targetH && rawH > 0.01) {
+        model.scale.setScalar(a.targetH / rawH);
+      } else if (a.scale) {
+        model.scale.setScalar(a.scale);
+      }
+
+      // Position: snap model's bottom to ground (y=0), plus any elevation offset.
+      model.updateMatrixWorld(true);
+      const afterScaleBBox = new THREE.Box3().setFromObject(model);
+      model.position.set(a.x, -afterScaleBBox.min.y + (a.elevation || 0), a.z);
+      model.rotation.y = a.ry || 0;
+      this.group.add(model);
+      model.updateMatrixWorld(true);
+
+      // Enhance all materials for realism
+      const envMap = this.scene.environment;
+      const shouldCastShadow = !!(a.building || (a.targetH && a.targetH > 4.0));
+      model.traverse(o => {
+        if (!o.isMesh) return;
+        o.castShadow = shouldCastShadow;
+        o.receiveShadow = true;
+        const mat = o.material;
+        if (mat && mat.isMeshStandardMaterial) {
+          if (mat.roughness > 0.9) mat.roughness = Math.min(mat.roughness, 0.92);
+          if (mat.metalness < 0.01 && mat.roughness < 0.5) mat.metalness = 0.05;
+          if (envMap && !mat.envMap) { mat.envMap = envMap; mat.envMapIntensity = 0.35; }
+          mat.needsUpdate = true;
+        } else if (mat && mat.isMeshPhongMaterial) {
+          const std = new THREE.MeshStandardMaterial({
+            color: mat.color,
+            roughness: 0.7,
+            metalness: 0.05,
+          });
+          if (envMap) { std.envMap = envMap; std.envMapIntensity = 0.35; }
+          std.needsUpdate = true;
+          o.material = std;
+        }
+      });
+
+      // Add solid collision for GLB asset
+      const assetUrl = (a.url || '').toLowerCase();
+      const assetName = a.url.split('/').pop();
+      const isTree = assetUrl.includes('tree') || assetUrl.includes('palm') || assetUrl.includes('coconut') || (a.tags && a.tags.includes('nature'));
+      const isLamp = assetUrl.includes('street_light') || assetUrl.includes('lamp') || assetUrl.includes('light');
+      const isRoad = assetUrl.includes('road.glb') || (assetUrl.includes('road') && !assetUrl.includes('barrier'));
+
+      const bbox = new THREE.Box3().setFromObject(model, true);
+
+      if (!a.noCollision && !isRoad) {
+        if (!bbox.isEmpty()) {
+          const s = bbox.getSize(new THREE.Vector3());
+          const c = bbox.getCenter(new THREE.Vector3());
+          if (s.x > 0.1 && s.y > 0.1 && s.z > 0.1) {
+            if (isTree) {
+              // Tree: ONLY collide with the central trunk (0.5m x 0.5m), NOT the massive 10m foliage canopy!
+              this.addCollider(a.x, bbox.min.y, a.z, 0.5, s.y, 0.5);
+            } else if (isLamp) {
+              // Streetlight: ONLY collide with the base pole (0.35m x 0.35m), NOT the wide overhead arm!
+              this.addCollider(a.x, bbox.min.y, a.z, 0.35, s.y, 0.35);
+            } else if (a.climbable) {
+              this.addCollider(c.x, bbox.min.y, c.z, s.x, s.y, s.z, true, a.type || null);
+            } else if (a.collisionSize) {
+              this.addCollider(a.x, bbox.min.y, a.z, a.collisionSize[0], a.collisionH || s.y, a.collisionSize[1]);
+            } else if (a.collisionH) {
+              this.addCollider(c.x, bbox.min.y, c.z, s.x, a.collisionH, s.z);
+            } else {
+              this.addCollider(c.x, bbox.min.y, c.z, s.x, s.y, s.z);
+            }
+          }
+        }
+      }
+
+      if (a.building) {
+        const buildingIdx = this._buildingData.length;
+        this._buildingData.push({
+          url: assetName,
+          min: bbox.min.clone(),
+          max: bbox.max.clone(),
+          x: a.x, z: a.z,
+          doors: [],
+          interior: null,
+        });
+
+        // Detect door meshes for portal system
+        const doorMeshes = [];
+        model.traverse(o => {
+          if (!o.isMesh) return;
+          if (this._isDoorMesh(o.name)) {
+            o.updateWorldMatrix(true, false);
+            const geo = o.geometry;
+            if (!geo || !geo.attributes.position) return;
+            geo.computeBoundingBox();
+            const lb = geo.boundingBox;
+            if (!lb) return;
+            const min = lb.min.clone().applyMatrix4(o.matrixWorld);
+            const max = lb.max.clone().applyMatrix4(o.matrixWorld);
+            const sz = new THREE.Vector3().subVectors(max, min);
+            const center = new THREE.Vector3().addVectors(min, max).multiplyScalar(0.5);
+            doorMeshes.push({ name: o.name, min, max, center, size: sz });
+          }
+        });
+        if (doorMeshes.length > 0) {
+          this._registerBuildingDoors(a, model, doorMeshes, buildingIdx);
+        }
+
+        // Hide col_* proxy meshes if present
+        model.traverse(o => {
+          if (o.isMesh && this._isCollisionMesh(o.name)) o.visible = false;
+        });
+      }
+
+      this.coverPoints.push(new THREE.Vector3(a.x, 0, a.z));
+
+      // Register model meshes for BVH collision — ONLY buildings and climbables
+      // (Foliage/trees/lamps should never clip 3rd-person camera into the player's head)
+      if (this.bvhWorld && !isTree && !isLamp && (a.building || a.climbable)) {
+        this.bvhWorld.registerModel(model, {
+          tags: a.tags || [],
+          selective: true,
+          layer: 1,
+        });
+      }
+
+      console.log('[World] Spawned GLB asset:', assetName, a.climbable ? '(climbable)' : '', a.building ? '(building)' : '');
+    } catch (e) {
+      console.warn('[World] Failed to load GLB asset:', a.url, e);
+    }
+  }
+
+  _isDoorMesh(name) {
+    return (name || '').startsWith('door_');
+  }
+
+  _isCollisionMesh(name) {
+    return (name || '').startsWith('col_');
+  }
+
+  _isRoomMarker(name) {
+    const m = (name || '').match(/^room_(\d+)_marker$/);
+    return m ? parseInt(m[1]) : -1;
+  }
+
+  _isStairMesh(name) {
+    return (name || '').startsWith('stairs_');
+  }
+
+  _isFloorMesh(name) {
+    return (name || '').startsWith('floor_');
+  }
+
+  _isWindowMesh(name) {
+    return (name || '').startsWith('window_');
+  }
+
+  _isSkipMesh(name) {
+    const n = (name || '').toLowerCase();
+    return n.startsWith('trim_') || n.startsWith('window_') || n.startsWith('roof_detail')
+      || n.startsWith('sign') || n.startsWith('awning');
+  }
+
+  _subdivideMeshCollision(mesh) {
+    const geo = mesh.geometry;
+    if (!geo || !geo.attributes.position) return [];
+    const posAttr = geo.attributes.position;
+    const idx = geo.index;
+    const wm = mesh.matrixWorld;
+    const v = new THREE.Vector3();
+    const colliders = [];
+
+    const worldVerts = [];
+    for (let i = 0; i < posAttr.count; i++) {
+      v.set(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i));
+      v.applyMatrix4(wm);
+      worldVerts.push(v.clone());
+    }
+
+    let tris = [];
+    if (idx) {
+      for (let i = 0; i < idx.count; i += 3) {
+        tris.push([idx.getX(i), idx.getX(i + 1), idx.getX(i + 2)]);
+      }
+    } else {
+      for (let i = 0; i < posAttr.count; i += 3) {
+        tris.push([i, i + 1, i + 2]);
+      }
+    }
+
+    if (tris.length > 5000) return [];
+
+    for (const tri of tris) {
+      const a = worldVerts[tri[0]], b = worldVerts[tri[1]], c = worldVerts[tri[2]];
+      const xMin = Math.min(a.x, b.x, c.x);
+      const xMax = Math.max(a.x, b.x, c.x);
+      const yMin = Math.min(a.y, b.y, c.y);
+      const yMax = Math.max(a.y, b.y, c.y);
+      const zMin = Math.min(a.z, b.z, c.z);
+      const zMax = Math.max(a.z, b.z, c.z);
+      const wx = xMax - xMin;
+      const wy = yMax - yMin;
+      const wz = zMax - zMin;
+      if (wx < 0.02 || wy < 0.02 || wz < 0.02) continue;
+      colliders.push({
+        min: new THREE.Vector3(xMin, yMin, zMin),
+        max: new THREE.Vector3(xMax, yMax, zMax),
+      });
+    }
+
+    return colliders;
+  }
+
+  _meshNeedsSubdivision(mesh) {
+    const geo = mesh.geometry;
+    if (!geo || !geo.attributes.position) return false;
+    const verts = geo.attributes.position.count;
+    if (verts > 200) return true;
+    mesh.updateWorldMatrix(true, false);
+    geo.computeBoundingBox();
+    const lb = geo.boundingBox;
+    if (!lb) return false;
+    const s = new THREE.Vector3().subVectors(lb.max, lb.min);
+    const vol = s.x * s.y * s.z;
+    const aspect = Math.max(s.x, s.y, s.z) / (Math.min(s.x, s.y, s.z) + 0.01);
+    return vol > 8 || aspect > 4;
+  }
+
+  _registerBuildingDoors(a, model, doorMeshes, buildingIdx) {
+    const bd = this._buildingData[buildingIdx];
+    const wallMargin = 1.0;
+    const interiorMin = new THREE.Vector3(bd.min.x + wallMargin, bd.min.y, bd.min.z + wallMargin);
+    const interiorMax = new THREE.Vector3(bd.max.x - wallMargin, bd.max.y, bd.max.z - wallMargin);
+    if (interiorMin.x < interiorMax.x && interiorMin.z < interiorMax.z) {
+      bd.interior = { min: interiorMin, max: interiorMax };
+      this.addInterior(interiorMin, interiorMax);
+    }
+
+    const bCenterX = (bd.min.x + bd.max.x) / 2;
+    const bCenterZ = (bd.min.z + bd.max.z) / 2;
+
+    for (const door of doorMeshes) {
+      const thinAxis = door.size.x < door.size.z ? 'x' : 'z';
+      const outward = new THREE.Vector3(0, 0, 0);
+      if (thinAxis === 'x') {
+        outward.z = door.center.z > bCenterZ ? 1 : -1;
+      } else {
+        outward.x = door.center.x > bCenterX ? 1 : -1;
+      }
+
+      const entrancePos = door.center.clone();
+      entrancePos.y = 0;
+      const interiorPos = entrancePos.clone().sub(outward.clone().multiplyScalar(2.0));
+      const exitPos = entrancePos.clone().add(outward.clone().multiplyScalar(2.0));
+
+      this.addPortal(entrancePos, outward.clone().negate(), interiorPos, 'enter', buildingIdx);
+      this.addPortal(interiorPos, outward.clone(), exitPos, 'exit', buildingIdx);
+
+      bd.doors.push({
+        name: door.name,
+        entrance: entrancePos.clone(),
+        exit: interiorPos.clone(),
+        dir: outward.clone().negate(),
+      });
+      console.log(`[World] Door "${door.name}" at (${entrancePos.x.toFixed(1)}, ${entrancePos.z.toFixed(1)}) → interior at (${interiorPos.x.toFixed(1)}, ${interiorPos.z.toFixed(1)})`);
+    }
+
+    model.traverse(o => {
+      const roomIdx = this._isRoomMarker(o.name);
+      if (roomIdx >= 0) {
+        o.updateWorldMatrix(true, false);
+        const wp = new THREE.Vector3();
+        wp.setFromMatrixPosition(o.matrixWorld);
+        bd.rooms = bd.rooms || [];
+        bd.rooms.push({ idx: roomIdx, pos: wp });
+        console.log(`[World] Room ${roomIdx} marker at (${wp.x.toFixed(1)}, ${wp.y.toFixed(1)}, ${wp.z.toFixed(1)})`);
+      }
+    });
+  }
+
+  _rebuildGrid() {
+    if (!this.bvhWorld) return;
+    this.bvhWorld.aabbColliders.length = 0;
+    this.bvhWorld._climbables.length = 0;
+    for (const c of this.colliders) this.bvhWorld.aabbColliders.push(c);
+    for (const c of this.climbables) this.bvhWorld._climbables.push(c);
   }
 
   // Material spec: string role or {m, c:[r,g,b]} with optional tint.
@@ -615,7 +970,7 @@ export class World {
   // Roads: polylines of [x,z] waypoints, drawn as continuous mitered polygons
   // (no corner gaps, no overlaps). Optional 2.4m raised sidewalks with curbs.
   // Points are auto-smoothed via Catmull-Rom interpolation for realistic curves.
-  _buildAuthoredRoads(roads) {
+  async _buildAuthoredRoads(roads) {
     const roadMat = this.mRoad();
     const walkMat = this._sceneMat('walk');
     const curbMat = this.mCurb();
@@ -637,7 +992,6 @@ export class World {
       out.push(pts[n - 1]);
       return out;
     }
-    // Pass 1 — collect raw chains (no corner softening; mitering handles joints)
     const chains = [];
     for (const rd of roads) {
       const pts = rd.points || [];
@@ -649,8 +1003,6 @@ export class World {
       const smoothed = rd.smooth !== false ? smoothPts(raw, 6) : raw;
       chains.push({ pts: smoothed, W, sidewalk: !!rd.sidewalk, closed });
     }
-    // Pass 2 — trim open-chain endpoints that terminate inside another road (T-junctions),
-    // so each strip ends flush at the other road's edge (no overlapping geometry).
     for (const ch of chains) {
       ch.cutStart = 0; ch.cutEnd = 0;
       if (ch.closed || ch.pts.length < 2) continue;
@@ -659,7 +1011,6 @@ export class World {
       const eDir = { x: ch.pts[n - 1].x - ch.pts[n - 2].x, z: ch.pts[n - 1].z - ch.pts[n - 2].z };
       for (const other of chains) {
         if (other === ch) continue;
-        // end-to-end junction? (both roads stop at ~the same point) -> leave both uncut
         const sNear = this._nearAnyEnd(ch.pts[0], other);
         const eNear = this._nearAnyEnd(ch.pts[n - 1], other);
         for (let i = 0; i < other.pts.length - 1; i++) {
@@ -669,14 +1020,16 @@ export class World {
         }
       }
     }
-    // Pass 3 — geometry
     for (let ci = 0; ci < chains.length; ci++) {
       const ch = chains[ci];
-      const roadY = 0.04 + (ci % 4) * 0.015;
       const walkY = 0.12 + (ci % 4) * 0.004;
       const pts = ch.closed ? ch.pts : this._trimChain(ch.pts, ch.cutStart, ch.cutEnd);
       if (pts.length < 2) continue;
+
+      // Road surface: textured mitered ribbon (roadtex.jpg), no collision boxes
+      const roadY = 0.06 + (ci % 4) * 0.02;
       this._strokeMitered(pts, ch.W, roadY, roadMat, ch.closed);
+
       this._roadChains.push({ pts, W: ch.W, sidewalk: ch.sidewalk });
       if (!ch.sidewalk) continue;
       const edge = ch.W / 2;
@@ -694,7 +1047,6 @@ export class World {
         });
         this._strokeMitered(offPts, 2.4, walkY, walkMat, ch.closed);
       }
-      // single continuous curb ribbon along both road edges (no scattered boxes)
       for (const side of [-1, 1]) {
         const curbPts = pts.map((p, pi) => {
           const prev = pts[Math.max(0, pi - 1)];
@@ -799,6 +1151,7 @@ export class World {
     return out;
   }
 
+  // Place road.glb model clones along a polyline, adding thin road collision
   // Stroke a polyline as a solid mitered polygon (correct corners, no gaps) into _ribbonBatch.
   _strokeMitered(pts, w, y, mat, closed = false) {
     const L = pts.length;
@@ -831,1321 +1184,6 @@ export class World {
     }
     this._ribbonBatch.push({ left, right, y, mat, closed });
   }
-
-  // Scatter street furniture / trees along recorded road chains (after buildings are placed).
-  _autoStreetProps() {
-    if (this._quality === 'ultra-low') return;
-    const chains = this._roadChains || [];
-    if (!chains.length) return;
-    const step = 22, chance = 0.6;
-    for (const ch of chains) {
-      let side = 1;
-      let carry = 0;
-      for (let i = 0; i < ch.pts.length - 1; i++) {
-        const a = ch.pts[i], b = ch.pts[i + 1];
-        const len = Math.hypot(b.x - a.x, b.z - a.z);
-        const ux = (b.x - a.x) / len, uz = (b.z - a.z) / len;
-        const nx = -uz, nz = ux;
-        let t = -carry;
-        while (t + step <= len) {
-          t += step;
-          side *= -1;
-          if (Math.random() > chance) continue;
-          const off = ch.W / 2 + 1.7;
-          const px = a.x + ux * t + nx * side * off;
-          const pz = a.z + uz * t + nz * side * off;
-          if (Math.hypot(px, pz) > this.bounds - 8) continue;
-          const ry = Math.atan2(nx, nz) + (side > 0 ? 0 : Math.PI);
-          const roll = Math.random();
-          if (roll < 0.38) this.tree(px, pz, 0.7 + Math.random() * 0.9, false);
-          else if (roll < 0.5) this._authoredProp({ kind: 'bench', x: px, z: pz, ry });
-          else if (roll < 0.6) this._authoredProp({ kind: 'hydrant', x: px, z: pz, ry });
-          else if (roll < 0.7) this._authoredProp({ kind: 'trashcan', x: px, z: pz, ry });
-          else if (roll < 0.78) this._authoredProp({ kind: 'mailbox', x: px, z: pz, ry });
-          else if (roll < 0.86) this._authoredProp({ kind: 'busstop', x: px, z: pz, ry });
-          else if (roll < 0.93) this._authoredProp({ kind: 'bollard', x: px, z: pz, ry });
-          else if (roll < 0.96) this._authoredProp({ kind: 'crate', x: px, z: pz, ry });
-          else if (roll < 0.98) this._authoredProp({ kind: 'barrels', x: px, z: pz, ry, react: 'firex' });
-          else this._authoredProp({ kind: 'planter', x: px, z: pz, ry });
-        }
-        carry = t + step - len;
-      }
-    }
-  }
-
-  _authoredPad(p) {
-      this._planeBatch.push({ x: p.x, y: 0.03, z: p.z, rx: -Math.PI / 2, ry: 0, rz: -(p.ry || 0), mat: this._sceneMat(p.m || 'plaza'), w: p.w, h: p.d });
-  }
-
-  _landmarkSize(lm) {
-    const sz = { fuel:[6,7,6], port:[21,15,15], trainstation:[25,13,13], warehouse:[34,9,22], mosque:[16,8,14], mall:[40,8.5,20], stadium:[82,4,57], firestation:[18,6,14], policestation:[14,6,12], nightclub:[18,8,16] }[lm.kind] || [8,4,8];
-    return sz;
-  }
-
-  _renderOverlays(overlays, x, z, ry, w, h, d) {
-    if (this._quality === 'ultra-low' || this._quality === 'low') return;
-    const cs = Math.cos(ry), sn = Math.sin(ry);
-    for (const ov of overlays) {
-      const faceSide = ov.face === 'back' ? -1 : 1;
-      const faceAxis = ov.face === 'left' || ov.face === 'right' ? 'x' : 'z';
-      let localX = ov.offX || 0, localZ = ov.offZ || 0;
-      let faceY = h * 0.6;
-      let faceRot = ry;
-      if (faceAxis === 'x') {
-        const side = ov.face === 'right' ? 1 : -1;
-        const wx = x + (w / 2 + 0.08) * side * Math.cos(ry) + localX * Math.cos(ry);
-        const wz = z + (w / 2 + 0.08) * side * Math.sin(ry) + localX * Math.sin(ry);
-        const tw = Math.max(1.5, ov.text.length * 0.55);
-        const th = Math.max(0.8, (ov.fontSize || 14) * 0.06);
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.max(64, tw * 48); canvas.height = Math.max(32, th * 48);
-        const cx = canvas.getContext('2d');
-        cx.clearRect(0, 0, canvas.width, canvas.height);
-        if (ov.stroke !== false) { cx.strokeStyle = '#000000'; cx.lineWidth = 4; cx.lineJoin = 'round'; cx.font = `bold ${canvas.height * 0.65}px ${ov.font || 'Arial'}`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.strokeText(ov.text, canvas.width/2, canvas.height/2); }
-        cx.fillStyle = ov.color || '#ffffff'; cx.font = `bold ${canvas.height * 0.65}px ${ov.font || 'Arial'}`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText(ov.text, canvas.width/2, canvas.height/2);
-        const tex = new THREE.CanvasTexture(canvas); tex.minFilter = THREE.LinearFilter;
-        const mat = new THREE.MeshStandardMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, roughness: .8, depthWrite: false });
-        const m = new THREE.Mesh(new THREE.PlaneGeometry(tw, th), mat);
-        m.position.set(wx, faceY + (localZ * 0.05), wz);
-        m.rotation.y = ry + Math.PI / 2;
-        this.group.add(m);
-      } else {
-        const side = ov.face === 'back' ? -1 : 1;
-        const wx = x + localX * Math.cos(ry);
-        const wz = z + (d / 2 + 0.08) * side * Math.cos(ry) + localX * Math.sin(ry) * side;
-        const tw = Math.max(1.5, ov.text.length * 0.55);
-        const th = Math.max(0.8, (ov.fontSize || 14) * 0.06);
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.max(64, tw * 48); canvas.height = Math.max(32, th * 48);
-        const cx = canvas.getContext('2d');
-        cx.clearRect(0, 0, canvas.width, canvas.height);
-        if (ov.stroke !== false) { cx.strokeStyle = '#000000'; cx.lineWidth = 4; cx.lineJoin = 'round'; cx.font = `bold ${canvas.height * 0.65}px ${ov.font || 'Arial'}`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.strokeText(ov.text, canvas.width/2, canvas.height/2); }
-        cx.fillStyle = ov.color || '#ffffff'; cx.font = `bold ${canvas.height * 0.65}px ${ov.font || 'Arial'}`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText(ov.text, canvas.width/2, canvas.height/2);
-        const tex = new THREE.CanvasTexture(canvas); tex.minFilter = THREE.LinearFilter;
-        const mat = new THREE.MeshStandardMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, roughness: .8, depthWrite: false });
-        const m = new THREE.Mesh(new THREE.PlaneGeometry(tw, th), mat);
-        m.position.set(wx, faceY, z + (d / 2 + 0.08) * side + localZ * 0.05);
-        m.rotation.y = ry + (side > 0 ? 0 : Math.PI);
-        this.group.add(m);
-      }
-    }
-  }
-
-  _sceneWindows(x, z, w, h, d, ry, faces, style, opts = {}) {
-    if (this._quality === 'low' || this._quality === 'ultra-low') return;
-    this._applyFacade(x, z, w, h, d, ry, faces, style, opts.seed || 1);
-    if (opts.door) this._facadeDoor(x, z, w, d, ry, opts.door.w || 1.2, opts.door.mat);
-  }
-
-  // Wall with a full window grid baked into a facade texture, one plane per face.
-  _applyFacade(x, z, w, h, d, ry, faces, style, seed = 1, yBase = 0) {
-    if (this._quality === 'ultra-low') return;
-    const cs = Math.cos(ry), sn = Math.sin(ry);
-    const l2w = (lx, lz) => ({ x: x + lx * cs + lz * sn, z: z - lx * sn + lz * cs });
-    const off = 0.04;
-    let fi = 0;
-    for (const f of faces) {
-      const fw = (f === 'x' || f === '-x') ? d : w;
-      let pos, rot;
-      // rotation.y=ry maps local +Z -> (sin ry, cos ry); each face's plane
-      // must face outward: z->ry, -z->ry+pi, x->ry+pi/2, -x->ry-pi/2.
-      if (f === 'z') { pos = l2w(0, d / 2 + off); rot = ry; }
-      else if (f === '-z') { pos = l2w(0, -d / 2 - off); rot = ry + Math.PI; }
-      else if (f === 'x') { pos = l2w(w / 2 + off, 0); rot = ry + Math.PI / 2; }
-      else { pos = l2w(-w / 2 - off, 0); rot = ry - Math.PI / 2; }
-      const seedI = (Math.abs(x) * 7 + Math.abs(z) * 13 + f.charCodeAt(0) * 37 + seed * 131) | 0;
-      const tex = TEX.makeFacadeTexture(fw, h, style, seedI);
-      const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: .92 });
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(fw + 0.04, h + 0.04), mat);
-      m.position.set(pos.x, yBase + h / 2, pos.z);
-      m.rotation.y = rot;
-      m.receiveShadow = true;
-      this.group.add(m);
-      fi++;
-    }
-  }
-
-  // Solid door leaf mounted proud of the +Z face of a building.
-  _facadeDoor(x, z, w, d, ry, doorW, mat, offX = 0) {
-    const cs = Math.cos(ry), sn = Math.sin(ry);
-    const nx = sn, nz = cs;
-    const px = x + nx * (d / 2 + 0.05) + offX * cs, pz = z + nz * (d / 2 + 0.05) - offX * sn;
-    const dw = Math.max(1.6, Math.min(doorW * 0.7, 2.4));
-    const dh = 3.0;
-    // door frame surround (dark trim around the opening)
-    this.box(px, 0, pz, dw + 0.3, dh + 0.2, 0.15, this.mDoor([60, 42, 30]), false, ry);
-    // door leaf
-    this.box(px, 0, pz, dw, dh, 0.12, mat || this.mDoor(), false, ry);
-    // door handle
-    const hx = px + 0.3 * cs, hz = pz - 0.3 * sn;
-    this.box(hx, dh * 0.45, hz, 0.06, 0.2, 0.06, this.mMetal(), false, ry);
-    return { x: px, z: pz };
-  }
-
-  // Roof details: AC units, vents, water tank — small solid blocks on the roof.
-  // `topY` must be the y of the ROOF TOP surface (wall height + slab thickness).
-  roofProps(x, z, ry, w, d, topY, mat) {
-    if (this._quality === 'low' || this._quality === 'ultra-low') return;
-    const cs = Math.cos(ry), sn = Math.sin(ry);
-    const l2w = (lx, lz) => ({ x: x + lx * cs + lz * sn, z: z - lx * sn + lz * cs });
-    const unitMat = mat || this.mMetal();
-    const ventMat = this.mConcrete([160, 158, 154]);
-    const spots = [[-w * 0.32, -d * 0.3], [w * 0.3, -d * 0.34], [-w * 0.26, d * 0.32]];
-    spots.forEach(([lx, lz], i) => {
-      const p = l2w(lx, lz);
-      const s = 1.1 + Math.random() * 0.9;
-      this.box(p.x, topY + 0.03, p.z, s, s * 0.62, s, i === 1 ? ventMat : unitMat, false, ry);
-    });
-    const tp = l2w(w * 0.3, d * 0.3);
-    const tank = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.05, 1.7, 24), this.mMetal());
-    tank.position.set(tp.x, topY + 0.03 + 0.85, tp.z);
-    tank.castShadow = true;
-    this.group.add(tank);
-    // parapet cap ring
-    const capMat = this.mConcrete([168, 166, 162]);
-    this.box(x, topY + 0.02, z, w + 0.9, 0.14, d + 0.9, capMat, false, ry);
-  }
-
-  // Foundation plinth + AO dark band at the ground seam, plus a roofline lip on
-  // flat-roofed massing. Both are cheap batched boxes that break up the
-  // "bare box floating on ground" silhouette.
-  _baseTrim(x, z, w, d, ry, h, opts = {}) {
-    if (this._quality === 'ultra-low') return;
-    const band = Math.min(0.45, 0.14 + h * 0.09);
-    this._trimBatch.push({ x, y: 0.02, z, w: w + 0.22, h: band, d: d + 0.22, ry, mat: this.mTrimAO() });
-    if (opts.lip && this._quality !== 'low') {
-      // sits on top of the roof slab (slab spans h..h+0.35)
-      this._trimBatch.push({ x, y: h + 0.36, z, w: w + 0.6, h: 0.2, d: d + 0.6, ry, mat: this.mTrimLip() });
-    }
-  }
-
-  // Real buildings are never clean boxes: attach a seeded imperfection —
-  // wall AC unit, corner downspout, or rooftop antenna.
-  _buildingImperfections(x, z, w, d, ry, h, seed) {
-    if (this._quality === 'low' || this._quality === 'ultra-low') return;
-    const rnd = mulberry(seed + (x * 13 + z * 7) | 0);
-    const cs = Math.cos(ry), sn = Math.sin(ry);
-    const l2w = (lx, lz) => ({ x: x + lx * cs + lz * sn, z: z - lx * sn + lz * cs });
-    const roll = rnd();
-    if (roll < 0.3) {
-      // wall-mounted AC unit on the front face
-      const p = l2w((rnd() - .5) * w * 0.5, (d / 2) * (rnd() < .5 ? 1 : -1));
-      const acMat = this.mMetal();
-      this.box(p.x, 1.6 + rnd() * 1.2, p.z, 1.1, .7, .5, acMat, false, ry);
-    } else if (roll < 0.6) {
-      // corner downspout running the full wall height
-      const corner = [rnd() < .5 ? -w / 2 : w / 2, rnd() < .5 ? -d / 2 : d / 2];
-      const cp = l2w(corner[0], corner[1]);
-      const pipe = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, Math.max(.5, h - .6), 8), this.mMetal());
-      pipe.position.set(cp.x, Math.max(.5, h - .6) / 2, cp.z);
-      pipe.castShadow = true;
-      this.group.add(pipe);
-    } else if (roll < 0.8) {
-      // rooftop antenna mast
-      const ap = l2w((rnd() - .5) * w * 0.4, (rnd() - .5) * d * 0.4);
-      const mast = new THREE.Mesh(new THREE.CylinderGeometry(.04, .05, 3.2, 8), this.mMetal());
-      mast.position.set(ap.x, h + 1.6, ap.z);
-      mast.castShadow = true;
-      this.group.add(mast);
-      const cross = new THREE.Mesh(new THREE.BoxGeometry(1.2, .06, .06), this.mMetal());
-      cross.position.set(ap.x, h + 2.4, ap.z);
-      this.group.add(cross);
-    }
-  }
-
-
-
-
-
-  // ---- BEZIER ROAD NETWORK ----
-  _generateRoadNetwork() {
-    const nodes = [];
-    const ultra = this._quality === 'ultra-low';
-    // Core city: dense curved grid within ~700m
-    const coreAnchors = [];
-    const coreR = 700;
-    const coreNodeCount = ultra ? 20 : 60;
-    for (let i = 0; i < coreNodeCount; i++) {
-      // Jittered positions within the core circle
-      const a = rng(0, Math.PI * 2);
-      const r = rng(0, coreR);
-      const x = Math.cos(a) * r;
-      const z = Math.sin(a) * r;
-      // Add jitter
-      const jx = x + rng(-30, 30);
-      const jz = z + rng(-30, 30);
-      // Avoid duplicating nearby nodes
-      let tooClose = false;
-      for (const n of nodes) {
-        if (Math.hypot(n.x - jx, n.z - jz) < 50) { tooClose = true; break; }
-      }
-      if (tooClose) continue;
-      nodes.push({ x: jx, z: jz, connections: [] });
-      coreAnchors.push(nodes.length - 1);
-    }
-    // Docks zone: sparser nodes in SE quadrant
-    const dockCount = ultra ? 8 : 25;
-    for (let i = 0; i < dockCount; i++) {
-      const x = rng(400, 1200);
-      const z = rng(200, 1100);
-      let tooClose = false;
-      for (const n of nodes) {
-        if (Math.hypot(n.x - x, n.z - z) < 80) { tooClose = true; break; }
-      }
-      if (tooClose) continue;
-      nodes.push({ x, z, connections: [] });
-    }
-    // Perimeter: sparse nodes around the edges
-    const perimCount = ultra ? 10 : 30;
-    for (let i = 0; i < perimCount; i++) {
-      const a = rng(0, Math.PI * 2);
-      const r = rng(900, 1700);
-      const x = Math.cos(a) * r;
-      const z = Math.sin(a) * r;
-      let tooClose = false;
-      for (const n of nodes) {
-        if (Math.hypot(n.x - x, n.z - z) < 150) { tooClose = true; break; }
-      }
-      if (tooClose) continue;
-      nodes.push({ x, z, connections: [] });
-    }
-
-    // Connect each node to 2-5 nearest neighbors within threshold distance
-    const connectThreshold = 500;
-    for (let i = 0; i < nodes.length; i++) {
-      const dists = [];
-      for (let j = 0; j < nodes.length; j++) {
-        if (i === j) continue;
-        const d = Math.hypot(nodes[i].x - nodes[j].x, nodes[i].z - nodes[j].z);
-        if (d < connectThreshold) dists.push({ idx: j, d });
-      }
-      dists.sort((a, b) => a.d - b.d);
-      const maxConn = 3 + Math.floor(Math.random() * 3);
-      let connCount = 0;
-      for (const nd of dists) {
-        if (connCount >= maxConn) break;
-        // Avoid duplicate connections
-        if (nodes[i].connections.includes(nd.idx)) continue;
-        // Also check if this would cross existing connections too sharply (organic feel)
-        nodes[i].connections.push(nd.idx);
-        nodes[nd.idx].connections.push(i);
-        connCount++;
-      }
-    }
-    // Cull 20% of connections randomly for organic irregularity
-    for (const n of nodes) {
-      const keep = [];
-      for (const c of n.connections) {
-        if (Math.random() > 0.2) keep.push(c);
-      }
-      n.connections = keep;
-    }
-
-    this._roadNodes = nodes;
-
-    // Build segments from connections (avoid duplicates)
-    const seen = new Set();
-    const segments = [];
-    for (let i = 0; i < nodes.length; i++) {
-      for (const j of nodes[i].connections) {
-        const key = i < j ? i + ',' + j : j + ',' + i;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        // Control point offset perpendicular to the segment direction for curvature
-        const dx = nodes[j].x - nodes[i].x;
-        const dz = nodes[j].z - nodes[i].z;
-        const len = Math.hypot(dx, dz);
-        const perpX = -dz / len;
-        const perpZ = dx / len;
-        const curveAmount = rng(0.15, 0.45) * len;
-        const side = Math.random() < 0.5 ? 1 : -1;
-        // Control point at midpoint + perpendicular offset
-        const mx = (nodes[i].x + nodes[j].x) / 2 + perpX * curveAmount * side;
-        const mz = (nodes[i].z + nodes[j].z) / 2 + perpZ * curveAmount * side;
-        segments.push({ n1: i, n2: j, cx: mx, cz: mz, len });
-      }
-    }
-    // Mark 30% of terminal nodes as cul-de-sacs (nodes with only 1 connection)
-    for (const n of nodes) {
-      if (n.connections.length === 1 && Math.random() < 0.3) {
-        n._culdesac = true;
-      }
-    }
-    this._roadSegments = segments;
-  }
-
-  _buildRoadMeshes() {
-    const roadMat = this.mRoad();
-    const walkMat = this.mSidewalk();
-    const curbMat = this.mCurb();
-    const RW = 12;
-    const nodes = this._roadNodes;
-    for (const seg of this._roadSegments) {
-      const n1 = nodes[seg.n1], n2 = nodes[seg.n2];
-      const pts = [];
-      for (let i = 0; i <= 12; i++) {
-        const t = i / 12;
-        const p = bezier2(n1, n2, { x: seg.cx, z: seg.cz }, t);
-        pts.push(p);
-      }
-      for (let i = 0; i < pts.length - 1; i++) {
-        const a = pts[i], b = pts[i + 1];
-        const dx = b.x - a.x, dz = b.z - a.z;
-        const len = Math.hypot(dx, dz);
-        if (len < 0.5) continue;
-        const angle = Math.atan2(-(b.z - a.z), b.x - a.x);
-        const midX = (a.x + b.x) / 2, midZ = (a.z + b.z) / 2;
-        this._planeBatch.push({ x: midX, y: 0.04, z: midZ, rx: -Math.PI / 2, ry: 0, rz: -angle, mat: roadMat, w: RW, h: len });
-        for (const side of [-1, 1]) {
-          const sOff = (RW / 2 + 1.2) * side;
-          const sx = midX + Math.cos(angle + Math.PI / 2) * sOff;
-          const sz = midZ + Math.sin(angle + Math.PI / 2) * sOff;
-          this._planeBatch.push({ x: sx, y: 0.05, z: sz, rx: -Math.PI / 2, ry: 0, rz: -angle, mat: walkMat, w: 2.4, h: len });
-        }
-        for (const side of [-1, 1]) {
-          const cOff = (RW / 2 + 0.16) * side;
-          const cx = midX + Math.cos(angle + Math.PI / 2) * cOff;
-          const cz = midZ + Math.sin(angle + Math.PI / 2) * cOff;
-          this._boxBatch.push({ x: cx, y: 0.08, z: cz, w: 0.32, h: 0.16, d: len, ry: angle, mat: curbMat, shadow: true });
-        }
-      }
-    }
-    for (const n of nodes) {
-      if (n._culdesac) {
-        this._planeBatch.push({ x: n.x, y: 0.04, z: n.z, rx: -Math.PI / 2, ry: 0, rz: 0, mat: roadMat, w: 16, h: 16 });
-        this.climbBox(n.x + rng(-2, 2), 0, n.z + rng(-2, 2), 1.4, 1.2, 1.4, this.mCrate(), Math.random() * Math.PI, 'fire');
-      }
-    }
-  }
-
-  // ---- BUILDING PLACEMENT ALONG ROADS ----
-  _placeBuildingsAlongRoads() {
-    const nodes = this._roadNodes;
-    // For each road segment, place buildings on both sides
-    const placed = []; // {x,z} to prevent overlapping
-
-    const isOccupied = (x, z, margin) => {
-      for (const p of placed) {
-        if (Math.hypot(p.x - x, p.z - z) < margin) return true;
-      }
-      return false;
-    };
-
-    const coreThreshold = (x, z) => Math.hypot(x, z) < 750;
-    const dockThreshold = (x, z) => x > 400 && z > 200 && x < 1200 && z < 1100;
-
-    const stepSize = this._quality === 'ultra-low' ? 60 : this._quality === 'low' ? 40 : 25;
-    for (const seg of this._roadSegments) {
-      const n1 = nodes[seg.n1], n2 = nodes[seg.n2];
-      const steps = Math.max(1, Math.floor(seg.len / stepSize));
-      for (let i = 0; i <= steps; i++) {
-        const t = i / steps;
-        const p = bezier2(n1, n2, { x: seg.cx, z: seg.cz }, t);
-        // Tangent direction at this point
-        const dt = 0.01;
-        const p2 = bezier2(n1, n2, { x: seg.cx, z: seg.cz }, Math.min(t + dt, 1));
-        const dx = p2.x - p.x, dz = p2.z - p.z;
-        const ang = Math.atan2(dx, dz);
-        // Perpendicular directions (both sides of road)
-        for (const side of [-1, 1]) {
-          const perpAng = ang + Math.PI / 2 * side;
-          const distFromRoad = rng(4, 10);
-          const bx = p.x + Math.cos(perpAng) * distFromRoad;
-          const bz = p.z + Math.sin(perpAng) * distFromRoad;
-          // Skip if outside bounds
-          if (Math.hypot(bx, bz) > this.bounds - 16) continue;
-          // Skip if too close to another building
-          if (isOccupied(bx, bz, 14)) continue;
-          // Skip some fraction randomly for open space (more in perimeter)
-          const inCore = coreThreshold(bx, bz);
-          const inDocks = dockThreshold(bx, bz);
-          const baseSparsity = this._quality === 'ultra-low' ? 0.6 : this._quality === 'low' ? 0.3 : 0;
-          const sparsity = inCore ? 0.08 + baseSparsity : inDocks ? 0.15 + baseSparsity : 0.3 + baseSparsity;
-          if (Math.random() < sparsity) continue;
-
-          placed.push({ x: bx, z: bz });
-
-          // Building rotation: roughly parallel to road + 5-45° random
-          const bRot = ang + rng(-0.3, 0.3);
-
-          if (inCore) {
-            this._placeCoreBuilding(bx, bz, bRot, seg.len);
-          } else if (inDocks) {
-            this._placeDockBuilding(bx, bz, bRot);
-          } else {
-            this._placePerimeterBuilding(bx, bz, bRot);
-          }
-        }
-      }
-    }
-  }
-
-  _placeCoreBuilding(x, z, ry, roadLen) {
-    const ultra = this._quality === 'ultra-low';
-    // Mega-City Core: highrises, apartments, shops, houses, public buildings
-    const roll = Math.random();
-    if (roll < 0.28) {
-      // Highrise: 2-6 floors, wider near center
-      const dist = Math.hypot(x, z);
-      const floors = ultra ? 1 + Math.floor(rng(0, 1)) : dist < 300 ? 3 + Math.floor(rng(0, 4)) : 2 + Math.floor(rng(0, 3));
-      const w = rng(12, 18);
-      const d = rng(12, 18);
-      this.highrise(x, z, ry, floors, w, d, 0, true);
-    } else if (!ultra && roll < 0.46) {
-      // Apartment block with balconies
-      const w = rng(16, 26);
-      const d = rng(12, 16);
-      this.apartment(x, z, ry, w, d, 2 + Math.floor(rng(0, 4)), true, 3);
-    } else if (!ultra && roll < 0.60) {
-      // Enterable building (shop/office)
-      const w = rng(10, 16);
-      const h = rng(4, 5.5);
-      const d = rng(9, 14);
-      this.enterableBuilding(x, z, w, h, d, this.mConcrete(this._pal('eb', this._coreBrick)), ry, true);
-    } else if (roll < 0.72) {
-      // House / townhouse
-      this.house(x, z, ry, Math.random() < 0.2, true);
-    } else if (!ultra && roll < 0.82) {
-      // Row house row, a mosque, or a corner store
-      const rr = Math.random();
-      if (rr < 0.45) this.rowhouse(x, z, ry, rng(16, 28), rng(7, 9), rng(6, 7.5), true, 7);
-      else if (rr < 0.8) this.store(x, z, ry, rng(9, 13), rng(10, 14), rng(4.5, 6), true, 19);
-      else this.box(x, 0, z, rng(13, 17), rng(5, 8), rng(14, 20), this._sceneMat('brick'), true, ry);
-    } else if (!ultra && roll < 0.88) {
-      // Warehouse or factory
-      this.warehouse(x, z, rng(18, 26), rng(12, 18), rng(6, 9), true);
-    } else if (!ultra && roll < 0.94) {
-      // Workshop / small store
-      this.box(x, 0, z, rng(8, 14), rng(4, 6), rng(8, 12), this._sceneMat('brick'), true, ry);
-    } else if (!ultra && roll < 0.98) {
-      // Gas station or fuel tank
-      if (Math.random() < 0.5) this.gasstation(x, z, ry, true, 13);
-      else this.fuelTank(x, z, rng(2, 4), rng(5, 9), true);
-    } else {
-      // Climbable crate stack / cover
-      this.climbBox(x, 0, z, rng(2, 4), rng(1.5, 3), rng(2, 4), this.mCrate(), ry, 'fire');
-    }
-  }
-
-  _placeDockBuilding(x, z, ry) {
-    // Abandoned Docks: containers, factories, warehouses, fuel tanks
-    const roll = Math.random();
-    if (roll < 0.25) {
-      // Shipping container cluster at random angles (NEAT ROWS PROHIBITED)
-      const nCont = 2 + Math.floor(rng(0, 4));
-      for (let i = 0; i < nCont; i++) {
-        const cx = x + rng(-6, 6);
-        const cz = z + rng(-6, 6);
-        const cr = ry + rng(-0.8, 0.8);
-        const colIdx = Math.floor(rng(0, 5));
-        const cols = [[150, 60, 45], [60, 90, 110], [95, 100, 70], [120, 70, 120], [60, 110, 90]];
-        const c3 = cols[colIdx % cols.length];
-        const cm = new THREE.MeshStandardMaterial({ map: TEX.makeMetalTexture(512, c3), roughness: .6, metalness: .5 });
-        this.enterableContainer(cx, cz, cr, cm);
-        // 40% chance of a toppled/stacked second container
-        if (Math.random() < 0.4) {
-          // Toppled: rotate onto its side to form a ramp
-          const toppled = new THREE.Mesh(new THREE.BoxGeometry(4, 2.4, 2.6), cm);
-          toppled.position.set(cx + rng(-1, 1), 1.3 + rng(0, 1), cz + rng(-1, 1));
-          toppled.rotation.x = rng(-0.6, 0.6);
-          toppled.rotation.y = cr + rng(-0.3, 0.3);
-          toppled.castShadow = toppled.receiveShadow = true;
-          this.group.add(toppled);
-          this.addCollider(cx, 0, cz, 4, 2.4, 2.6);
-        }
-      }
-    } else if (roll < 0.45) {
-      // Warehouse variant
-      const w = rng(24, 36);
-      const d = rng(16, 24);
-      this.warehouse(x, z, w, d, rng(7, 10), true);
-    } else if (roll < 0.60) {
-      // Fuel tanks
-      this.fuelTank(x + rng(-3, 3), z + rng(-3, 3), rng(2.5, 4.5), rng(6, 10), true);
-    } else if (roll < 0.75) {
-      // Open storage / scrap
-      this.climbBox(x, 0, z, rng(3, 5), rng(1.5, 2.5), rng(3, 5), this.mMetal(), ry, 'flex');
-    } else {
-      // Shipping container
-      const colIdx = Math.floor(rng(0, 4));
-      const cols = [[150, 60, 45], [60, 90, 110], [95, 100, 70], [120, 70, 120]];
-      const cm = new THREE.MeshStandardMaterial({ map: TEX.makeMetalTexture(512, cols[colIdx]), roughness: .6, metalness: .5 });
-      this.enterableContainer(x, z, ry, cm);
-    }
-  }
-
-  _placePerimeterBuilding(x, z, ry) {
-    // Overgrown Perimeter: sparse, ruined, natural
-    const roll = Math.random();
-    if (roll < 0.28) {
-      // Ruined house
-      this.house(x, z, ry, true, true);
-    } else if (roll < 0.44) {
-      // Small warehouse
-      this.warehouse(x, z, rng(12, 20), rng(8, 14), rng(5, 7), true);
-    } else if (roll < 0.58) {
-      // Ruined rowhouse
-      this.rowhouse(x, z, ry, rng(12, 18), rng(7, 9), rng(5, 6), true, 1);
-    } else if (roll < 0.68) {
-      // Rock field / natural cover
-      this.rockField(x, z, rng(6, 14));
-    } else if (roll < 0.76) {
-      // Fuel tank
-      this.fuelTank(x, z, rng(2.5, 3.5), rng(4, 5.5), true);
-    } else {
-      // Rock field / natural cover
-      this.rockField(x, z, rng(6, 12));
-    }
-  }
-
-  // ---- INFILL: fill open gaps between zones with extra buildings ----
-  _placeInfillBuildings() {
-    const q = this._quality;
-    if (q === 'ultra-low') return;
-    const placed = [];
-    const isOccupied = (x, z, m) => { for (const p of placed) { if (Math.hypot(p.x - x, p.z - z) < m) return true; } return false; };
-    const limit = q === 'low' ? 40 : 120;
-    for (let i = 0; i < limit; i++) {
-      const a = rng(0, Math.PI * 2);
-      const r = rng(100, this.bounds - 20);
-      const x = Math.cos(a) * r, z = Math.sin(a) * r;
-      if (isOccupied(x, z, 16)) continue;
-      if (this.colliderAt(x, z, 1)) continue;
-      placed.push({ x, z });
-      const inCore = Math.hypot(x, z) < 750;
-      const inDocks = x > 400 && z > 200 && x < 1200 && z < 1100;
-      const ry = rng(0, Math.PI);
-      if (inCore) {
-        this._placeCoreBuilding(x, z, ry, 50);
-      } else if (inDocks) {
-        this._placeDockBuilding(x, z, ry);
-      } else {
-        const roll = Math.random();
-        if (roll < 0.25) this.warehouse(x, z, rng(8, 16), rng(6, 12), rng(5, 7), true);
-        else if (roll < 0.5) this.rowhouse(x, z, rng(0, Math.PI), rng(10, 16), rng(7, 9), rng(5, 6), true, 2);
-        else this._placePerimeterBuilding(x, z, ry);
-      }
-    }
-  }
-
-
-  // ---- ZONE-SPECIFIC CONTENT ----
-  _addZoneSpecificContent() {
-    // --- Named landmarks ---
-    // Central plaza
-    this.namedLocations.push({ x: 0, z: 0, name: 'CENTRAL', color: '#ffd24a' });
-
-    // Police station in the core
-    this.box(-200, 0, 250, 16, 7, 12, this._sceneMat('concrete'), true, 0);
-    this.namedLocations.push({ x: -200, z: 250, name: 'POLICE', color: '#4488ff' });
-
-    // Port in the docks
-    this.port(900, 400, 0, true);
-  }
-
-  // ===== ZONE 3: OVERGROWN PERIMETER =====
-  buildZones() {
-    // Temple ruins: broken pillars scattered in the overgrown zones
-    const pillarMat = new THREE.MeshStandardMaterial({ map: TEX.makeConcreteTexture(256, [130, 124, 112]), roughness: .95 });
-    for (let i = 0; i < 30; i++) {
-      const a = rng(0, Math.PI * 2);
-      const r = rng(900, 1600);
-      const px = Math.cos(a) * r + rng(-100, 100);
-      const pz = Math.sin(a) * r + rng(-100, 100);
-      if (Math.hypot(px, pz) < 800) continue;
-      const h = rng(1.5, 4);
-      const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.8, h, 12), pillarMat);
-      pillar.position.set(px, h / 2, pz);
-      pillar.rotation.x = rng(-0.15, 0.15);
-      pillar.rotation.z = rng(-0.15, 0.15);
-      pillar.castShadow = pillar.receiveShadow = true;
-      this.group.add(pillar);
-      this.addCollider(px, 0, pz, 1.2, h, 1.2);
-      // Fallen pillar nearby
-      if (Math.random() < 0.4) {
-        const fx = px + rng(-4, 4), fz = pz + rng(-4, 4);
-        const fallen = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.6, rng(2, 4), 12), pillarMat);
-        fallen.position.set(fx, 0.4, fz);
-        fallen.rotation.x = Math.PI / 2 + rng(-0.3, 0.3);
-        fallen.rotation.z = rng(0, Math.PI);
-        fallen.castShadow = true;
-        this.group.add(fallen);
-        this.addCollider(fx, 0, fz, 3, 0.6, 0.6);
-      }
-    }
-
-    // Bunkers half-buried into slopes at perimeter
-    for (let i = 0; i < 6; i++) {
-      const a = rng(0, Math.PI * 2);
-      const r = rng(1000, 1500);
-      const bx = Math.cos(a) * r, bz = Math.sin(a) * r;
-      this.warehouse(bx, bz, rng(8, 12), rng(6, 9), rng(5, 7), true);
-    }
-
-    // Scattered cover points across perimeter
-    for (let i = 0; i < 20; i++) {
-      const a = rng(0, Math.PI * 2);
-      const r = rng(800, 1700);
-      const cx = Math.cos(a) * r, cz = Math.sin(a) * r;
-      if (Math.hypot(cx, cz) < 600) continue;
-      this.climbBox(cx, 0, cz, 1.4, .9, .7, this.mCrate(), rng(0, Math.PI), 'flex');
-    }
-    // Rock outcrops for terrain variety
-    for (let i = 0; i < 6; i++) {
-      const a = rng(0, Math.PI * 2);
-      const r = rng(600, 1500);
-      this.rockField(Math.cos(a) * r, Math.sin(a) * r, rng(8, 16));
-    }
-  }
-
-  // ===== BUILDING PRIMITIVES (unchanged from original) =====
-
-  climbBox(x, y, z, w, h, d, mat, ry = 0, reactive = null) {
-    return this.box(x, y, z, w, h, d, mat, true, ry, true, reactive);
-  }
-
-
-  // ---- DEDICATED FOREST ----
-  // Large forest in an empty area (NE quadrant), trees + weeds, no building overlap.
-  _placeDedicatedForest() {
-    if (this._quality === 'ultra-low') return;
-    const cx = 1500, cz = 1500, r = 450;
-    const treeCount = this._quality === 'low' ? 20 : 60;
-    // Trees
-    const placed = [];
-    for (let i = 0; i < treeCount; i++) {
-      const a = rng(0, Math.PI * 2);
-      const rd = rng(20, r);
-      const x = cx + Math.cos(a) * rd, z = cz + Math.sin(a) * rd;
-      if (Math.abs(x) > this.bounds - 14 || Math.abs(z) > this.bounds - 14) continue;
-      if (this.colliderAt(x, z, 2)) continue;
-      let ok = true;
-      for (const p of placed) if (Math.hypot(p.x - x, p.z - z) < 7) { ok = false; break; }
-      if (!ok) continue;
-      placed.push({ x, z });
-      this.tree(x, z, 0.8 + Math.random() * 0.8, Math.random() < 0.25);
-    }
-    this.namedLocations.push({ x: cx, z: cz, name: 'DARK FOREST', color: '#4a8a3a' });
-  }
-
-  gableRoof(x, z, w, h, d, ry, pitch, mat) {
-    const a = Math.atan(pitch);
-    const L = (w / 2) / Math.cos(a);
-    const ridgeY = h + (w / 2) * pitch;
-    const over = 0.5, thick = 0.4;
-    const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry; this.group.add(g);
-    // Ridge runs along Z (front-to-back). Two roof planes slope left-right.
-    const plane = (xoff, rot) => {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(L, thick, d + over * 2), mat);
-      m.position.set(xoff, h + (w * pitch) / 4, 0);
-      m.rotation.z = rot; m.castShadow = m.receiveShadow = true; g.add(m);
-    };
-    plane(-w / 4, a);   // left slope
-    plane(w / 4, -a);   // right slope
-    // Gable end triangles at front (+d/2) and back (-d/2) walls
-    const tri = new THREE.Shape();
-    tri.moveTo(-w / 2, 0); tri.lineTo(w / 2, 0); tri.lineTo(0, ridgeY - h); tri.lineTo(-w / 2, 0);
-    const tgeo = new THREE.ExtrudeGeometry(tri, { depth: 0.6, bevelEnabled: false });
-    // Front gable — face flush with the +d/2 wall, extrude inward
-    const mf = new THREE.Mesh(tgeo, mat);
-    mf.position.set(0, h, d / 2); mf.rotation.y = Math.PI; mf.castShadow = mf.receiveShadow = true; g.add(mf);
-    // Back gable — face flush with the -d/2 wall, extrude inward
-    const mb = new THREE.Mesh(tgeo, mat);
-    mb.position.set(0, h, -d / 2); mb.castShadow = mb.receiveShadow = true; g.add(mb);
-    // Collider block to stop bullets passing through roof — rotated with building
-    const roofH = (w * pitch) / 2 + 0.4;
-    if (ry) {
-      const c = Math.abs(Math.cos(ry)), s = Math.abs(Math.sin(ry));
-      const ex = ((w + 1) / 2) * c + ((d + 1) / 2) * s, ez = ((w + 1) / 2) * s + ((d + 1) / 2) * c;
-      this.addCollider(x, h + (w * pitch) / 3, z, ex * 2, roofH, ez * 2);
-    } else {
-      this.addCollider(x, h + (w * pitch) / 3, z, w + 1, roofH, d + 1);
-    }
-    return g;
-  }
-
-  stairs(x, z, n, stepH, stepW, stepD, ry, mat, climb = false) {
-    const fx = Math.sin(ry), fz = Math.cos(ry);
-    const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry; this.group.add(g);
-    for (let i = 0; i < n; i++) {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(stepW, stepH, stepD), mat);
-      m.position.set(0, i * stepH + stepH / 2, i * stepD + stepD / 2);
-      m.castShadow = m.receiveShadow = true; g.add(m);
-      this.addCollider(x + fx * (i * stepD + stepD / 2), i * stepH, z + fz * (i * stepD + stepD / 2), stepW, stepH, stepD, climb);
-    }
-  }
-
-
-
-
-
-
-
-  // ====== AUTHORED SCENE DISPATCHERS ======
-  _authoredBuilding(b) {
-    const x = b.x, z = b.z, ry = b.ry || 0, w = b.w || 12, d = b.d || 12, h = b.h || 8;
-    const m = this._sceneMat(b.m || 'concrete');
-    const rm = this._sceneMat(b.roofM || 'roof');
-    const k = b.kind || 'box';
-    const cs = Math.cos(ry), sn = Math.sin(ry);
-    const l2w = (lx, lz) => ({ x: x + lx * cs + lz * sn, z: z - lx * sn + lz * cs });
-    const collide = b.solid !== false;
-    const addWin = b.windows !== false && h > 3 && this._quality !== 'ultra-low' && this._quality !== 'low';
-    const addDoor = b.doorW > 0 || h > 2;
-    const doorW = b.doorW || 2.4;
-    const addRoofDetail = b.roof && this._quality !== 'ultra-low' && this._quality !== 'low';
-    const addEnterable = b.enterable && this._quality !== 'ultra-low';
-    const seed = (Math.abs(x) * 13 + Math.abs(z) * 7) | 0;
-    switch (k) {
-      case 'box': case 'plainbox': case 'shell': {
-        this.box(x, 0, z, w, h, d, m, collide, ry);
-        if (addRoofDetail) this.roofProps(x, z, ry, w, d, h, rm);
-        if (b.roof) this._baseTrim(x, z, w, d, ry, h, { lip: true });
-        this._buildingImperfections(x, z, w, d, ry, h, seed);
-        if (addWin) this._sceneWindows(x, z, w, h, d, ry, seed);
-        if (addDoor) this._facadeDoor(x, z, w, d, ry, doorW, this._sceneMat('door'));
-        if (b.roofAccess) this.addRoof(x, z, h + 0.4);
-        break;
-      }
-      case 'tower': {
-        const tw = w * 0.7, td = d * 0.7;
-        this.box(x, 0, z, tw, h, td, m, collide, ry);
-        this.box(x, h, z, tw * 0.85, h * 0.3, td * 0.85, m, false, ry);
-        this._baseTrim(x, z, tw, td, ry, h * 1.3, { lip: true });
-        if (addRoofDetail) this.roofProps(x, z, ry, tw * 0.85, td * 0.85, h * 1.3, rm);
-        if (addWin) this._sceneWindows(x, z, tw, td, h * 1.3, ry, seed);
-        break;
-      }
-      case 'container': {
-        this.box(x, 0, z, 6, 2.6, 2.4, this._sceneMat({ m: 'metal', c: [140, 60, 50] }), collide, ry);
-        break;
-      }
-      case 'house': case 'housedetailed': {
-        const bh = h || rng(4, 6);
-        this.box(x, 0, z, w, bh, d, m, collide, ry);
-        this.gableRoof(x, z, w + 1, bh, d + 1, ry, 0.7, rm);
-        this._baseTrim(x, z, w, d, ry, bh);
-        if (addWin) this._sceneWindows(x, z, w, d, bh, ry, seed);
-        if (addDoor) this._facadeDoor(x, z, w, d, ry, doorW, this._sceneMat('door'));
-        break;
-      }
-      case 'apartment': case 'townhouse': {
-        const stories = b.stories || Math.max(2, Math.floor(h / 3.2));
-        const floorH = h / stories;
-        for (let s = 0; s < stories; s++) {
-          this.box(x, s * floorH, z, w, floorH + 0.1, d, m, s === 0 && collide, ry);
-        }
-        this._baseTrim(x, z, w, d, ry, h, { lip: true });
-        if (addRoofDetail) this.roofProps(x, z, ry, w, d, h, rm);
-        if (addWin) this._sceneWindows(x, z, w, h, d, ry, seed);
-        if (addDoor) this._facadeDoor(x, z, w, d, ry, doorW, this._sceneMat('door'));
-        break;
-      }
-      case 'rowhouse': {
-        const count = Math.max(2, Math.floor(w / 6));
-        const unitW = w / count;
-        for (let i = 0; i < count; i++) {
-          const ox = -w / 2 + unitW / 2 + i * unitW;
-          const lp = l2w(ox, 0);
-          const unitH = h + rng(-1, 1);
-          this.box(lp.x, 0, lp.z, unitW - 0.3, unitH, d, m, collide, ry);
-          if (addDoor) this._facadeDoor(lp.x, lp.z, unitW - 0.3, d, ry, doorW, this._sceneMat('door'));
-        }
-        this._baseTrim(x, z, w, d, ry, h);
-        if (addWin) this._sceneWindows(x, z, w, h, d, ry, seed);
-        break;
-      }
-      case 'lcorner': {
-        const hw = w / 2, hd = d / 2;
-        this.box(x - hw / 4, 0, z - hd / 4, hw, h, hd, m, collide, ry);
-        this.box(x + hw / 4, 0, z + hd / 4, hw, h, hd, m, false, ry);
-        if (addWin) this._sceneWindows(x, z, w, h, d, ry, seed);
-        if (addDoor) this._facadeDoor(x, z, w, d, ry, doorW, this._sceneMat('door'));
-        if (addRoofDetail) this.roofProps(x, z, ry, w, d, h, rm);
-        break;
-      }
-      case 'store': case 'supermarket': {
-        const sh = h || 4;
-        this.box(x, 0, z, w, sh, d, m, collide, ry);
-        this._baseTrim(x, z, w, d, ry, sh);
-        if (addRoofDetail) this.roofProps(x, z, ry, w, d, sh, rm);
-        if (addDoor) this._facadeDoor(x, z, w, d, ry, doorW * 1.5, this._sceneMat('door'));
-        if (addWin) this._sceneWindows(x, z, w, d, sh, ry, seed);
-        break;
-      }
-      case 'motel': {
-        const floors = 2;
-        const fh = 3.2;
-        for (let s = 0; s < floors; s++) this.box(x, s * fh, z, w, fh + 0.1, d, m, s === 0 && collide, ry);
-        const bh = floors * fh;
-        if (addWin) this._sceneWindows(x, z, w, d, bh, ry, seed);
-        if (addDoor) this._facadeDoor(x, z, w, d, ry, doorW, this._sceneMat('door'));
-        if (addRoofDetail) this.roofProps(x, z, ry, w, d, bh, rm);
-        break;
-      }
-      case 'gasstation': {
-        const pw = w || 14, pd = d || 10;
-        this.box(x, 0, z, pw * 0.4, 3.5, pd * 0.35, this._sceneMat('metal'), collide, ry);
-        for (const side of [-1, 1]) {
-          const pp = l2w(side * pw * 0.25, 0);
-          this.box(pp.x, 0, pp.z, 1.2, 3.2, 1.2, this._sceneMat('metal'), false, ry);
-        }
-        this._baseTrim(x, z, pw, pd, ry, 3.5);
-        break;
-      }
-      case 'parking': {
-        const floors = Math.max(2, Math.floor(h / 3.2));
-        const fh = 3.2;
-        for (let s = 0; s < floors; s++) {
-          const shrink = s * 0.3;
-          this.box(x, s * fh, z, w - shrink, fh * 0.7, d - shrink, this._sceneMat('concrete'), s === 0 && collide, ry);
-        }
-        if (addWin) this._sceneWindows(x, z, w, d, floors * fh, ry, seed);
-        break;
-      }
-      case 'bank': {
-        this.box(x, 0, z, w, h, d, this._sceneMat('marble'), collide, ry);
-        const lw = w + 1.5, ld = d + 0.6;
-        this.box(x, h, z, lw, 0.4, ld, this._sceneMat('metal'), false, ry);
-        if (addDoor) this._facadeDoor(x, z, w, d, ry, doorW * 1.2, this._sceneMat('door'));
-        if (addWin) this._sceneWindows(x, z, w, h, d, ry, seed);
-        break;
-      }
-      case 'hospital': {
-        this.box(x, 0, z, w, h, d, this._sceneMat('concrete'), collide, ry);
-        this.box(x, h, z, 3, 2, 3, this._sceneMat('metal'), false, ry);
-        if (addWin) this._sceneWindows(x, z, w, h, d, ry, seed);
-        if (addDoor) this._facadeDoor(x, z, w, d, ry, doorW * 1.5, this._sceneMat('door'));
-        if (addRoofDetail) this.roofProps(x, z, ry, w, d, h, rm);
-        break;
-      }
-      case 'highrise': {
-        const tw = w * 0.65, td = d * 0.65;
-        this.box(x, 0, z, w, h * 0.15, d, this._sceneMat('concrete'), collide, ry);
-        this.box(x, h * 0.15, z, tw, h * 0.85, td, this._sceneMat('glass'), false, ry);
-        this._baseTrim(x, z, w, d, ry, h * 0.15);
-        if (addWin) this._sceneWindows(x, z, tw, td, h, ry, seed);
-        if (addRoofDetail) this.roofProps(x, z, ry, tw, td, h, rm);
-        break;
-      }
-      case 'warehouse': {
-        this.box(x, 0, z, w, h, d, this._sceneMat('metal'), collide, ry);
-        if (addRoofDetail) {
-          this.box(x, h + 0.15, z, w + 0.6, 0.15, d + 0.6, this._sceneMat('corrugated'), false, ry);
-        }
-        if (addDoor) this._facadeDoor(x, z, w, d, ry, Math.min(doorW * 2, w * 0.6), this._sceneMat('metal'));
-        break;
-      }
-      case 'policestation': {
-        this.box(x, 0, z, w, h, d, this._sceneMat('concrete'), collide, ry);
-        this._baseTrim(x, z, w, d, ry, h);
-        if (addWin) this._sceneWindows(x, z, w, h, d, ry, seed);
-        if (addDoor) this._facadeDoor(x, z, w, d, ry, doorW * 1.5, this._sceneMat('door'));
-        break;
-      }
-      case 'nightclub': {
-        this.box(x, 0, z, w, h, d, this._sceneMat('brick'), collide, ry);
-        this.box(x, h * 0.5, z, w + 0.3, h * 0.15, d + 0.3, this._sceneMat('metal'), false, ry);
-        if (addWin) this._sceneWindows(x, z, w, h, d, ry, seed);
-        if (addDoor) this._facadeDoor(x, z, w, d, ry, doorW, this._sceneMat('door'));
-        break;
-      }
-      case 'mosque': {
-        this.box(x, 0, z, w, h, d, this._sceneMat('concrete'), collide, ry);
-        this.box(x, h, z, w * 0.5, h * 0.4, d * 0.5, this._sceneMat('concrete'), false, ry);
-        this._baseTrim(x, z, w, d, ry, h);
-        if (addWin) this._sceneWindows(x, z, w, h, d, ry, seed);
-        if (addDoor) this._facadeDoor(x, z, w, d, ry, doorW || 4, this._sceneMat('door'));
-        break;
-      }
-      case 'mall': {
-        this.box(x, 0, z, w, h, d, this._sceneMat('concrete'), collide, ry);
-        this._baseTrim(x, z, w, d, ry, h, { lip: true });
-        if (addWin) this._sceneWindows(x, z, w, h, d, ry, seed);
-        if (addDoor) this._facadeDoor(x, z, w, d, ry, doorW || 6, this._sceneMat('door'));
-        if (addRoofDetail) this.roofProps(x, z, ry, w, d, h, rm);
-        break;
-      }
-      case 'stadium': {
-        this.box(x, 0, z, w, h * 0.6, d, this._sceneMat('concrete'), collide, ry);
-        this.box(x, h * 0.6, z, w * 0.9, h * 0.2, d * 0.9, this._sceneMat('concrete'), false, ry);
-        break;
-      }
-      default: {
-        this.box(x, 0, z, w, h, d, m, collide, ry);
-        if (addRoofDetail) this.roofProps(x, z, ry, w, d, h, rm);
-        if (addWin) this._sceneWindows(x, z, w, h, d, ry, seed);
-        break;
-      }
-    }
-    if (addEnterable) {
-      const c = Math.abs(Math.cos(ry)), s = Math.abs(Math.sin(ry));
-      const ex = (w / 2) * c + (d / 2) * s, ez = (w / 2) * s + (d / 2) * c;
-      this.addInterior(new THREE.Vector3(x - ex, 0, z - ez), new THREE.Vector3(x + ex, h * 0.8, z + ez));
-    }
-  }
-
-  _authoredProp(p) {
-    const x = p.x, z = p.z, ry = p.ry || 0;
-    const k = p.kind || 'crate';
-    const cs = Math.cos(ry), sn = Math.sin(ry);
-    const l2w = (lx, lz) => ({ x: x + lx * cs + lz * sn, z: z - lx * sn + lz * cs });
-    switch (k) {
-      case 'crate': this.box(x, 0, z, 1.2, 1.2, 1.2, this.mCrate(), true, ry, false, 'flex'); break;
-      case 'barrel': this.box(x, 0, z, 0.8, 1.2, 0.8, this.mBarrel(), true, ry, false, p.react || 'flex'); break;
-      case 'barrels': {
-        const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry; this.group.add(g);
-        for (let i = 0; i < 3; i++) {
-          const bx = (i - 1) * 0.9;
-          const m = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 1.1, 12), this.mBarrel());
-          m.position.set(bx, 0.55, 0); m.castShadow = m.receiveShadow = true; g.add(m);
-        }
-        this.addCollider(x, 0, z, 3, 1.2, 1.2);
-        break;
-      }
-      case 'lamp': {
-        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 5, 8), this.mMetal());
-        pole.position.set(x, 2.5, z); pole.castShadow = true; this.group.add(pole);
-        const arm = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.08, 0.08), this.mMetal());
-        arm.position.set(x + cs * 0.6, 5, z - sn * 0.6); arm.rotation.y = ry; this.group.add(arm);
-        const light = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), new THREE.MeshStandardMaterial({ color: 0xffeeaa, emissive: 0xffeeaa, emissiveIntensity: 0.6 }));
-        light.position.set(x + cs * 1.2, 4.9, z - sn * 1.2); this.group.add(light);
-        this.addCollider(x, 0, z, 0.3, 5, 0.3);
-        break;
-      }
-      case 'hydrant': {
-        this.box(x, 0, z, 0.3, 0.7, 0.3, new THREE.MeshStandardMaterial({ color: 0xcc2222, roughness: .8 }), true, ry);
-        this.box(x, 0.7, z, 0.15, 0.25, 0.15, new THREE.MeshStandardMaterial({ color: 0xcc2222, roughness: .8 }), false, ry);
-        break;
-      }
-      case 'dumpster': {
-        this.box(x, 0, z, 2, 1.1, 1.2, this._sceneMat(p.m || { m: 'metal', c: [70, 110, 70] }), true, ry);
-        break;
-      }
-      case 'trashcan': {
-        const m = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: .9 });
-        const r = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.22, 0.8, 10), m);
-        r.position.set(x, 0.4, z); r.castShadow = true; this.group.add(r);
-        this.addCollider(x, 0, z, 0.6, 0.8, 0.6);
-        break;
-      }
-      case 'mailbox': {
-        this.box(x, 0, z, 0.3, 1, 0.2, new THREE.MeshStandardMaterial({ color: 0x2244aa, roughness: .8 }), true, ry);
-        break;
-      }
-      case 'busstop': {
-        this.box(x, 0, z, 3, 0.08, 1.2, this._sceneMat('metal'), true, ry);
-        for (const side of [-1, 1]) {
-          const pp = l2w(0, side * 0.55);
-          this.box(pp.x, 0, pp.z, 0.08, 2.5, 0.08, this.mMetal(), false, ry);
-        }
-        const top = l2w(0, 0);
-        this.box(top.x, 2.5, top.z, 3, 0.06, 1.2, this._sceneMat('glass'), false, ry);
-        break;
-      }
-      case 'trafficlight': {
-        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 6, 8), this.mMetal());
-        pole.position.set(x, 3, z); pole.castShadow = true; this.group.add(pole);
-        for (let i = 0; i < 3; i++) {
-          const c = [0x22cc22, 0xcccc22, 0xcc2222][i];
-          const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.3 }));
-          bulb.position.set(x, 5.5 - i * 0.3, z); this.group.add(bulb);
-        }
-        this.addCollider(x, 0, z, 0.3, 6, 0.3);
-        break;
-      }
-      case 'pole': {
-        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 4, 6), this.mMetal());
-        pole.position.set(x, 2, z); pole.castShadow = true; this.group.add(pole);
-        this.addCollider(x, 0, z, 0.2, 4, 0.2);
-        break;
-      }
-      case 'planter': {
-        this.box(x, 0, z, 1.2, 0.5, 1.2, this._sceneMat('brick'), true, ry);
-        if (this._quality !== 'ultra-low') {
-          const foliage = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 6), new THREE.MeshStandardMaterial({ color: 0x2d6b22, roughness: 1, flatShading: true }));
-          foliage.position.set(x, 0.9, z); foliage.scale.y = 0.7; foliage.castShadow = true; this.group.add(foliage);
-        }
-        break;
-      }
-      case 'bollard': {
-        this.box(x, 0, z, 0.25, 0.7, 0.25, this.mMetal(), true, ry);
-        break;
-      }
-      case 'billboard': {
-        for (const side of [-1, 1]) {
-          const pp = l2w(side * 1.5, 0);
-          this.box(pp.x, 0, pp.z, 0.15, 5, 0.15, this.mMetal(), true, ry);
-        }
-        this.box(x, 4, z, 4, 2.2, 0.12, this._sceneMat('metal'), true, ry);
-        break;
-      }
-      case 'bench': {
-        this.box(x, 0, z, 1.8, 0.06, 0.5, this._sceneMat('wood'), true, ry);
-        this.box(x, 0, z - 0.2 * Math.cos(ry), 1.8, 0.4, 0.06, this._sceneMat('wood'), false, ry);
-        for (const side of [-1, 1]) {
-          const pp = l2w(side * 0.75, 0);
-          this.box(pp.x, 0, pp.z, 0.08, 0.4, 0.5, this.mMetal(), false, ry);
-        }
-        break;
-      }
-      case 'umbrella': {
-        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 3, 6), this.mMetal());
-        pole.position.set(x, 1.5, z); this.group.add(pole);
-        const canopy = new THREE.Mesh(new THREE.ConeGeometry(1.2, 0.4, 12), new THREE.MeshStandardMaterial({ color: 0xcc3333, roughness: .9 }));
-        canopy.position.set(x, 3, z); this.group.add(canopy);
-        break;
-      }
-      case 'cafetable': {
-        this.box(x, 0, z, 0.8, 0.7, 0.8, this._sceneMat('metal'), true, ry);
-        break;
-      }
-      default: this.box(x, 0, z, 1, 1, 1, this.mCrate(), true, ry); break;
-    }
-    if (p.react && k !== 'barrel' && k !== 'barrels' && k !== 'crate') {
-      const col = this.colliders[this.colliders.length - 1];
-      if (col) {
-        const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), this.mCrate());
-        m.position.set(x, 0.5, z); m.rotation.y = ry; m.visible = false; this.group.add(m);
-        this._registerReactive(m, p.react, col);
-      }
-    }
-  }
-
-  _authoredLandmark(lm) {
-    const x = lm.x, z = lm.z, ry = lm.ry || 0;
-    const k = lm.kind || 'warehouse';
-    const cs = Math.cos(ry), sn = Math.sin(ry);
-    const l2w = (lx, lz) => ({ x: x + lx * cs + lz * sn, z: z - lx * sn + lz * cs });
-    const solid = lm.solid !== false;
-    switch (k) {
-      case 'fuel': {
-        const r = lm.r || 3, h = lm.h || 7;
-        const tank = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 20), this.mMetal());
-        tank.position.set(x, h / 2, z); tank.castShadow = tank.receiveShadow = true; this.group.add(tank);
-        this.addCollider(x, 0, z, r * 2.2, h, r * 2.2);
-        break;
-      }
-      case 'port': {
-        this.box(x, 0, z, 20, 3, 14, this._sceneMat('concrete'), solid, ry);
-        for (let i = 0; i < 4; i++) {
-          const cx = x + (i - 1.5) * 5 * cs, cz = z + (i - 1.5) * 5 * sn;
-          const colors = [[150, 60, 45], [60, 90, 110], [95, 100, 70], [120, 70, 120]];
-          const cm = new THREE.MeshStandardMaterial({ map: TEX.makeMetalTexture(256, colors[i]), roughness: .6, metalness: .5 });
-          this.box(cx, 3, cz, 4, 2.4, 2.4, cm, false, ry + rng(-0.3, 0.3));
-        }
-        break;
-      }
-      case 'trainstation': {
-        const tw = lm.w || 25, td = lm.d || 13, th = lm.h || 10;
-        this.box(x, 0, z, tw, th * 0.5, td, this._sceneMat('brick'), solid, ry);
-        this.gableRoof(x, z, tw + 1, th * 0.5, td + 1, ry, 0.5, this._sceneMat('roof'));
-        if (this._quality !== 'ultra-low') {
-          this._facadeDoor(x, z, tw, td, ry, 4, this._sceneMat('door'));
-          this._sceneWindows(x, z, tw, th, td, ry, (Math.abs(x) * 7 + Math.abs(z) * 13) | 0);
-        }
-        break;
-      }
-      case 'warehouse': {
-        const w = lm.w || 34, d = lm.d || 22, h = lm.h || 9;
-        this.box(x, 0, z, w, h, d, this._sceneMat('metal'), solid, ry);
-        if (this._quality !== 'ultra-low') {
-          this.box(x, h + 0.15, z, w + 0.6, 0.15, d + 0.6, this._sceneMat('corrugated'), false, ry);
-          this._facadeDoor(x, z, w, d, ry, 5, this._sceneMat('metal'));
-        }
-        break;
-      }
-      case 'mall': {
-        const w = lm.w || 40, d = lm.d || 20, h = lm.h || 8.5;
-        this.box(x, 0, z, w, h, d, this._sceneMat('concrete'), solid, ry);
-        this._baseTrim(x, z, w, d, ry, h, { lip: true });
-        if (this._quality !== 'ultra-low') {
-          this._facadeDoor(x, z, w, d, ry, 6, this._sceneMat('door'));
-          this._sceneWindows(x, z, w, h, d, ry, (Math.abs(x) * 7 + Math.abs(z) * 13) | 0);
-          this.roofProps(x, z, ry, w, d, h, this._sceneMat('roof'));
-        }
-        break;
-      }
-      case 'stadium': {
-        const w = lm.w || 82, d = lm.d || 57, h = lm.h || 12;
-        this.box(x, 0, z, w, h * 0.6, d, this._sceneMat('concrete'), solid, ry);
-        this.box(x, h * 0.6, z, w * 0.9, h * 0.2, d * 0.9, this._sceneMat('concrete'), false, ry);
-        if (this._quality !== 'ultra-low') {
-          for (let i = 0; i < 8; i++) {
-            const a = (i / 8) * Math.PI * 2;
-            const lx = x + Math.cos(a) * w * 0.4, lz = z + Math.sin(a) * d * 0.4;
-            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, h + 2, 6), this.mMetal());
-            pole.position.set(lx, (h + 2) / 2, lz); pole.castShadow = true; this.group.add(pole);
-          }
-        }
-        break;
-      }
-      case 'mosque': {
-        const w = lm.w || 16, d = lm.d || 14, h = lm.h || 8;
-        this.box(x, 0, z, w, h, d, this._sceneMat('concrete'), solid, ry);
-        this.box(x, h, z, w * 0.5, h * 0.4, d * 0.5, this._sceneMat('concrete'), false, ry);
-        this._baseTrim(x, z, w, d, ry, h);
-        if (this._quality !== 'ultra-low') {
-          this._facadeDoor(x, z, w, d, ry, 4, this._sceneMat('door'));
-          this._sceneWindows(x, z, w, h, d, ry, (Math.abs(x) * 7 + Math.abs(z) * 13) | 0);
-        }
-        break;
-      }
-      case 'firestation': {
-        const w = lm.w || 18, d = lm.d || 14, h = lm.h || 6;
-        this.box(x, 0, z, w, h, d, new THREE.MeshStandardMaterial({ color: 0xaa3333, roughness: .85 }), solid, ry);
-        this._baseTrim(x, z, w, d, ry, h);
-        if (this._quality !== 'ultra-low') {
-          this._facadeDoor(x, z, w, d, ry, 5, this._sceneMat('metal'));
-          this._sceneWindows(x, z, w, h, d, ry, (Math.abs(x) * 7 + Math.abs(z) * 13) | 0);
-        }
-        break;
-      }
-      case 'policestation': {
-        const w = lm.w || 16, d = lm.d || 12, h = lm.h || 7;
-        this.box(x, 0, z, w, h, d, this._sceneMat('concrete'), solid, ry);
-        this._baseTrim(x, z, w, d, ry, h);
-        if (this._quality !== 'ultra-low') {
-          this._facadeDoor(x, z, w, d, ry, 3.5, this._sceneMat('door'));
-          this._sceneWindows(x, z, w, h, d, ry, (Math.abs(x) * 7 + Math.abs(z) * 13) | 0);
-        }
-        break;
-      }
-      case 'nightclub': {
-        const w = lm.w || 18, d = lm.d || 16, h = lm.h || 8;
-        this.box(x, 0, z, w, h, d, this._sceneMat('brick'), solid, ry);
-        this.box(x, h * 0.6, z, w + 0.3, h * 0.12, d + 0.3, this._sceneMat('metal'), false, ry);
-        if (this._quality !== 'ultra-low') {
-          this._facadeDoor(x, z, w, d, ry, 3, this._sceneMat('door'));
-          this._sceneWindows(x, z, w, h, d, ry, (Math.abs(x) * 7 + Math.abs(z) * 13) | 0);
-        }
-        break;
-      }
-      case 'transit': {
-        this.box(x, 0, z, 8, 0.1, 8, this._sceneMat('plaza'), false);
-        this.box(x, 0, z, 4, 3, 4, this._sceneMat('glass'), false);
-        this.transitPoints.push({ x, z, name: lm.name || 'STATION' });
-        this.namedLocations.push({ x, z, name: lm.name || 'TRANSIT', color: '#7dd0ff' });
-        break;
-      }
-      default: {
-        this.box(x, 0, z, lm.w || 10, lm.h || 6, lm.d || 10, this._sceneMat('concrete'), solid, ry);
-        break;
-      }
-    }
-    if (this._quality !== 'ultra-low') {
-      const ls = this._landmarkSize(lm);
-      if (lm.name) this.namedLocations.push({ x, z, name: lm.name, color: '#ffd24a' });
-    }
-  }
-
-  // ====== BUILDING FUNCTIONS (auto-gen city) ======
-  house(x, z, ry, ruin, collide) {
-    const w = rng(8, 14), d = rng(7, 11), h = rng(3.5, 5.5);
-    const m = this._sceneMat(ruin ? 'brick' : 'concrete');
-    this.box(x, 0, z, w, h, d, m, collide, ry);
-    this.gableRoof(x, z, w + 0.8, h, d + 0.8, ry, 0.6, this._sceneMat('roof'));
-    if (!ruin) this._buildingImperfections(x, z, w, d, ry, h, (Math.abs(x) * 13 + Math.abs(z) * 7) | 0);
-    if (this._quality !== 'ultra-low') this._sceneWindows(x, z, w, h, d, ry, (Math.abs(x) * 7 + Math.abs(z) * 13) | 0);
-  }
-
-  fuelTank(x, z, r, h, collide) {
-    const tank = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 16), this.mMetal());
-    tank.position.set(x, h / 2, z); tank.castShadow = tank.receiveShadow = true; this.group.add(tank);
-    this.addCollider(x, 0, z, r * 2.2, h, r * 2.2);
-  }
-
-  gasstation(x, z, ry, collide, w) {
-    w = w || 14;
-    const d = w * 0.7;
-    this.box(x, 0, z, w * 0.35, 3.5, d * 0.3, this._sceneMat('metal'), collide, ry);
-    for (const side of [-1, 1]) {
-      const cs = Math.cos(ry), sn = Math.sin(ry);
-      const px = x + side * w * 0.25 * cs, pz = z - side * w * 0.25 * sn;
-      this.box(px, 0, pz, 1.2, 3.2, 1.2, this.mMetal(), false, ry);
-    }
-  }
-
-  rowhouse(x, z, ry, w, d, h, collide, stories) {
-    stories = stories || 2;
-    const count = Math.max(2, Math.floor(w / 6));
-    const unitW = w / count;
-    const cs = Math.cos(ry), sn = Math.sin(ry);
-    for (let i = 0; i < count; i++) {
-      const ox = -w / 2 + unitW / 2 + i * unitW;
-      const px = x + ox * cs, pz = z - ox * sn;
-      const uh = h + rng(-0.5, 0.5);
-      this.box(px, 0, pz, unitW - 0.3, uh, d, this._sceneMat('brick'), i === 0 && collide, ry);
-      if (this._quality !== 'ultra-low') this._facadeDoor(px, pz, unitW - 0.3, d, ry, 2, this._sceneMat('door'));
-    }
-  }
-
-  port(x, z, ry, collide) {
-    this.box(x, 0, z, 20, 3, 14, this._sceneMat('concrete'), collide, ry);
-    for (let i = 0; i < 3; i++) {
-      const cs = Math.cos(ry), sn = Math.sin(ry);
-      const cx = x + (i - 1) * 5 * cs, cz = z + (i - 1) * 5 * sn;
-      const colors = [[150, 60, 45], [60, 90, 110], [95, 100, 70]];
-      const cm = new THREE.MeshStandardMaterial({ map: TEX.makeMetalTexture(256, colors[i]), roughness: .6, metalness: .5 });
-      this.box(cx, 3, cz, 4, 2.4, 2.4, cm, false, ry + rng(-0.3, 0.3));
-    }
-  }
-
-  trainStation(x, z, ry, collide) {
-    this.box(x, 0, z, 25, 6.5, 13, this._sceneMat('brick'), collide, ry);
-    this.gableRoof(x, z, 26, 6.5, 14, ry, 0.5, this._sceneMat('roof'));
-    if (this._quality !== 'ultra-low') {
-      this._facadeDoor(x, z, 25, 13, ry, 4, this._sceneMat('door'));
-      this._sceneWindows(x, z, 25, 13, 6.5, ry, (Math.abs(x) * 7 + Math.abs(z) * 13) | 0);
-    }
-  }
-
-  transitStation(x, z, name) {
-    this.box(x, 0, z, 8, 0.1, 8, this._sceneMat('plaza'), false);
-    this.box(x, 0, z, 4, 3, 4, this._sceneMat('glass'), false);
-    this.transitPoints.push({ x, z, name: name || 'STATION' });
-    this.namedLocations.push({ x, z, name: name || 'TRANSIT', color: '#7dd0ff' });
-  }
-
-  store(x, z, ry, w, d, h, collide) {
-    w = w || 10; d = d || 12; h = h || 5;
-    this.box(x, 0, z, w, h, d, this._sceneMat('concrete'), collide, ry);
-    this._baseTrim(x, z, w, d, ry, h);
-    if (this._quality !== 'ultra-low') {
-      this._facadeDoor(x, z, w, d, ry, 3, this._sceneMat('door'));
-      this._sceneWindows(x, z, w, h, d, ry, (Math.abs(x) * 7 + Math.abs(z) * 13) | 0);
-    }
-  }
-
-  warehouse(x, z, w, d, h, collide) {
-    this.box(x, 0, z, w, h, d, this._sceneMat('metal'), collide);
-    if (this._quality !== 'ultra-low') {
-      this.box(x, h + 0.15, z, w + 0.6, 0.15, d + 0.6, this._sceneMat('corrugated'), false);
-      this._facadeDoor(x, z, w, d, 0, 5, this._sceneMat('metal'));
-    }
-  }
-
-  rockField(x, z, r) {
-    if (this._quality === 'ultra-low') return;
-    const rockMat = new THREE.MeshStandardMaterial({ color: 0x777777, roughness: 1, flatShading: true });
-    for (let i = 0; i < 8; i++) {
-      const a = rng(0, Math.PI * 2), rd = rng(0, r);
-      const rx = x + Math.cos(a) * rd, rz = z + Math.sin(a) * rd;
-      const s = rng(0.5, 2);
-      const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), rockMat);
-      rock.position.set(rx, s * 0.4, rz); rock.rotation.set(rng(0, 1), rng(0, 1), rng(0, 1));
-      rock.castShadow = rock.receiveShadow = true; this.group.add(rock);
-      this.addCollider(rx, 0, rz, s * 2, s * 1.2, s * 2);
-    }
-  }
-
-  hill(x, z, r, h) {
-    r = r || 14; h = h || 8;
-    const hillMesh = new THREE.Mesh(new THREE.ConeGeometry(r, h, 24), new THREE.MeshStandardMaterial({ color: 0x4a7a3c, roughness: 1, flatShading: true }));
-    hillMesh.position.set(x, 0, z); hillMesh.receiveShadow = true; this.group.add(hillMesh);
-    this.addCollider(x, 0, z, r * 2, h, r * 2);
-  }
-
   removeLoot(idx) {
     const L = this.lootPoints[idx];
     if (!L || L.looted) return;
@@ -2159,7 +1197,7 @@ export class World {
         if (r.col) {
           const i = this.colliders.indexOf(r.col);
           if (i >= 0) this.colliders.splice(i, 1);
-          if (this.grid) this.grid.remove(r.col);
+          if (this.bvhWorld) this.bvhWorld.removeAABB(r.col);
         }
       }
     }
@@ -2241,9 +1279,30 @@ export class World {
     }
     return null;
   }
-}
 
-installAssets(World);
+  // GTA-style: find any wall/surface within reach by casting a ray forward.
+  // Returns the first climbable wall hit (height 0.5m to 2.8m, within maxDist).
+  findClimbWall(pos, yaw, maxDist = 1.8, minH = 0.5, maxH = 2.8) {
+    const dir = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+    const origin = new THREE.Vector3(pos.x, pos.y + 0.9, pos.z);
+    const candidates = this.grid
+      ? this.grid.queryRadius(pos.x, pos.z, maxDist + 1)
+      : this.colliders;
+    let best = null, bestDist = maxDist;
+    for (const c of candidates) {
+      if (c.max.y - c.min.y < minH || c.max.y - c.min.y > maxH) continue;
+      const hit = rayAABB(origin, dir, c, maxDist + 0.5);
+      if (hit && hit.dist < bestDist) {
+        const wallH = c.max.y - c.min.y;
+        if (wallH >= minH && wallH <= maxH) {
+          bestDist = hit.dist;
+          best = c;
+        }
+      }
+    }
+    return best;
+  }
+}
 
 export function rayAABB(o, d, box, maxDist) {
   let tmin = 0, tmax = maxDist, axis = -1, sign = 0;

@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { Character } from './character.js';
-import { OUTFIT_PRESETS } from './utils/sa-wardrobe.js';
 
 const NAMES = ['VIPER', 'JACKAL', 'REAPER', 'GHOST-7', 'WOLF', 'COBRA', 'TALON', 'HAVOC', 'SPECTRE', 'ONYX', 'FALCON', 'DINGO'];
 
@@ -36,16 +35,6 @@ export class Enemy {
       weaponType: this.weaponType,
       weaponTint: [0.15, 0.15, 0.18]
     });
-    // Apply SA Wardrobe preset for modular NPC outfit
-    const enemyPresets = ['soldier', 'navy', 'cadpat'];
-    const presetKey = enemyPresets[this.id % enemyPresets.length];
-    if (this.char.wardrobe) {
-      const preset = OUTFIT_PRESETS[presetKey] || OUTFIT_PRESETS.soldier;
-      for (const [slot, item] of Object.entries(preset)) {
-        if (item) this.char.wardrobe.equip(slot, item);
-        else this.char.wardrobe.unequip(slot);
-      }
-    }
     this.group = this.char.root;
     this.pos = spawnPos.clone();
     this.group.position.copy(this.pos);
@@ -442,6 +431,7 @@ export class Enemy {
       weaponType: this.weaponType, airborne: 0, landDip: 0
     };
     this.char.setState(cs);
+    if (this.char.update) this.char.update(dt);
 
     if (this.hitFlash > 0) {
       this.hitFlash -= dt;
@@ -478,8 +468,8 @@ export class Enemy {
       if (dx === 0 && dz === 0) continue;
       const nx = this.pos.x + dx, nz = this.pos.z + dz;
       let blocked = false;
-      const nearCols = this.world.grid
-        ? this.world.grid.queryAABB(nx - r, nz - r, nx + r, nz + r)
+      const nearCols = this.world.bvhWorld
+        ? this.world.bvhWorld.queryAABB(nx - r, nz - r, nx + r, nz + r)
         : this.world.colliders;
       for (const c of nearCols) {
         if (c.max.y < .3) continue;

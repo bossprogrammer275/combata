@@ -4,16 +4,18 @@
 // multiplayer players will receive later, so the body language stays identical.
 import * as THREE from 'three';
 import { Character } from './character.js';
-import { SAAnimator, detectState } from './utils/sa-animation.js';
-import { Wardrobe, OUTFIT_PRESETS } from './utils/sa-wardrobe.js';
 
 export class Player {
-  constructor(camera, world, audio) {
+  constructor(camera, world, audio, physics = null) {
     this.camera = camera;
     this.world = world;
     this.audio = audio;
+    this.physics = physics;
     this.pos = new THREE.Vector3(0, 0, 30);      // feet position
     this.vel = new THREE.Vector3();
+    if (this.physics) {
+      this.physics.createPlayerBody(this.pos.x, this.pos.y, this.pos.z);
+    }
     this.yaw = 0;
     this.pitch = 0;
     this.eyeStand = 1.66;
@@ -25,9 +27,9 @@ export class Player {
     this.crouched = false;
     this.sprinting = false;
     this.sensitivity = 1;
-    this.baseSpeed = 5.2;
-    this.sprintMult = 1.75;
-    this.crouchMult = 0.45;
+    this.baseSpeed = 2.8;
+    this.sprintMult = 1.9;
+    this.crouchMult = 0.55;
     this.bobPhase = 0;
     this.bobAmp = 0;
     this.stepTimer = 0;
@@ -37,6 +39,17 @@ export class Player {
     this.keys = {};
     this.climbing = false;
     this.climbTarget = null;
+    this.stairClimbing = false;
+    this._prevGroundY = 0;
+    this._stairTimer = 0;
+    this._climbPhase = null;
+    this._climbT = 0;
+    this._climbCol = null;
+    this._climbStart = null;
+    this._climbWallNormal = null;
+    this._portalCooldown = 0;
+    this.nearPortal = null;
+    this.insideBuilding = false;
     // ---- third-person procedural body ----
     // shirt/pants colors are swappable via the [ and ] keys (CLOTHES palette).
     this.clothesPalette = [
@@ -83,36 +96,14 @@ export class Player {
       landDip: this.landDip,
       skydive: this.skydive ? 1 : 0,
       canopy: this.canopy || 0,
+      climbing: this.climbing ? 1 : 0,
+      stairClimb: this.stairClimbing ? 1 : 0,
     };
   }
 
-  // copy physics transform + pose onto the visible rig
+  // copy physics transform + pose onto the visible rig — FBX-only, no procedural fallback
   syncCharacter() {
-    // Use SAAnimator for smooth state crossfades if available
-    if (this.char.animator) {
-      const input = {
-        crouch: this.crouched ? 1 : 0,
-        aim: this.aimAmount,
-        moveX: this._moveX || 0,
-        moveZ: this._moveZ || 0,
-        sprint: this.sprinting ? 1 : 0,
-        airborne: !this.onGround ? 1 : 0,
-        skydive: this.skydive ? 1 : 0,
-        canopy: this.canopy || 0,
-      };
-      const stateName = detectState(input);
-      this.char.animator.setState(stateName, {
-        x: this.pos.x, y: this.pos.y, z: this.pos.z,
-        yaw: this.bodyYaw, pitch: this.pitch,
-        lean: this.leanAmount,
-        aimYaw: this._aimYaw || 0,
-        weaponType: this.weaponType || 'rifle',
-        landDip: this.landDip,
-      });
-      this.char.animator.update(0); // dt=0 since we're pushing exact values
-    } else {
-      this.char.setState(this.getState());
-    }
+    this.char.setState(this.getState());
   }
 
   // swap clothing/headgear appearance and rebuild the visible rig in place,
@@ -124,35 +115,16 @@ export class Player {
     else this.char.root.visible = !this.firstPerson;
   }
 
-  // apply the persistent profile's equipped cosmetics to the visible rig
+  // apply the persistent profile's equipped cosmetics — FBX model ignores cloth colors, only weapon/outfit matters
   applyProfile(profile) {
     const eq = profile.data.equipped;
     const palette = this.clothesPalette;
     const color = palette[eq.clothColor % palette.length];
-    const outfitTints = {
-      camo: { pants: [0.20, 0.22, 0.30], shirt: [0.27, 0.30, 0.24], vest: [0.25, 0.27, 0.22] },
-      navy: { pants: [0.10, 0.12, 0.20], shirt: [0.12, 0.16, 0.30], vest: [0.10, 0.12, 0.18] },
-      soldier: { pants: [0.45, 0.40, 0.30], shirt: [0.50, 0.45, 0.34], vest: [0.40, 0.36, 0.28] },
-      casual: { pants: [0.30, 0.30, 0.32], shirt: [0.42, 0.40, 0.38], vest: [0.34, 0.32, 0.30] },
-      cadpat: { pants: [0.20, 0.26, 0.18], shirt: [0.24, 0.30, 0.20], vest: [0.20, 0.26, 0.18] },
-      urban: { pants: [0.30, 0.32, 0.34], shirt: [0.36, 0.38, 0.40], vest: [0.30, 0.32, 0.34] },
-    };
-    const t = outfitTints[eq.outfit] || outfitTints.camo;
     this.colorIndex = eq.clothColor;
-
-    // Use SA Wardrobe for modular clothing swap if available
-    if (this.char.wardrobe) {
-      const preset = OUTFIT_PRESETS[eq.outfit] || OUTFIT_PRESETS.casual;
-      for (const [slot, item] of Object.entries(preset)) {
-        if (item) this.char.wardrobe.equip(slot, item);
-        else this.char.wardrobe.unequip(slot);
-      }
-    }
-
-    // Also update the appearance object for backward compatibility
+    // FBX has baked textures — outfit tint not rebuild, just keep weapon sync
     this.setAppearance({
       outfit: eq.outfit,
-      pants: t.pants, shirt: color, vest: t.vest,
+      weaponType: this.weaponType,
       showCap: !!eq.cap, glasses: !!eq.glasses,
     });
   }
@@ -201,6 +173,7 @@ export class Player {
       this.skydive = false; this.canopy = 0; this.freefallV = 0;
       this.onGround = true;
       this.landDip = 0.16;
+      if (this.physics) this.physics.setPlayerPosition(this.pos.x, this.pos.y, this.pos.z);
       if (this._onLand) this._onLand();
     }
   }
@@ -237,22 +210,42 @@ export class Player {
       }
       this.syncCharacter();
       this._skydiveState();
+      if (this.char.update) this.char.update(dt);
+      return;
+    }
+
+    // ---- CLIMB STATE MACHINE — all user controls disabled during climb ----
+    if (this._climbPhase) {
+      this.handleClimb(dt, k);
+      const headY = this.pos.y + 1.55;
+      const origin = new THREE.Vector3(this.pos.x, headY, this.pos.z);
+      const boom = 4.4;
+      const camPos = origin.clone().add(new THREE.Vector3(0, 1.5, boom));
+      this.camera.position.lerp(camPos, Math.min(1, dt * 6));
+      this.camera.lookAt(this.pos.x, headY + 0.3, this.pos.z);
+      this.syncCharacter();
+      if (this.char.update) this.char.update(dt);
       return;
     }
 
     this.crouched = !!k.crouch;
-    const moving = (k.forward !== 0 || k.right !== 0) ? 1 : 0;
-    this.sprinting = !!(k.sprint && moving && !this.crouched);
+    const rawMoving = (k.forward !== 0 || k.right !== 0) ? 1 : 0;
+    this.sprinting = !!(k.sprint && rawMoving && !this.crouched);
 
-    const speed = this.baseSpeed * (this.sprinting ? this.sprintMult : 1) * (this.crouched ? this.crouchMult : 1);
+    // Crouching = stationary: no walk, no run, only aim/shoot
+    if (this.crouched) {
+      this.vel.x *= 0.85;
+      this.vel.z *= 0.85;
+    }
+    const speed = this.crouched ? 0 : this.baseSpeed * (this.sprinting ? this.sprintMult : 1);
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
-    // camera-relative move dir: forward is along camera look direction (-sin, -cos)
-    // right is along camera perpendicular right direction (cos, -sin)
-    let mx = k.forward * (-sin) + k.right * cos;
-    let mz = k.forward * (-cos) + k.right * (-sin);
+    const fwd = this.crouched ? 0 : k.forward;
+    const rgt = this.crouched ? 0 : k.right;
+    const moving = (fwd !== 0 || rgt !== 0) ? 1 : 0;
+    let mx = fwd * (-sin) + rgt * cos;
+    let mz = fwd * (-cos) + rgt * (-sin);
     const len = Math.hypot(mx, mz) || 1;
     mx /= len; mz /= len;
-    // local-space move intent for the body pose (strafe = X, fwd/back = Z)
     this._moveX = (moving ? mx : 0);
     this._moveZ = (moving ? mz : 0);
 
@@ -269,17 +262,35 @@ export class Player {
     if (hs > speed) { this.vel.x *= speed / hs; this.vel.z *= speed / hs; }
 
     // gravity & jump — tuned for a game-like arc (not earth-realistic)
-    this.vel.y -= 16 * dt;
-    if (k.jump && this.onGround) {
-      this.vel.y = 8.0; this.onGround = false; this.audio.jump();
-    }
+    if (!this.climbing) {
+      this.vel.y -= 16 * dt;
+      if (k.jump && this.onGround) {
+        this.vel.y = 8.0; this.onGround = false; this.audio.jump();
+      }
 
-    // integrate with axis-separated collision
-    this.moveAxis(this.vel.x * dt, 0, 0);
-    this.moveAxis(0, 0, this.vel.z * dt);
-    const wasAir = !this.onGround;
-    this.moveAxis(0, this.vel.y * dt, 0);
-    if (wasAir && this.onGround) { this.landDip = Math.min(Math.abs(this.vel.y) * 0.008 + .04, .18); this.audio.footstep(); }
+      // integrate with axis-separated collision
+      if (this.physics && this.physics._playerBody) {
+        // Use Rapier character controller for movement
+        const wasAir = !this.onGround;
+        const result = this.physics.movePlayer(
+          this.vel.x * dt,
+          this.vel.y * dt,
+          this.vel.z * dt
+        );
+        // Update position from physics
+        this.pos.copy(result.position);
+        this.onGround = result.ground;
+        if (wasAir && this.onGround) { this.landDip = Math.min(Math.abs(this.vel.y) * 0.008 + .04, .18); this.audio.footstep(); }
+      } else {
+        this.moveAxis(this.vel.x * dt, 0, 0);
+        this.moveAxis(0, 0, this.vel.z * dt);
+        const wasAir = !this.onGround;
+        this.moveAxis(0, this.vel.y * dt, 0);
+        if (wasAir && this.onGround) { this.landDip = Math.min(Math.abs(this.vel.y) * 0.008 + .04, .18); this.audio.footstep(); }
+      }
+    } else {
+      this.moveAxis(0, this.vel.y * dt, 0);
+    }
 
     // world bounds — but allow stepping outside when inside an enterable building's
     // interior volume (so you can walk out the door without getting clamped to the wall)
@@ -290,8 +301,50 @@ export class Player {
     }
     if (this.pos.y < 0) { this.pos.y = 0; this.vel.y = 0; this.onGround = true; }
 
-    // climb (mantle over climbable cover)
-    this.handleClimb(dt, k);
+    // Staircase detection: if we stepped up while on ground and moving, we're on stairs
+    if (this.onGround && moving && !this.climbing) {
+      const yDelta = this.pos.y - this._prevGroundY;
+      if (yDelta > 0.03) {
+        this.stairClimbing = true;
+        this._stairTimer = 0.3;
+      }
+    }
+    if (this._stairTimer > 0) {
+      this._stairTimer -= dt;
+      if (this._stairTimer <= 0 || !this.onGround) {
+        this.stairClimbing = false;
+      }
+    }
+    if (this.onGround) this._prevGroundY = this.pos.y;
+
+    // portal detection — press F to enter/exit building (checked before climb)
+    if (this._portalCooldown > 0) this._portalCooldown -= dt;
+    this.nearPortal = null;
+    if (this.world.nearestPortal && this.onGround && !this.skydive && !this._climbPhase) {
+      const p = this.world.nearestPortal(this.pos, 1.8);
+      if (p && this._portalCooldown <= 0) {
+        this.nearPortal = p;
+        if (k.climb) {
+          this.pos.copy(p.target);
+          this.vel.set(0, 0, 0);
+          this.onGround = true;
+          this.insideBuilding = (p.type === 'enter');
+          this._portalCooldown = 0.5;
+          this.nearPortal = null;
+          if (this.physics) this.physics.setPlayerPosition(this.pos.x, this.pos.y, this.pos.z);
+          return;
+        }
+      }
+    }
+
+    // climb trigger — GTA-style: press F to start climbing, then all controls are disabled
+    if (k.climb && this.onGround && !this.skydive && !this._climbPhase && !this.nearPortal) {
+      // First check explicit climbable objects (fences, etc.)
+      let c = this.world.climbableAt(this.pos, this.radius + 1.5);
+      // Then check any wall within reach via ray forward
+      if (!c) c = this.world.findClimbWall(this.pos, this.yaw, 1.8, 0.5, 2.8);
+      if (c) { this._startClimb(c); return; }
+    }
 
     // eye height & head bob
     const targetEye = this.crouched ? this.eyeCrouch : this.eyeStand;
@@ -325,7 +378,15 @@ export class Player {
     // must NOT snap to the camera. The upper spine still twists toward the aim via
     // the layered bone blend in character.js (aimYaw), so the gun tracks targets.
     let faceYaw = this.bodyYaw;
-    if (this.aimAmount > 0.5 && !moving) {
+    if (this.climbing && this._climbCol && this._climbWallNormal) {
+      if (this._climbPhase === 'drop' || this._climbPhase === 'over') {
+        faceYaw = Math.atan2(this._climbWallNormal.x, this._climbWallNormal.z);
+      } else {
+        const ccx = (this._climbCol.min.x + this._climbCol.max.x) / 2;
+        const ccz = (this._climbCol.min.z + this._climbCol.max.z) / 2;
+        faceYaw = Math.atan2(-(ccx - this.pos.x), -(ccz - this.pos.z));
+      }
+    } else if (this.aimAmount > 0.5 && !moving) {
       faceYaw = this.yaw;
     } else if (moving) {
       if (Math.hypot(this._moveX, this._moveZ) > 0.01) {
@@ -346,6 +407,7 @@ export class Player {
 
     // push the pose onto the visible rig
     this.syncCharacter();
+    if (this.char.update) this.char.update(dt);
 
     if (this.firstPerson) {
       // ---- first-person: camera at the eyes, no visible body ----
@@ -375,42 +437,18 @@ export class Player {
         .addScaledVector(new THREE.Vector3(rightX, 0, rightZ), side);
       camPos.y += side * 0.3;
 
-      // ---- proper ray-AABB camera wall avoidance ----
+      // ---- BVH-accelerated camera wall avoidance ----
       // Cast a ray from the head (origin) toward the desired camera position.
       // If any collider is hit along the way, pull the camera to just before that hit.
       const rayDir = camPos.clone().sub(origin);
       const rayLen = rayDir.length();
       if (rayLen > 0.01) {
         rayDir.divideScalar(rayLen);
-        let nearestT = rayLen;
-        const camCandidates = this.world.grid
-          ? this.world.grid.queryRadius(origin.x, origin.z, rayLen)
-          : this.world.colliders;
-        for (const c of camCandidates) {
-          // ray-AABB slab intersection
-          const invX = 1 / (rayDir.x || 1e-12);
-          const invY = 1 / (rayDir.y || 1e-12);
-          const invZ = 1 / (rayDir.z || 1e-12);
-          let tmin = (c.min.x - origin.x) * invX;
-          let tmax = (c.max.x - origin.x) * invX;
-          if (tmin > tmax) { const tmp = tmin; tmin = tmax; tmax = tmp; }
-          let tymin = (c.min.y - origin.y) * invY;
-          let tymax = (c.max.y - origin.y) * invY;
-          if (tymin > tymax) { const tmp = tymin; tymin = tymax; tymax = tmp; }
-          if (tmin > tymax || tymin > tmax) continue;
-          if (tymin > tmin) tmin = tymin;
-          if (tymax < tmax) tmax = tymax;
-          let tzmin = (c.min.z - origin.z) * invZ;
-          let tzmax = (c.max.z - origin.z) * invZ;
-          if (tzmin > tzmax) { const tmp = tzmin; tzmin = tzmax; tzmax = tmp; }
-          if (tmin > tzmax || tzmin > tmax) continue;
-          if (tzmin > tmin) tmin = tzmin;
-          // hit — tmin is the entry point along the ray
-          if (tmin > 0.1 && tmin < nearestT) nearestT = tmin;
-        }
-        if (nearestT < rayLen) {
-          // pull camera to just before the wall (0.3 margin so it doesn't sit ON the surface)
-          camPos = origin.clone().addScaledVector(rayDir, Math.max(0.8, nearestT - 0.3));
+        const hit = this.world.bvhWorld
+          ? this.world.bvhWorld.raycast(origin, rayDir, rayLen)
+          : null;
+        if (hit && hit.dist > 0.1) {
+          camPos = origin.clone().addScaledVector(rayDir, Math.max(0.8, hit.dist - 0.3));
         }
       }
       this.camera.position.copy(camPos);
@@ -427,19 +465,48 @@ export class Player {
   }
 
   handleClimb(dt, k) {
-    if (k.climb) {
-      const c = this.world.climbableAt(this.pos, this.radius + 0.9);
-      if (c) {
-        // if we're below the top, mantle up; otherwise stand on top
-        if (this.pos.y + this.height < c.max.y - 0.05) {
-          this.pos.y += Math.min(4 * dt, c.max.y - this.pos.y);
-          this.onGround = false; this.vel.y = Math.max(this.vel.y, 0);
-        } else {
-          this.pos.y = Math.max(this.pos.y, c.max.y);
-        }
-        this.climbing = true;
-      } else this.climbing = false;
-    } else this.climbing = false;
+    // Instant climb (no animation state machine) — nothing to update here.
+    return false;
+  }
+
+  _startClimb(c) {
+    // Instant action — no climb animation.
+    if (c.type === 'fence') {
+      // Fence: teleport straight to the other side.
+      this._crossFence(c);
+    } else {
+      // Wall/crate/building: pull straight up onto the top.
+      this.pos.y = c.max.y + 0.02;
+      this.vel.set(0, 0, 0);
+      this.onGround = true;
+    }
+    if (this.physics) this.physics.setPlayerPosition(this.pos.x, this.pos.y, this.pos.z);
+  }
+
+  _crossFence(c) {
+    const w = c.max.x - c.min.x;
+    const d = c.max.z - c.min.z;
+    const cz = (c.min.z + c.max.z) / 2;
+    const cx = (c.min.x + c.max.x) / 2;
+    if (d <= w) {
+      const side = this.pos.z >= cz ? 1 : -1;
+      this.pos.z = (side > 0 ? c.max.z : c.min.z) + side * (this.radius + 0.2);
+    } else {
+      const side = this.pos.x >= cx ? 1 : -1;
+      this.pos.x = (side > 0 ? c.max.x : c.min.x) + side * (this.radius + 0.2);
+    }
+    this.pos.y = Math.max(this.pos.y, c.min.y);
+    this.vel.set(0, 0, 0);
+    this.onGround = true;
+  }
+
+  nearestClimbable() {
+    if (!this.world) return null;
+    // Check explicit climbable objects first
+    const c = this.world.climbableAt(this.pos, this.radius + 1.5);
+    if (c) return c;
+    // GTA-style: check any wall within reach via ray forward
+    return this.world.findClimbWall(this.pos, this.yaw, 1.8, 0.5, 2.8);
   }
 
   // nearest walkable rooftop within reach of the player (for the "press Y" prompt)
@@ -460,6 +527,7 @@ export class Player {
     this.pos.set(r.x, r.y, r.z);
     this.vel.set(0, 0, 0);
     this.onGround = true;
+    if (this.physics) this.physics.setPlayerPosition(this.pos.x, this.pos.y, this.pos.z);
   }
 
   moveAxis(dx, dy, dz) {
@@ -468,16 +536,31 @@ export class Player {
     const feet = this.pos.y, head = this.pos.y + (this.crouched ? 1.25 : this.height);
     let landedOnCollider = false;
     const moveR = r + 0.5;
-    const moveCandidates = this.world.grid
-      ? this.world.grid.queryAABB(this.pos.x - moveR, this.pos.z - moveR, this.pos.x + moveR, this.pos.z + moveR)
+    const moveCandidates = this.world.bvhWorld
+      ? this.world.bvhWorld.queryAABB(this.pos.x - moveR, this.pos.z - moveR, this.pos.x + moveR, this.pos.z + moveR)
       : this.world.colliders;
     for (const c of moveCandidates) {
       if (this.pos.x + r <= c.min.x || this.pos.x - r >= c.max.x) continue;
       if (this.pos.z + r <= c.min.z || this.pos.z - r >= c.max.z) continue;
       if (head <= c.min.y || feet >= c.max.y) continue;
+      // When inside a building interior, skip push-out from colliders that are
+      // fully contained within the interior volume (walls of the building we're in).
+      if (this.insideBuilding && this.world.interiors) {
+        let inside = false;
+        for (const v of this.world.interiors) {
+          if (c.min.x >= v.min.x && c.max.x <= v.max.x &&
+              c.min.z >= v.min.z && c.max.z <= v.max.z) {
+            inside = true; break;
+          }
+        }
+        if (inside) {
+          if (dy < 0) { this.pos.y = c.max.y; this.vel.y = 0; this.onGround = true; landedOnCollider = true; }
+          continue;
+        }
+      }
       // step-up: low cover / stair treads. We snap feet onto the top of the step so the
       // player walks up smoothly WITHOUT needing the mantle (climb) key.
-      if (dy === 0 && c.max.y - feet <= 0.6 && this.onGround) {
+      if (dy === 0 && c.max.y - feet <= 1.2 && this.onGround) {
         this.pos.y = c.max.y; this.vel.y = 0; this.onGround = true; landedOnCollider = true; continue;
       }
       if (dx > 0) this.pos.x = c.min.x - r; else if (dx < 0) this.pos.x = c.max.x + r;

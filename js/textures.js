@@ -89,25 +89,8 @@ export function makeGroundTexture(size = 512, tint = null) {
   const key = 'ground|' + size + '|' + (tint ? tint.join(',') : 'default');
   const c = canvas(size), ctx = c.getContext('2d');
   const base = tint || [118, 124, 100];
-  noiseLayer(ctx, size, base, 26, 7);
-  // mottled soil / vegetation patches
-  for (let i = 0; i < 70; i++) {
-    const r = 14 + Math.random() * 60;
-    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
-    const col = Math.random() < 0.5 ? `rgba(${86 + Math.random() * 26},${96 + Math.random() * 22},${58 + Math.random() * 22},.18)` : `rgba(${70 + Math.random() * 20},${62 + Math.random() * 18},${46 + Math.random() * 16},.22)`;
-    g.addColorStop(0, col); g.addColorStop(1, 'transparent');
-    ctx.save(); ctx.translate(Math.random() * size, Math.random() * size); ctx.fillStyle = g;
-    ctx.fillRect(-r, -r, r * 2, r * 2); ctx.restore();
-  }
-  // grass tufts and pebbles
-  speckle(ctx, size, 900, ['rgba(84,104,64,.5)', 'rgba(96,112,72,.35)', 'rgba(60,64,48,.4)', 'rgba(120,116,96,.3)', 'rgba(140,132,108,.3)'], 0.5, 2.2);
-  cracks(ctx, size, 30);
-  // faint tire wear near roads
-  ctx.strokeStyle = 'rgba(58,56,46,.18)'; ctx.lineWidth = 10;
-  for (let i = 0; i < 5; i++) {
-    ctx.beginPath(); ctx.moveTo(Math.random() * size, 0);
-    ctx.bezierCurveTo(Math.random() * size, size * .3, Math.random() * size, size * .7, Math.random() * size, size); ctx.stroke();
-  }
+  noiseLayer(ctx, size, base, 3, 32);
+  speckle(ctx, size, 40, ['rgba(84,104,64,.08)', 'rgba(96,112,72,.06)', 'rgba(60,64,48,.07)'], 0.8, 1.2);
   return tex(c, 18, true, key);
 }
 

@@ -24,7 +24,13 @@ const app = express();
 const httpServer = createServer(app);
 
 app.use(express.json({ limit: '20mb' }));
-app.use(express.static(__dirname));
+app.use(express.static(__dirname, {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.wasm')) {
+      res.setHeader('Content-Type', 'application/wasm');
+    }
+  }
+}));
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
 // map editor: list / load / save scene JSONs (data/worlds/*.json only)

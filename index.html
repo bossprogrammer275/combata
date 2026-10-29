@@ -268,6 +268,10 @@
   #vehicle-prompt{position:fixed;left:50%;bottom:26%;transform:translateX(-50%);font-size:16px;font-weight:600;letter-spacing:2px;color:#ffcf6a;display:block;text-shadow:0 2px 8px #000;animation:pulse 1s ease-in-out infinite;pointer-events:none;z-index:10}
   #loot-prompt{position:fixed;left:50%;bottom:30%;transform:translateX(-50%);font-size:16px;font-weight:600;letter-spacing:2px;color:#ffd24a;display:block;text-shadow:0 2px 8px #000;animation:pulse 1s ease-in-out infinite;pointer-events:none;z-index:10}
   #loot-prompt.hidden{display:none}
+  #climb-prompt{position:fixed;left:50%;bottom:30%;transform:translateX(-50%);font-size:16px;font-weight:600;letter-spacing:2px;color:#88ffcc;display:block;text-shadow:0 2px 8px #000;animation:pulse 1s ease-in-out infinite;pointer-events:none;z-index:10}
+  #climb-prompt.hidden{display:none}
+  #portal-prompt{position:fixed;left:50%;bottom:30%;transform:translateX(-50%);font-size:16px;font-weight:600;letter-spacing:2px;color:#aaddff;display:block;text-shadow:0 2px 8px #000;animation:pulse 1s ease-in-out infinite;pointer-events:none;z-index:10}
+  #portal-prompt.hidden{display:none}
   #transit-menu{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(10,20,14,.92);border:1px solid rgba(136,255,170,.3);border-radius:6px;padding:20px 28px;z-index:20;min-width:240px;text-align:center}
   #transit-menu.hidden{display:none}
   .transit-title{font-size:18px;font-weight:700;color:#88ffaa;letter-spacing:3px;margin-bottom:14px}
@@ -315,12 +319,6 @@
   <div id="minimap-wrap" class="hud-box"><canvas id="minimap" width="160" height="160"></canvas></div>
   <div id="fullmap-wrap" class="hidden"><canvas id="fullmap" width="600" height="600"></canvas></div>
 
-  <div id="alive-panel" class="hud-box"><div class="lab">HOSTILES</div><div class="num" id="alive-num">0</div></div>
-  <div id="score-panel" class="hud-box">
-    <div class="wave">SCORE</div>
-    <div class="score" id="score">0</div>
-    <div class="kd"><span id="kills">0</span> K / <span id="deaths">0</span> D</div>
-  </div>
   <div id="coins-hud" class="hud-box">◈ <span id="coins-hud-v">0</span></div>
   <div id="killfeed"></div>
   <div id="crosshair" style="--sp:10px">
@@ -355,8 +353,11 @@
 </div>
 <div id="device-prompt" class="hidden">PRESS [E] to open MISSILE DEVICE</div>
 <div id="vehicle-prompt" class="hidden">PRESS [E] TO DRIVE</div>
+<div id="climb-prompt" class="hidden">PRESS [F] TO CLIMB</div>
+<div id="portal-prompt" class="hidden">PRESS [F] TO ENTER</div>
 <div id="transit-prompt" class="hidden">PRESS [T] TO FAST-TRAVEL</div>
 <div id="loot-prompt" class="hidden">PRESS [F] TO LOOT</div>
+<div id="weather-btn" style="position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:15;background:rgba(14,18,15,.86);border:1px solid var(--line);padding:6px 16px;color:var(--dim);font:600 11px 'Bebas Neue','Oswald',sans-serif;letter-spacing:2px;cursor:pointer;border-radius:6px;pointer-events:auto;display:none;">F8: WEATHER</div>
 <div id="transit-menu" class="hidden">
   <div class="transit-title">TRAIN STATION  —  FAST TRAVEL</div>
   <div class="transit-coins">◈ <span id="transit-coins-val">0</span> COINS</div>
@@ -400,8 +401,8 @@
           <label style="font-size:11px;letter-spacing:2px;color:var(--dim);display:flex;align-items:center;gap:8px;justify-content:center;">
             MAP
             <select id="map-select" style="background:#15181a;border:1px solid var(--accent);color:#fff;padding:6px 12px;border-radius:4px;font-family:inherit;letter-spacing:1px;cursor:pointer;">
-              <option value="new-map.json">🌴 GTA 6 — LEONIDA / VICE CITY</option>
-              <option value="city-a.json">⚓ MEGACITY — PORT DISTRICT</option>
+              <option value="city-a.json">🇳🇬 ILORIN — INNOVATION DISTRICT</option>
+              <option value="new-map.json">🛠️ CUSTOM / EDITOR MAP</option>
             </select>
           </label>
         </div>
@@ -471,7 +472,7 @@
   <button class="btn" id="resume-btn">RESUME</button>
 </div>
 
-<script type="importmap">{"imports":{"three":"./js/lib/three.module.js"}}</script>
+<script type="importmap">{"imports":{"three":"./js/lib/three.module.js","three-mesh-bvh":"./js/lib/three-mesh-bvh.module.js"}}</script>
 <script type="module" src="./js/main.js"></script>
 </body>
 </html>

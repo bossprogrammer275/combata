@@ -1,109 +1,2414 @@
 {
-  "id": "test-world",
-  "name": "SA Pipeline Test Range",
+  "id": "city-a",
+  "name": "Ilorin City",
   "version": 2,
-  "bounds": 200,
+  "bounds": 270,
   "startPoint": {
-    "x": 0,
-    "z": 30,
-    "yaw": 3.14159
+    "x": 5,
+    "z": 225,
+    "yaw": 0
   },
   "ground": {
-    "size": 600,
-    "color": "0x3a4a3a"
+    "size": 1200,
+    "color": "0x30342c"
   },
   "roads": [
     {
-      "w": 10,
+      "w": 18,
+      "sidewalk": true,
+      "smooth": true,
+      "points": [
+        [
+          -250,
+          -165
+        ],
+        [
+          -205,
+          -145
+        ],
+        [
+          -150,
+          -128
+        ],
+        [
+          -95,
+          -115
+        ],
+        [
+          -40,
+          -101
+        ],
+        [
+          10,
+          -90
+        ],
+        [
+          65,
+          -76
+        ],
+        [
+          120,
+          -60
+        ],
+        [
+          175,
+          -40
+        ],
+        [
+          225,
+          -16
+        ],
+        [
+          250,
+          -4
+        ]
+      ]
+    },
+    {
+      "w": 16,
+      "sidewalk": true,
+      "smooth": true,
+      "points": [
+        [
+          -248,
+          65
+        ],
+        [
+          -205,
+          62
+        ],
+        [
+          -160,
+          57
+        ],
+        [
+          -115,
+          51
+        ],
+        [
+          -70,
+          45
+        ],
+        [
+          -20,
+          42
+        ],
+        [
+          30,
+          46
+        ],
+        [
+          78,
+          55
+        ],
+        [
+          125,
+          69
+        ],
+        [
+          175,
+          83
+        ],
+        [
+          225,
+          94
+        ],
+        [
+          248,
+          98
+        ]
+      ]
+    },
+    {
+      "w": 14,
+      "sidewalk": true,
+      "smooth": true,
+      "points": [
+        [
+          -156,
+          -228
+        ],
+        [
+          -153,
+          -185
+        ],
+        [
+          -149,
+          -140
+        ],
+        [
+          -143,
+          -94
+        ],
+        [
+          -138,
+          -48
+        ],
+        [
+          -132,
+          -4
+        ],
+        [
+          -126,
+          42
+        ],
+        [
+          -116,
+          94
+        ],
+        [
+          -101,
+          150
+        ],
+        [
+          -84,
+          205
+        ],
+        [
+          -76,
+          228
+        ]
+      ]
+    },
+    {
+      "w": 14,
+      "sidewalk": true,
+      "smooth": true,
+      "points": [
+        [
+          151,
+          -225
+        ],
+        [
+          149,
+          -180
+        ],
+        [
+          146,
+          -132
+        ],
+        [
+          142,
+          -88
+        ],
+        [
+          138,
+          -44
+        ],
+        [
+          135,
+          0
+        ],
+        [
+          141,
+          48
+        ],
+        [
+          154,
+          100
+        ],
+        [
+          174,
+          154
+        ],
+        [
+          200,
+          205
+        ],
+        [
+          216,
+          230
+        ]
+      ]
+    },
+    {
+      "w": 12,
+      "sidewalk": true,
+      "smooth": true,
+      "points": [
+        [
+          -248,
+          -5
+        ],
+        [
+          -205,
+          -3
+        ],
+        [
+          -160,
+          1
+        ],
+        [
+          -115,
+          7
+        ],
+        [
+          -70,
+          14
+        ],
+        [
+          -25,
+          22
+        ],
+        [
+          25,
+          31
+        ],
+        [
+          75,
+          41
+        ],
+        [
+          125,
+          51
+        ],
+        [
+          175,
+          62
+        ],
+        [
+          225,
+          72
+        ],
+        [
+          248,
+          77
+        ]
+      ]
+    },
+    {
+      "w": 12,
+      "sidewalk": true,
+      "smooth": true,
+      "points": [
+        [
+          -235,
+          172
+        ],
+        [
+          -195,
+          158
+        ],
+        [
+          -155,
+          145
+        ],
+        [
+          -115,
+          132
+        ],
+        [
+          -75,
+          120
+        ],
+        [
+          -35,
+          113
+        ],
+        [
+          10,
+          113
+        ],
+        [
+          55,
+          121
+        ],
+        [
+          100,
+          134
+        ],
+        [
+          145,
+          150
+        ],
+        [
+          190,
+          169
+        ],
+        [
+          230,
+          187
+        ]
+      ]
+    },
+    {
+      "w": 9,
       "sidewalk": true,
       "smooth": false,
       "points": [
-        [-40, 0],
-        [40, 0]
+        [
+          -220,
+          28
+        ],
+        [
+          -185,
+          27
+        ],
+        [
+          -155,
+          27
+        ],
+        [
+          -125,
+          25
+        ],
+        [
+          -95,
+          23
+        ],
+        [
+          -65,
+          22
+        ],
+        [
+          -38,
+          22
+        ]
+      ]
+    },
+    {
+      "w": 8,
+      "sidewalk": false,
+      "smooth": true,
+      "points": [
+        [
+          -218,
+          82
+        ],
+        [
+          -188,
+          78
+        ],
+        [
+          -160,
+          73
+        ],
+        [
+          -143,
+          60
+        ],
+        [
+          -126,
+          43
+        ],
+        [
+          -103,
+          37
+        ],
+        [
+          -78,
+          35
+        ],
+        [
+          -58,
+          42
+        ]
       ]
     },
     {
       "w": 10,
       "sidewalk": true,
+      "smooth": true,
+      "points": [
+        [
+          -65,
+          -10
+        ],
+        [
+          -30,
+          -5
+        ],
+        [
+          5,
+          2
+        ],
+        [
+          40,
+          9
+        ],
+        [
+          76,
+          17
+        ],
+        [
+          110,
+          25
+        ],
+        [
+          142,
+          34
+        ]
+      ]
+    },
+    {
+      "w": 10,
+      "sidewalk": true,
+      "smooth": true,
+      "points": [
+        [
+          -20,
+          -178
+        ],
+        [
+          15,
+          -160
+        ],
+        [
+          48,
+          -143
+        ],
+        [
+          82,
+          -126
+        ],
+        [
+          115,
+          -108
+        ],
+        [
+          150,
+          -92
+        ],
+        [
+          184,
+          -76
+        ]
+      ]
+    },
+    {
+      "w": 9,
+      "sidewalk": true,
+      "smooth": true,
+      "points": [
+        [
+          4,
+          -29
+        ],
+        [
+          37,
+          -18
+        ],
+        [
+          69,
+          -7
+        ],
+        [
+          101,
+          5
+        ],
+        [
+          133,
+          18
+        ],
+        [
+          165,
+          32
+        ]
+      ]
+    },
+    {
+      "w": 8,
+      "sidewalk": true,
+      "smooth": true,
+      "points": [
+        [
+          22,
+          -166
+        ],
+        [
+          23,
+          -130
+        ],
+        [
+          25,
+          -95
+        ],
+        [
+          28,
+          -59
+        ],
+        [
+          31,
+          -28
+        ]
+      ]
+    },
+    {
+      "w": 8,
+      "sidewalk": true,
+      "smooth": true,
+      "points": [
+        [
+          101,
+          -145
+        ],
+        [
+          101,
+          -111
+        ],
+        [
+          103,
+          -77
+        ],
+        [
+          107,
+          -42
+        ],
+        [
+          111,
+          -8
+        ],
+        [
+          116,
+          25
+        ]
+      ]
+    },
+    {
+      "w": 8,
+      "sidewalk": true,
       "smooth": false,
       "points": [
-        [0, -40],
-        [0, 40]
+        [
+          -24,
+          -98
+        ],
+        [
+          -24,
+          -108
+        ],
+        [
+          -25,
+          -113
+        ]
+      ]
+    },
+    {
+      "w": 8,
+      "sidewalk": true,
+      "smooth": false,
+      "points": [
+        [
+          66,
+          -76
+        ],
+        [
+          69,
+          -67
+        ],
+        [
+          72,
+          -60
+        ]
+      ]
+    },
+    {
+      "w": 8,
+      "sidewalk": false,
+      "smooth": true,
+      "points": [
+        [
+          -220,
+          123
+        ],
+        [
+          -186,
+          132
+        ],
+        [
+          -153,
+          144
+        ],
+        [
+          -125,
+          159
+        ],
+        [
+          -98,
+          177
+        ],
+        [
+          -72,
+          194
+        ]
+      ]
+    },
+    {
+      "w": 8,
+      "sidewalk": false,
+      "smooth": true,
+      "points": [
+        [
+          -64,
+          157
+        ],
+        [
+          -30,
+          159
+        ],
+        [
+          3,
+          165
+        ],
+        [
+          35,
+          177
+        ],
+        [
+          66,
+          190
+        ],
+        [
+          97,
+          205
+        ]
+      ]
+    },
+    {
+      "w": 9,
+      "sidewalk": true,
+      "smooth": true,
+      "points": [
+        [
+          167,
+          79
+        ],
+        [
+          190,
+          91
+        ],
+        [
+          207,
+          111
+        ],
+        [
+          213,
+          133
+        ],
+        [
+          205,
+          155
+        ],
+        [
+          187,
+          169
+        ]
+      ]
+    },
+    {
+      "w": 9,
+      "sidewalk": true,
+      "smooth": true,
+      "points": [
+        [
+          -45,
+          89
+        ],
+        [
+          -12,
+          89
+        ],
+        [
+          20,
+          91
+        ],
+        [
+          52,
+          96
+        ],
+        [
+          82,
+          105
+        ]
+      ]
+    },
+    {
+      "w": 9,
+      "sidewalk": true,
+      "smooth": true,
+      "points": [
+        [
+          -235,
+          -42
+        ],
+        [
+          -195,
+          -37
+        ],
+        [
+          -160,
+          -29
+        ],
+        [
+          -125,
+          -18
+        ],
+        [
+          -92,
+          -7
+        ],
+        [
+          -65,
+          1
+        ]
+      ]
+    },
+    {
+      "w": 8,
+      "sidewalk": false,
+      "smooth": true,
+      "points": [
+        [
+          -220,
+          -66
+        ],
+        [
+          -187,
+          -67
+        ],
+        [
+          -156,
+          -64
+        ],
+        [
+          -128,
+          -58
+        ],
+        [
+          -105,
+          -47
+        ]
+      ]
+    },
+    {
+      "w": 7,
+      "sidewalk": false,
+      "smooth": true,
+      "points": [
+        [
+          -207,
+          105
+        ],
+        [
+          -178,
+          103
+        ],
+        [
+          -151,
+          96
+        ],
+        [
+          -130,
+          83
+        ],
+        [
+          -109,
+          68
+        ]
       ]
     }
   ],
-  "pads": [
+  "buildings": [],
+  "props": [],
+  "trees": [],
+  "glbAssets": [
     {
-      "x": 0,
-      "z": 0,
-      "w": 60,
-      "d": 60,
-      "m": "plaza",
-      "ry": 0
-    }
-  ],
-  "buildings": [
-    {
-      "kind": "house",
-      "x": -30,
-      "z": -30,
-      "w": 12,
-      "h": 5,
-      "d": 10,
+      "url": "./data/models/assets/kwara_revenue_house.glb",
+      "x": 72,
+      "z": -50,
       "ry": 0,
-      "m": "brick",
-      "windows": true,
-      "solid": true,
-      "roof": true,
-      "roofAccess": false,
-      "enterable": false
+      "targetH": 38,
+      "tags": [
+        "structural",
+        "civic",
+        "revenue",
+        "kwirs"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/ilorin_innovation_hub.glb",
+      "x": -25,
+      "z": -127,
+      "ry": 0,
+      "targetH": 15,
+      "tags": [
+        "structural",
+        "civic",
+        "technology",
+        "innovation"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
+      "x": 137,
+      "z": -130,
+      "ry": 1.57,
+      "targetH": 32,
+      "tags": [
+        "structural",
+        "commercial",
+        "skyline"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
+      "x": 169,
+      "z": -51,
+      "ry": 4.71,
+      "targetH": 29,
+      "tags": [
+        "structural",
+        "commercial",
+        "skyline"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
+      "x": 37,
+      "z": -174,
+      "ry": 0,
+      "targetH": 27,
+      "tags": [
+        "structural",
+        "commercial",
+        "skyline"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
+      "x": 118,
+      "z": 2,
+      "ry": 1.57,
+      "targetH": 30,
+      "tags": [
+        "structural",
+        "commercial",
+        "skyline"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
+      "x": -72,
+      "z": -157,
+      "ry": 4.71,
+      "targetH": 25,
+      "tags": [
+        "structural",
+        "commercial",
+        "skyline"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
+      "x": -25,
+      "z": -22,
+      "ry": 0.785,
+      "targetH": 26,
+      "tags": [
+        "structural",
+        "commercial",
+        "skyline"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
+      "x": -47,
+      "z": 103,
+      "ry": 0,
+      "targetH": 23,
+      "tags": [
+        "structural",
+        "commercial",
+        "skyline"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
+      "x": 203,
+      "z": 118,
+      "ry": 3.14,
+      "targetH": 25,
+      "tags": [
+        "structural",
+        "commercial",
+        "skyline"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": -217,
+      "z": 49,
+      "ry": 0,
+      "targetH": 9.5,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": -175,
+      "z": 44,
+      "ry": 1.57,
+      "targetH": 8.5,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": -188,
+      "z": 88,
+      "ry": 0.8,
+      "targetH": 10,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": -140,
+      "z": 67,
+      "ry": 0.2,
+      "targetH": 10.5,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": -118,
+      "z": 88,
+      "ry": 1.2,
+      "targetH": 9.5,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": -88,
+      "z": -2,
+      "ry": 0.5,
+      "targetH": 9,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": -72,
+      "z": -40,
+      "ry": 0,
+      "targetH": 10,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": -203,
+      "z": 145,
+      "ry": 1.1,
+      "targetH": 8.5,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": -146,
+      "z": 183,
+      "ry": 0.7,
+      "targetH": 9,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": -89,
+      "z": 137,
+      "ry": 4.1,
+      "targetH": 9,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": -36,
+      "z": 180,
+      "ry": 3.2,
+      "targetH": 9.5,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": 23,
+      "z": 187,
+      "ry": 2.8,
+      "targetH": 9,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": 95,
+      "z": 185,
+      "ry": 4.4,
+      "targetH": 9.5,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": 174,
+      "z": 190,
+      "ry": 3.5,
+      "targetH": 9,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": 7,
+      "z": -164,
+      "ry": 0.6,
+      "targetH": 9.5,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": 91,
+      "z": -144,
+      "ry": 4.8,
+      "targetH": 10,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": 155,
+      "z": -102,
+      "ry": 3.3,
+      "targetH": 8.5,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": 170,
+      "z": -18,
+      "ry": 2.2,
+      "targetH": 9,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": 183,
+      "z": 16,
+      "ry": 4.4,
+      "targetH": 9.5,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": 193,
+      "z": 47,
+      "ry": 1.9,
+      "targetH": 8.5,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": 70,
+      "z": 111,
+      "ry": 3.2,
+      "targetH": 9.5,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": 34,
+      "z": 126,
+      "ry": 0.2,
+      "targetH": 8.5,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": -26,
+      "z": 115,
+      "ry": 4.3,
+      "targetH": 9.5,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": 91,
+      "z": 82,
+      "ry": 1.7,
+      "targetH": 9,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": -8,
+      "z": 65,
+      "ry": 0.9,
+      "targetH": 8.5,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "x": -161,
+      "z": 91,
+      "ry": 2.2,
+      "targetH": 9,
+      "tags": [
+        "structural",
+        "urban",
+        "residential-commercial"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_street_light.glb",
+      "x": -210,
+      "z": -149,
+      "ry": 0,
+      "targetH": 4.5,
+      "tags": [
+        "street-furniture",
+        "lighting"
+      ]
+    },
+    {
+      "url": "./data/models/assets/low_poly_street_light.glb",
+      "x": -110,
+      "z": -118,
+      "ry": 0,
+      "targetH": 4.5,
+      "tags": [
+        "street-furniture",
+        "lighting"
+      ]
+    },
+    {
+      "url": "./data/models/assets/low_poly_street_light.glb",
+      "x": -60,
+      "z": -105,
+      "ry": 0,
+      "targetH": 4.5,
+      "tags": [
+        "street-furniture",
+        "lighting"
+      ]
+    },
+    {
+      "url": "./data/models/assets/low_poly_street_light.glb",
+      "x": -8,
+      "z": -94,
+      "ry": 0,
+      "targetH": 4.5,
+      "tags": [
+        "street-furniture",
+        "lighting"
+      ]
+    },
+    {
+      "url": "./data/models/assets/low_poly_street_light.glb",
+      "x": 42,
+      "z": -82,
+      "ry": 0,
+      "targetH": 4.5,
+      "tags": [
+        "street-furniture",
+        "lighting"
+      ]
+    },
+    {
+      "url": "./data/models/assets/low_poly_street_light.glb",
+      "x": 92,
+      "z": -68,
+      "ry": 0,
+      "targetH": 4.5,
+      "tags": [
+        "street-furniture",
+        "lighting"
+      ]
+    },
+    {
+      "url": "./data/models/assets/low_poly_street_light.glb",
+      "x": 190,
+      "z": -29,
+      "ry": 0,
+      "targetH": 4.5,
+      "tags": [
+        "street-furniture",
+        "lighting"
+      ]
+    },
+    {
+      "url": "./data/models/assets/low_poly_street_light.glb",
+      "x": -205,
+      "z": 61,
+      "ry": 0,
+      "targetH": 4.5,
+      "tags": [
+        "street-furniture",
+        "lighting"
+      ]
+    },
+    {
+      "url": "./data/models/assets/low_poly_street_light.glb",
+      "x": -105,
+      "z": 50,
+      "ry": 0,
+      "targetH": 4.5,
+      "tags": [
+        "street-furniture",
+        "lighting"
+      ]
+    },
+    {
+      "url": "./data/models/assets/low_poly_street_light.glb",
+      "x": 0,
+      "z": 45,
+      "ry": 0,
+      "targetH": 4.5,
+      "tags": [
+        "street-furniture",
+        "lighting"
+      ]
+    },
+    {
+      "url": "./data/models/assets/low_poly_street_light.glb",
+      "x": 105,
+      "z": 63,
+      "ry": 0,
+      "targetH": 4.5,
+      "tags": [
+        "street-furniture",
+        "lighting"
+      ]
+    },
+    {
+      "url": "./data/models/assets/low_poly_street_light.glb",
+      "x": 208,
+      "z": 90,
+      "ry": 0,
+      "targetH": 4.5,
+      "tags": [
+        "street-furniture",
+        "lighting"
+      ]
+    },
+    {
+      "url": "./data/models/assets/low_poly_street_light.glb",
+      "x": -141,
+      "z": -81,
+      "ry": 1.57,
+      "targetH": 4.5,
+      "tags": [
+        "street-furniture",
+        "lighting"
+      ]
+    },
+    {
+      "url": "./data/models/assets/low_poly_street_light.glb",
+      "x": -116,
+      "z": 107,
+      "ry": 1.57,
+      "targetH": 4.5,
+      "tags": [
+        "street-furniture",
+        "lighting"
+      ]
+    },
+    {
+      "url": "./data/models/assets/low_poly_street_light.glb",
+      "x": 147,
+      "z": -166,
+      "ry": 1.57,
+      "targetH": 4.5,
+      "tags": [
+        "street-furniture",
+        "lighting"
+      ]
+    },
+    {
+      "url": "./data/models/assets/low_poly_street_light.glb",
+      "x": 139,
+      "z": -73,
+      "ry": 1.57,
+      "targetH": 4.5,
+      "tags": [
+        "street-furniture",
+        "lighting"
+      ]
+    },
+    {
+      "url": "./data/models/assets/low_poly_street_light.glb",
+      "x": 166,
+      "z": 127,
+      "ry": 1.57,
+      "targetH": 4.5,
+      "tags": [
+        "street-furniture",
+        "lighting"
+      ]
+    },
+    {
+      "url": "./data/models/assets/low_poly_street_light.glb",
+      "x": 198,
+      "z": 193,
+      "ry": 1.57,
+      "targetH": 4.5,
+      "tags": [
+        "street-furniture",
+        "lighting"
+      ]
+    },
+    {
+      "url": "./data/models/assets/low_poly_street_light.glb",
+      "x": 15,
+      "z": -152,
+      "ry": 0,
+      "targetH": 4.5,
+      "tags": [
+        "street-furniture",
+        "lighting"
+      ]
+    },
+    {
+      "url": "./data/models/assets/low_poly_street_light.glb",
+      "x": 51,
+      "z": -135,
+      "ry": 0,
+      "targetH": 4.5,
+      "tags": [
+        "street-furniture",
+        "lighting"
+      ]
+    },
+    {
+      "url": "./data/models/assets/low_poly_street_light.glb",
+      "x": 90,
+      "z": -117,
+      "ry": 0,
+      "targetH": 4.5,
+      "tags": [
+        "street-furniture",
+        "lighting"
+      ]
+    },
+    {
+      "url": "./data/models/assets/low_poly_street_light.glb",
+      "x": 127,
+      "z": -99,
+      "ry": 0,
+      "targetH": 4.5,
+      "tags": [
+        "street-furniture",
+        "lighting"
+      ]
+    },
+    {
+      "url": "./data/models/assets/low_poly_street_light.glb",
+      "x": 41,
+      "z": -12,
+      "ry": 0,
+      "targetH": 4.5,
+      "tags": [
+        "street-furniture",
+        "lighting"
+      ]
+    },
+    {
+      "url": "./data/models/assets/low_poly_street_light.glb",
+      "x": 82,
+      "z": 2,
+      "ry": 0,
+      "targetH": 4.5,
+      "tags": [
+        "street-furniture",
+        "lighting"
+      ]
+    },
+    {
+      "url": "./data/models/assets/coconut_tree_low_poly.glb",
+      "x": -52,
+      "z": -149,
+      "ry": 0.4,
+      "targetH": 8.5,
+      "tags": [
+        "vegetation",
+        "palm"
+      ]
+    },
+    {
+      "url": "./data/models/assets/coconut_tree_low_poly.glb",
+      "x": -1,
+      "z": -148,
+      "ry": 3.2,
+      "targetH": 8.8,
+      "tags": [
+        "vegetation",
+        "palm"
+      ]
+    },
+    {
+      "url": "./data/models/assets/coconut_tree_low_poly.glb",
+      "x": 4,
+      "z": -108,
+      "ry": 4.6,
+      "targetH": 9.2,
+      "tags": [
+        "vegetation",
+        "palm"
+      ]
+    },
+    {
+      "url": "./data/models/assets/coconut_tree_low_poly.glb",
+      "x": 91,
+      "z": -64,
+      "ry": 2.1,
+      "targetH": 9,
+      "tags": [
+        "vegetation",
+        "palm"
+      ]
+    },
+    {
+      "url": "./data/models/assets/coconut_tree_low_poly.glb",
+      "x": -4,
+      "z": -181,
+      "ry": 1.2,
+      "targetH": 8.5,
+      "tags": [
+        "vegetation",
+        "palm"
+      ]
+    },
+    {
+      "url": "./data/models/assets/coconut_tree_low_poly.glb",
+      "x": -44,
+      "z": 94,
+      "ry": 2.7,
+      "targetH": 8.7,
+      "tags": [
+        "vegetation",
+        "palm"
+      ]
+    },
+    {
+      "url": "./data/models/assets/coconut_tree_low_poly.glb",
+      "x": 82,
+      "z": 121,
+      "ry": 0.8,
+      "targetH": 8.8,
+      "tags": [
+        "vegetation",
+        "palm"
+      ]
+    },
+    {
+      "url": "./data/models/assets/coconut_tree_low_poly.glb",
+      "x": 156,
+      "z": 93,
+      "ry": 3.6,
+      "targetH": 8.6,
+      "tags": [
+        "vegetation",
+        "palm"
+      ]
+    },
+    {
+      "url": "./data/models/assets/tree_low-poly.glb",
+      "x": -228,
+      "z": 115,
+      "ry": 0.6,
+      "targetH": 6.8,
+      "tags": [
+        "vegetation",
+        "street-tree"
+      ]
+    },
+    {
+      "url": "./data/models/assets/tree_low-poly.glb",
+      "x": -159,
+      "z": 124,
+      "ry": 4.1,
+      "targetH": 6.5,
+      "tags": [
+        "vegetation",
+        "street-tree"
+      ]
+    },
+    {
+      "url": "./data/models/assets/tree_low-poly.glb",
+      "x": -217,
+      "z": 188,
+      "ry": 1.1,
+      "targetH": 6.9,
+      "tags": [
+        "vegetation",
+        "street-tree"
+      ]
+    },
+    {
+      "url": "./data/models/assets/tree_low-poly.glb",
+      "x": -137,
+      "z": 214,
+      "ry": 4.8,
+      "targetH": 6.6,
+      "tags": [
+        "vegetation",
+        "street-tree"
+      ]
+    },
+    {
+      "url": "./data/models/assets/tree_low-poly.glb",
+      "x": -72,
+      "z": 79,
+      "ry": 1.5,
+      "targetH": 6.7,
+      "tags": [
+        "vegetation",
+        "street-tree"
+      ]
+    },
+    {
+      "url": "./data/models/assets/tree_low-poly.glb",
+      "x": -28,
+      "z": 72,
+      "ry": 2.6,
+      "targetH": 6.9,
+      "tags": [
+        "vegetation",
+        "street-tree"
+      ]
+    },
+    {
+      "url": "./data/models/assets/tree_low-poly.glb",
+      "x": 156,
+      "z": 137,
+      "ry": 0.9,
+      "targetH": 7,
+      "tags": [
+        "vegetation",
+        "street-tree"
+      ]
+    },
+    {
+      "url": "./data/models/assets/tree_low-poly.glb",
+      "x": 225,
+      "z": 148,
+      "ry": 3.7,
+      "targetH": 7.2,
+      "tags": [
+        "vegetation",
+        "street-tree"
+      ]
+    },
+    {
+      "url": "./data/models/assets/tree_low-poly.glb",
+      "x": -202,
+      "z": -86,
+      "ry": 4.7,
+      "targetH": 7,
+      "tags": [
+        "vegetation",
+        "street-tree"
+      ]
+    },
+    {
+      "url": "./data/models/assets/tree_low-poly.glb",
+      "x": -183,
+      "z": -13,
+      "ry": 0.4,
+      "targetH": 7.2,
+      "tags": [
+        "vegetation",
+        "street-tree"
+      ]
+    },
+    {
+      "url": "./data/models/assets/tree_low-poly.glb",
+      "x": 69,
+      "z": -194,
+      "ry": 3.1,
+      "targetH": 7.2,
+      "tags": [
+        "vegetation",
+        "street-tree"
+      ]
+    },
+    {
+      "url": "./data/models/assets/tree_low-poly.glb",
+      "x": 155,
+      "z": -188,
+      "ry": 0.8,
+      "targetH": 7.1,
+      "tags": [
+        "vegetation",
+        "street-tree"
+      ]
+    },
+    {
+      "url": "./data/models/assets/Fence Section by Jarlan Perez - 1lOFMI3Pg8v.glb",
+      "x": -51,
+      "z": -151,
+      "ry": 0,
+      "targetH": 1.5,
+      "climbable": true,
+      "type": "fence",
+      "tags": [
+        "campus-perimeter"
+      ]
+    },
+    {
+      "url": "./data/models/assets/Fence Section by Jarlan Perez - 1lOFMI3Pg8v.glb",
+      "x": -39,
+      "z": -151,
+      "ry": 0,
+      "targetH": 1.5,
+      "climbable": true,
+      "type": "fence",
+      "tags": [
+        "campus-perimeter"
+      ]
+    },
+    {
+      "url": "./data/models/assets/Fence Section by Jarlan Perez - 1lOFMI3Pg8v.glb",
+      "x": -27,
+      "z": -151,
+      "ry": 0,
+      "targetH": 1.5,
+      "climbable": true,
+      "type": "fence",
+      "tags": [
+        "campus-perimeter"
+      ]
+    },
+    {
+      "url": "./data/models/assets/Fence Section by Jarlan Perez - 1lOFMI3Pg8v.glb",
+      "x": -15,
+      "z": -151,
+      "ry": 0,
+      "targetH": 1.5,
+      "climbable": true,
+      "type": "fence",
+      "tags": [
+        "campus-perimeter"
+      ]
+    },
+    {
+      "url": "./data/models/assets/Fence Section by Jarlan Perez - 1lOFMI3Pg8v.glb",
+      "x": 3,
+      "z": -151,
+      "ry": 0,
+      "targetH": 1.5,
+      "climbable": true,
+      "type": "fence",
+      "tags": [
+        "campus-perimeter"
+      ]
+    },
+    {
+      "url": "./data/models/assets/Fence Section by Jarlan Perez - 1lOFMI3Pg8v.glb",
+      "x": -51,
+      "z": -103,
+      "ry": 3.14,
+      "targetH": 1.5,
+      "climbable": true,
+      "type": "fence",
+      "tags": [
+        "campus-perimeter"
+      ]
+    },
+    {
+      "url": "./data/models/assets/Fence Section by Jarlan Perez - 1lOFMI3Pg8v.glb",
+      "x": -39,
+      "z": -103,
+      "ry": 3.14,
+      "targetH": 1.5,
+      "climbable": true,
+      "type": "fence",
+      "tags": [
+        "campus-perimeter"
+      ]
+    },
+    {
+      "url": "./data/models/assets/Fence Section by Jarlan Perez - 1lOFMI3Pg8v.glb",
+      "x": -27,
+      "z": -103,
+      "ry": 3.14,
+      "targetH": 1.5,
+      "climbable": true,
+      "type": "fence",
+      "tags": [
+        "campus-perimeter"
+      ]
+    },
+    {
+      "url": "./data/models/assets/Fence Section by Jarlan Perez - 1lOFMI3Pg8v.glb",
+      "x": -15,
+      "z": -103,
+      "ry": 3.14,
+      "targetH": 1.5,
+      "climbable": true,
+      "type": "fence",
+      "tags": [
+        "campus-perimeter"
+      ]
+    },
+    {
+      "url": "./data/models/assets/Fence Section by Jarlan Perez - 1lOFMI3Pg8v.glb",
+      "x": 3,
+      "z": -103,
+      "ry": 3.14,
+      "targetH": 1.5,
+      "climbable": true,
+      "type": "fence",
+      "tags": [
+        "campus-perimeter"
+      ]
+    },
+    {
+      "url": "./data/models/assets/Fence Section by Jarlan Perez - 1lOFMI3Pg8v.glb",
+      "x": -55,
+      "z": -139,
+      "ry": 1.57,
+      "targetH": 1.5,
+      "climbable": true,
+      "type": "fence",
+      "tags": [
+        "campus-perimeter"
+      ]
+    },
+    {
+      "url": "./data/models/assets/Fence Section by Jarlan Perez - 1lOFMI3Pg8v.glb",
+      "x": -55,
+      "z": -127,
+      "ry": 1.57,
+      "targetH": 1.5,
+      "climbable": true,
+      "type": "fence",
+      "tags": [
+        "campus-perimeter"
+      ]
+    },
+    {
+      "url": "./data/models/assets/Fence Section by Jarlan Perez - 1lOFMI3Pg8v.glb",
+      "x": -55,
+      "z": -115,
+      "ry": 1.57,
+      "targetH": 1.5,
+      "climbable": true,
+      "type": "fence",
+      "tags": [
+        "campus-perimeter"
+      ]
+    },
+    {
+      "url": "./data/models/assets/concrete_road_barrier_photoscanned.glb",
+      "x": -11,
+      "z": 111,
+      "ry": 0,
+      "targetH": 1.1,
+      "collisionH": 0.8,
+      "tags": [
+        "cover",
+        "roadside"
+      ]
+    },
+    {
+      "url": "./data/models/assets/concrete_road_barrier_photoscanned.glb",
+      "x": -5,
+      "z": 111,
+      "ry": 0,
+      "targetH": 1.1,
+      "collisionH": 0.8,
+      "tags": [
+        "cover",
+        "roadside"
+      ]
+    },
+    {
+      "url": "./data/models/assets/concrete_road_barrier_photoscanned.glb",
+      "x": 7,
+      "z": 111,
+      "ry": 3.14,
+      "targetH": 1.1,
+      "collisionH": 0.8,
+      "tags": [
+        "cover",
+        "roadside"
+      ]
+    },
+    {
+      "url": "./data/models/assets/concrete_road_barrier_photoscanned.glb",
+      "x": 13,
+      "z": 111,
+      "ry": 3.14,
+      "targetH": 1.1,
+      "collisionH": 0.8,
+      "tags": [
+        "cover",
+        "roadside"
+      ]
     }
   ],
-  "props": [
-    { "kind": "crate", "x": 10, "z": 10, "ry": 0.3 },
-    { "kind": "barrel", "x": 15, "z": -8, "ry": 0, "react": "fire" },
-    { "kind": "lamp", "x": -8, "z": 5, "ry": 0 },
-    { "kind": "dumpster", "x": 20, "z": 12, "ry": 0.5 },
-    { "kind": "bench", "x": -15, "z": 8, "ry": 0 },
-    { "kind": "hydrant", "x": 8, "z": -15, "ry": 0 }
-  ],
-  "trees": [
-    { "x": -25, "z": 15, "s": 1.0, "dead": false },
-    { "x": 25, "z": -20, "s": 0.8, "dead": false }
+  "landmarks": [],
+  "vehicles": [
+    {
+      "x": 31,
+      "z": -169,
+      "ry": 1.57,
+      "kind": "lambo"
+    },
+    {
+      "x": 94,
+      "z": -133,
+      "ry": 1.57,
+      "kind": "cybertruck"
+    },
+    {
+      "x": 106,
+      "z": -22,
+      "ry": 0,
+      "kind": "lambo"
+    },
+    {
+      "x": 173,
+      "z": 109,
+      "ry": 1.57,
+      "kind": "cybertruck"
+    },
+    {
+      "x": -179,
+      "z": 8,
+      "ry": 0,
+      "kind": "lambo"
+    },
+    {
+      "x": -42,
+      "z": 164,
+      "ry": 1.57,
+      "kind": "cybertruck"
+    },
+    {
+      "x": 208,
+      "z": 148,
+      "ry": 3.14,
+      "kind": "lambo"
+    },
+    {
+      "x": 32,
+      "z": 211,
+      "ry": 3.14,
+      "kind": "cybertruck"
+    }
   ],
   "spawns": [
-    [20, 20],
-    [-20, 20],
-    [20, -20],
-    [-20, -20],
-    [0, -25],
-    [0, 25],
-    [25, 0],
-    [-25, 0]
+    [
+      -222,
+      -115
+    ],
+    [
+      222,
+      -115
+    ],
+    [
+      -225,
+      135
+    ],
+    [
+      225,
+      135
+    ],
+    [
+      -205,
+      205
+    ],
+    [
+      207,
+      205
+    ],
+    [
+      -203,
+      0
+    ],
+    [
+      205,
+      20
+    ],
+    [
+      -80,
+      -185
+    ],
+    [
+      70,
+      -188
+    ],
+    [
+      0,
+      153
+    ],
+    [
+      89,
+      151
+    ],
+    [
+      -45,
+      32
+    ],
+    [
+      44,
+      30
+    ],
+    [
+      -175,
+      99
+    ],
+    [
+      177,
+      93
+    ],
+    [
+      -125,
+      -90
+    ],
+    [
+      133,
+      -151
+    ],
+    [
+      -20,
+      205
+    ],
+    [
+      125,
+      214
+    ]
   ],
   "cover": [
-    [10, 10],
-    [-10, 10],
-    [10, -10],
-    [-10, -10],
-    [0, 15],
-    [0, -15]
+    [
+      -11,
+      111
+    ],
+    [
+      -5,
+      111
+    ],
+    [
+      7,
+      111
+    ],
+    [
+      13,
+      111
+    ],
+    [
+      -32,
+      72
+    ],
+    [
+      -32,
+      78
+    ],
+    [
+      -58,
+      -110
+    ],
+    [
+      -49,
+      -109
+    ],
+    [
+      -42,
+      -109
+    ],
+    [
+      -55,
+      -145
+    ],
+    [
+      -42,
+      -145
+    ],
+    [
+      -15,
+      -151
+    ],
+    [
+      106,
+      -79
+    ],
+    [
+      116,
+      -79
+    ],
+    [
+      126,
+      -79
+    ],
+    [
+      151,
+      -84
+    ],
+    [
+      161,
+      -84
+    ],
+    [
+      -183,
+      25
+    ],
+    [
+      -173,
+      25
+    ],
+    [
+      -162,
+      26
+    ],
+    [
+      -145,
+      42
+    ],
+    [
+      -136,
+      43
+    ],
+    [
+      155,
+      103
+    ],
+    [
+      168,
+      108
+    ],
+    [
+      184,
+      133
+    ],
+    [
+      192,
+      141
+    ]
   ],
   "loot": [
-    [12, 12, 0.3],
-    [-12, -12, 0.8]
-  ],
-  "vehicles": [
-    { "x": 30, "z": 5, "ry": 0.1, "kind": "car" },
-    { "x": -30, "z": -5, "ry": 3.0, "kind": "jeep" }
+    [
+      0,
+      119
+    ],
+    [
+      18,
+      119
+    ],
+    [
+      -22,
+      90
+    ],
+    [
+      37,
+      91
+    ],
+    [
+      -82,
+      29
+    ],
+    [
+      -105,
+      31
+    ],
+    [
+      -163,
+      61
+    ],
+    [
+      -183,
+      91
+    ],
+    [
+      -75,
+      153
+    ],
+    [
+      -34,
+      190
+    ],
+    [
+      54,
+      183
+    ],
+    [
+      91,
+      204
+    ],
+    [
+      118,
+      -151
+    ],
+    [
+      160,
+      -130
+    ],
+    [
+      178,
+      -43
+    ],
+    [
+      196,
+      65
+    ],
+    [
+      -217,
+      -70
+    ],
+    [
+      218,
+      178
+    ]
   ],
   "named": [
-    { "x": 0, "z": 0, "name": "TEST PLAZA", "color": "#00ff88" },
-    { "x": -30, "z": -30, "name": "BRICK HOUSE", "color": "#ff8844" }
+    {
+      "x": 72,
+      "z": -50,
+      "name": "KWARA REVENUE HOUSE · KWIRS",
+      "color": "#4ac0ff"
+    },
+    {
+      "x": -25,
+      "z": -127,
+      "name": "ILORIN INNOVATION HUB",
+      "color": "#4ac08a"
+    },
+    {
+      "x": 15,
+      "z": -85,
+      "name": "AHMADU BELLO WAY · GRA",
+      "color": "#aaddff"
+    },
+    {
+      "x": 105,
+      "z": -15,
+      "name": "G.R.A. BUSINESS DISTRICT",
+      "color": "#88aaff"
+    },
+    {
+      "x": -115,
+      "z": 26,
+      "name": "OJA OBA MARKET",
+      "color": "#ffddaa"
+    },
+    {
+      "x": -153,
+      "z": 49,
+      "name": "OLD ILORIN / EMIR'S PALACE",
+      "color": "#ddaaff"
+    },
+    {
+      "x": -10,
+      "z": 45,
+      "name": "UNITY ROAD CORRIDOR",
+      "color": "#4ac08a"
+    },
+    {
+      "x": -140,
+      "z": -45,
+      "name": "CHALLENGE & TAIWO ROAD",
+      "color": "#ff8866"
+    },
+    {
+      "x": 169,
+      "z": 89,
+      "name": "FATE RESIDENTIAL DISTRICT",
+      "color": "#88ffaa"
+    },
+    {
+      "x": -145,
+      "z": 158,
+      "name": "TANKE NEIGHBOURHOOD",
+      "color": "#ff88cc"
+    },
+    {
+      "x": 75,
+      "z": 46,
+      "name": "SANGO COMMERCIAL CORRIDOR",
+      "color": "#aaffdd"
+    },
+    {
+      "x": -22,
+      "z": 91,
+      "name": "ILORIN CIVIC PLAZA",
+      "color": "#fff0a0"
+    },
+    {
+      "x": 144,
+      "z": -104,
+      "name": "MODERN BUSINESS QUARTER",
+      "color": "#8dd6ff"
+    },
+    {
+      "x": 0,
+      "z": 215,
+      "name": "SOUTHERN CITY GATE",
+      "color": "#d5e2d5"
+    }
   ],
-  "transit": [],
-  "landmarks": [],
+  "transit": [
+    {
+      "x": -15,
+      "z": 101,
+      "name": "Unity Road Terminal"
+    },
+    {
+      "x": -135,
+      "z": -42,
+      "name": "Taiwo Road Station"
+    },
+    {
+      "x": 146,
+      "z": 49,
+      "name": "Fate Road Junction"
+    },
+    {
+      "x": 72,
+      "z": -50,
+      "name": "Kwara Revenue House Stop"
+    },
+    {
+      "x": -25,
+      "z": -127,
+      "name": "Innovation Hub Stop"
+    },
+    {
+      "x": -115,
+      "z": 26,
+      "name": "Oja Oba Market Stop"
+    },
+    {
+      "x": 10,
+      "z": 32,
+      "name": "Post Office Interchange"
+    }
+  ],
   "interiors": [],
   "reactives": [],
-  "streetProps": false
+  "streetProps": false,
+  "pads": []
 }

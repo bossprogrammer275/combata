@@ -12,7 +12,10 @@
     "socket.io": "^4.7.5"
   },
   "devDependencies": {
+    "glob": "^13.0.6",
     "playwright": "~1.48.2",
-    "socket.io-client": "4.8.3"
+    "socket.io-client": "4.8.3",
+    "three": "^0.185.1",
+    "three-mesh-bvh": "^0.9.14"
   }
 }

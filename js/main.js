@@ -15,8 +15,10 @@ import { Profile, SHOP } from './profile.js';
 import { AchievementSystem } from './achievements.js';
 import { VehicleSystem } from './vehicles.js';
 import { Civilians } from './civilians.js';
+import { Physics } from './physics.js';
+import { prefetch } from './model-loader.js';
 
-const currentScene = new URLSearchParams(location.search).get('scene') || 'new-map.json';
+const currentScene = new URLSearchParams(location.search).get('scene') || 'city-a.json';
 const SCENE_URL = './data/worlds/' + currentScene;
 
 class Game {
@@ -101,7 +103,27 @@ class Game {
     };
     setLoad(0.05, 'INITIALIZING…');
     // Pre-fetch scene data in parallel with renderer warmup.
-    this._sceneFetch = fetch(SCENE_URL).then(r => r.json()).catch(() => null);
+    this._sceneFetch = fetch(SCENE_URL).then(r => r.json()).then(data => {
+      // Immediately start prefetching all GLB model binaries off main thread
+      if (data && data.glbAssets) {
+        const urls = data.glbAssets.map(a => a.url).filter(u => u && (u.endsWith('.glb') || u.endsWith('.gltf')));
+        if (urls.length) prefetch(urls);
+      }
+      // Also prefetch NPC FBX animations in background
+      const fbxUrls = [
+        './data/models/npc/npc1/Walking.fbx',
+        './data/models/npc/npc1/Running.fbx',
+        './data/models/npc/npc1/Idle.fbx',
+        './data/models/npc/npc1/Rifle Aiming Idle.fbx',
+        './data/models/npc/npc1/Walking AIM.fbx',
+        './data/models/npc/npc1/Jump.fbx',
+        './data/models/npc/npc1/Climbing.fbx',
+        './data/models/npc/npc1/Ascending Stairs.fbx',
+        './data/models/npc/npc1/Idle Crouching.fbx',
+      ];
+      prefetch(fbxUrls);
+      return data;
+    }).catch(() => null);
     requestAnimationFrame(() => requestAnimationFrame(() => {
       setLoad(0.15, 'LOADING CITY…');
       setTimeout(() => this.initGame(this.profile.data.settings.quality, setLoad), 30);
@@ -119,8 +141,24 @@ class Game {
     this._sceneFetch = null;
     setLoad(0.45, 'TERRAIN & STRUCTURES…');
     this.world = new World(this.scene, quality, sceneData);
+    await this.world.assetsReady;
     this.fx = new Effects(this.scene, quality);
-    this.player = new Player(this.camera, this.world, this.audio);
+
+    // Initialize Rapier physics engine
+    this.physics = null;
+    try {
+      this.physics = new Physics();
+      await Physics.init();
+      this.physics.createWorld();
+      this.physics.registerStaticBatch(this.world.colliders);
+      this.physics.addGroundPlane();
+      this.world._physics = this.physics;
+      console.log('[Game] Rapier physics initialized');
+    } catch (e) {
+      console.warn('[Game] Rapier physics init failed, falling back to AABB collision:', e);
+      this.physics = null;
+    }
+    this.player = new Player(this.camera, this.world, this.audio, this.physics);
     this.player.applyProfile(this.profile);
     this.weapons = new WeaponSystem(this.camera, this.scene, this.world, this.fx, this.audio, this.hud);
     this.scene.add(this.player.char.root);
@@ -131,13 +169,15 @@ class Game {
       this.hud.killfeed(shooter.name, shooter.weaponType, victim.name, false);
       this.updateHud();
     };
-    this.vehicles = new VehicleSystem(this.scene, this.world, this.camera, this.audio);
+    this.vehicles = new VehicleSystem(this.scene, this.world, this.camera, this.audio, this.physics);
     this.vehicles.buildFromWorld();
-    this.civilians = new Civilians(this.scene, this.world, 14, this.world.spawnPoints);
+    this.vehicles.setPlayerRef(this.player);
+    const civCount = quality === 'high' ? 8 : (quality === 'medium' ? 5 : 2);
+    this.civilians = new Civilians(this.scene, this.world, civCount, this.world.spawnPoints);
     this.civilians.onCasualty = (civ) => this.civilianDown(civ);
     this.tools = new Tools(this);
     this.godMode = false;
-    this._hostileCap = 10;
+    this._hostileCap = 1;
     this._hostileTimer = 6;
     setLoad(0.85, 'FINALIZING…');
     this.hud.setQuality(quality);
@@ -219,7 +259,7 @@ class Game {
     this.match.running = true;
     this.lockPointer();
     this.hud.waveBanner('FREE ROAM', 'THE CITY IS YOURS');
-    for (let i = 0; i < Math.min(6, this._hostileCap); i++) this.spawnHostile();
+    for (let i = 0; i < Math.min(1, this._hostileCap); i++) this.spawnHostile();
     this.updateHud();
     if (location.search.includes('autostart')) this.autoDeploy();
   }
@@ -275,6 +315,80 @@ class Game {
       document.exitPointerLock();
       this.hud.toast('DRONE — [F5] EXIT · WASD FLY · MOUSE LOOK · SHIFT FAST · SPACE/CTRL UP/DOWN');
       document.getElementById('crosshair').style.opacity = 0;
+    }
+  }
+
+  _showWeatherUI(active) {
+    let el = document.getElementById('weather-panel');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'weather-panel';
+      el.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:20;display:flex;flex-direction:column;gap:10px;padding:18px 24px;background:rgba(0,0,0,0.75);border-radius:14px;backdrop-filter:blur(8px);pointer-events:auto;';
+      // Time of day buttons
+      const timeLabel = document.createElement('div');
+      timeLabel.textContent = 'TIME OF DAY';
+      timeLabel.style.cssText = 'color:#aaa;font:600 11px "Bebas Neue","Oswald",sans-serif;letter-spacing:2px;text-align:center;';
+      el.appendChild(timeLabel);
+      const timeRow = document.createElement('div');
+      timeRow.style.cssText = 'display:flex;gap:8px;';
+      const times = [
+        { id: 'morning', label: 'Morning', icon: '\u{1F305}', h: 8 },
+        { id: 'afternoon', label: 'Afternoon', icon: '\u{2600}', h: 14 },
+        { id: 'evening', label: 'Evening', icon: '\u{1F307}', h: 18 },
+        { id: 'night', label: 'Night', icon: '\u{1F319}', h: 22 },
+      ];
+      for (const t of times) {
+        const btn = document.createElement('button');
+        btn.dataset.time = t.id;
+        btn.textContent = `${t.icon} ${t.label}`;
+        btn.style.cssText = 'padding:8px 14px;border:2px solid rgba(255,255,255,0.2);border-radius:8px;background:rgba(255,255,255,0.08);color:#ccc;font:600 13px "Bebas Neue","Oswald",sans-serif;cursor:pointer;transition:all .15s;';
+        btn.onmouseenter = () => btn.style.background = 'rgba(255,255,255,0.2)';
+        btn.onmouseleave = () => btn.style.background = 'rgba(255,255,255,0.08)';
+        btn.onclick = () => {
+          if (this.world.atmosphere) this.world.atmosphere.setTime(t.h);
+          this.hud.toast(`TIME: ${t.label.toUpperCase()}`);
+        };
+        timeRow.appendChild(btn);
+      }
+      el.appendChild(timeRow);
+      // Weather buttons
+      const weatherLabel = document.createElement('div');
+      weatherLabel.textContent = 'WEATHER';
+      weatherLabel.style.cssText = 'color:#aaa;font:600 11px "Bebas Neue","Oswald",sans-serif;letter-spacing:2px;text-align:center;margin-top:4px;';
+      el.appendChild(weatherLabel);
+      const weatherRow = document.createElement('div');
+      weatherRow.style.cssText = 'display:flex;gap:8px;';
+      const weathers = [
+        { id: 'clear', label: 'Clear', icon: '\u2600' },
+        { id: 'overcast', label: 'Overcast', icon: '\u2601' },
+        { id: 'fog', label: 'Fog', icon: '\u26B6' },
+        { id: 'rain', label: 'Rain', icon: '\u2614' },
+      ];
+      for (const w of weathers) {
+        const btn = document.createElement('button');
+        btn.dataset.weather = w.id;
+        btn.textContent = `${w.icon} ${w.label}`;
+        btn.style.cssText = 'padding:8px 14px;border:2px solid rgba(255,255,255,0.2);border-radius:8px;background:rgba(255,255,255,0.08);color:#ccc;font:600 13px "Bebas Neue","Oswald",sans-serif;cursor:pointer;transition:all .15s;';
+        btn.onmouseenter = () => btn.style.background = 'rgba(255,255,255,0.2)';
+        btn.onmouseleave = () => btn.style.background = w.id === active ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.08)';
+        btn.onclick = () => {
+          if (this.world.atmosphere) this.world.atmosphere.weather = w.id;
+          this.hud.toast(`WEATHER: ${w.id.toUpperCase()}`);
+        };
+        weatherRow.appendChild(btn);
+      }
+      el.appendChild(weatherRow);
+      document.body.appendChild(el);
+      setTimeout(() => { el.style.opacity = '1'; }, 10);
+      this._weatherUITimer = setTimeout(() => { el.style.display = 'none'; }, 4000);
+    } else {
+      el.style.display = 'flex';
+      clearTimeout(this._weatherUITimer);
+      for (const btn of el.children) {
+        btn.style.borderColor = btn.dataset.weather === active ? '#fff' : 'rgba(255,255,255,0.2)';
+        btn.style.background = btn.dataset.weather === active ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.08)';
+      }
+      this._weatherUITimer = setTimeout(() => { el.style.display = 'none'; }, 3000);
     }
   }
 
@@ -334,6 +448,7 @@ class Game {
     this.player.pitch = 0;
     this.player.onGround = true;
     this.player.skydive = false;
+    if (this.physics) this.physics.setPlayerPosition(this.player.pos.x, this.player.pos.y, this.player.pos.z);
     this.state = 'playing';
     this.hud.setHealth(this.hp, this.maxHp);
     this.updateHud();
@@ -359,6 +474,7 @@ class Game {
     this.player.yaw = s.yaw != null ? s.yaw : Math.PI;
     this.player.pitch = 0;
     this.player.onGround = true;
+    if (this.physics) this.physics.setPlayerPosition(this.player.pos.x, this.player.pos.y, this.player.pos.z);
     this.updateHud();
   }
 
@@ -483,6 +599,7 @@ class Game {
         case 'KeyR': if (this.state === 'playing' && !this.player.skydive && !(this.vehicles && this.vehicles.driver)) this.weapons.startReload(); break;
         case 'KeyX': if (this.state === 'playing' && !this.player.skydive && !(this.vehicles && this.vehicles.driver)) this.input.throwGrenade = true; break;
         case 'KeyF': if (this.state === 'playing' && this.nearLoot) this.lootPickup(); else I.climb = true; e.preventDefault(); break;
+        case 'KeyZ': if (this.state === 'playing') I.climb = true; e.preventDefault(); break;
         case 'KeyT':
           if (this.state === 'playing' && !this.player.skydive && !(this.vehicles && this.vehicles.driver) && this.nearTransit && this.world.namedLocations) {
             this.transitMenuOpen = !this.transitMenuOpen;
@@ -522,6 +639,9 @@ class Game {
         case 'KeyY': if (this.state === 'playing') this.input.toRoof = true; break;
         case 'KeyO': if (this.state === 'playing') this.toggleOverview(); break;
         case 'F5': if (this.state === 'playing') this.toggleDrone(); break;
+        case 'F6': if (this.state === 'playing' && this.world.atmosphere) { this.world.atmosphere.timeSpeed = Math.min((this.world.atmosphere.timeSpeed || 0) + 2, 20); this.hud.toast(`TIME SPEED: ${this.world.atmosphere.timeSpeed.toFixed(0)}x`); } break;
+        case 'F7': if (this.state === 'playing' && this.world.atmosphere) { this.world.atmosphere.timeSpeed = Math.max((this.world.atmosphere.timeSpeed || 0) - 2, 0); this.hud.toast(`TIME SPEED: ${this.world.atmosphere.timeSpeed.toFixed(0)}x`); } break;
+        case 'F8': if (this.state === 'playing' && this.world.atmosphere) { const tod = this.world.atmosphere; const times = [{name:'MORNING',h:8},{name:'AFTERNOON',h:14},{name:'EVENING',h:18},{name:'NIGHT',h:22}]; let ci = times.findIndex(t => { const d = Math.abs(tod.timeOfDay - t.h); return d < 3 || d > 21; }); ci = (ci + 1) % times.length; tod.setTime(times[ci].h); this.hud.toast(`TIME: ${times[ci].name}`); } break;
         case 'Escape':
           if (this.fullMapOpen) this.toggleFullMap();
           else if (this.tools && this.tools.isOpen()) this.tools.close();
@@ -538,6 +658,7 @@ class Game {
         case 'KeyC': case 'ControlLeft': I.crouch = false; break;
         case 'Space': I.jump = false; break;
         case 'KeyF': I.climb = false; break;
+        case 'KeyZ': I.climb = false; break;
       }
     });
     addEventListener('mousedown', (e) => {
@@ -607,6 +728,7 @@ class Game {
     this.profile.save();
     this.player.pos.set(dest.x, 0.5, dest.z);
     this.player.vel.set(0, 0, 0);
+    if (this.physics) this.physics.setPlayerPosition(dest.x, 0.5, dest.z);
     this.transitMenuOpen = false;
     this.hud.hideTransitMenu();
     this.hud.toast('Fast-travel to ' + dest.name + '  ◈' + cost);
@@ -796,10 +918,22 @@ class Game {
     if (this.planeTimer <= 0) { this.planeTimer = 24 + Math.random() * 30; this.spawnPlane(); }
 
     const driving = !!(this.vehicles && this.vehicles.driver);
-    if (driving) {
+    const entering = !!(this.vehicles && this.vehicles._enterState);
+
+    // Step physics simulation
+    if (this.physics && this.physics.world) {
+      this.physics.step(dt);
+    }
+
+    if (driving || entering) {
       this.vehicles.update(dt, this.input, this.player);
     } else {
       this.player.update(dt, this.input);
+    }
+
+    // update atmospheric sky (time-of-day, lighting, clouds)
+    if (this.world.atmosphere) {
+      this.world.atmosphere.update(dt, this.camera.position);
     }
     const wt = this.weapons.def.id;
     if (wt !== this.player.weaponType) { this.player.weaponType = wt; this.player.char.setAppearance({ weaponType: wt }); }
@@ -810,12 +944,35 @@ class Game {
     if (this.input.toRoof && !driving) { if (roof) this.player.goToRoof(roof); this.input.toRoof = false; }
     if (this.input.toRoof && driving) this.input.toRoof = false;
 
+    // climb prompt
+    const cpEl = document.getElementById('climb-prompt');
+    if (cpEl) {
+      const nearClimb = !driving && !this.player.skydive && this.player.onGround && !this.player.nearPortal && this.player.nearestClimbable();
+      cpEl.classList.toggle('hidden', !nearClimb || !!this.player.climbing);
+      if (nearClimb) {
+        cpEl.textContent = nearClimb.type === 'fence'
+          ? 'PRESS [Z] TO JUMP THE FENCE'
+          : 'PRESS [Z] TO CLIMB';
+      }
+    }
+
+    // portal prompt
+    const ppEl = document.getElementById('portal-prompt');
+    if (ppEl) {
+      const nearPortal = !driving && !this.player.skydive && this.player.onGround && this.player.nearPortal;
+      ppEl.classList.toggle('hidden', !nearPortal);
+      if (nearPortal) {
+        ppEl.textContent = this.player.insideBuilding ? 'PRESS [F] TO EXIT' : 'PRESS [F] TO ENTER';
+      }
+    }
+
     // vehicle enter/exit prompt
     const vpEl = document.getElementById('vehicle-prompt');
     if (vpEl) {
       const near = !driving && this.player.onGround && !this.player.skydive && this.vehicles && this.vehicles.nearest(this.player.pos.x, this.player.pos.z, 4.5);
       vpEl.classList.toggle('hidden', !near && !driving);
       if (driving) vpEl.textContent = 'PRESS [E] TO EXIT · [↑/W] DRIVE · [↓/S] BRAKE+REVERSE · [←→/AD] STEER · [SPACE] HANDBRAKE';
+      else if (near) vpEl.textContent = 'PRESS [E] TO ENTER ' + near.kind.toUpperCase();
     }
 
     const dp = document.getElementById('device-prompt');
@@ -853,6 +1010,15 @@ class Game {
     const lpEl = document.getElementById('loot-prompt');
     if (lpEl) lpEl.classList.toggle('hidden', !this.nearLoot);
 
+    // weather button — always visible when playing
+    const wbEl = document.getElementById('weather-btn');
+    if (wbEl) {
+      wbEl.style.display = (this.state === 'playing' && !driving) ? 'block' : 'none';
+      wbEl.onclick = () => { if (this.world.atmosphere) { const tod = this.world.atmosphere; const times = [{name:'MORNING',h:8},{name:'AFTERNOON',h:14},{name:'EVENING',h:18},{name:'NIGHT',h:22}]; let ci = times.findIndex(t => { const d = Math.abs(tod.timeOfDay - t.h); return d < 3 || d > 21; }); ci = (ci + 1) % times.length; tod.setTime(times[ci].h); this.hud.toast(`TIME: ${times[ci].name}`); } };
+      const ap = this.world.atmosphere ? this.world.atmosphere.phaseName : 'day';
+      wbEl.textContent = `F8: ${ap.toUpperCase()}`;
+    }
+
     this.updateAmbient(dt);
     const hittables = this.civilians ? [...this.enemyMgr.enemies, ...this.civilians.alive()] : this.enemyMgr.enemies;
     if (!this.player.skydive && !driving) {
@@ -867,7 +1033,8 @@ class Game {
 
     const spread = (this.weapons.def.spreadHip * (1 - this.weapons.adsT) + this.weapons.def.spreadAds * this.weapons.adsT) * 900 + 8;
     this.hud.setCrosshairSpread(driving ? 0 : (this.weapons.adsT > .7 ? 2 : spread));
-    document.getElementById('crosshair').style.opacity = (this.player.skydive || driving || this.weapons.adsT > .7) ? .15 : 1;
+    const showCrosshair = !this.player.skydive && !driving && this.weapons.adsT > 0.3;
+    document.getElementById('crosshair').style.opacity = showCrosshair ? Math.min(1, (this.weapons.adsT - 0.3) * 2.5) : 0;
     this.hud.setStance(driving
       ? `DRIVING · ${Math.round(Math.abs(this.vehicles.driver.speed) * 3.6)} KM/H · [E] EXIT`
       : (this.player.crouched ? 'CROUCHED' : this.player.sprinting ? 'SPRINTING' : 'STANDING') + ' · [SHIFT] SPRINT · [C] CROUCH');
@@ -1026,9 +1193,9 @@ class Game {
     this.renderScale = 1;
     this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
     this.renderer.setSize(innerWidth, innerHeight);
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.2;
     this.renderer.domElement.className = 'game';
@@ -1063,13 +1230,13 @@ class Game {
       this.camera.far = 250; this.camera.updateProjectionMatrix();
     } else if (q === 'medium') {
       this.renderer.setSize(innerWidth, innerHeight, true);
-      this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
+      this.renderer.setPixelRatio(1.0);
       this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      if (this.world) { this.world.sun.castShadow = true; this.world.sun.shadow.mapSize.setScalar(512); this.world.sun.shadow.map?.dispose(); this.world.sun.shadow.map = null; }
+      if (this.world) { this.world.sun.castShadow = true; this.world.sun.shadow.mapSize.setScalar(1024); this.world.sun.shadow.map?.dispose(); this.world.sun.shadow.map = null; }
       this.camera.far = 300; this.camera.updateProjectionMatrix();
     } else {
       this.renderer.setSize(innerWidth, innerHeight, true);
-      this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+      this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
       this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
       if (this.world) { this.world.sun.castShadow = true; this.world.sun.shadow.mapSize.setScalar(2048); this.world.sun.shadow.map?.dispose(); this.world.sun.shadow.map = null; }
       this.camera.far = 400; this.camera.updateProjectionMatrix();

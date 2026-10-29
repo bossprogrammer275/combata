@@ -1,13 +1,96 @@
+// model-loader.js — central GLB/FBX loading with Web Worker prefetch,
+// Draco/Meshopt decoding, geometry optimization, and aggressive caching.
+import * as THREE from 'three';
 import { GLTFLoader } from './lib/GLTFLoader.js';
 
 const REGISTRY_BASE = './data/models';
 const _cache = new Map();
-const _materialCache = new Map();
+const _rawBufferCache = new Map();  // url -> ArrayBuffer (prefetched)
 let _registry = null;
 let _loading = false;
 
+// ---- GLTFLoader with Draco + Meshopt decoder registration ----
 const loader = new GLTFLoader();
+let _decodersReady = false;
 
+async function ensureDecoders() {
+  if (_decodersReady) return;
+  _decodersReady = true;
+
+  try {
+    const mod = await import('three/addons/loaders/DRACOLoader.js');
+    if (mod.DRACOLoader) {
+      const draco = new mod.DRACOLoader();
+      draco.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/');
+      loader.setDRACOLoader(draco);
+      console.log('[Loader] Draco decoder registered');
+    }
+  } catch { /* Draco not available */ }
+
+  try {
+    const mod = await import('three/addons/libs/meshopt_decoder.module.js');
+    if (mod.MeshoptDecoder) {
+      loader.setMeshoptDecoder(mod.MeshoptDecoder);
+      console.log('[Loader] Meshopt decoder registered');
+    }
+  } catch { /* Meshopt not available */ }
+}
+
+// ---- Web Worker pool for binary prefetch ----
+const HAS_BROWSER_WORKERS = typeof Worker !== 'undefined'
+  && typeof navigator !== 'undefined'
+  && typeof window !== 'undefined';
+const WORKER_COUNT = HAS_BROWSER_WORKERS
+  ? Math.min(navigator.hardwareConcurrency || 4, 6)
+  : 0;
+let _workers = [];
+let _workerId = 0;
+let _pendingFetches = new Map();
+let _workersInited = false;
+
+function initWorkers() {
+  if (_workersInited) return;
+  _workersInited = true;
+  if (!HAS_BROWSER_WORKERS) return;
+  for (let i = 0; i < WORKER_COUNT; i++) {
+    const w = new Worker(new URL('./workers/asset-loader.worker.js', import.meta.url), { type: 'module' });
+    w.onmessage = (e) => {
+      const { id, ok, data, error, size } = e.data;
+      const p = _pendingFetches.get(id);
+      if (p) {
+        _pendingFetches.delete(id);
+        if (ok) p.resolve({ buffer: data, size });
+        else p.reject(new Error(error));
+      }
+    };
+    _workers.push(w);
+  }
+}
+
+function fetchViaWorker(url, opts) {
+  initWorkers();
+  const id = _workerId++;
+  const w = _workers[id % _workers.length];
+  return new Promise((resolve, reject) => {
+    _pendingFetches.set(id, { resolve, reject });
+    w.postMessage({ id, url, type: 'glb', opts });
+  });
+}
+
+// ---- Prefetch: fetch binary data off main thread in background ----
+export function prefetch(urls) {
+  if (!HAS_BROWSER_WORKERS) return; // Node/tests: loading happens on demand
+  initWorkers();
+  for (const url of urls) {
+    if (_rawBufferCache.has(url) || _cache.has(url)) continue;
+    fetchViaWorker(url, {}).then(({ buffer, size }) => {
+      _rawBufferCache.set(url, buffer);
+      console.log(`[Loader] Prefetched ${url.split('/').pop()} (${(size / 1024).toFixed(0)}KB)`);
+    }).catch(() => {});
+  }
+}
+
+// ---- Registry ----
 export async function loadRegistry() {
   if (_registry) return _registry;
   if (_loading) {
@@ -78,15 +161,28 @@ export function getCategories() {
   return [...cats].sort();
 }
 
+// ---- Core model loading with optimization ----
 export async function loadModel(url, opts = {}) {
   if (_cache.has(url)) return _cache.get(url);
 
-  const gltf = await new Promise((resolve, reject) => {
-    loader.load(url, resolve, undefined, reject);
-  });
+  await ensureDecoders();
 
-  const scene = gltf.scene;
+  // Use prefetched buffer if available (avoids extra network request)
+  const rawBuffer = _rawBufferCache.get(url);
+  let result;
+
+  if (rawBuffer) {
+    _rawBufferCache.delete(url); // free memory
+    result = await _decodeFromBuffer(rawBuffer, url);
+  } else {
+    result = await _decodeFromUrl(url);
+  }
+
+  const scene = result.scene;
   const cloned = scene.clone();
+
+  // Apply geometry optimizations
+  _optimizeGeometry(cloned, opts);
 
   if (opts.tint) {
     cloned.traverse(child => {
@@ -105,6 +201,50 @@ export async function loadModel(url, opts = {}) {
   return cloned;
 }
 
+function _decodeFromBuffer(buffer, url) {
+  return new Promise((resolve, reject) => {
+    const blob = new Blob([buffer], { type: 'application/octet-stream' });
+    const blobUrl = URL.createObjectURL(blob);
+    loader.load(blobUrl, (gltf) => {
+      URL.revokeObjectURL(blobUrl);
+      resolve(gltf);
+    }, undefined, (e) => {
+      URL.revokeObjectURL(blobUrl);
+      reject(e);
+    });
+  });
+}
+
+function _decodeFromUrl(url) {
+  return new Promise((resolve, reject) => {
+    loader.load(url, resolve, undefined, reject);
+  });
+}
+
+// Strip unnecessary geometry attributes, ensure normals, flag frustum culling
+function _optimizeGeometry(scene, opts) {
+  scene.traverse(child => {
+    if (!child.isMesh) return;
+    const geo = child.geometry;
+    if (!geo) return;
+
+    // Remove non-essential attributes (tangent2, color2, etc.)
+    const essential = new Set(['position', 'normal', 'uv', 'uv1', 'color', 'tangent']);
+    for (const name of Object.keys(geo.attributes)) {
+      if (!essential.has(name)) geo.deleteAttribute(name);
+    }
+
+    // Ensure normals
+    if (!geo.attributes.normal) geo.computeVertexNormals();
+
+    // Frustum culling + shadows
+    child.frustumCulled = true;
+    child.castShadow = true;
+    child.receiveShadow = true;
+  });
+}
+
+// ---- Dispose ----
 export function disposeModel(url) {
   const m = _cache.get(url);
   if (m) {
@@ -127,6 +267,7 @@ export function disposeModel(url) {
 export function clearCache() {
   for (const [url] of _cache) disposeModel(url);
   _cache.clear();
+  _rawBufferCache.clear();
 }
 
 export function getModelUrl(asset) {
@@ -135,4 +276,14 @@ export function getModelUrl(asset) {
 
 export function getThumbnailUrl(asset) {
   return asset?.thumbnail_url || null;
+}
+
+// Expose stats for debugging
+export function getLoaderStats() {
+  return {
+    cachedModels: _cache.size,
+    prefetchedBuffers: _rawBufferCache.size,
+    workers: _workers.length,
+    decodersReady: _decodersReady,
+  };
 }
