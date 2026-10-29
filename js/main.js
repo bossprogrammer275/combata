@@ -920,16 +920,14 @@ class Game {
     const driving = !!(this.vehicles && this.vehicles.driver);
     const entering = !!(this.vehicles && this.vehicles._enterState);
 
-    // Step physics simulation
-    if (this.physics && this.physics.world) {
-      this.physics.step(dt);
-    }
-
+    // Move kinematic gameplay objects first, then advance Rapier. Stepping
+    // before movement made collision/query state trail player and vehicle transforms.
     if (driving || entering) {
       this.vehicles.update(dt, this.input, this.player);
     } else {
       this.player.update(dt, this.input);
     }
+    if (this.physics && this.physics.world) this.physics.step(dt);
 
     // update atmospheric sky (time-of-day, lighting, clouds)
     if (this.world.atmosphere) {
@@ -1191,9 +1189,17 @@ class Game {
 
   setupRenderer() {
     this.renderScale = 1;
-    this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
-    this.renderer.setSize(innerWidth, innerHeight);
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: false,
+      powerPreference: 'high-performance',
+      depth: true,
+      stencil: false,
+      preserveDrawingBuffer: false,
+      alpha: false,
+    });
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.25));
+    this.renderer.setSize(innerWidth, innerHeight, false);
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -1204,7 +1210,12 @@ class Game {
     this.camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, .05, 400);
     this.scene.add(this.camera);
     addEventListener('resize', () => {
-      this.camera.aspect = innerWidth / innerHeight;
+      const dpr = Math.min(devicePixelRatio || 1, this.profile?.data?.settings?.quality === 'ultra-low' ? 1 : 1.25);
+      this.renderer.setPixelRatio(dpr);
+      this.renderer.setSize(innerWidth, innerHeight, false);
+      this.renderer.domElement.style.width = '100%';
+      this.renderer.domElement.style.height = '100%';
+      this.camera.aspect = innerWidth / Math.max(1, innerHeight);
       this.camera.updateProjectionMatrix();
     });
   }
