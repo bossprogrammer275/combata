@@ -13,7 +13,7 @@ Procedural JavaScript mesh generators are deprecated. All buildings, props, envi
 - **Raycasting & LOS**: `three-mesh-bvh` provides mesh-accurate BVH acceleration for weapon hitscans, bullet penetration, camera occlusion avoidance, and line-of-sight checks.
 - **Movement Colliders**: Solid AABBs are indexed for player, civilian and vehicle movement; climbable fences are both physical obstacles and interaction targets.
 - **Physics**: Rapier 3D (WASM) handles the player's character controller, static-world collision and dynamic vehicle chassis. Cars use mass-bearing rigid bodies, CCD, ground raycasts at the four GLB wheel pivots, spring/damper suspension impulses, wheel-contact throttle/braking and per-wheel lateral tyre forces. The chassis is still simplified (no per-wheel rigid bodies, full drivetrain/gears, differential or engine torque curve).
-- **Collision priority**: GLB `col_*` proxies first, generated sibling `*_col.json` manifests second, then purpose-built fallback colliders (including split building perimeter walls and doorway openings).
+- **Collision selection**: valid GLB `col_*` proxies first; dedicated tree/lamp and explicit per-world `collisionSize`/`collisionH` overrides next; otherwise the runtime uses the sibling `*_col.json` manifest, then purpose-built fallbacks (including split building walls with doorway openings).
 - **Vehicle collision**: the chassis is a dynamic Rapier body with wheel clearance; wheel contact rays exclude their own chassis. The game keeps a swept-AABB controller as fallback if Rapier initialization fails.
 
 ---
@@ -71,7 +71,7 @@ When exporting models from Blender, 3ds Max, or Maya, use specific mesh prefixes
   "building": true
 }
 ```
-- Collision priority is `col_*` proxy meshes, then the optional `*_col.json` sidecar, then segmented perimeter-wall fallback colliders. It does **not** make the entire building interior a solid box.
+- Building collision can come from usable `col_*` proxies, an explicit per-world `collisionSize`/`collisionH` override, or a sibling `*_col.json` sidecar. If none supplies usable collision, the engine creates segmented perimeter walls rather than a solid box.
 - Scans nested child nodes for `door_*` markers and leaves a walkable opening in fallback wall colliders.
 - Registers visible structural meshes into `three-mesh-bvh` for raycasts. Collision-only proxies, room/door markers and visual accents are excluded.
 
