@@ -104,13 +104,22 @@ try {
   await waitForServer();
   console.log('[verify] server up on ' + BASE);
 
-  const { loadCarModel, CAR_MODELS, VehicleSystem } = await import('../js/vehicles.js');
+  const { loadCarModel, CAR_MODELS, CAR_PHYSICS, VehicleSystem } = await import('../js/vehicles.js');
   const { Physics } = await import('../js/physics.js');
 
   check('world yaw includes the GLB nose-axis correction', () => {
     const yaw = VehicleSystem.prototype._worldYaw({ yaw: 0.42, yawOffset: Math.PI });
     assert.ok(Math.abs(yaw - (0.42 + Math.PI)) < 1e-8);
     assert.ok(Math.abs(VehicleSystem.prototype._worldYaw({ yaw: 0.42 }) - 0.42) < 1e-8);
+  });
+
+  check('vehicle types have distinct physics tuning', () => {
+    assert.notEqual(CAR_PHYSICS.lambo.mass, CAR_PHYSICS.cybertruck.mass);
+    assert.ok(CAR_PHYSICS.lambo.engineAcceleration > CAR_PHYSICS.cybertruck.engineAcceleration);
+    assert.ok(CAR_PHYSICS.lambo.maxSpeed > CAR_PHYSICS.cybertruck.maxSpeed);
+    assert.equal(CAR_PHYSICS.lambo.drivetrain, 'rwd');
+    assert.equal(CAR_PHYSICS.cybertruck.drivetrain, 'awd');
+    assert.ok(CAR_PHYSICS.cybertruck.springRate > CAR_PHYSICS.lambo.springRate);
   });
 
   let dynamicVehicleSpec = null;
@@ -293,13 +302,19 @@ try {
     !!dynamicVehicleSpec && dynamicVehicleSpec.wheels.length === 4,
     dynamicVehicleSpec ? `centerY=${dynamicVehicleSpec.centerY.toFixed(2)} wheels=${dynamicVehicleSpec.wheels.length}` : 'no real wheel spec');
   if (!dynamicVehicleSpec) throw new Error('No real GLB wheel suspension spec could be built');
-  const rb = physics.createVehicleBody(10, 0, 20, 0, [dynamicVehicleSpec.physicsBox], {
-    dynamic: true, centerY: dynamicVehicleSpec.centerY, mass: 1200,
+  // Both imported car models in city-a.json use nose=+Z, so their visual/root
+  // correction is PI radians. Verify game-forward still means the direction the
+  // car is visually facing, not the opposite body-local -Z direction.
+  const vehicleYawOffset = Math.PI;
+  const rb = physics.createVehicleBody(10, 0, 20, vehicleYawOffset, [dynamicVehicleSpec.physicsBox], {
+    dynamic: true, centerY: dynamicVehicleSpec.centerY,
+    mass: CAR_PHYSICS.lambo.mass, yawOffset: vehicleYawOffset, tuning: CAR_PHYSICS.lambo,
   });
   check('vehicle chassis is dynamic', !!rb?._openWorldDynamic);
+  check('vehicle remembers imported model yaw correction', rb._openWorldYawOffset === vehicleYawOffset);
   const wheels = dynamicVehicleSpec.wheels;
   physics.step(1 / 60);
-  physics.updateVehicleBody(rb, 12, 0, 22, 0);
+  physics.updateVehicleBody(rb, 12, 0, 22, vehicleYawOffset);
   physics.step(1 / 60);
   let t = rb.translation();
   check('dynamic vehicle pose reset preserves ground-space coordinates',
@@ -309,7 +324,8 @@ try {
   let lastMotion = null;
   for (let i = 0; i < 90; i++) {
     lastMotion = physics.applyVehicleControls(rb, {
-      throttle: 1, steer: 0.8, handbrake: false, dt: 1 / 60, wheels,
+      throttle: 1, steer: 0.8, handbrake: false, dt: 1 / 60,
+      wheels, tuning: CAR_PHYSICS.lambo,
     });
     physics.step(1 / 60);
   }
@@ -325,8 +341,11 @@ try {
   ).y;
   check('throttle produces real chassis movement', t.z < 21,
     `z=${t.z.toFixed(2)}`);
-  check('steering rotates a moving chassis', Math.abs(bodyYaw) > 0.05,
-    `yaw=${bodyYaw.toFixed(2)}`);
+  const headingDelta = Math.atan2(
+    Math.sin(bodyYaw - vehicleYawOffset), Math.cos(bodyYaw - vehicleYawOffset),
+  );
+  check('steering rotates a moving chassis in corrected model space', Math.abs(headingDelta) > 0.05,
+    `bodyYaw=${bodyYaw.toFixed(2)} delta=${headingDelta.toFixed(2)}`);
   check('vehicle stays above the ground plane', t.y > 0.3, `centerY=${t.y.toFixed(2)}`);
 } catch (e) {
   failures++;
