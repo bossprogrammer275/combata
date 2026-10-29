@@ -284,10 +284,17 @@ export class Player {
         this.onGround = result.ground;
         if (wasAir && this.onGround) { this.landDip = Math.min(Math.abs(this.vel.y) * 0.008 + .04, .18); this.audio.footstep(); }
       } else {
-        this.moveAxis(this.vel.x * dt, 0, 0);
-        this.moveAxis(0, 0, this.vel.z * dt);
+        // Substep axis-separated movement. At a long frame, a single 0.3-0.4m
+        // move could cross a thin wall before the AABB test ever saw overlap.
+        const dx = this.vel.x * dt, dy = this.vel.y * dt, dz = this.vel.z * dt;
+        const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy), Math.abs(dz)) / 0.18));
+        const sx = dx / steps, sy = dy / steps, sz = dz / steps;
         const wasAir = !this.onGround;
-        this.moveAxis(0, this.vel.y * dt, 0);
+        for (let i = 0; i < steps; i++) {
+          this.moveAxis(sx, 0, 0);
+          this.moveAxis(0, 0, sz);
+          this.moveAxis(0, sy, 0);
+        }
         if (wasAir && this.onGround) { this.landDip = Math.min(Math.abs(this.vel.y) * 0.008 + .04, .18); this.audio.footstep(); }
       }
     } else {
