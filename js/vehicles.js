@@ -671,57 +671,53 @@ export class VehicleSystem {
     const moveX = (fx * v.speed + rx * v.lateralVel) * dt;
     const moveZ = (fz * v.speed + rz * v.lateralVel) * dt;
 
-    // ===== COLLISION — per-shape boxes rotated by vehicle yaw =====
+    // ===== SWEPT COLLISION — subdivide fast movement to prevent tunnelling =====
     let blocked = false;
     const boxes = v.colBoxes || [];
-    if (boxes.length > 0) {
-      const newX = v.pos.x + moveX;
-      const newZ = v.pos.z + moveZ;
-      // Gather nearby world colliders, excluding parked footprints of vehicles
-      // (own footprint is removed on entry; others still block car-vs-car).
-      const nearCols = this.world.bvhWorld
-        ? this.world.bvhWorld.queryRadius(newX, newZ, 8)
-        : this.world.colliders || [];
-      const vehCols = new Set();
-      for (const veh of this.vehicles) if (veh.parkedCol) vehCols.add(veh.parkedCol);
-      const wYaw = v.yaw + (v.yawOffset || 0);
-      const wY = v.def.elevation || 0;
-      const rb = { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
-      let pushX = 0, pushZ = 0;
-      for (const b of boxes) {
-        // Rotate root-space box to world-space at the tentative position.
-        rotBoxXZ(b, wYaw, rb);
-        const bxMin = rb.minX + newX, bxMax = rb.maxX + newX;
-        const bzMin = rb.minZ + newZ, bzMax = rb.maxZ + newZ;
-        const byMin = b.min.y + wY, byMax = b.max.y + wY;
-        for (const c of nearCols) {
-          if (vehCols.has(c)) continue;
-          if (c.max.y < 0.1) continue;
-          if (bxMax <= c.min.x || bxMin >= c.max.x) continue;
-          if (bzMax <= c.min.z || bzMin >= c.max.z) continue;
-          if (byMax <= c.min.y || byMin >= c.max.y) continue;
-          // Overlap found — push out along least-penetration axis.
-          const ox1 = bxMax - c.min.x;
-          const ox2 = c.max.x - bxMin;
-          const oz1 = bzMax - c.min.z;
-          const oz2 = c.max.z - bzMin;
-          const minX = Math.min(ox1, ox2);
-          const minZ = Math.min(oz1, oz2);
-          if (minX < minZ) {
-            pushX += ox1 < ox2 ? -ox1 : ox2;
-          } else {
-            pushZ += oz1 < oz2 ? -oz1 : oz2;
+    const travel = Math.hypot(moveX, moveZ);
+    const moveSteps = Math.max(1, Math.ceil(travel / 0.35));
+    const stepX = moveX / moveSteps, stepZ = moveZ / moveSteps;
+    const wYaw = v.yaw + (v.yawOffset || 0);
+    const wY = v.def.elevation || 0;
+    const rb = { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
+
+    for (let step = 0; step < moveSteps; step++) {
+      if (boxes.length > 0) {
+        const newX = v.pos.x + stepX;
+        const newZ = v.pos.z + stepZ;
+        const nearCols = this.world.bvhWorld
+          ? this.world.bvhWorld.queryRadius(newX, newZ, 8)
+          : this.world.colliders || [];
+        let pushX = 0, pushZ = 0;
+        for (const b of boxes) {
+          rotBoxXZ(b, wYaw, rb);
+          const bxMin = rb.minX + newX, bxMax = rb.maxX + newX;
+          const bzMin = rb.minZ + newZ, bzMax = rb.maxZ + newZ;
+          const byMin = b.min.y + wY, byMax = b.max.y + wY;
+          for (const c of nearCols) {
+            // The driven car's own parked AABB is removed on entry. Do NOT
+            // filter other parked AABBs: that old Set check made cars ghost
+            // straight through every parked vehicle.
+            if (c.max.y < 0.1) continue;
+            if (bxMax <= c.min.x || bxMin >= c.max.x) continue;
+            if (bzMax <= c.min.z || bzMin >= c.max.z) continue;
+            if (byMax <= c.min.y || byMin >= c.max.y) continue;
+
+            const ox1 = bxMax - c.min.x, ox2 = c.max.x - bxMin;
+            const oz1 = bzMax - c.min.z, oz2 = c.max.z - bzMin;
+            const minX = Math.min(ox1, ox2), minZ = Math.min(oz1, oz2);
+            if (minX < minZ) pushX += ox1 < ox2 ? -ox1 : ox2;
+            else pushZ += oz1 < oz2 ? -oz1 : oz2;
+            blocked = true;
           }
-          blocked = true;
         }
+        v.pos.x = newX + pushX;
+        v.pos.z = newZ + pushZ;
+      } else {
+        v.pos.x += stepX;
+        v.pos.z += stepZ;
+        this._collideFallback(v);
       }
-      v.pos.x = newX + pushX;
-      v.pos.z = newZ + pushZ;
-    } else {
-      v.pos.x += moveX;
-      v.pos.z += moveZ;
-      // Fallback AABB collision (rough sphere).
-      this._collideFallback(v);
     }
 
     // Bounce / slow on collision
