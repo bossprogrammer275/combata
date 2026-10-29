@@ -19,53 +19,96 @@ jobs:
           node-version: 20
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-      - name: Generate missing city building collision sidecars
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Generate and validate city building collision sidecars
         shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before || '' }}
         run: |
+          set -euo pipefail
           sources=(
             data/models/assets/low_poly_skyscraper.glb
             data/models/assets/kwara_revenue_house.glb
             data/models/assets/ilorin_innovation_hub.glb
           )
           missing=()
-          for source in "${sources[@]}"; do
-            sidecar="${source%.glb}_col.json"
-            if [ ! -s "$sidecar" ]; then missing+=("$source"); fi
-          done
-          if [ "${#missing[@]}" -eq 0 ]; then
-            echo "All city building collision sidecars already exist."
-            exit 0
+          changed_files=""
+
+          # On a normal main push, if the generator itself changed, rebuild all
+          # city manifests. On PRs, generatorVersion in each manifest provides
+          # the same invalidation contract without requiring write permissions.
+          if [[ "$GITHUB_EVENT_NAME" == "push" && -n "$BEFORE_SHA" && "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]]; then
+            if git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
+              changed_files="$(git diff --name-only "$BEFORE_SHA" "$GITHUB_SHA")"
+            fi
+          fi
+          regenerate_all=false
+          if grep -Fxq "tools/process-glbs.js" <<< "$changed_files"; then
+            regenerate_all=true
           fi
 
-          node tools/process-glbs.js "${missing[@]}"
+          for source in "${sources[@]}"; do
+            sidecar="${source%.glb}_col.json"
+            needs_regen="$regenerate_all"
+            if [ ! -s "$sidecar" ]; then
+              needs_regen=true
+            elif [ "$needs_regen" = false ]; then
+              if ! node --input-type=module -e '
+                import crypto from "node:crypto";
+                import fs from "node:fs";
+                const [source, sidecar] = process.argv.slice(1);
+                const data = JSON.parse(fs.readFileSync(sidecar, "utf8"));
+                const hash = crypto.createHash("sha256").update(fs.readFileSync(source)).digest("hex");
+                if (data.generatorVersion !== 2 || data.sourceSha256 !== hash ||
+                    !Array.isArray(data.boxes) || data.boxes.length === 0 ||
+                    !data.boxes.every(box => Array.isArray(box) && box.length >= 6 && box.every(Number.isFinite))) {
+                  process.exit(1);
+                }
+              ' "$source" "$sidecar"; then
+                needs_regen=true
+              fi
+            fi
+            if [ "$needs_regen" = true ]; then missing+=("$source"); fi
+          done
 
-          for source in "${missing[@]}"; do
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "Regenerating collision manifests for: ${missing[*]}"
+            node tools/process-glbs.js "${missing[@]}"
+          else
+            echo "All city collision manifests match their GLB sources and generator version."
+          fi
+
+          # Validate every committed/generated sidecar on every run, not merely
+          # the files that happened to be regenerated this time.
+          for source in "${sources[@]}"; do
             sidecar="${source%.glb}_col.json"
             if [ ! -s "$sidecar" ]; then
-              echo "::error::Collision manifest was not generated: $sidecar"
+              echo "::error::Collision manifest is missing: $sidecar"
               exit 1
             fi
             node --input-type=module -e '
+              import crypto from "node:crypto";
               import fs from "node:fs";
-              const file = process.argv[1];
-              const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
-              if (!Array.isArray(manifest.boxes) || manifest.boxes.length === 0) {
-                throw new Error(file + " has no collision boxes");
+              const [source, sidecar] = process.argv.slice(1);
+              const data = JSON.parse(fs.readFileSync(sidecar, "utf8"));
+              const hash = crypto.createHash("sha256").update(fs.readFileSync(source)).digest("hex");
+              if (data.generatorVersion !== 2) throw new Error(sidecar + " has a stale generatorVersion");
+              if (data.sourceSha256 !== hash) throw new Error(sidecar + " was generated from a different GLB source");
+              if (!Array.isArray(data.boxes) || data.boxes.length === 0) throw new Error(sidecar + " has no collision boxes");
+              if (!data.boxes.every(box => Array.isArray(box) && box.length >= 6 && box.every(Number.isFinite))) {
+                throw new Error(sidecar + " contains invalid collision boxes");
               }
-              if (!manifest.boxes.every(b => Array.isArray(b) && b.length >= 6 && b.every(Number.isFinite))) {
-                throw new Error(file + " contains invalid collision boxes");
-              }
-              console.log(file + ": " + manifest.boxes.length + " collision boxes");
-            ' "$sidecar"
-            git add -- "$sidecar"
+              console.log(sidecar + ": " + data.boxes.length + " valid collision boxes");
+            ' "$source" "$sidecar"
           done
 
-          if ! git diff --cached --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "chore: generate city building collision sidecars [skip ci]"
-            git push origin HEAD:main
+          if [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" == "refs/heads/main" ]] && [ "${#missing[@]}" -gt 0 ]; then
+            for source in "${missing[@]}"; do git add -- "${source%.glb}_col.json"; done
+            if ! git diff --cached --quiet; then
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git commit -m "chore: refresh city collision sidecars [skip ci]"
+              git push origin HEAD:main
+            fi
           fi
       - name: Check JavaScript syntax
         run: |
