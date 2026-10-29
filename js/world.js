@@ -760,10 +760,12 @@ export class World {
       const stairMeshes = [];
       model.traverse((o) => {
         if (!o.isMesh) return;
-        const isProxy = this._isCollisionMesh(o.name);
-        const isDoor = this._isDoorMesh(o.name);
-        const isFloor = this._isFloorMesh(o.name);
-        const isStair = this._isStairMesh(o.name);
+        // Support both a mesh named col_wall and a mesh nested inside a node
+        // named col_wall (common after Blender/glTF export).
+        const isProxy = this._hasAncestorPrefix(o, 'col_');
+        const isDoor = this._hasAncestorPrefix(o, 'door_');
+        const isFloor = this._hasAncestorPrefix(o, 'floor_');
+        const isStair = this._hasAncestorPrefix(o, 'stairs_');
         if (!isProxy && !isDoor && !isFloor && !isStair) return;
         o.updateWorldMatrix(true, false);
         const geo = o.geometry;
@@ -779,8 +781,9 @@ export class World {
         if (isFloor) floorCollisionBoxes.push(record);
         if (isStair) stairMeshes.push(o);
       });
-      // Collision helpers are hidden only after their dimensions have been read.
-      model.traverse((o) => { if (o.isMesh && this._isCollisionMesh(o.name)) o.visible = false; });
+      // Hide collision proxy geometry after recording its world-space bounds,
+      // including child meshes nested beneath a col_* node.
+      model.traverse((o) => { if (o.isMesh && this._hasAncestorPrefix(o, 'col_')) o.visible = false; });
 
       // Prefer authored col_* meshes. Only request a sidecar if none exist and
       // this is not foliage/pole geometry, which has a cheaper purpose-built proxy.
@@ -937,6 +940,15 @@ export class World {
     zWall(max.x - thickness / 2, side === 'east');
     xWall(min.z + thickness / 2, side === 'north');
     xWall(max.z - thickness / 2, side === 'south');
+  }
+
+  _hasAncestorPrefix(object, prefix) {
+    let current = object;
+    while (current && current !== this.group) {
+      if ((current.name || '').toLowerCase().startsWith(prefix)) return true;
+      current = current.parent;
+    }
+    return false;
   }
 
   _isDoorMesh(name) {
