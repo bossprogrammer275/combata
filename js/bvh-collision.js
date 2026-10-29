@@ -47,11 +47,19 @@ export class BVHWorld {
         }
         return false;
       };
+      const hasRoomMarkerAncestor = () => {
+        let node = child;
+        while (node) {
+          if (/^room_\d+_marker$/.test((node.name || '').toLowerCase())) return true;
+          node = node.parent;
+        }
+        return false;
+      };
       // Authoring-only collision proxies and visual accents should not create
       // ray hits. Movement collision for col_* lives in the AABB registry.
       if (
         ['col_', 'door_', 'window_', 'trim_', 'roof_detail', 'sign', 'awning'].some(hasPrefix) ||
-        /^room_\d+_marker$/.test(name)
+        hasRoomMarkerAncestor()
       ) return;
       const geo = child.geometry;
       if (!geo || !geo.attributes.position) return;
