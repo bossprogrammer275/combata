@@ -42,19 +42,12 @@ export class Physics {
 
   step(dt) {
     if (!this.world) return;
-    // Fixed-step Rapier integration avoids different gravity/collision results
-    // at 30, 60 and 144 Hz. Cap catch-up work after a tab stall.
-    const stepDt = 1 / 60;
-    const frameDt = Math.min(Math.max(dt || 0, 0), 0.1);
-    this._accumulator = Math.min((this._accumulator || 0) + frameDt, stepDt * 5);
-    let steps = 0;
-    while (this._accumulator >= stepDt && steps < 5) {
-      this.world.timestep = stepDt;
-      this.world.step(this._eventQueue);
-      this._accumulator -= stepDt;
-      this._stepCount++;
-      steps++;
-    }
+    // Kinematic player/vehicle controllers submit a new target each render
+    // frame, so Rapier must step every frame. Bound the timestep after stalls
+    // instead of accumulating fixed steps that would overwrite kinematic targets.
+    this.world.timestep = Math.min(Math.max(dt || 1 / 60, 1 / 240), 1 / 30);
+    this.world.step(this._eventQueue);
+    this._stepCount++;
   }
 
   // ===== COLLIDER REGISTRATION =====
