@@ -1597,6 +1597,10 @@ export class World {
       color: 0xd8d9d4, roughness: 0.96, metalness: 0, side: THREE.DoubleSide,
       polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
     }));
+    const crosswalk = this._mat('crosswalk-mark', () => new THREE.MeshStandardMaterial({
+      color: 0xe4e4dc, roughness: 0.96, metalness: 0, side: THREE.DoubleSide,
+      polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+    }));
 
     const metadata = chains.map(ch => {
       const cumulative = this._roadPolylineLengths(ch.pts);
@@ -1644,6 +1648,33 @@ export class World {
       }
     };
 
+    const drawCrosswalk = (chain, data, centerDistance) => {
+      const total = data.total;
+      const halfBand = 1.45;
+      const span = Math.max(1.2, chain.W - 1.0);
+      const transverseHalf = span / 2;
+      for (let offset = -1.2; offset <= 1.21; offset += 0.6) {
+        const d = centerDistance + offset;
+        if (d < 0.15 || d > total - 0.15) continue;
+        const tangent = this._sliceRoadPolyline(
+          chain.pts, data.cumulative,
+          Math.max(0, d - 0.15), Math.min(total, d + 0.15),
+        );
+        if (tangent.length < 2) continue;
+        const dx = tangent[tangent.length - 1].x - tangent[0].x;
+        const dz = tangent[tangent.length - 1].z - tangent[0].z;
+        const len = Math.hypot(dx, dz);
+        if (len < 1e-5) continue;
+        const nx = -dz / len, nz = dx / len;
+        const center = tangent[Math.floor(tangent.length / 2)];
+        const ends = [
+          { x: center.x - nx * transverseHalf, z: center.z - nz * transverseHalf },
+          { x: center.x + nx * transverseHalf, z: center.z + nz * transverseHalf },
+        ];
+        this._strokeMitered(ends, 0.14, chain.roadY + 0.008, crosswalk, false);
+      }
+    };
+
     for (let i = 0; i < chains.length; i++) {
       const chain = chains[i], data = metadata[i], ranges = mergedRanges[i];
       const total = data.total;
@@ -1666,6 +1697,25 @@ export class World {
           const offset = side * edgeOffset * lane / lanesPerSide;
           const lanePts = this._offsetRoadPolyline(roadPts, offset);
           drawDashed(chain, data, lanePts, ranges, 1.0, total - 1.0, 2.7, 5.8, 0.085, white);
+        }
+      }
+
+      // Paint a zebra crossing on both approaches of junctions on streets wide
+      // enough to read as a proper pedestrian crossing. Every stripe is separate
+      // geometry, so no paint is stretched across curved segments or into the junction.
+      if (chain.W >= 8 && total > 18) {
+        const proposed = [];
+        for (const hit of hits[i]) {
+          const offset = hit.radius + 2.75;
+          if (hit.distance - offset > 4.2) proposed.push(hit.distance - offset);
+          if (hit.distance + offset < total - 4.2) proposed.push(hit.distance + offset);
+        }
+        proposed.sort((a, b) => a - b);
+        let last = -Infinity;
+        for (const d of proposed) {
+          if (d - last < 4.8) continue;
+          drawCrosswalk(chain, data, d);
+          last = d;
         }
       }
     }
