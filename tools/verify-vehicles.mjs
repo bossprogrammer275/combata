@@ -487,9 +487,9 @@ try {
     (reverseMotion?.forwardSpeed ?? 0) < -2.5 && Math.abs(reverseYawDelta) > 0.03,
     `reverseSpeed=${reverseMotion?.forwardSpeed?.toFixed(2)} yawDelta=${reverseYawDelta.toFixed(2)} z=${reversePose.z.toFixed(2)}`);
 
-  const truckSpec = dynamicVehicleSpecs.cybertruck;
-  const truckBody = physics.createVehicleBody(-40, 0, 0, vehicleYawOffset, [truckSpec.physicsBox], {
-    dynamic: true, centerY: truckSpec.centerY,
+  const acceleratingTruckSpec = dynamicVehicleSpecs.cybertruck;
+  const truckBody = physics.createVehicleBody(-40, 0, 0, vehicleYawOffset, [acceleratingTruckSpec.physicsBox], {
+    dynamic: true, centerY: acceleratingTruckSpec.centerY,
     mass: CAR_PHYSICS.cybertruck.mass, yawOffset: vehicleYawOffset,
     tuning: CAR_PHYSICS.cybertruck, angularDamping: CAR_PHYSICS.cybertruck.angularDamping,
   });
@@ -500,7 +500,7 @@ try {
   for (let i = 0; i < 90; i++) {
     truckMotion = physics.applyVehicleControls(truckBody, {
       throttle: 1, steer: 0.8, handbrake: false, dt: 1 / 60,
-      wheels: truckSpec.wheels, tuning: CAR_PHYSICS.cybertruck,
+      wheels: acceleratingTruckSpec.wheels, tuning: CAR_PHYSICS.cybertruck,
       surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
     });
     physics.step(1 / 60);
