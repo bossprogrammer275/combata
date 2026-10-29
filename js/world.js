@@ -56,6 +56,11 @@ export class World {
     this._ribbonBatch = [];  // {left[], right[], y, mat, closed} — mitered road/sidewalk ribbons
     this._trimBatch = [];    // {x,y,z,w,h,d,ry,mat} — AO base skirts + roofline lips
 
+    // Create collision indexes before assets load; initializing BVHWorld after
+    // loading discards model BVHs registered during _loadGLBAsset.
+    this._physics = null; // set by main.js after Physics.init()
+    this.bvhWorld = new BVHWorld();
+    this.grid = this.bvhWorld;
     this.buildLighting(quality);
     if (quality !== 'ultra-low') this.buildSky();
     this.buildGround(sceneData && sceneData.ground);
@@ -64,18 +69,15 @@ export class World {
     if (sceneData) {
       this.assetsReady = this.buildFromScene(sceneData).then(() => {
         this._flushGeometry();
-        this.bvhWorld = new BVHWorld();
-        for (const c of this.colliders) this.bvhWorld.addAABB(c.min, c.max);
+        this._rebuildGrid();
         this.grid = this.bvhWorld; // alias for backward compat
       });
     } else {
       this._flushGeometry();
-      this.bvhWorld = new BVHWorld();
-      for (const c of this.colliders) this.bvhWorld.addAABB(c.min, c.max);
+      this._rebuildGrid();
       this.grid = this.bvhWorld;
     }
     this._finishSpawnPoints();
-    this._physics = null; // set by main.js after Physics.init()
   }
 
   // ===== MATERIALS =====
@@ -619,9 +621,19 @@ export class World {
     try {
       let baseScene = this._glbModelCache.get(a.url);
       if (!baseScene) {
-        const gltf = await new Promise((res, rej) => this._gltfLoader.load(a.url, res, undefined, rej));
-        baseScene = gltf.scene;
-        this._glbModelCache.set(a.url, baseScene);
+        // Reuse the same network fetch and decode for concurrent placements.
+        if (!this._glbModelPromises) this._glbModelPromises = new Map();
+        let pending = this._glbModelPromises.get(a.url);
+        if (!pending) {
+          pending = new Promise((res, rej) => this._gltfLoader.load(a.url, res, undefined, rej))
+            .then((gltf) => {
+              this._glbModelCache.set(a.url, gltf.scene);
+              return gltf.scene;
+            })
+            .finally(() => this._glbModelPromises.delete(a.url));
+          this._glbModelPromises.set(a.url, pending);
+        }
+        baseScene = await pending;
       }
       const model = baseScene.clone(true);
 
@@ -646,7 +658,9 @@ export class World {
 
       // Enhance all materials for realism
       const envMap = this.scene.environment;
-      const shouldCastShadow = !!(a.building || (a.targetH && a.targetH > 4.0));
+      // Keep shadow casters to buildings; dozens of separate trees and lamps
+      // casting shadows multiplies shadow-map work across the city.
+      const shouldCastShadow = !!a.building;
       model.traverse(o => {
         if (!o.isMesh) return;
         o.castShadow = shouldCastShadow;
@@ -677,27 +691,52 @@ export class World {
       const isRoad = assetUrl.includes('road.glb') || (assetUrl.includes('road') && !assetUrl.includes('barrier'));
 
       const bbox = new THREE.Box3().setFromObject(model, true);
+      const collisionProxyBoxes = [];
+      const doorMeshes = [];
+      model.traverse((o) => {
+        if (!o.isMesh) return;
+        const isProxy = this._isCollisionMesh(o.name);
+        const isDoor = this._isDoorMesh(o.name);
+        if (!isProxy && !isDoor) return;
+        o.updateWorldMatrix(true, false);
+        const geo = o.geometry;
+        if (!geo || !geo.attributes.position) return;
+        if (!geo.boundingBox) geo.computeBoundingBox();
+        if (!geo.boundingBox) return;
+        const meshBox = new THREE.Box3().copy(geo.boundingBox).applyMatrix4(o.matrixWorld);
+        const size = meshBox.getSize(new THREE.Vector3());
+        const center = meshBox.getCenter(new THREE.Vector3());
+        const record = { name: o.name, min: meshBox.min.clone(), max: meshBox.max.clone(), center, size };
+        if (isProxy) collisionProxyBoxes.push(record);
+        if (isDoor) doorMeshes.push(record);
+      });
+      // Collision helpers are hidden only after their dimensions have been read.
+      model.traverse((o) => { if (o.isMesh && this._isCollisionMesh(o.name)) o.visible = false; });
 
-      if (!a.noCollision && !isRoad) {
-        if (!bbox.isEmpty()) {
-          const s = bbox.getSize(new THREE.Vector3());
-          const c = bbox.getCenter(new THREE.Vector3());
-          if (s.x > 0.1 && s.y > 0.1 && s.z > 0.1) {
-            if (isTree) {
-              // Tree: ONLY collide with the central trunk (0.5m x 0.5m), NOT the massive 10m foliage canopy!
-              this.addCollider(a.x, bbox.min.y, a.z, 0.5, s.y, 0.5);
-            } else if (isLamp) {
-              // Streetlight: ONLY collide with the base pole (0.35m x 0.35m), NOT the wide overhead arm!
-              this.addCollider(a.x, bbox.min.y, a.z, 0.35, s.y, 0.35);
-            } else if (a.climbable) {
-              this.addCollider(c.x, bbox.min.y, c.z, s.x, s.y, s.z, true, a.type || null);
-            } else if (a.collisionSize) {
-              this.addCollider(a.x, bbox.min.y, a.z, a.collisionSize[0], a.collisionH || s.y, a.collisionSize[1]);
-            } else if (a.collisionH) {
-              this.addCollider(c.x, bbox.min.y, c.z, s.x, a.collisionH, s.z);
-            } else {
-              this.addCollider(c.x, bbox.min.y, c.z, s.x, s.y, s.z);
+      if (!a.noCollision && !isRoad && !bbox.isEmpty()) {
+        const size = bbox.getSize(new THREE.Vector3());
+        const center = bbox.getCenter(new THREE.Vector3());
+        if (size.x > 0.1 && size.y > 0.1 && size.z > 0.1) {
+          if (a.building && collisionProxyBoxes.length) {
+            for (const p of collisionProxyBoxes) {
+              if (p.size.x > 0.05 && p.size.y > 0.05 && p.size.z > 0.05) {
+                this.addCollider(p.center.x, p.min.y, p.center.z, p.size.x, p.size.y, p.size.z);
+              }
             }
+          } else if (a.building) {
+            this._addBuildingWallColliders(bbox, doorMeshes);
+          } else if (isTree) {
+            this.addCollider(a.x, bbox.min.y, a.z, 0.5, size.y, 0.5);
+          } else if (isLamp) {
+            this.addCollider(a.x, bbox.min.y, a.z, 0.35, size.y, 0.35);
+          } else if (a.climbable) {
+            this.addCollider(center.x, bbox.min.y, center.z, size.x, size.y, size.z, true, a.type || null);
+          } else if (a.collisionSize) {
+            this.addCollider(a.x, bbox.min.y, a.z, a.collisionSize[0], a.collisionH || size.y, a.collisionSize[1]);
+          } else if (a.collisionH) {
+            this.addCollider(center.x, bbox.min.y, center.z, size.x, a.collisionH, size.z);
+          } else {
+            this.addCollider(center.x, bbox.min.y, center.z, size.x, size.y, size.z);
           }
         }
       }
@@ -713,24 +752,8 @@ export class World {
           interior: null,
         });
 
-        // Detect door meshes for portal system
-        const doorMeshes = [];
-        model.traverse(o => {
-          if (!o.isMesh) return;
-          if (this._isDoorMesh(o.name)) {
-            o.updateWorldMatrix(true, false);
-            const geo = o.geometry;
-            if (!geo || !geo.attributes.position) return;
-            geo.computeBoundingBox();
-            const lb = geo.boundingBox;
-            if (!lb) return;
-            const min = lb.min.clone().applyMatrix4(o.matrixWorld);
-            const max = lb.max.clone().applyMatrix4(o.matrixWorld);
-            const sz = new THREE.Vector3().subVectors(max, min);
-            const center = new THREE.Vector3().addVectors(min, max).multiplyScalar(0.5);
-            doorMeshes.push({ name: o.name, min, max, center, size: sz });
-          }
-        });
+        // Door bounds were collected before collision generation so the wall
+        // colliders can leave an opening at the entrance.
         if (doorMeshes.length > 0) {
           this._registerBuildingDoors(a, model, doorMeshes, buildingIdx);
         }
@@ -757,6 +780,46 @@ export class World {
     } catch (e) {
       console.warn('[World] Failed to load GLB asset:', a.url, e);
     }
+  }
+
+  _addBuildingWallColliders(bbox, doors = []) {
+    const min = bbox.min, max = bbox.max;
+    const width = max.x - min.x, depth = max.z - min.z, height = max.y - min.y;
+    if (width < 1 || depth < 1 || height < 1) return;
+    const thickness = THREE.MathUtils.clamp(Math.min(width, depth) * 0.035, 0.25, 0.6);
+    const door = doors.length
+      ? doors.reduce((best, d) => !best || Math.abs(d.center.y - (min.y + 1.0)) < Math.abs(best.center.y - (min.y + 1.0)) ? d : best, null)
+      : null;
+    let side = null;
+    if (door) {
+      side = [
+        ['west', Math.abs(door.center.x - min.x)],
+        ['east', Math.abs(door.center.x - max.x)],
+        ['north', Math.abs(door.center.z - min.z)],
+        ['south', Math.abs(door.center.z - max.z)],
+      ].sort((a, b) => a[1] - b[1])[0][0];
+    }
+    const spanX = door ? Math.min(width * 0.75, Math.max(door.size.x, 1.1) + 0.35) : 0;
+    const spanZ = door ? Math.min(depth * 0.75, Math.max(door.size.z, 1.1) + 0.35) : 0;
+    const add = (x, z, w, d) => { if (w > 0.15 && d > 0.15) this.addCollider(x, min.y, z, w, height, d); };
+    const xWall = (z, opening) => {
+      if (!opening || !door) { add((min.x + max.x) / 2, z, width, thickness); return; }
+      const a = THREE.MathUtils.clamp(door.center.x - spanX / 2, min.x, max.x);
+      const b = THREE.MathUtils.clamp(door.center.x + spanX / 2, min.x, max.x);
+      add((min.x + a) / 2, z, a - min.x, thickness);
+      add((b + max.x) / 2, z, max.x - b, thickness);
+    };
+    const zWall = (x, opening) => {
+      if (!opening || !door) { add(x, (min.z + max.z) / 2, thickness, depth); return; }
+      const a = THREE.MathUtils.clamp(door.center.z - spanZ / 2, min.z, max.z);
+      const b = THREE.MathUtils.clamp(door.center.z + spanZ / 2, min.z, max.z);
+      add(x, (min.z + a) / 2, thickness, a - min.z);
+      add(x, (b + max.z) / 2, thickness, max.z - b);
+    };
+    zWall(min.x + thickness / 2, side === 'west');
+    zWall(max.x - thickness / 2, side === 'east');
+    xWall(min.z + thickness / 2, side === 'north');
+    xWall(max.z - thickness / 2, side === 'south');
   }
 
   _isDoorMesh(name) {
@@ -1162,22 +1225,27 @@ export class World {
       const p = pts[i];
       const prev = pts[closed ? (i - 1 + L) % L : Math.max(0, i - 1)];
       const next = pts[closed ? (i + 1) % L : Math.min(L - 1, i + 1)];
-      const ux0 = p.x - prev.x, uz0 = p.z - prev.z;
-      const vx0 = next.x - p.x, vz0 = next.z - p.z;
-      const l1 = Math.hypot(ux0, uz0), l2 = Math.hypot(vx0, vz0);
-      if (!l1 || !l2) { left.push({ x: p.x, z: p.z }); right.push({ x: p.x, z: p.z }); continue; }
-      const ux = ux0 / l1, uz = uz0 / l1, vx = vx0 / l2, vz = vz0 / l2;
-      const nux = -uz, nuz = ux, nvx = -vz, nvz = vz;
+      const px = p.x - prev.x, pz = p.z - prev.z;
+      const nx = next.x - p.x, nz = next.z - p.z;
+      const pl = Math.hypot(px, pz), nl = Math.hypot(nx, nz);
       let mx, mz;
-      if (!closed && (i === 0 || i === L - 1)) {
-        mx = (i === 0) ? nux : nvx; mz = (i === 0) ? nuz : nvz;
-      } else {
+      // Open endpoints have a zero-length adjacent segment. Use the one valid
+      // normal instead of collapsing the road width to a single vertex.
+      if (!closed && i === 0 && nl > 1e-6) {
+        mx = -nz / nl; mz = nx / nl;
+      } else if (!closed && i === L - 1 && pl > 1e-6) {
+        mx = -pz / pl; mz = px / pl;
+      } else if (pl > 1e-6 && nl > 1e-6) {
+        const nux = -pz / pl, nuz = px / pl;
+        const nvx = -nz / nl, nvz = nx / nl;
         const dot = nux * nvx + nuz * nvz;
-        let denom = 1 + dot;
-        if (denom < 0.3) denom = 0.3;
-        mx = (nux + nvx) / denom; mz = (nuz + nvz) / denom;
+        const denom = Math.max(0.3, 1 + dot);
+        mx = (nux + nvx) / denom;
+        mz = (nuz + nvz) / denom;
         const ml = Math.hypot(mx, mz);
-        if (ml > 1.25) { mx = mx / ml * 1.25; mz = mz / ml * 1.25; }
+        if (ml > 2.5) { mx = mx / ml * 2.5; mz = mz / ml * 2.5; }
+      } else {
+        mx = 0; mz = 0;
       }
       left.push({ x: p.x + mx * hw, z: p.z + mz * hw });
       right.push({ x: p.x - mx * hw, z: p.z - mz * hw });
