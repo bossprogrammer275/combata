@@ -51,7 +51,6 @@ function subdivideMeshCollision(mesh, cellSize) {
   const idx = geo.index;
   const wm = mesh.matrixWorld;
   const v = new THREE.Vector3();
-
   const worldVerts = [];
   for (let i = 0; i < posAttr.count; i++) {
     v.set(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i));
@@ -61,56 +60,68 @@ function subdivideMeshCollision(mesh, cellSize) {
 
   const tris = [];
   if (idx) {
-    for (let i = 0; i < idx.count; i += 3) {
+    for (let i = 0; i + 2 < idx.count; i += 3) {
       tris.push([idx.getX(i), idx.getX(i + 1), idx.getX(i + 2)]);
     }
   } else {
-    for (let i = 0; i < posAttr.count; i += 3) {
-      tris.push([i, i + 1, i + 2]);
-    }
+    for (let i = 0; i + 2 < posAttr.count; i += 3) tris.push([i, i + 1, i + 2]);
   }
 
   let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-  for (const wv of worldVerts) {
-    if (wv.x < minX) minX = wv.x; if (wv.x > maxX) maxX = wv.x;
-    if (wv.z < minZ) minZ = wv.z; if (wv.z > maxZ) maxZ = wv.z;
+  for (const p of worldVerts) {
+    minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+    minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z);
   }
-  if (!isFinite(minX)) return [];
+  if (!Number.isFinite(minX) || !Number.isFinite(minZ)) return [];
   minX -= 0.1; maxX += 0.1; minZ -= 0.1; maxZ += 0.1;
 
   const cols = Math.ceil((maxX - minX) / cellSize);
   const rows = Math.ceil((maxZ - minZ) / cellSize);
-  if (cols * rows > 5000) return [];
+  if (cols <= 0 || rows <= 0 || cols * rows > 5000) return [];
 
+  // Triangle-first accumulation. The old implementation scanned every triangle
+  // for every cell (O(cells * triangles)), freezing on detailed building meshes.
+  // This visits only cells overlapped by each triangle's XZ bounds.
   const cells = new Map();
-  for (let ci = 0; ci < cols; ci++) {
-    for (let ri = 0; ri < rows; ri++) {
-      const cxMin = minX + ci * cellSize;
-      const cxMax = cxMin + cellSize;
-      const czMin = minZ + ri * cellSize;
-      const czMax = czMin + cellSize;
-      let yMin = Infinity, yMax = -Infinity, hasTri = false;
+  for (const tri of tris) {
+    const a = worldVerts[tri[0]], b = worldVerts[tri[1]], c = worldVerts[tri[2]];
+    if (!a || !b || !c) continue;
+    const txMin = Math.min(a.x, b.x, c.x);
+    const txMax = Math.max(a.x, b.x, c.x);
+    const tzMin = Math.min(a.z, b.z, c.z);
+    const tzMax = Math.max(a.z, b.z, c.z);
+    const c0 = Math.max(0, Math.min(cols - 1, Math.floor((txMin - minX) / cellSize)));
+    const c1 = Math.max(0, Math.min(cols - 1, Math.floor((txMax - minX) / cellSize)));
+    const r0 = Math.max(0, Math.min(rows - 1, Math.floor((tzMin - minZ) / cellSize)));
+    const r1 = Math.max(0, Math.min(rows - 1, Math.floor((tzMax - minZ) / cellSize)));
+    const yMin = Math.min(a.y, b.y, c.y);
+    const yMax = Math.max(a.y, b.y, c.y);
 
-      for (const tri of tris) {
-        const a = worldVerts[tri[0]], b = worldVerts[tri[1]], c = worldVerts[tri[2]];
-        if (Math.max(a.x, b.x, c.x) < cxMin || Math.min(a.x, b.x, c.x) > cxMax) continue;
-        if (Math.max(a.z, b.z, c.z) < czMin || Math.min(a.z, b.z, c.z) > czMax) continue;
-        hasTri = true;
-        const y = Math.min(a.y, b.y, c.y), y2 = Math.max(a.y, b.y, c.y);
-        if (y < yMin) yMin = y; if (y2 > yMax) yMax = y2;
-      }
-
-      if (hasTri && isFinite(yMin)) {
-        const h = yMax - yMin + THICKNESS;
-        if (h >= MIN_CELL_H) {
-          const x = cxMin + cellSize / 2, z = czMin + cellSize / 2;
-          const cy = yMin + h / 2 - 0.05;
-          cells.set(`${ci},${ri}`, [x, cy, z, cellSize, h, cellSize]);
+    for (let ci = c0; ci <= c1; ci++) {
+      for (let ri = r0; ri <= r1; ri++) {
+        const key = ci * rows + ri;
+        let cell = cells.get(key);
+        if (!cell) {
+          cell = { ci, ri, yMin, yMax };
+          cells.set(key, cell);
+        } else {
+          cell.yMin = Math.min(cell.yMin, yMin);
+          cell.yMax = Math.max(cell.yMax, yMax);
         }
       }
     }
   }
-  return [...cells.values()];
+
+  const boxes = [];
+  for (const cell of cells.values()) {
+    const h = cell.yMax - cell.yMin + THICKNESS;
+    if (h < MIN_CELL_H) continue;
+    const x = minX + cell.ci * cellSize + cellSize / 2;
+    const z = minZ + cell.ri * cellSize + cellSize / 2;
+    const cy = cell.yMin + h / 2 - 0.05;
+    boxes.push([x, cy, z, cellSize, h, cellSize]);
+  }
+  return boxes;
 }
 
 function meshNeedsSubdivision(mesh) {
@@ -180,8 +191,12 @@ async function processGLB(inputPath) {
   });
 
   const manifest = {
+    schemaVersion: 1,
     source: path.basename(inputPath),
     generated: new Date().toISOString(),
+    // Centers/dimensions are in model-local coordinates after GLTF node transforms.
+    // The runtime applies the world entry's targetH/scale, x/z, elevation and ry.
+    coordinateSpace: 'model-local',
     cellSize: CELL_SIZE,
     boxes,
   };
