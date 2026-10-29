@@ -408,6 +408,38 @@ export class VehicleSystem {
     v.parkedCol = null;
   }
 
+  _refreshParkedCollider(v) {
+    if (!v?.parkedCol) return;
+    const old = v.parkedCol;
+    const i = this.world.colliders.indexOf(old);
+    if (i >= 0) this.world.colliders.splice(i, 1);
+    if (this.world.bvhWorld) this.world.bvhWorld.removeAABB(old);
+    const b = this._parkedAABB(v);
+    v.parkedCol = this.world.addCollider(b.x, b.y, b.z, b.w, b.h, b.d);
+  }
+
+  syncDynamicVehicle(v) {
+    if (!v?.physicsDynamic || !v.rapierBody) return;
+    const t = v.rapierBody.translation();
+    const rotation = v.rapierBody.rotation();
+    const q = new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
+    const bodyYaw = new THREE.Euler().setFromQuaternion(q, 'YXZ').y;
+    v.pos.set(t.x, t.y - (v.physicsCenterY || 0), t.z);
+    v.yaw = bodyYaw - (v.yawOffset || 0);
+    const velocity = v.rapierBody.linvel();
+    const fx = -Math.sin(bodyYaw), fz = -Math.cos(bodyYaw);
+    const rx = Math.cos(bodyYaw), rz = -Math.sin(bodyYaw);
+    v.speed = velocity.x * fx + velocity.z * fz;
+    v.lateralVel = velocity.x * rx + velocity.z * rz;
+    v.root.position.copy(v.pos);
+    v.root.rotation.set(0, bodyYaw, 0);
+    if (v.parkedCol) this._refreshParkedCollider(v);
+  }
+
+  syncDynamicBodies() {
+    for (const v of this.vehicles) this.syncDynamicVehicle(v);
+  }
+
   async spawn(def) {
     try {
       const kind = def.kind || 'lambo';
@@ -446,36 +478,43 @@ export class VehicleSystem {
       root.rotation.y = yaw + yawOffset;
       this.scene.add(root);
 
+      const physicsCenterY = (bodyBox.min.y + bodyBox.max.y) * 0.5;
       const v = {
-        def, root, rapierBody: null, kind, wheels, colBoxes, bodyBox, half,
+        def, root, rapierBody: null, physicsDynamic: false, physicsCenterY,
+        kind, wheels, colBoxes, bodyBox, half,
         yawOffset, parkedCol: null,
         pos: new THREE.Vector3(def.x, def.elevation || 0, def.z),
         yaw,
         speed: 0,
         steerAngle: 0,
         lateralVel: 0,
-        mass: 1500,
+        mass: 1450,
         pushForce: 0,
       };
 
-      // Kinematic Rapier body with model-fitted compound colliders. It blocks
-      // the player while parked AND while driven; manual AABBs handle car/world.
+      // Dynamic Rapier chassis with a bounded compound collider set. This body
+      // is the source of truth while parked and driven; the old swept-AABB
+      // controller remains only as a no-Rapier fallback.
       if (this.physics && this.physics.world) {
         try {
           const rapierBoxes = colBoxes
             .filter((b) => {
               const sx = b.max.x - b.min.x, sy = b.max.y - b.min.y, sz = b.max.z - b.min.z;
-              return Math.min(sx, sy, sz) > 0.05 && (sx * sy * sz) > 0.0006;
+              return Math.min(sx, sy, sz) > 0.025 && (sx * sy * sz) > 0.00015;
             })
             .sort((a, b2) => {
               const va = (a.max.x - a.min.x) * (a.max.y - a.min.y) * (a.max.z - a.min.z);
               const vb = (b2.max.x - b2.min.x) * (b2.max.y - b2.min.y) * (b2.max.z - b2.min.z);
               return vb - va;
             })
-            .slice(0, 220);
+            .slice(0, 32);
+          if (!rapierBoxes.length) rapierBoxes.push(bodyBox);
           v.rapierBody = this.physics.createVehicleBody(
-            def.x, def.elevation || 0, def.z, yaw + yawOffset, rapierBoxes);
-        } catch (e) { console.warn('[Vehicle] Rapier body failed:', e); }
+            def.x, def.elevation || 0, def.z, yaw + yawOffset, rapierBoxes,
+            { dynamic: true, centerY: physicsCenterY, mass: v.mass },
+          );
+          v.physicsDynamic = !!v.rapierBody?._openWorldDynamic;
+        } catch (e) { console.warn('[Vehicle] Dynamic Rapier body failed; using AABB fallback:', e); }
       }
 
       this.vehicles.push(v);
@@ -606,142 +645,163 @@ export class VehicleSystem {
     const throttle = input.forward || 0;
     const steerInput = input.right || 0;
     const handbrake = !!input.jump;
-    const absSpd = Math.abs(v.speed);
-
-    // ===== LONGITUDINAL: engine / brake / drag =====
-    if (throttle > 0) {
-      if (v.speed < 0) {
-        v.speed += 30 * dt;
-      } else {
-        const topSpeed = 40;
-        const powerFade = 1 - (v.speed / topSpeed) * 0.5;
-        v.speed += 24 * dt * Math.max(0.15, powerFade);
+    let curSpd = 0;
+    if (v.physicsDynamic && this.physics && v.rapierBody) {
+      // Body pose/velocity come from the last completed Rapier step. Apply
+      // controls as impulses; do not manually move or teleport the chassis.
+      this.syncDynamicVehicle(v);
+      const motion = this.physics.applyVehicleControls(v.rapierBody, {
+        throttle,
+        steer: steerInput,
+        handbrake,
+        dt,
+      });
+      curSpd = motion ? motion.horizontalSpeed : Math.abs(v.speed);
+      if (motion) {
+        v.speed = motion.forwardSpeed;
+        v.lateralVel = motion.lateralSpeed;
       }
-    } else if (throttle < 0) {
-      if (v.speed > 1) {
-        v.speed -= 28 * dt;
-      } else {
-        v.speed -= 10 * dt;
-      }
-    } else {
-      if (absSpd > 0.1) {
-        const dragCoeff = 1.5 + (absSpd / 40) * (absSpd / 40) * 3;
-        v.speed *= Math.max(0, 1 - dt * dragCoeff);
-      } else {
-        v.speed = 0;
-      }
-    }
-
-    // Handbrake — strong deceleration, loose rear
-    if (handbrake) {
-      v.speed *= Math.max(0, 1 - dt * 4);
-    }
-
-    // Kill tiny speed
-    if (absSpd < 0.05 && !throttle) v.speed = 0;
-
-    // Clamp
-    v.speed = THREE.MathUtils.clamp(v.speed, -9, 40);
-
-    const curSpd = Math.abs(v.speed);
-    const fwd = v.speed >= 0 ? 1 : -1;
-
-    // ===== STEERING + TIRE GRIP =====
-    // Bicycle-model steering: wheel angle creates curvature, so steering
-    // naturally tightens at low speed and opens up as speed rises.
-    const wheelAngle = steerInput * (handbrake ? 0.34 : 0.20);
-    if (curSpd > 0.25) {
-      const wheelbase = 2.7;
-      const yawRate = (v.speed / wheelbase) * Math.tan(wheelAngle);
-      v.yaw -= THREE.MathUtils.clamp(yawRate, -1.15, 1.15) * dt;
-    }
-
-    // Lateral tire velocity decays with grip. A handbrake lowers rear grip,
-    // allowing a controlled slide instead of the old instant heading-only turn.
-    const targetSlip = steerInput * curSpd * (handbrake ? 0.38 : 0.055);
-    const gripRate = handbrake ? 1.7 : 7.5;
-    v.lateralVel += (targetSlip - v.lateralVel) * (1 - Math.exp(-gripRate * dt));
-    if (Math.abs(steerInput) < 0.05 && !handbrake) {
-      v.lateralVel *= Math.exp(-5.5 * dt);
-    }
-
-    // ===== MOVEMENT — forward velocity plus tire slip =====
-    const fx = -Math.sin(v.yaw), fz = -Math.cos(v.yaw);
-    const rx = Math.cos(v.yaw), rz = -Math.sin(v.yaw);
-    const moveX = (fx * v.speed + rx * v.lateralVel) * dt;
-    const moveZ = (fz * v.speed + rz * v.lateralVel) * dt;
-
-    // ===== SWEPT COLLISION — subdivide fast movement to prevent tunnelling =====
-    let blocked = false;
-    const boxes = v.colBoxes || [];
-    const travel = Math.hypot(moveX, moveZ);
-    const moveSteps = Math.max(1, Math.ceil(travel / 0.35));
-    const stepX = moveX / moveSteps, stepZ = moveZ / moveSteps;
-    const wYaw = v.yaw + (v.yawOffset || 0);
-    const wY = v.def.elevation || 0;
-    const rb = { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
-
-    for (let step = 0; step < moveSteps; step++) {
-      if (boxes.length > 0) {
-        const newX = v.pos.x + stepX;
-        const newZ = v.pos.z + stepZ;
-        const nearCols = this.world.bvhWorld
-          ? this.world.bvhWorld.queryRadius(newX, newZ, 8)
-          : this.world.colliders || [];
-        let pushX = 0, pushZ = 0;
-        for (const b of boxes) {
-          rotBoxXZ(b, wYaw, rb);
-          const bxMin = rb.minX + newX, bxMax = rb.maxX + newX;
-          const bzMin = rb.minZ + newZ, bzMax = rb.maxZ + newZ;
-          const byMin = b.min.y + wY, byMax = b.max.y + wY;
-          for (const c of nearCols) {
-            // The driven car's own parked AABB is removed on entry. Do NOT
-            // filter other parked AABBs: that old Set check made cars ghost
-            // straight through every parked vehicle.
-            if (c.max.y < 0.1) continue;
-            if (bxMax <= c.min.x || bxMin >= c.max.x) continue;
-            if (bzMax <= c.min.z || bzMin >= c.max.z) continue;
-            if (byMax <= c.min.y || byMin >= c.max.y) continue;
-
-            const ox1 = bxMax - c.min.x, ox2 = c.max.x - bxMin;
-            const oz1 = bzMax - c.min.z, oz2 = c.max.z - bzMin;
-            const minX = Math.min(ox1, ox2), minZ = Math.min(oz1, oz2);
-            if (minX < minZ) pushX += ox1 < ox2 ? -ox1 : ox2;
-            else pushZ += oz1 < oz2 ? -oz1 : oz2;
-            blocked = true;
-          }
-        }
-        v.pos.x = newX + pushX;
-        v.pos.z = newZ + pushZ;
-      } else {
-        v.pos.x += stepX;
-        v.pos.z += stepZ;
-        this._collideFallback(v);
-      }
-    }
-
-    // Bounce / slow on collision
-    if (blocked && curSpd > 2) {
-      v.speed *= 0.4;
-      v.lateralVel *= 0.2;
-      if (curSpd > 5) this._pushPlayerNearby(v, curSpd);
-    } else {
       this._pushPlayerNearby(v, curSpd);
+    } else {
+      const absSpd = Math.abs(v.speed);
+  
+      // ===== LONGITUDINAL: engine / brake / drag =====
+      if (throttle > 0) {
+        if (v.speed < 0) {
+          v.speed += 30 * dt;
+        } else {
+          const topSpeed = 40;
+          const powerFade = 1 - (v.speed / topSpeed) * 0.5;
+          v.speed += 24 * dt * Math.max(0.15, powerFade);
+        }
+      } else if (throttle < 0) {
+        if (v.speed > 1) {
+          v.speed -= 28 * dt;
+        } else {
+          v.speed -= 10 * dt;
+        }
+      } else {
+        if (absSpd > 0.1) {
+          const dragCoeff = 1.5 + (absSpd / 40) * (absSpd / 40) * 3;
+          v.speed *= Math.max(0, 1 - dt * dragCoeff);
+        } else {
+          v.speed = 0;
+        }
+      }
+  
+      // Handbrake — strong deceleration, loose rear
+      if (handbrake) {
+        v.speed *= Math.max(0, 1 - dt * 4);
+      }
+  
+      // Kill tiny speed
+      if (absSpd < 0.05 && !throttle) v.speed = 0;
+  
+      // Clamp
+      v.speed = THREE.MathUtils.clamp(v.speed, -9, 40);
+  
+      curSpd = Math.abs(v.speed);
+      const fwd = v.speed >= 0 ? 1 : -1;
+  
+      // ===== STEERING + TIRE GRIP =====
+      // Bicycle-model steering: wheel angle creates curvature, so steering
+      // naturally tightens at low speed and opens up as speed rises.
+      const wheelAngle = steerInput * (handbrake ? 0.34 : 0.20);
+      if (curSpd > 0.25) {
+        const wheelbase = 2.7;
+        const yawRate = (v.speed / wheelbase) * Math.tan(wheelAngle);
+        v.yaw -= THREE.MathUtils.clamp(yawRate, -1.15, 1.15) * dt;
+      }
+  
+      // Lateral tire velocity decays with grip. A handbrake lowers rear grip,
+      // allowing a controlled slide instead of the old instant heading-only turn.
+      const targetSlip = steerInput * curSpd * (handbrake ? 0.38 : 0.055);
+      const gripRate = handbrake ? 1.7 : 7.5;
+      v.lateralVel += (targetSlip - v.lateralVel) * (1 - Math.exp(-gripRate * dt));
+      if (Math.abs(steerInput) < 0.05 && !handbrake) {
+        v.lateralVel *= Math.exp(-5.5 * dt);
+      }
+  
+      // ===== MOVEMENT — forward velocity plus tire slip =====
+      const fx = -Math.sin(v.yaw), fz = -Math.cos(v.yaw);
+      const rx = Math.cos(v.yaw), rz = -Math.sin(v.yaw);
+      const moveX = (fx * v.speed + rx * v.lateralVel) * dt;
+      const moveZ = (fz * v.speed + rz * v.lateralVel) * dt;
+  
+      // ===== SWEPT COLLISION — subdivide fast movement to prevent tunnelling =====
+      let blocked = false;
+      const boxes = v.colBoxes || [];
+      const travel = Math.hypot(moveX, moveZ);
+      const moveSteps = Math.max(1, Math.ceil(travel / 0.35));
+      const stepX = moveX / moveSteps, stepZ = moveZ / moveSteps;
+      const wYaw = v.yaw + (v.yawOffset || 0);
+      const wY = v.def.elevation || 0;
+      const rb = { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
+  
+      for (let step = 0; step < moveSteps; step++) {
+        if (boxes.length > 0) {
+          const newX = v.pos.x + stepX;
+          const newZ = v.pos.z + stepZ;
+          const nearCols = this.world.bvhWorld
+            ? this.world.bvhWorld.queryRadius(newX, newZ, 8)
+            : this.world.colliders || [];
+          let pushX = 0, pushZ = 0;
+          for (const b of boxes) {
+            rotBoxXZ(b, wYaw, rb);
+            const bxMin = rb.minX + newX, bxMax = rb.maxX + newX;
+            const bzMin = rb.minZ + newZ, bzMax = rb.maxZ + newZ;
+            const byMin = b.min.y + wY, byMax = b.max.y + wY;
+            for (const c of nearCols) {
+              // The driven car's own parked AABB is removed on entry. Do NOT
+              // filter other parked AABBs: that old Set check made cars ghost
+              // straight through every parked vehicle.
+              if (c.max.y < 0.1) continue;
+              if (bxMax <= c.min.x || bxMin >= c.max.x) continue;
+              if (bzMax <= c.min.z || bzMin >= c.max.z) continue;
+              if (byMax <= c.min.y || byMin >= c.max.y) continue;
+  
+              const ox1 = bxMax - c.min.x, ox2 = c.max.x - bxMin;
+              const oz1 = bzMax - c.min.z, oz2 = c.max.z - bzMin;
+              const minX = Math.min(ox1, ox2), minZ = Math.min(oz1, oz2);
+              if (minX < minZ) pushX += ox1 < ox2 ? -ox1 : ox2;
+              else pushZ += oz1 < oz2 ? -oz1 : oz2;
+              blocked = true;
+            }
+          }
+          v.pos.x = newX + pushX;
+          v.pos.z = newZ + pushZ;
+        } else {
+          v.pos.x += stepX;
+          v.pos.z += stepZ;
+          this._collideFallback(v);
+        }
+      }
+  
+      // Bounce / slow on collision
+      if (blocked && curSpd > 2) {
+        v.speed *= 0.4;
+        v.lateralVel *= 0.2;
+        if (curSpd > 5) this._pushPlayerNearby(v, curSpd);
+      } else {
+        this._pushPlayerNearby(v, curSpd);
+      }
+  
+      // World bounds
+      const B = this.world.bounds || 1600;
+      v.pos.x = THREE.MathUtils.clamp(v.pos.x, -B, B);
+      v.pos.z = THREE.MathUtils.clamp(v.pos.z, -B, B);
+  
+      // Rapier kinematic body sync
+      if (v.rapierBody && this.physics) {
+        this.physics.updateVehicleBody(v.rapierBody, v.pos.x, v.def.elevation || 0, v.pos.z, v.yaw + (v.yawOffset || 0));
+      }
+  
+      // Apply transform (same orientation parked and driven — no 180° snap)
+      v.root.position.set(v.pos.x, v.def.elevation || 0, v.pos.z);
+      v.root.rotation.y = v.yaw + (v.yawOffset || 0);
+  
+  
     }
-
-    // World bounds
-    const B = this.world.bounds || 1600;
-    v.pos.x = THREE.MathUtils.clamp(v.pos.x, -B, B);
-    v.pos.z = THREE.MathUtils.clamp(v.pos.z, -B, B);
-
-    // Rapier kinematic body sync
-    if (v.rapierBody && this.physics) {
-      this.physics.updateVehicleBody(v.rapierBody, v.pos.x, v.def.elevation || 0, v.pos.z, v.yaw + (v.yawOffset || 0));
-    }
-
-    // Apply transform (same orientation parked and driven — no 180° snap)
-    v.root.position.set(v.pos.x, v.def.elevation || 0, v.pos.z);
-    v.root.rotation.y = v.yaw + (v.yawOffset || 0);
 
     // ===== WHEEL MECHANICS — steer (front) + rolling spin =====
     // Spin rate from signed speed and a nominal 0.42m wheel radius.
