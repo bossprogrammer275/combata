@@ -945,7 +945,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": -217,
       "z": 49,
       "ry": 0,
@@ -958,7 +958,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": -175,
       "z": 44,
       "ry": 1.57,
@@ -971,7 +971,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": -188,
       "z": 88,
       "ry": 0.8,
@@ -984,7 +984,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": -140,
       "z": 67,
       "ry": 0.2,
@@ -997,7 +997,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": -118,
       "z": 88,
       "ry": 1.2,
@@ -1010,7 +1010,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": -88,
       "z": -2,
       "ry": 0.5,
@@ -1023,7 +1023,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": -72,
       "z": -40,
       "ry": 0,
@@ -1036,7 +1036,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": -203,
       "z": 145,
       "ry": 1.1,
@@ -1049,7 +1049,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": -146,
       "z": 183,
       "ry": 0.7,
@@ -1062,7 +1062,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": -89,
       "z": 137,
       "ry": 4.1,
@@ -1075,7 +1075,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": -36,
       "z": 180,
       "ry": 3.2,
@@ -1088,7 +1088,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": 23,
       "z": 187,
       "ry": 2.8,
@@ -1101,7 +1101,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": 95,
       "z": 185,
       "ry": 4.4,
@@ -1114,7 +1114,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": 174,
       "z": 190,
       "ry": 3.5,
@@ -1127,7 +1127,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": 7,
       "z": -164,
       "ry": 0.6,
@@ -1140,7 +1140,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": 91,
       "z": -144,
       "ry": 4.8,
@@ -1153,7 +1153,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": 155,
       "z": -102,
       "ry": 3.3,
@@ -1166,7 +1166,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": 170,
       "z": -18,
       "ry": 2.2,
@@ -1179,7 +1179,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": 183,
       "z": 16,
       "ry": 4.4,
@@ -1192,7 +1192,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": 193,
       "z": 47,
       "ry": 1.9,
@@ -1205,7 +1205,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": 70,
       "z": 111,
       "ry": 3.2,
@@ -1218,7 +1218,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": 34,
       "z": 126,
       "ry": 0.2,
@@ -1231,7 +1231,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": -26,
       "z": 115,
       "ry": 4.3,
@@ -1244,7 +1244,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": 91,
       "z": 82,
       "ry": 1.7,
@@ -1257,7 +1257,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": -8,
       "z": 65,
       "ry": 0.9,
@@ -1270,7 +1270,7 @@
       "building": true
     },
     {
-      "url": "./data/models/assets/low_poly_urban_building/scene.gltf",
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": -161,
       "z": 91,
       "ry": 2.2,
