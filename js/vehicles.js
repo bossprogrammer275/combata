@@ -405,7 +405,25 @@ export class VehicleSystem {
   }
 
   buildFromWorld() {
-    for (const s of this.world.vehicleSpawns || []) this.spawn(s);
+    // The driving sandbox intentionally starts with exactly two nearby cars.
+    // Prefer authored spawns closest to the player start, but never allow the
+    // map's old large vehicle list to flood the initial scene.
+    const start = this.world.startPoint || { x: 0, z: 0 };
+    const authored = (this.world.vehicleSpawns || [])
+      .slice()
+      .sort((a, b) => Math.hypot(a.x - start.x, a.z - start.z) - Math.hypot(b.x - start.x, b.z - start.z));
+    const chosen = authored.slice(0, 2);
+    if (chosen.length < 2) {
+      const extra = [
+        { x: start.x + 7, z: start.z - 5, ry: start.yaw || 0, kind: 'lambo', elevation: 0 },
+        { x: start.x - 7, z: start.z - 5, ry: start.yaw || 0, kind: 'cybertruck', elevation: 0 },
+      ];
+      for (const candidate of extra) {
+        if (chosen.length >= 2) break;
+        if (!chosen.some(v => Math.hypot(v.x - candidate.x, v.z - candidate.z) < 5)) chosen.push(candidate);
+      }
+    }
+    for (const s of chosen) this.spawn({ ...s, elevation: s.elevation || 0 });
   }
 
   // The visible model, Rapier body and camera all use the same world yaw.
@@ -572,19 +590,22 @@ export class VehicleSystem {
       root.rotation.y = yaw + yawOffset;
       this.scene.add(root);
 
-      const suspensionReady = wheels.length >= 4 && wheels.every(w => w.radius >= 0.18 && w.center.y > bodyBox.min.y);
+      const suspensionReady = wheels.length >= 4 && wheels.every(w =>
+        Number.isFinite(w.center.x) && Number.isFinite(w.center.y) && Number.isFinite(w.center.z)
+        && w.radius >= 0.18 && w.center.y > bodyBox.min.y + 0.015
+      );
       const physicsBox = {
         min: bodyBox.min.clone(),
         max: bodyBox.max.clone(),
       };
       if (suspensionReady) {
-        // Tires extend below the chassis. Keep the physical chassis above the
-        // road so raycast suspension, not a flat box bottom, supports the car.
+        // Keep the chassis clear of the road: the wheel rays/springs, not a
+        // full-width flat chassis box, must support the vehicle.
         const minWheelY = Math.min(...wheels.map(w => w.center.y));
         const meanRadius = wheels.reduce((sum, w) => sum + w.radius, 0) / wheels.length;
         physicsBox.min.y = THREE.MathUtils.clamp(
-          minWheelY + meanRadius * 0.18,
-          bodyBox.min.y + 0.05,
+          minWheelY + meanRadius * 0.42,
+          bodyBox.min.y + 0.10,
           bodyBox.max.y - 0.3,
         );
         const cx = (bodyBox.min.x + bodyBox.max.x) * 0.5;
@@ -619,9 +640,6 @@ export class VehicleSystem {
       // controller remains only as a no-Rapier fallback.
       if (this.physics && this.physics.world) {
         try {
-          // One elevated chassis collider leaves tire clearance for suspension
-          // raycasts. The legacy custom boxes remain available to the fallback
-          // movement controller, but are not piled into the dynamic chassis.
           v.rapierBody = this.physics.createVehicleBody(
             def.x, def.elevation || 0, def.z, yaw + yawOffset, [physicsBox],
             {
@@ -630,6 +648,8 @@ export class VehicleSystem {
             },
           );
           v.physicsDynamic = !!v.rapierBody?._openWorldDynamic;
+          // Let the chassis settle onto its wheel springs before accepting
+          // player input; never reset a moving vehicle during ordinary frames.
         } catch (e) { console.warn('[Vehicle] Dynamic Rapier body failed; using AABB fallback:', e); }
       }
 
