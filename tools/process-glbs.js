@@ -141,7 +141,7 @@ function shouldSkip(name) {
   const n = (name || '').toLowerCase();
   return n.startsWith('col_') || n.startsWith('trim_') || n.startsWith('window_')
     || n.startsWith('roof_detail') || n.startsWith('sign') || n.startsWith('awning')
-    || n.startsWith('door_');
+    || n.startsWith('door_') || /^room_\d+_marker$/.test(n);
 }
 
 // ─── Main ───
