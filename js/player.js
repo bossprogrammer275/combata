@@ -593,7 +593,7 @@ export class Player {
     // Fallback mode still follows road/sidewalk elevation while their broad boxes
     // remain non-solid. This preserves the small visible height change at curbs.
     if (dy <= 0 && this.world.groundHeightAt) {
-      const surfaceY = this.world.groundHeightAt(this.pos.x, this.pos.z);
+      const surfaceY = this.world.groundHeightAt(this.pos.x, this.pos.z, this.pos.y + 0.18);
       if (surfaceY >= this.pos.y - 0.03 && surfaceY <= this.pos.y + 0.18) {
         this.pos.y = surfaceY;
         this.vel.y = 0;
