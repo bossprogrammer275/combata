@@ -603,15 +603,17 @@ class Game {
         case 'KeyZ': if (this.state === 'playing') I.climb = true; e.preventDefault(); break;
         case 'KeyK':
           if (this.state === 'playing' && this.player && !this.player.skydive && this.vehicles) {
-            this.vehicles.spawnNearPlayer('bugatti', this.player);
-            this.hud.toast('BUGATTI SPAWNED · PRESS E TO ENTER');
+            this.vehicles.spawnNearPlayer('bugatti', this.player).then((v) => {
+              this.hud.toast(v ? 'BUGATTI READY · PRESS E TO ENTER' : 'NO CLEAR SPACE FOR BUGATTI');
+            }).catch((err) => console.error('[Vehicle] Bugatti spawn failed:', err));
           }
           break;
         case 'KeyT':
           if (this.state === 'playing' && this.player && !this.player.skydive && this.vehicles) {
             if (this.transitMenuOpen) { this.transitMenuOpen = false; this.hud.hideTransitMenu(); }
-            this.vehicles.spawnNearPlayer('cybertruck', this.player);
-            this.hud.toast('TESLA CYBERTRUCK SPAWNED · PRESS E TO ENTER');
+            this.vehicles.spawnNearPlayer('cybertruck', this.player).then((v) => {
+              this.hud.toast(v ? 'TESLA READY · PRESS E TO ENTER' : 'NO CLEAR SPACE FOR TESLA');
+            }).catch((err) => console.error('[Vehicle] Tesla spawn failed:', err));
           }
           break;
         case 'KeyU':
@@ -629,8 +631,17 @@ class Game {
               this.vehicles.exit(this.player);
               this.audio.stopEngine();
             } else if (this.vehicles && this.player.onGround && !this.player.skydive) {
-              const v = this.vehicles.nearest(this.player.pos.x, this.player.pos.z, 4.5);
-              if (v) this.vehicles.enter(v, this.player);
+              const preferred = this.vehicles.preferredVehicle;
+              const preferredDistance = preferred && this.vehicles.vehicles.includes(preferred)
+                ? this.vehicles.surfaceDistance(preferred, this.player.pos.x, this.player.pos.z)
+                : Infinity;
+              const v = preferredDistance <= 4.5
+                ? preferred
+                : this.vehicles.nearest(this.player.pos.x, this.player.pos.z, 4.5);
+              if (v) {
+                this.vehicles.preferredVehicle = null;
+                this.vehicles.enter(v, this.player);
+              }
               else if (this.tools && this.tools.isOpen()) this.tools.close();
               else if (this.tools) this.tools.open();
             } else if (this.tools && this.tools.isOpen()) this.tools.close();

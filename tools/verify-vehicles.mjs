@@ -128,18 +128,35 @@ try {
   hotkeySpawnHarness.vehicles = [];
   hotkeySpawnHarness.driver = null;
   hotkeySpawnHarness.world = { groundHeightAt: () => 0.06 };
+  hotkeySpawnHarness.spawn = async (def) => {
+    const car = {
+      ...def,
+      pos: { x: def.x, y: def.elevation, z: def.z },
+      yaw: def.ry || 0,
+      yawOffset: Math.PI,
+      half: { x: def.kind === 'cybertruck' ? 1.12 : 1.15, z: def.kind === 'cybertruck' ? 2.85 : 2.45 },
+    };
+    hotkeySpawnHarness.vehicles.push(car);
+    hotkeySpawn = def;
+    return car;
+  };
   let hotkeySpawn = null;
-  hotkeySpawnHarness.spawn = (def) => { hotkeySpawn = def; };
   const spawnPlayer = { pos: { x: 5, y: 0, z: 225 }, yaw: 0 };
-  const bugattiSpawn = hotkeySpawnHarness.spawnNearPlayer('bugatti', spawnPlayer);
-  check('hotkey spawning places the requested vehicle ahead on sampled ground',
-    bugattiSpawn?.kind === 'bugatti' && bugattiSpawn.z < spawnPlayer.pos.z && bugattiSpawn.elevation === 0.06 && hotkeySpawn?.kind === 'bugatti',
-    `kind=${hotkeySpawn?.kind} x=${hotkeySpawn?.x?.toFixed(1)} z=${hotkeySpawn?.z?.toFixed(1)} y=${hotkeySpawn?.elevation}`);
-  hotkeySpawnHarness.vehicles = [{ pos: { x: bugattiSpawn.x, z: bugattiSpawn.z } }];
-  const teslaSpawn = hotkeySpawnHarness.spawnNearPlayer('cybertruck', spawnPlayer);
-  check('hotkey spawning avoids occupied vehicle footprints',
-    teslaSpawn?.kind === 'cybertruck' && Math.hypot(teslaSpawn.x - bugattiSpawn.x, teslaSpawn.z - bugattiSpawn.z) >= 5.2,
-    `distance=${Math.hypot(teslaSpawn.x - bugattiSpawn.x, teslaSpawn.z - bugattiSpawn.z).toFixed(1)}`);
+  const bugattiSpawn = await hotkeySpawnHarness.spawnNearPlayer('bugatti', spawnPlayer);
+  check('hotkey-spawned car is within E interaction range and uses sampled ground',
+    bugattiSpawn?.kind === 'bugatti'
+      && hotkeySpawn?.elevation === 0.06
+      && hotkeySpawnHarness.surfaceDistance(bugattiSpawn, spawnPlayer.pos.x, spawnPlayer.pos.z) < 4.5,
+    `kind=${bugattiSpawn?.kind} distance=${bugattiSpawn ? hotkeySpawnHarness.surfaceDistance(bugattiSpawn, spawnPlayer.pos.x, spawnPlayer.pos.z).toFixed(1) : 'none'} y=${hotkeySpawn?.elevation}`);
+  const teslaSpawn = await hotkeySpawnHarness.spawnNearPlayer('cybertruck', spawnPlayer);
+  check('Tesla spawn stays in reach and avoids the previous vehicle',
+    teslaSpawn?.kind === 'cybertruck'
+      && hotkeySpawnHarness.surfaceDistance(teslaSpawn, spawnPlayer.pos.x, spawnPlayer.pos.z) < 4.5
+      && Math.hypot(teslaSpawn.pos.x - bugattiSpawn.pos.x, teslaSpawn.pos.z - bugattiSpawn.pos.z) >= 5.2,
+    `kind=${teslaSpawn?.kind} separation=${teslaSpawn ? Math.hypot(teslaSpawn.pos.x - bugattiSpawn.pos.x, teslaSpawn.pos.z - bugattiSpawn.pos.z).toFixed(1) : 'none'}`);
+  check('newly spawned vehicle is made the preferred E-entry target',
+    hotkeySpawnHarness.preferredVehicle === teslaSpawn);
+
 
   check('world yaw includes the GLB nose-axis correction', () => {
     const yaw = VehicleSystem.prototype._worldYaw({ yaw: 0.42, yawOffset: Math.PI });
@@ -154,6 +171,11 @@ try {
     assert.equal(CAR_PHYSICS.lambo.drivetrain, 'rwd');
     assert.equal(CAR_PHYSICS.cybertruck.drivetrain, 'awd');
     assert.ok(CAR_PHYSICS.cybertruck.springRate > CAR_PHYSICS.lambo.springRate);
+    assert.equal(CAR_PHYSICS.cybertruck.speedometerMaxKmh, 180);
+    assert.equal(CAR_PHYSICS.lambo.speedometerMaxKmh, 230);
+    assert.equal(CAR_PHYSICS.bugatti.speedometerMaxKmh, 420);
+    assert.ok(CAR_PHYSICS.bugatti.maxSpeed > CAR_PHYSICS.lambo.maxSpeed);
+    assert.ok(CAR_PHYSICS.cybertruck.maxSpeed < CAR_PHYSICS.lambo.maxSpeed);
     assert.ok(CAR_PHYSICS.bugatti.maxSpeed > CAR_PHYSICS.lambo.maxSpeed);
     assert.ok(CAR_MODELS.bugatti && CAR_MODELS.bugatti.url);
     assert.equal(CAR_MODELS.bugatti.targetLen, 4.9);
@@ -199,7 +221,7 @@ try {
         // mesh AABB radius and put the suspension hardpoint below the ramp.
         const fittedRadius = Math.min(
           radius || center.y || 0.32,
-          Math.max(0.18, center.y + 0.04),
+          Math.max(0.18, center.y + 0.015),
         );
         return {
           x: center.x, y: center.y, z: center.z,
@@ -426,7 +448,7 @@ try {
     `bodyYaw=${bodyYaw.toFixed(2)} delta=${headingDelta.toFixed(2)}`);
   check('vehicle stays above the ground plane', t.y > 0.3, `centerY=${t.y.toFixed(2)}`);
   const lamboTireBottom = estimatedWheelBottom(rb, wheels, dynamicVehicleSpec.centerY);
-  check('Lambo visible tyres sit at ground level, not half buried', Math.abs(lamboTireBottom) < 0.14,
+  check('Lambo visible tyres sit at ground level, not half buried', Math.abs(lamboTireBottom) < 0.11,
     `estimated tire-bottom Y=${lamboTireBottom.toFixed(3)}`);
 
   // Drive a real chassis up a ramp collider (nose points +Z). This verifies
@@ -483,8 +505,33 @@ try {
     check('Cybertruck chassis does not sink through the ground', truckPosition.y > 0.35,
       `centerY=${truckPosition.y.toFixed(2)}`);
     const truckTireBottom = estimatedWheelBottom(truck, truckSpec.wheels, truckSpec.centerY);
-    check('Cybertruck visible tyres sit at ground level, not half buried', Math.abs(truckTireBottom) < 0.16,
+    check('Cybertruck visible tyres sit at ground level, not half buried', Math.abs(truckTireBottom) < 0.11,
       `estimated tire-bottom Y=${truckTireBottom.toFixed(3)}`);
+
+    const sunkTruck = physics.createVehicleBody(-40, -0.68, -30, vehicleYawOffset, [truckSpec.physicsBox], {
+      dynamic: true, centerY: truckSpec.centerY,
+      mass: CAR_PHYSICS.cybertruck.mass,
+      yawOffset: vehicleYawOffset,
+      tuning: CAR_PHYSICS.cybertruck,
+      angularDamping: CAR_PHYSICS.cybertruck.angularDamping,
+    });
+    physics.step(1 / 60);
+    let recoveryMotion = null;
+    for (let i = 0; i < 120; i++) {
+      recoveryMotion = physics.applyVehicleControls(sunkTruck, {
+        throttle: 0, steer: 0, handbrake: false, dt: 1 / 60,
+        wheels: truckSpec.wheels, tuning: CAR_PHYSICS.cybertruck,
+      });
+      physics.step(1 / 60);
+    }
+    const sunkPose = sunkTruck.translation();
+    const recoveredRootY = sunkPose.y - truckSpec.centerY;
+    check('deeply sagged Tesla chassis keeps wheel contacts for recovery',
+      (recoveryMotion?.wheelContacts || 0) >= 3,
+      `contacts=${recoveryMotion?.wheelContacts ?? 0}`);
+    check('suspension lifts the Tesla chassis back out of the floor',
+      recoveredRootY > -0.22,
+      `recovered root Y=${recoveredRootY.toFixed(3)}`);
   } else {
     check('Cybertruck dynamic suspension spec exists', false);
   }

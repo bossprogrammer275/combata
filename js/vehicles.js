@@ -20,7 +20,7 @@ export const CAR_PHYSICS = {
   lambo: {
     mass: 1480, drivetrain: 'rwd',
     engineAcceleration: 12.5, reverseAcceleration: 4.5, brakeAcceleration: 16.5,
-    maxSpeed: 64, maxReverseSpeed: 10.5,
+    maxSpeed: 64, maxReverseSpeed: 10.5, speedometerMaxKmh: 230,
     steeringAngle: 0.32, handbrakeSteerAngle: 0.48,
     frontGrip: 7.4, rearGrip: 9.8, handbrakeRearGrip: 0.65,
     tireFriction: 1.35, handbrakeRearFriction: 0.48,
@@ -31,27 +31,27 @@ export const CAR_PHYSICS = {
   },
   cybertruck: {
     mass: 3050, drivetrain: 'awd',
-    engineAcceleration: 8.8, reverseAcceleration: 3.8, brakeAcceleration: 14.5,
-    maxSpeed: 40, maxReverseSpeed: 8.5,
-    steeringAngle: 0.23, handbrakeSteerAngle: 0.34,
-    frontGrip: 6.4, rearGrip: 7.6, handbrakeRearGrip: 1.35,
-    tireFriction: 1.05, handbrakeRearFriction: 0.72,
+    engineAcceleration: 8.0, reverseAcceleration: 3.5, brakeAcceleration: 11.5,
+    maxSpeed: 50, maxReverseSpeed: 8.5, speedometerMaxKmh: 180,
+    steeringAngle: 0.19, handbrakeSteerAngle: 0.30,
+    frontGrip: 6.2, rearGrip: 7.1, handbrakeRearGrip: 1.05,
+    tireFriction: 1.05, handbrakeRearFriction: 0.62,
     suspensionRestLength: 0.25, suspensionTravel: 0.21,
     springRate: 54000, springDamping: 5600,
     uprightStrength: 5.2, uprightDamping: 4.2, uprightInertiaScale: 1.8,
     angularDamping: 1.3,
   },
   bugatti: {
-    mass: 1580, drivetrain: 'awd',
-    engineAcceleration: 15.5, reverseAcceleration: 5.0, brakeAcceleration: 18.0,
-    maxSpeed: 88, maxReverseSpeed: 12,
-    steeringAngle: 0.30, handbrakeSteerAngle: 0.44,
-    frontGrip: 8.2, rearGrip: 9.4, handbrakeRearGrip: 0.8,
-    tireFriction: 1.45, handbrakeRearFriction: 0.55,
+    mass: 1995, drivetrain: 'awd',
+    engineAcceleration: 11.0, reverseAcceleration: 4.8, brakeAcceleration: 14.5,
+    maxSpeed: 116.7, maxReverseSpeed: 12, speedometerMaxKmh: 420,
+    steeringAngle: 0.21, handbrakeSteerAngle: 0.37,
+    frontGrip: 8.7, rearGrip: 9.1, handbrakeRearGrip: 0.75,
+    tireFriction: 1.4, handbrakeRearFriction: 0.55,
     suspensionRestLength: 0.20, suspensionTravel: 0.17,
-    springRate: 36000, springDamping: 3800,
-    uprightStrength: 4.6, uprightDamping: 3.8, uprightInertiaScale: 1.8,
-    angularDamping: 0.85,
+    springRate: 42000, springDamping: 4200,
+    uprightStrength: 4.5, uprightDamping: 3.8, uprightInertiaScale: 1.8,
+    angularDamping: 0.95,
   },
 };
 
@@ -330,6 +330,7 @@ export class VehicleSystem {
     this.physics = physics;
     this.vehicles = [];
     this.driver = null;
+    this.preferredVehicle = null;
     this._camPos = null;
     this._camLook = null;
     this._lookYaw = 0;
@@ -353,7 +354,7 @@ export class VehicleSystem {
     this._speedometerCtx = canvas.getContext('2d');
   }
 
-  _drawSpeedometer(kmh) {
+  _drawSpeedometer(kmh, kind = 'lambo') {
     const ctx = this._speedometerCtx;
     if (!ctx) return;
     const W = 140, H = 140, cx = W / 2, cy = H / 2 + 10, r = 52;
@@ -370,9 +371,8 @@ export class VehicleSystem {
     ctx.stroke();
 
     // Speed arc
-    // Lambo profile tops out around 230 km/h; leave headroom for braking
-    // and collision momentum rather than saturating the gauge at 160.
-    const maxSpeed = 260;
+    // Each car uses its own believable top-speed scale rather than sharing one dial.
+    const maxSpeed = CAR_PHYSICS[kind]?.speedometerMaxKmh || 230;
     const speedRatio = Math.min(kmh / maxSpeed, 1);
     const speedAngle = startAngle + speedRatio * (endAngle - startAngle);
     const gradient = ctx.createLinearGradient(cx - r, cy, cx + r, cy);
@@ -399,6 +399,11 @@ export class VehicleSystem {
       ctx.lineTo(cx + Math.cos(a) * outer, cy + Math.sin(a) * outer);
       ctx.stroke();
     }
+
+    // Small scale label makes each car's top-speed range explicit.
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = '600 8px "Bebas Neue", "Oswald", sans-serif';
+    ctx.fillText(`MAX ${maxSpeed} KM/H`, cx, 15);
 
     // Speed number
     ctx.fillStyle = '#fff';
@@ -441,35 +446,47 @@ export class VehicleSystem {
     for (const s of chosen) this.spawn({ ...s, elevation: s.elevation || 0 });
   }
 
-  // Spawn a requested car ahead of the player/current driver, choosing a nearby
-  // unoccupied position and sampling the correct ground/flyover elevation.
-  spawnNearPlayer(kind, player) {
+  // Spawn within interaction range, avoiding existing cars. This keeps the
+  // newly requested vehicle reachable with E instead of putting it several metres away.
+  async spawnNearPlayer(kind, player) {
     const driving = this.driver;
     const origin = driving?.pos || player?.pos;
     if (!origin) return null;
     const spawnYaw = driving ? (driving.yaw || 0) : (Number.isFinite(player?.yaw) ? player.yaw : 0);
     const heading = driving ? this._worldYaw(driving) : spawnYaw;
     const baseY = Number.isFinite(origin.y) ? origin.y : 0;
-    const candidates = [[7, 0], [7, 3.5], [7, -3.5], [10, 0], [10, 4.5], [10, -4.5], [14, 0]];
+    const model = CAR_MODELS[kind] || CAR_MODELS.lambo;
+    const modelYawOffset = model.nose > 0 ? Math.PI : 0;
+    const preview = {
+      yaw: spawnYaw,
+      yawOffset: modelYawOffset,
+      half: { x: kind === 'cybertruck' ? 1.12 : 1.15, z: model.targetLen * 0.5 },
+      pos: { x: origin.x, z: origin.z },
+    };
+    const candidates = [
+      [3.5, 3.5], [3.5, -3.5], [4, 4], [4, -4],
+      [4, 3], [4, -3], [3, 5], [3, -5],
+      [5, 3], [5, -3], [5, 4], [5, -4],
+      [2.5, 5.5], [2.5, -5.5], [5.5, 2.5], [5.5, -2.5],
+    ];
     let spot = null;
     for (const [forward, lateral] of candidates) {
       const x = origin.x - Math.sin(heading) * forward + Math.cos(heading) * lateral;
       const z = origin.z - Math.cos(heading) * forward - Math.sin(heading) * lateral;
+      preview.pos.x = x;
+      preview.pos.z = z;
+      if (this.surfaceDistance(preview, origin.x, origin.z) > 4.25) continue;
       if (this.vehicles.some(v => Math.hypot(v.pos.x - x, v.pos.z - z) < 5.2)) continue;
       const sampledY = this.world?.groundHeightAt?.(x, z, baseY + 1.5);
       const elevation = Number.isFinite(sampledY) ? sampledY : Math.max(0, baseY);
       spot = { x, z, elevation };
       break;
     }
-    if (!spot) {
-      const x = origin.x - Math.sin(heading) * 16;
-      const z = origin.z - Math.cos(heading) * 16;
-      const sampledY = this.world?.groundHeightAt?.(x, z, baseY + 1.5);
-      spot = { x, z, elevation: Number.isFinite(sampledY) ? sampledY : Math.max(0, baseY) };
-    }
+    if (!spot) return null;
     const def = { ...spot, kind, ry: spawnYaw };
-    this.spawn(def);
-    return def;
+    const vehicle = await this.spawn(def);
+    if (vehicle) this.preferredVehicle = vehicle;
+    return vehicle;
   }
 
   // The visible model, Rapier body and camera all use the same world yaw.
@@ -620,8 +637,8 @@ export class VehicleSystem {
         // measured radius. The normalized tyre bottom is at (or near) root Y=0,
         // so a wheel radius much larger than its hub height sinks the tyre and
         // makes the suspension ray start inside ramps. Keep the mesh-derived
-        // estimate, but cap it to a small tolerance above the hub's ground-space Y.
-        const radiusLimit = Math.max(0.18, center.y + 0.04);
+        // estimate, but cap it to a tiny tolerance above the hub's ground-space Y.
+        const radiusLimit = Math.max(0.18, center.y + 0.015);
         const fittedRadius = Math.min(radius || center.y || 0.32, radiusLimit);
         wheels.push({
           pivot: o,
@@ -709,8 +726,10 @@ export class VehicleSystem {
       this.vehicles.push(v);
       this._addParkedCollider(v);
       console.log('[Vehicle] Spawned car (' + kind + ') at', def.x, def.z, '- boxes:', colBoxes.length, 'wheels:', wheels.length);
+      return v;
     } catch (e) {
       console.error('[Vehicle] Spawn failed:', e);
+      return null;
     }
   }
 
@@ -1055,7 +1074,7 @@ export class VehicleSystem {
     if (this.physics) this.physics.setPlayerPosition(player.pos.x, player.pos.y, player.pos.z);
 
     // Speedometer
-    this._drawSpeedometer(curSpd * 3.6);
+    this._drawSpeedometer(curSpd * 3.6, v.kind);
   }
 
   _pushPlayerNearby(v, absSpd) {

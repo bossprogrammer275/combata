@@ -403,16 +403,13 @@ export class Physics {
         continue;
       }
       const suspensionLength = hit.timeOfImpact - radius;
-      // A ramp transition can briefly put a hub below the ideal tyre-radius
-      // plane. Keep that hit as a compressed strut so the spring can lift the
-      // chassis back onto the road; rejecting it at -4cm drops all wheel forces
-      // exactly when the vehicle needs recovery most.
-      // The inferred wheel hub may sit slightly below the normalized model
-      // origin, and a ramp can momentarily compress the suspension beyond normal
-      // travel before the spring recovers. Accept a hit through most of the tyre
-      // radius; otherwise one buried hub disables spring force and keeps the car
-      // permanently below the ramp. Keep the applied spring travel bounded.
-      const maxCompression = Math.max(travel * 0.55, radius * 0.85);
+      // A ramp transition or a low initial chassis pose can put the hub below the
+      // tyre-radius plane. Keep a valid ground ray as a deeply compressed strut;
+      // dropping all wheel forces here lets the chassis settle onto its collider
+      // and visually bury the car in the floor.
+      // Give the ray enough recovery range to lift a car whose collider has started
+      // resting on the ground. Applied spring travel remains bounded below.
+      const maxCompression = Math.max(travel * 0.55, radius * 1.25);
       if (suspensionLength < -maxCompression || suspensionLength > restLength + travel) {
         wheelStates.push({ contact: false, offset: -travel, front: !!wheel.front });
         rayHits.push(null);
