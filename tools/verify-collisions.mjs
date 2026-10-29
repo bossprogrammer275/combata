@@ -208,11 +208,14 @@ check('diagonal road surface stores a real oriented footprint', () => {
   assert.equal(count, 1);
   const road = world.colliders[0];
   assert.equal(road.type, 'road_surface');
+  assert.equal(road.surfaceOnly, true, 'road proxy must only be used for height sampling');
   assert.ok(road.orientedBox, 'road collider has no oriented-box metadata');
   assert.ok(road.max.x - road.min.x > road.orientedBox.halfExtents.x * 1.5,
     'test needs a broad AABB that differs significantly from its real diagonal footprint');
   assert.ok(Math.abs(road.orientedBox.yaw + Math.PI / 4) < 1e-5,
     'road yaw does not match its diagonal segment');
+  assert.equal(world.bvhWorld.colliderAt(5, 5, 0.3), false,
+    'height-only road proxy must not behave like a solid obstacle');
 
   // Point lies inside the broad world AABB but well outside the visible road.
   const ghostHit = world.bvhWorld.raycast(
@@ -251,6 +254,8 @@ check('pedestrian is not pushed by empty corners of a diagonal road AABB', () =>
     'groundHeightAt reported road height outside the real ribbon');
   assert.ok(Math.abs(world.groundHeightAt(5, 5) - 0.06) < 1e-5,
     'groundHeightAt failed to find the road top on its real footprint');
+  assert.equal(world.bvhWorld.queryRadius(5, 5, 0.4).some(c => c.surfaceOnly), false,
+    'road height probes must not be returned as solid overlap candidates');
   player.pos.set(5, 0, 5);
   player.onGround = true;
   player.moveAxis(0, 0, 0);

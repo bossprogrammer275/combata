@@ -75,7 +75,8 @@ export class Physics {
     if (!this.world || !Array.isArray(colliders) || !colliders.length) return 0;
     // Avoid registering the same source twice when a world reloads or a
     // collision manifest is re-injected after initial physics setup.
-    const pending = colliders.filter(source => source?.min && source?.max && !source.physicsCollider);
+    const pending = colliders.filter(source => source?.min && source?.max
+      && !source.surfaceOnly && source.type !== 'road_surface' && !source.physicsCollider);
     if (!pending.length) return 0;
     // A single fixed body can own thousands of static cuboids. One rigid body
     // per box made detailed collision manifests needlessly expensive.
@@ -109,6 +110,46 @@ export class Physics {
     if (!count) this.world.removeRigidBody(body);
     else this._staticBatchBodies.push(body);
     console.log(`[Physics] Registered ${count} static colliders in ${count ? 1 : 0} fixed batch body`);
+    return count;
+  }
+
+  // Register merged visual road ribbons as static triangle surfaces. Unlike thin
+  // cuboid strips, these have no vertical edge faces. One collider per rendered
+  // surface mesh also avoids a pile of overlapping segment boxes at junctions.
+  registerStaticRoadMeshes(surfaces = []) {
+    if (!this.world || !Array.isArray(surfaces) || !surfaces.length) return 0;
+    const pending = surfaces.filter(s => s?.geometry?.attributes?.position && !s.physicsCollider);
+    if (!pending.length) return 0;
+    const body = this.world.createRigidBody(RAPIER.RigidBodyDesc.fixed());
+    let count = 0;
+    for (const source of pending) {
+      const attr = source.geometry.attributes.position;
+      const vertices = new Float32Array(attr.count * 3);
+      for (let i = 0; i < attr.count; i++) {
+        vertices[i * 3] = attr.getX(i);
+        vertices[i * 3 + 1] = attr.getY(i);
+        vertices[i * 3 + 2] = attr.getZ(i);
+      }
+      const sourceIndex = source.geometry.index;
+      if (!sourceIndex && attr.count % 3 !== 0) continue;
+      const indices = sourceIndex
+        ? Uint32Array.from(sourceIndex.array)
+        : Uint32Array.from({ length: attr.count }, (_, i) => i);
+      if (indices.length < 3) continue;
+      const friction = source.kind === 'road' ? 0.72 : source.kind === 'sidewalk' ? 0.82 : 0.76;
+      const desc = RAPIER.ColliderDesc.trimesh(vertices, indices)
+        .setFriction(friction)
+        .setRestitution(0);
+      const collider = this.world.createCollider(desc, body);
+      source.physicsCollider = {
+        handle: collider.handle, userData: source,
+        rigidBody: body, _collider: collider, _sharedStaticBatch: true,
+      };
+      count++;
+    }
+    if (!count) this.world.removeRigidBody(body);
+    else this._staticBatchBodies.push(body);
+    console.log(`[Physics] Registered ${count} exact road-surface triangle meshes`);
     return count;
   }
 

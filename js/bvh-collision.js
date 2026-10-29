@@ -325,6 +325,7 @@ export class BVHWorld {
   colliderAt(x, z, r = 0.4) {
     const candidates = this._queryAABBCandidates(x - r, z - r, x + r, z + r);
     for (const c of candidates) {
+      if (c.surfaceOnly) continue;
       if (c.max.y < 0.3) continue;
       if (c.orientedBox) {
         if (_circleOverlapsOrientedBox(x, z, r, c.orientedBox)) return true;
@@ -344,6 +345,7 @@ export class BVHWorld {
     const r2 = radius * radius;
     const candidates = this._queryAABBCandidates(x - radius, z - radius, x + radius, z + radius);
     for (const c of candidates) {
+      if (c.surfaceOnly) continue;
       if (c.max.y < 0.3) continue;
       if (c.orientedBox) {
         if (_circleOverlapsOrientedBox(x, z, radius, c.orientedBox)) out.push(c);

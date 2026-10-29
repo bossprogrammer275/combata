@@ -54,6 +54,7 @@ export class World {
     this._boxBatch = [];     // {x,y,z,w,h,d,ry,mat,shadow} — static boxes to batch
     this._planeBatch = [];   // {x,y,z,rw,rh,rz,mat,w,h,shadow} — static planes to batch
     this._ribbonBatch = [];  // {left[], right[], y, mat, closed} — mitered road/sidewalk ribbons
+    this.roadPhysicsMeshes = []; // exact visible road/sidewalk/curb ribbon meshes
     this._trimBatch = [];    // {x,y,z,w,h,d,ry,mat} — AO base skirts + roofline lips
 
     // Create collision indexes before assets load; initializing BVHWorld after
@@ -385,6 +386,12 @@ export class World {
         geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
         geo.setIndex(indices);
         geo.computeVertexNormals();
+        // Reuse the exact visible ribbon triangles for road physics. A triangle
+        // surface has no artificial cuboid sidewalls at the road edges.
+        const roadKind = mat === this._mats?.road ? 'road'
+          : mat === this._mats?.walk ? 'sidewalk'
+          : mat === this._mats?.curb ? 'curb' : null;
+        if (roadKind) this.roadPhysicsMeshes.push({ kind: roadKind, geometry: geo });
         // Road polylines can be authored in either direction. Double-sided
         // surfaces prevent reversed winding from making whole road sections vanish.
         mat.side = THREE.DoubleSide;
@@ -1424,6 +1431,9 @@ export class World {
         centerX, topY - thickness, centerZ,
         boxW + 0.035, thickness, boxD + 0.035, false, 'road_surface',
       );
+      // Height-sampling proxy only. Rapier gets the exact rendered ribbon mesh,
+      // so this broad-phase box is never allowed to push vehicles or pedestrians.
+      collider.surfaceOnly = true;
       collider.orientedBox = {
         center: { x: centerX, y: topY - thickness / 2, z: centerZ },
         halfExtents: { x: segmentLength / 2, y: thickness / 2, z: width / 2 },

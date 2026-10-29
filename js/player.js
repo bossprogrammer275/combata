@@ -549,6 +549,8 @@ export class Player {
       ? this.world.bvhWorld.queryAABB(this.pos.x - moveR, this.pos.z - moveR, this.pos.x + moveR, this.pos.z + moveR)
       : this.world.colliders;
     for (const c of moveCandidates) {
+      // Road/sidewalk proxies only answer ground-height queries; they are not walls.
+      if (c.surfaceOnly) continue;
       if (this.pos.x + r <= c.min.x || this.pos.x - r >= c.max.x) continue;
       if (this.pos.z + r <= c.min.z || this.pos.z - r >= c.max.z) continue;
       // Road/sidewalk collision AABBs are only broad-phase bounds. An actual
@@ -588,6 +590,16 @@ export class Player {
     }
     // ground-plane floor
     if (this.pos.y <= 0 && this.vel.y <= 0) { this.pos.y = 0; this.vel.y = 0; this.onGround = true; }
+    // Fallback mode still follows road/sidewalk elevation while their broad boxes
+    // remain non-solid. This preserves the small visible height change at curbs.
+    if (dy <= 0 && this.world.groundHeightAt) {
+      const surfaceY = this.world.groundHeightAt(this.pos.x, this.pos.z);
+      if (surfaceY >= this.pos.y - 0.03 && surfaceY <= this.pos.y + 0.18) {
+        this.pos.y = surfaceY;
+        this.vel.y = 0;
+        this.onGround = true;
+      }
+    }
   }
 
   get eyePos() {

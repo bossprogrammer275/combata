@@ -548,7 +548,9 @@ export class VehicleSystem {
           if (!geo.boundingBox) continue;
           const meshRootMatrix = rootInverse.clone().multiply(mesh.matrixWorld);
           const localBox = new THREE.Box3().copy(geo.boundingBox).applyMatrix4(meshRootMatrix);
-          radius = Math.max(radius, localBox.getSize(new THREE.Vector3()).y * 0.5);
+          // Raycast suspension needs the pivot-to-bottom distance, not half the
+          // mesh's Y span: imported wheel hubs and tire meshes are not always centered.
+          radius = Math.max(radius, center.y - localBox.min.y);
         }
         wheels.push({
           pivot: o,

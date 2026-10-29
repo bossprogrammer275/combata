@@ -151,6 +151,7 @@ class Game {
       await Physics.init();
       this.physics.createWorld();
       this.physics.registerStaticBatch(this.world.colliders);
+      this.physics.registerStaticRoadMeshes(this.world.roadPhysicsMeshes);
       this.physics.addGroundPlane();
       this.world._physics = this.physics;
       console.log('[Game] Rapier physics initialized');

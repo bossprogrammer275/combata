@@ -156,7 +156,7 @@ try {
           mesh.updateWorldMatrix(true, false);
           if (!mesh.geometry?.boundingBox) mesh.geometry?.computeBoundingBox();
           const bounds = new THREE.Box3().setFromObject(mesh);
-          if (!bounds.isEmpty()) radius = Math.max(radius, bounds.getSize(new THREE.Vector3()).y * 0.5);
+          if (!bounds.isEmpty()) radius = Math.max(radius, center.y - bounds.min.y);
         }
         return {
           x: center.x, y: center.y, z: center.z,
@@ -263,23 +263,26 @@ try {
   );
   check('Rapier raycast does not hit beyond its max distance', shortRay === null);
 
-  const diagonalRoad = {
-    min: new THREE.Vector3(-0.8, 0.01, -0.8),
-    max: new THREE.Vector3(10.8, 0.06, 10.8),
-    type: 'road_surface',
-    orientedBox: {
-      center: { x: 5, y: 0.035, z: 5 },
-      halfExtents: { x: 5.18, y: 0.025, z: 1 },
-      yaw: -Math.PI / 4,
-    },
-  };
-  physics.registerStaticBatch([diagonalRoad]);
+  // Match the road surface to the actual rendered ribbon triangles rather than
+  // a cuboid strip with its own invisible vertical side faces.
+  const roadGeometry = new THREE.BufferGeometry();
+  roadGeometry.setAttribute('position', new THREE.Float32BufferAttribute([
+    -0.7071068, 0.06, 0.7071068,
+     0.7071068, 0.06,-0.7071068,
+     9.2928932, 0.06,10.7071068,
+    10.7071068, 0.06, 9.2928932,
+  ], 3));
+  roadGeometry.setIndex([0, 2, 1, 1, 2, 3]);
+  physics.registerStaticRoadMeshes([{ kind: 'road', geometry: roadGeometry }]);
   physics.step(1 / 60);
   const offRoadRay = physics.castRay(
     new THREE.Vector3(9, 2, 1), new THREE.Vector3(0, -1, 0), 4,
   );
   const onRoadRay = physics.castRay(
     new THREE.Vector3(5, 2, 5), new THREE.Vector3(0, -1, 0), 4,
+  );
+  const fakeRoadSideWall = physics.castRay(
+    new THREE.Vector3(10.78, 0.03, 9.29), new THREE.Vector3(-1, 0, 0), 0.15,
   );
   // The ground collider is a 1m-thick cuboid centered at y=-0.5, so its
   // top is y=0. An off-road ray should hit that ground, not the raised road.
@@ -289,6 +292,8 @@ try {
   check('diagonal road is physically present under the actual ribbon',
     !!onRoadRay && Math.abs(onRoadRay.dist - 1.94) < 0.08,
     onRoadRay ? `on-road dist=${onRoadRay.dist.toFixed(2)}` : 'no road hit');
+  check('flat road surface has no invisible vertical edge wall', fakeRoadSideWall === null,
+    fakeRoadSideWall ? `unexpected edge hit=${fakeRoadSideWall.dist.toFixed(3)}` : 'no side-wall hit');
 
   for (let i = 0; i < 60; i++) {
     physics.movePlayer(0, -1, 0);
@@ -298,6 +303,13 @@ try {
   console.log(`    INFO player rest y=${rest.y.toFixed(3)}`);
   check('player capsule rests at feet height', Math.abs(rest.y) < 0.15, `y=${rest.y.toFixed(2)}`);
 
+  const estimatedWheelBottom = (body, specs, centerY) => {
+    const p = body.translation(), r = body.rotation();
+    const q = new THREE.Quaternion(r.x, r.y, r.z, r.w);
+    const root = new THREE.Vector3(p.x, p.y, p.z)
+      .sub(new THREE.Vector3(0, centerY, 0).applyQuaternion(q));
+    return Math.min(...specs.map(w => root.y + new THREE.Vector3(w.x, w.y - w.radius, w.z).applyQuaternion(q).y));
+  };
   const dynamicVehicleSpec = dynamicVehicleSpecs.lambo || Object.values(dynamicVehicleSpecs)[0];
   check('both car types produce real GLB suspension specs',
     !!dynamicVehicleSpecs.lambo && !!dynamicVehicleSpecs.cybertruck &&
@@ -353,6 +365,9 @@ try {
   check('steering rotates a moving chassis in corrected model space', Math.abs(headingDelta) > 0.05,
     `bodyYaw=${bodyYaw.toFixed(2)} delta=${headingDelta.toFixed(2)}`);
   check('vehicle stays above the ground plane', t.y > 0.3, `centerY=${t.y.toFixed(2)}`);
+  const lamboTireBottom = estimatedWheelBottom(rb, wheels, dynamicVehicleSpec.centerY);
+  check('Lambo visible tyres sit at ground level, not half buried', Math.abs(lamboTireBottom) < 0.14,
+    `estimated tire-bottom Y=${lamboTireBottom.toFixed(3)}`);
 
   // Repeat the actual dynamic test using the larger/heavier AWD Cybertruck GLB.
   const truckSpec = dynamicVehicleSpecs.cybertruck;
@@ -383,6 +398,9 @@ try {
       `z=${truckPosition.z.toFixed(2)}`);
     check('Cybertruck chassis does not sink through the ground', truckPosition.y > 0.35,
       `centerY=${truckPosition.y.toFixed(2)}`);
+    const truckTireBottom = estimatedWheelBottom(truck, truckSpec.wheels, truckSpec.centerY);
+    check('Cybertruck visible tyres sit at ground level, not half buried', Math.abs(truckTireBottom) < 0.16,
+      `estimated tire-bottom Y=${truckTireBottom.toFixed(3)}`);
   } else {
     check('Cybertruck dynamic suspension spec exists', false);
   }
