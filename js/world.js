@@ -138,9 +138,14 @@ export class World {
   addCollider(x, y, z, w, h, d, climb = false, type = null) {
     const c = { min: new THREE.Vector3(x - w / 2, y, z - d / 2), max: new THREE.Vector3(x + w / 2, y + h, z + d / 2) };
     if (type) c.type = type;
-    if (climb) this.climbables.push(c); else this.colliders.push(c);
+    // Climbables remain solid while approaching them; the separate climbable
+    // registry only adds vault/climb interaction. Previously they were excluded
+    // from movement AABBs and Rapier, so fences were physically ghostlike.
+    this.colliders.push(c);
+    if (climb) this.climbables.push(c);
     if (this.bvhWorld) {
-      if (climb) this.bvhWorld._climbables.push(c); else this.bvhWorld.aabbColliders.push(c);
+      this.bvhWorld.aabbColliders.push(c);
+      if (climb) this.bvhWorld._climbables.push(c);
     }
     return c;
   }
