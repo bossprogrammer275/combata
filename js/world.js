@@ -1249,7 +1249,7 @@ export class World {
     const roadMat = this.mRoad();
     const walkMat = this._sceneMat('walk');
     const curbMat = this.mCurb();
-    if (!this._roadChains) this._roadChains = [];
+    this._roadChains = [];
     function catmullRom(p0, p1, p2, p3, t) {
       const t2 = t * t, t3 = t2 * t;
       return {
@@ -1305,7 +1305,7 @@ export class World {
       const roadY = 0.06 + (ci % 4) * 0.02;
       this._strokeMitered(pts, ch.W, roadY, roadMat, ch.closed);
 
-      this._roadChains.push({ pts, W: ch.W, sidewalk: ch.sidewalk });
+      this._roadChains.push({ pts, W: ch.W, sidewalk: ch.sidewalk, roadY, closed: ch.closed });
       if (!ch.sidewalk) continue;
       const edge = ch.W / 2;
       for (const side of [-1, 1]) {
@@ -1337,6 +1337,9 @@ export class World {
         this._strokeMitered(curbPts, 0.36, 0.10, curbMat, ch.closed);
       }
     }
+    // Paint is independent geometry so road markings can stop before junctions.
+    this._buildRoadMarkings(this._roadChains);
+
     // Ambient spawn points along every road every ~55m
     for (const ch of this._roadChains) {
       const pts = ch.pts;
@@ -1355,6 +1358,218 @@ export class World {
             const sx = a.x + (len - left) * dirX, sz = a.z + (len - left) * dirZ;
             if (Math.hypot(sx, sz) < this.bounds - 30) this.spawnPoints.push(new THREE.Vector3(sx, 0, sz));
           }
+        }
+      }
+    }
+  }
+
+  _roadPolylineLengths(pts) {
+    const cumulative = [0];
+    for (let i = 1; i < pts.length; i++) {
+      cumulative.push(cumulative[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z));
+    }
+    return cumulative;
+  }
+
+  _sliceRoadPolyline(pts, cumulative, start, end) {
+    if (pts.length < 2 || end <= start) return [];
+    const total = cumulative[cumulative.length - 1];
+    start = THREE.MathUtils.clamp(start, 0, total);
+    end = THREE.MathUtils.clamp(end, 0, total);
+    if (end - start < 0.05) return [];
+    const at = (distance) => {
+      let i = 0;
+      while (i < cumulative.length - 2 && cumulative[i + 1] < distance) i++;
+      const segLen = cumulative[i + 1] - cumulative[i];
+      const t = segLen > 1e-6 ? THREE.MathUtils.clamp((distance - cumulative[i]) / segLen, 0, 1) : 0;
+      return {
+        x: THREE.MathUtils.lerp(pts[i].x, pts[i + 1].x, t),
+        z: THREE.MathUtils.lerp(pts[i].z, pts[i + 1].z, t),
+      };
+    };
+    const out = [at(start)];
+    for (let i = 1; i < pts.length - 1; i++) {
+      if (cumulative[i] > start + 0.01 && cumulative[i] < end - 0.01) out.push(pts[i]);
+    }
+    out.push(at(end));
+    return out;
+  }
+
+  _offsetRoadPolyline(pts, offset) {
+    const n = pts.length;
+    if (n < 2 || Math.abs(offset) < 1e-6) return pts.map(p => ({ x: p.x, z: p.z }));
+    return pts.map((p, i) => {
+      const prev = pts[Math.max(0, i - 1)];
+      const next = pts[Math.min(n - 1, i + 1)];
+      const ax = p.x - prev.x, az = p.z - prev.z;
+      const bx = next.x - p.x, bz = next.z - p.z;
+      const al = Math.hypot(ax, az), bl = Math.hypot(bx, bz);
+      let nx = 0, nz = 0;
+      if (i === 0 && bl > 1e-6) {
+        nx = -bz / bl; nz = bx / bl;
+      } else if (i === n - 1 && al > 1e-6) {
+        nx = -az / al; nz = ax / al;
+      } else if (al > 1e-6 && bl > 1e-6) {
+        const anx = -az / al, anz = ax / al;
+        const bnx = -bz / bl, bnz = bx / bl;
+        const dot = anx * bnx + anz * bnz;
+        const denom = Math.max(0.35, 1 + dot);
+        nx = (anx + bnx) / denom;
+        nz = (anz + bnz) / denom;
+        const miterLen = Math.hypot(nx, nz);
+        if (miterLen > 2.2) { nx *= 2.2 / miterLen; nz *= 2.2 / miterLen; }
+      }
+      return { x: p.x + nx * offset, z: p.z + nz * offset };
+    });
+  }
+
+  _findRoadJunctions(chains, metadata) {
+    const hits = chains.map(() => []);
+    const addHit = (ia, da, ib, db, x, z) => {
+      const radius = Math.max(chains[ia].W, chains[ib].W) * 0.5 + 1.4;
+      hits[ia].push({ distance: da, radius, x, z });
+      hits[ib].push({ distance: db, radius, x, z });
+    };
+    const cross = (ax, az, bx, bz) => ax * bz - az * bx;
+
+    for (let ia = 0; ia < chains.length; ia++) {
+      const a = chains[ia], ma = metadata[ia];
+      if (a.pts.length < 2) continue;
+      for (let ib = ia + 1; ib < chains.length; ib++) {
+        const b = chains[ib], mb = metadata[ib];
+        if (b.pts.length < 2) continue;
+
+        // Find proper intersections between centre-line segments, including T-junctions.
+        for (let ai = 0; ai < a.pts.length - 1; ai++) {
+          const p = a.pts[ai], p2 = a.pts[ai + 1];
+          const rx = p2.x - p.x, rz = p2.z - p.z;
+          const rLen = ma.segmentLengths[ai];
+          if (rLen < 1e-5) continue;
+          for (let bi = 0; bi < b.pts.length - 1; bi++) {
+            const q = b.pts[bi], q2 = b.pts[bi + 1];
+            const sx = q2.x - q.x, sz = q2.z - q.z;
+            const sLen = mb.segmentLengths[bi];
+            if (sLen < 1e-5) continue;
+            const denom = cross(rx, rz, sx, sz);
+            if (Math.abs(denom) < 1e-5) continue;
+            const qpx = q.x - p.x, qpz = q.z - p.z;
+            const ta = cross(qpx, qpz, sx, sz) / denom;
+            const tb = cross(qpx, qpz, rx, rz) / denom;
+            if (ta < -0.001 || ta > 1.001 || tb < -0.001 || tb > 1.001) continue;
+            const tA = THREE.MathUtils.clamp(ta, 0, 1);
+            const tB = THREE.MathUtils.clamp(tb, 0, 1);
+            const x = p.x + rx * tA, z = p.z + rz * tA;
+            addHit(ia, ma.cumulative[ai] + rLen * tA, ib, mb.cumulative[bi] + sLen * tB, x, z);
+          }
+        }
+
+        // Map data often has endpoints a metre or so away from the cross street.
+        // Snap those near misses into a junction zone too.
+        for (const endpoint of [
+          { p: a.pts[0], dist: 0 },
+          { p: a.pts[a.pts.length - 1], dist: ma.total },
+        ]) {
+          let best = null;
+          for (let bi = 0; bi < b.pts.length - 1; bi++) {
+            const q = b.pts[bi], q2 = b.pts[bi + 1];
+            const vx = q2.x - q.x, vz = q2.z - q.z;
+            const ll = vx * vx + vz * vz;
+            if (ll < 1e-6) continue;
+            const t = THREE.MathUtils.clamp(((endpoint.p.x - q.x) * vx + (endpoint.p.z - q.z) * vz) / ll, 0, 1);
+            const x = q.x + vx * t, z = q.z + vz * t;
+            const distance = Math.hypot(endpoint.p.x - x, endpoint.p.z - z);
+            if (!best || distance < best.distance) best = { x, z, distance, segment: bi, t, length: Math.sqrt(ll) };
+          }
+          const tolerance = Math.max(0.85, Math.min(2.1, (a.W + b.W) * 0.055));
+          if (best && best.distance <= tolerance) {
+            const db = mb.cumulative[best.segment] + best.length * best.t;
+            addHit(ia, endpoint.dist, ib, db, (endpoint.p.x + best.x) / 2, (endpoint.p.z + best.z) / 2);
+          }
+        }
+      }
+    }
+    return hits;
+  }
+
+  _buildRoadMarkings(chains) {
+    if (!chains?.length) return;
+    const yellow = this._mat('lane-center-mark', () => new THREE.MeshStandardMaterial({
+      color: 0xd7bd62, roughness: 0.96, metalness: 0, side: THREE.DoubleSide,
+      polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+    }));
+    const white = this._mat('lane-white-mark', () => new THREE.MeshStandardMaterial({
+      color: 0xd8d9d4, roughness: 0.96, metalness: 0, side: THREE.DoubleSide,
+      polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+    }));
+
+    const metadata = chains.map(ch => {
+      const cumulative = this._roadPolylineLengths(ch.pts);
+      const segmentLengths = cumulative.slice(1).map((d, i) => d - cumulative[i]);
+      return { cumulative, segmentLengths, total: cumulative[cumulative.length - 1] || 0 };
+    });
+    const hits = this._findRoadJunctions(chains, metadata);
+    const mergedRanges = hits.map((items, i) => {
+      const total = metadata[i].total;
+      const ranges = items.map(h => [
+        Math.max(0, h.distance - h.radius),
+        Math.min(total, h.distance + h.radius),
+      ]).filter(r => r[1] - r[0] > 0.05).sort((a, b) => a[0] - b[0]);
+      const merged = [];
+      for (const range of ranges) {
+        const last = merged[merged.length - 1];
+        if (last && range[0] <= last[1] + 0.2) last[1] = Math.max(last[1], range[1]);
+        else merged.push(range.slice());
+      }
+      return merged;
+    });
+
+    const blocked = (ranges, start, end) => ranges.some(r => start < r[1] && end > r[0]);
+    const drawDashed = (chain, data, offsetPts, ranges, startDistance, endDistance, dash, period, width, mat) => {
+      for (let d = startDistance; d + dash <= endDistance; d += period) {
+        if (blocked(ranges, d, d + dash)) continue;
+        const line = this._sliceRoadPolyline(offsetPts, data.cumulative, d, d + dash);
+        if (line.length >= 2) this._strokeMitered(line, width, chain.roadY + 0.024, mat, false);
+      }
+    };
+    const drawSolid = (chain, data, offsetPts, ranges, startDistance, endDistance, width, mat) => {
+      let cursor = startDistance;
+      for (const [a, b] of ranges) {
+        if (b <= cursor || a >= endDistance) continue;
+        if (a > cursor + 0.05) {
+          const line = this._sliceRoadPolyline(offsetPts, data.cumulative, cursor, Math.min(a, endDistance));
+          if (line.length >= 2) this._strokeMitered(line, width, chain.roadY + 0.024, mat, false);
+        }
+        cursor = Math.max(cursor, b);
+        if (cursor >= endDistance) break;
+      }
+      if (cursor < endDistance - 0.05) {
+        const line = this._sliceRoadPolyline(offsetPts, data.cumulative, cursor, endDistance);
+        if (line.length >= 2) this._strokeMitered(line, width, chain.roadY + 0.024, mat, false);
+      }
+    };
+
+    for (let i = 0; i < chains.length; i++) {
+      const chain = chains[i], data = metadata[i], ranges = mergedRanges[i];
+      const total = data.total;
+      if (total < 4 || chain.W < 6.5) continue;
+      const roadPts = chain.pts;
+      // Broken yellow centre line; dash gaps are removed entirely around junctions.
+      drawDashed(chain, data, roadPts, ranges, 1.0, total - 1.0, 2.7, 5.8, Math.min(0.13, chain.W * 0.014), yellow);
+
+      // Solid white edge lines sit inside the curb, not on the pavement edge.
+      const edgeOffset = Math.max(0.5, chain.W / 2 - 0.55);
+      for (const side of [-1, 1]) {
+        const edgePts = this._offsetRoadPolyline(roadPts, side * edgeOffset);
+        drawSolid(chain, data, edgePts, ranges, 0.2, total - 0.2, 0.10, white);
+      }
+
+      // Wider boulevards get dashed white lane separators in each direction.
+      const lanesPerSide = Math.max(1, Math.floor(edgeOffset / 3.5));
+      for (let side of [-1, 1]) {
+        for (let lane = 1; lane < lanesPerSide; lane++) {
+          const offset = side * edgeOffset * lane / lanesPerSide;
+          const lanePts = this._offsetRoadPolyline(roadPts, offset);
+          drawDashed(chain, data, lanePts, ranges, 1.0, total - 1.0, 2.7, 5.8, 0.085, white);
         }
       }
     }
