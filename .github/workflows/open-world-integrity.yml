@@ -27,5 +27,8 @@ jobs:
           node --check js/main.js
           node --check js/textures.js
           node --check tools/process-glbs.js
+          node --check tools/verify-collisions.mjs
+      - name: Verify GLB collision pipeline
+        run: node tools/verify-collisions.mjs
       - name: Verify vehicle models and Rapier basics
         run: node tools/verify-vehicles.mjs
