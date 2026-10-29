@@ -808,7 +808,11 @@ export class World {
           } else if (isLamp) {
             this.addCollider(a.x, bbox.min.y, a.z, 0.35, size.y, 0.35);
           } else if (a.collisionSize) {
-            this.addCollider(a.x, bbox.min.y, a.z, a.collisionSize[0], a.collisionH || size.y, a.collisionSize[1], !!a.climbable, a.type || null);
+            const yaw = a.ry || 0;
+            const cs = Math.abs(Math.cos(yaw)), sn = Math.abs(Math.sin(yaw));
+            const collisionW = cs * a.collisionSize[0] + sn * a.collisionSize[1];
+            const collisionD = sn * a.collisionSize[0] + cs * a.collisionSize[1];
+            this.addCollider(a.x, bbox.min.y, a.z, collisionW, a.collisionH || size.y, collisionD, !!a.climbable, a.type || null);
           } else if (a.collisionH) {
             this.addCollider(center.x, bbox.min.y, center.z, size.x, a.collisionH, size.z, !!a.climbable, a.type || null);
           } else if (collisionManifest?.boxes?.length) {
