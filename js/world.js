@@ -1420,7 +1420,7 @@ export class World {
   groundHeightAt(x, z) {
     let height = 0;
     const candidates = this.bvhWorld
-      ? this.bvhWorld.queryPoint(x, z, 0.12)
+      ? this.bvhWorld.queryAABB(x - 0.12, z - 0.12, x + 0.12, z + 0.12)
       : this.colliders;
     for (const c of candidates) {
       const h = c.max.y - c.min.y;
