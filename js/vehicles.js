@@ -446,7 +446,17 @@ export class VehicleSystem {
   }
 
   syncDynamicBodies(dt = 1 / 60) {
-    for (const v of this.vehicles) this.syncDynamicVehicle(v, dt);
+    for (const v of this.vehicles) {
+      // Unoccupied cars still need passive spring/damper forces or their raised
+      // chassis colliders would settle through the model origin onto the road.
+      // The actively driven car already received its controls earlier this frame.
+      if (v !== this.driver && v.physicsDynamic && v.rapierBody && this.physics) {
+        this.physics.applyVehicleControls(v.rapierBody, {
+          throttle: 0, steer: 0, handbrake: false, dt, wheels: v.physicsWheels,
+        });
+      }
+      this.syncDynamicVehicle(v, dt);
+    }
   }
 
   async spawn(def) {
@@ -706,6 +716,7 @@ export class VehicleSystem {
         steer: steerInput,
         handbrake,
         dt,
+        wheels: v.physicsWheels,
       });
       curSpd = motion ? motion.horizontalSpeed : Math.abs(v.speed);
       if (motion) {
