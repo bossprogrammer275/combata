@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { World } from '../js/world.js';
+import { Player } from '../js/player.js';
 import { BVHWorld } from '../js/bvh-collision.js';
 
 function worldHarness() {
@@ -197,6 +198,49 @@ check('rotated fallback wall colliders leave the doorway passable', () => {
     hasXZOverlap(c, doorCenter.x - 0.15, doorCenter.x + 0.15, doorCenter.z - 0.15, doorCenter.z + 0.15)
   );
   assert.ok(!blockedInDoor, 'wall AABB still blocks the center of the doorway');
+});
+
+check('diagonal road surface stores a real oriented footprint', () => {
+  const world = worldHarness();
+  const count = world._addRoadSurfaceColliders(
+    [{ x: 0, z: 0 }, { x: 10, z: 10 }], 2, 0.06, false, 0.05,
+  );
+  assert.equal(count, 1);
+  const road = world.colliders[0];
+  assert.equal(road.type, 'road_surface');
+  assert.ok(road.orientedBox, 'road collider has no oriented-box metadata');
+  assert.ok(road.max.x - road.min.x > road.orientedBox.halfExtents.x * 1.5,
+    'test needs a broad AABB that differs significantly from its real diagonal footprint');
+  assert.ok(Math.abs(road.orientedBox.yaw + Math.PI / 4) < 1e-5,
+    'road yaw does not match its diagonal segment');
+});
+
+check('pedestrian is not pushed by empty corners of a diagonal road AABB', () => {
+  const world = worldHarness();
+  world._addRoadSurfaceColliders(
+    [{ x: 0, z: 0 }, { x: 10, z: 10 }], 2, 0.06, false, 0.05,
+  );
+  const player = Object.create(Player.prototype);
+  player.world = world;
+  player.pos = new THREE.Vector3(9, 0, 1);
+  player.vel = new THREE.Vector3();
+  player.radius = 0.35;
+  player.height = 1.8;
+  player.crouched = false;
+  player.onGround = true;
+  player.moveAxis(0, 0, 0);
+  assert.ok(Math.abs(player.pos.y) < 1e-5, `off-road player was stepped onto an invisible slab: y=${player.pos.y}`);
+  assert.ok(Math.abs(player.pos.x - 9) < 1e-5 && Math.abs(player.pos.z - 1) < 1e-5,
+    'off-road player position was changed by the road AABB');
+  assert.ok(Math.abs(world.groundHeightAt(9, 1)) < 1e-5,
+    'groundHeightAt reported road height outside the real ribbon');
+  assert.ok(Math.abs(world.groundHeightAt(5, 5) - 0.06) < 1e-5,
+    'groundHeightAt failed to find the road top on its real footprint');
+  player.pos.set(5, 0, 5);
+  player.onGround = true;
+  player.moveAxis(0, 0, 0);
+  assert.ok(Math.abs(player.pos.y - 0.06) < 1e-5,
+    'player inside the road was not stepped onto the road surface');
 });
 
 check('lane markings stop at road junctions', () => {
