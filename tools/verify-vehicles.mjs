@@ -6,7 +6,7 @@
 //   2. exactly 4 detected wheels in 4 quadrants, with working steer/spin pivots
 //   3. model-fitted collision boxes (no ground-disc / blob boxes)
 //   4. Rapier player capsule rests at feet height (not floating)
-//   5. Rapier vehicle body follows kinematic position updates
+//   5. dynamic vehicle chassis responds to throttle/steering and accepts pose resets
 //
 // Usage:  node tools/verify-vehicles.mjs
 import { spawn } from 'node:child_process';
@@ -196,13 +196,34 @@ try {
   console.log(`    INFO player rest y=${rest.y.toFixed(3)}`);
   check('player capsule rests at feet height', Math.abs(rest.y) < 0.15, `y=${rest.y.toFixed(2)}`);
 
-  const rb = physics.createVehicleBody(10, 0.7, 20, 0.5);
+  const rb = physics.createVehicleBody(10, 0, 20, 0.5, null, {
+    dynamic: true, centerY: 0.6, mass: 1200,
+  });
+  check('vehicle chassis is dynamic', !!rb?._openWorldDynamic);
   physics.step(1 / 60);
-  physics.updateVehicleBody(rb, 12, 0.7, 22, 0.6);
+  physics.updateVehicleBody(rb, 12, 0, 22, 0);
   physics.step(1 / 60);
-  const t = rb.translation();
-  check('vehicle body follows kinematic updates',
-    Math.abs(t.x - 12) < 0.05 && Math.abs(t.z - 22) < 0.05, `(${t.x.toFixed(2)}, ${t.z.toFixed(2)})`);
+  let t = rb.translation();
+  check('dynamic vehicle pose reset preserves ground-space coordinates',
+    Math.abs(t.x - 12) < 0.05 && Math.abs(t.z - 22) < 0.05,
+    `(${t.x.toFixed(2)}, ${t.z.toFixed(2)})`);
+
+  for (let i = 0; i < 90; i++) {
+    physics.applyVehicleControls(rb, {
+      throttle: 1, steer: 0.35, handbrake: false, dt: 1 / 60,
+    });
+    physics.step(1 / 60);
+  }
+  t = rb.translation();
+  const bodyRotation = rb.rotation();
+  const bodyYaw = new THREE.Euler().setFromQuaternion(
+    new THREE.Quaternion(bodyRotation.x, bodyRotation.y, bodyRotation.z, bodyRotation.w), 'YXZ',
+  ).y;
+  check('throttle produces real chassis movement', t.z < 21,
+    `z=${t.z.toFixed(2)}`);
+  check('steering rotates a moving chassis', Math.abs(bodyYaw) > 0.05,
+    `yaw=${bodyYaw.toFixed(2)}`);
+  check('vehicle stays above the ground plane', t.y > 0.3, `centerY=${t.y.toFixed(2)}`);
 } catch (e) {
   failures++;
   console.log('[verify] ERROR', e && e.stack ? e.stack : e);
