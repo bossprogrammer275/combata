@@ -2043,13 +2043,13 @@ export class World {
       const columnHeight = deckBottom - capHeight;
       if (columnHeight < 1.9) continue;
       for (const side of [-1, 1]) {
-        const x = s.x + s.nx * side * width * 0.32;
-        const z = s.z + s.nz * side * width * 0.32;
+        const x = s.x + s.nx * side * (width * 0.5 + 1.1);
+        const z = s.z + s.nz * side * (width * 0.5 + 1.1);
         const column = new THREE.CylinderGeometry(0.54, 0.76, columnHeight, 8, 1, false);
         column.translate(x, columnHeight * 0.5, z);
         appendGeometry(column);
       }
-      const cap = new THREE.BoxGeometry(width + 1.0, capHeight, 1.55);
+      const cap = new THREE.BoxGeometry(width + 2.8, capHeight, 1.55);
       const transform = new THREE.Object3D();
       transform.position.set(s.x, deckBottom - capHeight * 0.5, s.z);
       transform.rotation.y = Math.atan2(s.dx, s.dz);
