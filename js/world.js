@@ -1420,23 +1420,35 @@ export class World {
       const ux = dx / length, uz = dz / length;
       const centerX = (a.x + b.x) * 0.5;
       const centerZ = (a.z + b.z) * 0.5;
-      // A small longitudinal overlap closes gaps at curved-road joins. Keep the
-      // broad world AABB for fast CPU queries, but retain the actual orientation
-      // for Rapier and exact player-footprint checks.
+      const topA = (Number.isFinite(a.y) ? a.y : 0) + topY;
+      const topB = (Number.isFinite(b.y) ? b.y : 0) + topY;
+      const minTop = Math.min(topA, topB);
+      const maxTop = Math.max(topA, topB);
+      // Broadphase-only proxy. Its precise centreline and height profile are
+      // stored separately; Rapier uses the rendered road triangle mesh.
       const overlap = Math.min(0.18, length * 0.08);
       const segmentLength = length + overlap * 2;
       const boxW = Math.abs(ux) * segmentLength + Math.abs(uz) * width;
       const boxD = Math.abs(uz) * segmentLength + Math.abs(ux) * width;
+      const boxH = maxTop - minTop + thickness;
       const collider = this.addCollider(
-        centerX, topY - thickness, centerZ,
-        boxW + 0.035, thickness, boxD + 0.035, false, 'road_surface',
+        centerX, minTop - thickness, centerZ,
+        boxW + 0.035, boxH, boxD + 0.035, false, 'road_surface',
       );
-      // Height-sampling proxy only. Rapier gets the exact rendered ribbon mesh,
-      // so this broad-phase box is never allowed to push vehicles or pedestrians.
       collider.surfaceOnly = true;
+      collider.surfaceSegment = {
+        a: { x: a.x, z: a.z, y: topA },
+        b: { x: b.x, z: b.z, y: topB },
+        width,
+        thickness,
+      };
       collider.orientedBox = {
-        center: { x: centerX, y: topY - thickness / 2, z: centerZ },
-        halfExtents: { x: segmentLength / 2, y: thickness / 2, z: width / 2 },
+        center: { x: centerX, y: (topA + topB) / 2 - thickness / 2, z: centerZ },
+        halfExtents: {
+          x: segmentLength / 2,
+          y: thickness / 2 + Math.abs(topB - topA) / 2,
+          z: width / 2,
+        },
         yaw: Math.atan2(-uz, ux),
       };
       added++;
@@ -1444,21 +1456,32 @@ export class World {
     return added;
   }
 
+  // Highest valid support surface at XZ. Road proxies include centreline heights,
+  // so ramps and stacked roads can be sampled without treating road edges as walls.
   groundHeightAt(x, z) {
     let height = 0;
     const candidates = this.bvhWorld
       ? this.bvhWorld.queryAABB(x - 0.12, z - 0.12, x + 0.12, z + 0.12)
       : this.colliders;
     for (const c of candidates) {
+      if (c.surfaceOnly && c.surfaceSegment) {
+        const s = c.surfaceSegment;
+        const dx = s.b.x - s.a.x, dz = s.b.z - s.a.z;
+        const lenSq = dx * dx + dz * dz;
+        if (lenSq < 1e-8) continue;
+        const t = ((x - s.a.x) * dx + (z - s.a.z) * dz) / lenSq;
+        if (t < -0.01 || t > 1.01) continue;
+        const clampedT = THREE.MathUtils.clamp(t, 0, 1);
+        const px = s.a.x + dx * clampedT, pz = s.a.z + dz * clampedT;
+        if (Math.hypot(x - px, z - pz) > s.width * 0.5 + 0.15) continue;
+        height = Math.max(height, THREE.MathUtils.lerp(s.a.y, s.b.y, clampedT));
+        continue;
+      }
+      // Road proxies are height-sampling metadata, never movement obstacles.
+      if (c.surfaceOnly || c.type === 'road_surface') continue;
       const h = c.max.y - c.min.y;
       if (h > 0.15 || c.min.y < -0.1 || c.max.y > 0.3) continue;
       if (x < c.min.x || x > c.max.x || z < c.min.z || z > c.max.z) continue;
-      if (c.orientedBox) {
-        const o = c.orientedBox, dx = x - o.center.x, dz = z - o.center.z;
-        const cs = Math.cos(o.yaw), sn = Math.sin(o.yaw);
-        const lx = dx * cs - dz * sn, lz = dx * sn + dz * cs;
-        if (Math.abs(lx) > o.halfExtents.x || Math.abs(lz) > o.halfExtents.z) continue;
-      }
       height = Math.max(height, c.max.y);
     }
     return height;
@@ -1471,10 +1494,13 @@ export class World {
     this._roadChains = [];
     function catmullRom(p0, p1, p2, p3, t) {
       const t2 = t * t, t3 = t2 * t;
-      return {
-        x: 0.5*((2*p1.x)+(-p0.x+p2.x)*t+(2*p0.x-5*p1.x+4*p2.x-p3.x)*t2+(-p0.x+3*p1.x-3*p2.x+p3.x)*t3),
-        z: 0.5*((2*p1.z)+(-p0.z+p2.z)*t+(2*p0.z-5*p1.z+4*p2.z-p3.z)*t2+(-p0.z+3*p1.z-3*p2.z+p3.z)*t3),
-      };
+      const sample = key => 0.5 * (
+        2 * p1[key]
+        + (-p0[key] + p2[key]) * t
+        + (2 * p0[key] - 5 * p1[key] + 4 * p2[key] - p3[key]) * t2
+        + (-p0[key] + 3 * p1[key] - 3 * p2[key] + p3[key]) * t3
+      );
+      return { x: sample('x'), z: sample('z'), y: sample('y') };
     }
     function smoothPts(pts, segs) {
       if (pts.length < 3) return pts;
@@ -1488,14 +1514,25 @@ export class World {
     }
     const chains = [];
     for (const rd of roads) {
-      const pts = rd.points || [];
-      if (pts.length < 2) continue;
+      const sourcePts = rd.points || [];
+      if (sourcePts.length < 2) continue;
       const W = rd.w || 12;
-      const closed = pts.length > 2 && pts[0][0] === pts[pts.length - 1][0] && pts[0][1] === pts[pts.length - 1][1];
-      const work = closed ? pts.slice(0, -1) : pts;
-      const raw = work.map(p => ({ x: p[0], z: p[1] }));
+      const baseElevation = Number.isFinite(rd.elevation) ? rd.elevation
+        : Number.isFinite(rd.y) ? rd.y : 0;
+      const closed = sourcePts.length > 2
+        && sourcePts[0][0] === sourcePts[sourcePts.length - 1][0]
+        && sourcePts[0][1] === sourcePts[sourcePts.length - 1][1];
+      const work = closed ? sourcePts.slice(0, -1) : sourcePts;
+      // Legacy points are [x,z]. Add a third ordinate [x,z,y] to author ramps.
+      const raw = work.map(p => ({
+        x: p[0], z: p[1],
+        y: Number.isFinite(p[2]) ? p[2] : baseElevation,
+      }));
       const smoothed = rd.smooth !== false ? smoothPts(raw, 6) : raw;
-      chains.push({ pts: smoothed, W, sidewalk: !!rd.sidewalk, closed });
+      chains.push({
+        pts: smoothed, W, sidewalk: !!rd.sidewalk, closed,
+        guardrails: !!(rd.guardrails || rd.bridge || rd.flyover),
+      });
     }
     for (const ch of chains) {
       ch.cutStart = 0; ch.cutEnd = 0;
