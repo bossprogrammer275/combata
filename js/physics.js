@@ -441,7 +441,7 @@ export class Physics {
       };
       const state = {
         contact: true,
-        offset: THREE.MathUtils.clamp(restLength - suspensionLength, -travel * 0.55, travel),
+        offset: THREE.MathUtils.clamp(restLength - suspensionLength, -travel, travel),
         compression,
         suspensionLength,
         normal: { x: hit.normal.x, y: hit.normal.y, z: hit.normal.z },
@@ -453,6 +453,42 @@ export class Physics {
       };
       wheelStates.push(state);
       rayHits.push(state);
+    }
+    // Anti-roll bars transfer load across each axle. Without this, a hard loop
+    // applies all cornering force at the tyre contact patches and can roll the
+    // sprung mass until the inside tyres visibly lift.
+    const antiRollStiffness = tune.antiRollStiffness ?? 22000;
+    const antiRollLimit = mass * 9.81 * 0.22;
+    for (const frontAxle of [true, false]) {
+      let left = -1, right = -1;
+      for (let i = 0; i < wheelSpecs.length; i++) {
+        const wheel = wheelSpecs[i];
+        if (!!wheel.front !== frontAxle || !wheelStates[i]?.contact) continue;
+        if (wheel.x < 0) left = i;
+        else if (wheel.x > 0) right = i;
+      }
+      if (left < 0 || right < 0) continue;
+      const compressionDifference = (wheelStates[left].compression || 0)
+        - (wheelStates[right].compression || 0);
+      const transferForce = THREE.MathUtils.clamp(
+        compressionDifference * antiRollStiffness,
+        -antiRollLimit,
+        antiRollLimit,
+      );
+      if (Math.abs(transferForce) < 1) continue;
+      // If left compresses more, add an upward force on that side and the
+      // opposite force on the right. Equal impulses resist roll without adding
+      // artificial net lift to the whole car.
+      body.applyImpulseAtPoint(
+        { x: 0, y: transferForce * dt, z: 0 },
+        wheelStates[left].hardpoint,
+        true,
+      );
+      body.applyImpulseAtPoint(
+        { x: 0, y: -transferForce * dt, z: 0 },
+        wheelStates[right].hardpoint,
+        true,
+      );
     }
     body._openWorldWheelStates = wheelStates;
 
@@ -481,6 +517,7 @@ export class Physics {
     const grounded = wheelStates.map((state, index) => state.contact ? index : -1).filter(index => index >= 0);
     const driveWheels = grounded.filter(index => !wheelSpecs[index].front);
     const powered = tune.drivetrain === 'awd' ? grounded : (driveWheels.length ? driveWheels : grounded);
+    const longitudinalImpulseByWheel = new Array(wheelSpecs.length).fill(0);
     const applyWheelImpulse = (indices, ix, iz, strength) => {
       if (!indices.length || Math.abs(strength) < 1e-5) return;
       const requestedImpulse = strength * mass * dt / indices.length;
@@ -492,6 +529,7 @@ export class Physics {
         // prevents infinite grip when steering hard while accelerating/braking.
         const maxImpulse = Math.max(0, state.normalLoad || 0) * mu * dt;
         const wheelImpulse = THREE.MathUtils.clamp(requestedImpulse, -maxImpulse, maxImpulse);
+        longitudinalImpulseByWheel[index] += Math.abs(wheelImpulse);
         body.applyImpulseAtPoint(
           { x: ix * wheelImpulse, y: 0, z: iz * wheelImpulse },
           state.point,
@@ -525,6 +563,15 @@ export class Physics {
       }
     }
 
+    // Speed-dependent aero load grows with v² and is bounded per chassis. It
+    // helps high-speed tyres stay planted without gluing the car to the road.
+    const downforceCoefficient = tune.downforceCoefficient ?? 0.25;
+    const maxDownforce = mass * 9.81 * (tune.maxDownforceG ?? 0.2);
+    const downforce = Math.min(maxDownforce, downforceCoefficient * horizontalSpeed * horizontalSpeed);
+    if (downforce > 0 && grounded.length >= 2) {
+      body.applyImpulse({ x: 0, y: -downforce * dt, z: 0 }, true);
+    }
+
     // Aerodynamic/rolling drag acts horizontally but never applies an upward
     // magic force. It slows coasting without stealing the suspension response.
     if (Math.abs(throttle) < 0.02 && horizontalSpeed > 0.05) {
@@ -539,9 +586,12 @@ export class Physics {
     // Per-wheel tire forces are applied at the contact patch so front steering
     // naturally creates yaw torque. A handbrake lowers rear grip; it does not
     // turn the whole vehicle instantly like the previous arcade yaw controller.
+    const steeringFalloff = tune.speedSteeringFalloff ?? 0.008;
+    const minSteeringScale = tune.minSteeringScale ?? 0.4;
+    const steeringScale = THREE.MathUtils.clamp(1 - horizontalSpeed * steeringFalloff, minSteeringScale, 1);
     const wheelAngle = steer * (handbrake
       ? (tune.handbrakeSteerAngle ?? 0.42)
-      : (tune.steeringAngle ?? 0.28));
+      : (tune.steeringAngle ?? 0.28)) * steeringScale;
     if (wheelSpecs.length && grounded.length) {
       for (const index of grounded) {
         const wheel = wheelSpecs[index];
@@ -569,7 +619,13 @@ export class Physics {
         const rearHandbrakeMu = handbrake && !wheel.front
           ? (tune.handbrakeRearFriction ?? 0.55)
           : (tune.tireFriction ?? 1.2);
-        const maxLateralImpulse = Math.max(0, state.normalLoad || 0) * rearHandbrakeMu * dt;
+        const normalImpulse = Math.max(0, state.normalLoad || 0) * (tune.tireFriction ?? 1.2) * dt;
+        const usedLongitudinal = Math.min(normalImpulse, longitudinalImpulseByWheel[index] || 0);
+        const combinedGripScale = normalImpulse > 1e-6
+          ? Math.sqrt(Math.max(0, 1 - (usedLongitudinal / normalImpulse) ** 2))
+          : 0;
+        const maxLateralImpulse = Math.max(0, state.normalLoad || 0)
+          * rearHandbrakeMu * dt * combinedGripScale;
         lateralImpulse = THREE.MathUtils.clamp(lateralImpulse, -maxLateralImpulse, maxLateralImpulse);
         body.applyImpulseAtPoint(
           { x: wheelRight.x * lateralImpulse, y: 0, z: wheelRight.z * lateralImpulse },

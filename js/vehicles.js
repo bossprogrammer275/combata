@@ -21,36 +21,42 @@ export const CAR_PHYSICS = {
     mass: 1480, drivetrain: 'rwd',
     engineAcceleration: 12.5, reverseAcceleration: 4.5, brakeAcceleration: 16.5,
     maxSpeed: 64, maxReverseSpeed: 10.5, speedometerMaxKmh: 230,
+    speedSteeringFalloff: 0.008, minSteeringScale: 0.48,
+    antiRollStiffness: 22000, downforceCoefficient: 0.38, maxDownforceG: 0.22,
     steeringAngle: 0.32, handbrakeSteerAngle: 0.48,
     frontGrip: 7.4, rearGrip: 9.8, handbrakeRearGrip: 0.65,
     tireFriction: 1.35, handbrakeRearFriction: 0.48,
     suspensionRestLength: 0.21, suspensionTravel: 0.18,
     springRate: 32000, springDamping: 3400,
-    uprightStrength: 4.2, uprightDamping: 3.5, uprightInertiaScale: 1.8,
+    uprightStrength: 5.8, uprightDamping: 5.0, uprightInertiaScale: 1.8,
     angularDamping: 0.78,
   },
   cybertruck: {
     mass: 3050, drivetrain: 'awd',
     engineAcceleration: 8.0, reverseAcceleration: 3.5, brakeAcceleration: 11.5,
     maxSpeed: 50, maxReverseSpeed: 8.5, speedometerMaxKmh: 180,
+    speedSteeringFalloff: 0.006, minSteeringScale: 0.55,
+    antiRollStiffness: 30000, downforceCoefficient: 0.20, maxDownforceG: 0.15,
     steeringAngle: 0.19, handbrakeSteerAngle: 0.30,
     frontGrip: 6.2, rearGrip: 7.1, handbrakeRearGrip: 1.05,
     tireFriction: 1.05, handbrakeRearFriction: 0.62,
     suspensionRestLength: 0.25, suspensionTravel: 0.21,
     springRate: 54000, springDamping: 5600,
-    uprightStrength: 5.2, uprightDamping: 4.2, uprightInertiaScale: 1.8,
+    uprightStrength: 7.0, uprightDamping: 6.2, uprightInertiaScale: 1.8,
     angularDamping: 1.3,
   },
   bugatti: {
     mass: 1995, drivetrain: 'awd',
     engineAcceleration: 11.0, reverseAcceleration: 4.8, brakeAcceleration: 14.5,
     maxSpeed: 116.7, maxReverseSpeed: 12, speedometerMaxKmh: 420,
+    speedSteeringFalloff: 0.0085, minSteeringScale: 0.34,
+    antiRollStiffness: 27000, downforceCoefficient: 0.90, maxDownforceG: 0.38,
     steeringAngle: 0.21, handbrakeSteerAngle: 0.37,
     frontGrip: 8.7, rearGrip: 9.1, handbrakeRearGrip: 0.75,
     tireFriction: 1.4, handbrakeRearFriction: 0.55,
     suspensionRestLength: 0.20, suspensionTravel: 0.17,
     springRate: 42000, springDamping: 4200,
-    uprightStrength: 4.5, uprightDamping: 3.8, uprightInertiaScale: 1.8,
+    uprightStrength: 6.2, uprightDamping: 5.2, uprightInertiaScale: 1.8,
     angularDamping: 0.95,
   },
 };
@@ -566,7 +572,9 @@ export class VehicleSystem {
     for (let i = 0; i < v.wheels.length; i++) {
       const wheel = v.wheels[i];
       const state = wheelStates[i];
-      const targetOffset = state?.contact ? state.offset : (v.suspensionReady ? -0.18 : 0);
+      const targetOffset = state?.contact
+        ? state.offset
+        : (v.suspensionReady ? -(v.physicsProfile?.suspensionTravel ?? 0.18) : 0);
       wheel.suspensionOffset += (targetOffset - wheel.suspensionOffset) * blend;
       // The pivots are children of the source GLB root and their positions
       // are in pre-normalization units. Convert suspension travel from metres
@@ -685,7 +693,12 @@ export class VehicleSystem {
         physicsBox.min.x = cx - hx; physicsBox.max.x = cx + hx;
         physicsBox.min.z = cz - hz; physicsBox.max.z = cz + hz;
       }
-      const physicsCenterY = (physicsBox.min.y + physicsBox.max.y) * 0.5;
+      const colliderCenterY = (physicsBox.min.y + physicsBox.max.y) * 0.5;
+      // Keep the collision envelope where the model authored it, but place the
+      // chassis mass centre lower. This reduces roll torque without kinematic
+      // snapping or artificial wheel locking.
+      const comDrop = suspensionReady ? Math.min(0.22, (bodyBox.max.y - bodyBox.min.y) * 0.18) : 0;
+      const physicsCenterY = Math.max(0.22, colliderCenterY - comDrop);
       const physicsWheels = wheels.map(w => ({
         x: w.center.x, y: w.center.y, z: w.center.z,
         radius: w.radius, front: w.front,
@@ -881,23 +894,26 @@ export class VehicleSystem {
       const absSpd = Math.abs(v.speed);
   
       // ===== LONGITUDINAL: engine / brake / drag =====
+      const tune = v.physicsProfile || CAR_PHYSICS[v.kind] || CAR_PHYSICS.lambo;
       if (throttle > 0) {
         if (v.speed < 0) {
-          v.speed += 30 * dt;
+          v.speed += (tune.brakeAcceleration || 12) * dt;
         } else {
-          const topSpeed = 40;
-          const powerFade = 1 - (v.speed / topSpeed) * 0.5;
-          v.speed += 24 * dt * Math.max(0.15, powerFade);
+          const tune = v.physicsProfile || CAR_PHYSICS[v.kind] || CAR_PHYSICS.lambo;
+          const topSpeed = tune.maxSpeed || 40;
+          const powerFade = THREE.MathUtils.clamp(1 - (v.speed / topSpeed) * 0.72, 0.18, 1);
+          v.speed += (tune.engineAcceleration || 8) * dt * powerFade;
         }
       } else if (throttle < 0) {
         if (v.speed > 1) {
-          v.speed -= 28 * dt;
+          v.speed -= (tune.brakeAcceleration || 12) * dt;
         } else {
-          v.speed -= 10 * dt;
+          v.speed -= (tune.reverseAcceleration || 4) * dt;
         }
       } else {
         if (absSpd > 0.1) {
-          const dragCoeff = 1.5 + (absSpd / 40) * (absSpd / 40) * 3;
+          const topSpeed = tune.maxSpeed || 40;
+          const dragCoeff = 0.65 + (absSpd / Math.max(1, topSpeed)) ** 2 * 1.8;
           v.speed *= Math.max(0, 1 - dt * dragCoeff);
         } else {
           v.speed = 0;
@@ -913,7 +929,7 @@ export class VehicleSystem {
       if (absSpd < 0.05 && !throttle) v.speed = 0;
   
       // Clamp
-      v.speed = THREE.MathUtils.clamp(v.speed, -9, 40);
+      v.speed = THREE.MathUtils.clamp(v.speed, -(tune.maxReverseSpeed || 9), tune.maxSpeed || 40);
   
       curSpd = Math.abs(v.speed);
       const fwd = v.speed >= 0 ? 1 : -1;
@@ -921,7 +937,8 @@ export class VehicleSystem {
       // ===== STEERING + TIRE GRIP =====
       // Bicycle-model steering: wheel angle creates curvature, so steering
       // naturally tightens at low speed and opens up as speed rises.
-      const wheelAngle = steerInput * (handbrake ? 0.34 : 0.20);
+      const steerScale = THREE.MathUtils.clamp(1 - curSpd * (v.physicsProfile?.speedSteeringFalloff ?? 0.008), v.physicsProfile?.minSteeringScale ?? 0.4, 1);
+      const wheelAngle = steerInput * (handbrake ? (v.physicsProfile?.handbrakeSteerAngle ?? 0.34) : (v.physicsProfile?.steeringAngle ?? 0.20)) * steerScale;
       if (curSpd > 0.25) {
         const wheelbase = 2.7;
         const yawRate = (v.speed / wheelbase) * Math.tan(wheelAngle);
@@ -1026,7 +1043,15 @@ export class VehicleSystem {
     // Integrate travelled distance once, then divide by each actual GLB tyre radius.
     v.wheelTravel = (v.wheelTravel || 0) - (v.speed * dt);
     if (v.wheels && v.wheels.length) {
-      const steerAngle = curSpd > 0.5 ? steerInput * 0.42 : 0;
+      const visualTune = v.physicsProfile || CAR_PHYSICS[v.kind] || CAR_PHYSICS.lambo;
+      const visualSteeringScale = THREE.MathUtils.clamp(
+        1 - curSpd * (visualTune.speedSteeringFalloff ?? 0.008),
+        visualTune.minSteeringScale ?? 0.4,
+        1,
+      );
+      const steerAngle = steerInput * (handbrake
+        ? (visualTune.handbrakeSteerAngle ?? 0.4)
+        : (visualTune.steeringAngle ?? 0.28)) * visualSteeringScale;
       for (const w of v.wheels) {
         if (w.front) w.pivot.rotation.y = -steerAngle;
         const spin = v.wheelTravel / Math.max(0.18, w.radius || 0.42);

@@ -243,9 +243,11 @@ try {
       const hz = (bodyBox.max.z - bodyBox.min.z) * 0.46;
       physicsBox.min.x = cx - hx; physicsBox.max.x = cx + hx;
       physicsBox.min.z = cz - hz; physicsBox.max.z = cz + hz;
+      const colliderCenterY = (physicsBox.min.y + physicsBox.max.y) * 0.5;
+      const comDrop = Math.min(0.22, (bodyBox.max.y - bodyBox.min.y) * 0.18);
       dynamicVehicleSpecs[kind] = {
         physicsBox,
-        centerY: (physicsBox.min.y + physicsBox.max.y) * 0.5,
+        centerY: Math.max(0.22, colliderCenterY - comDrop),
         wheels: wheelSpecs,
       };
     }
@@ -390,7 +392,9 @@ try {
     const q = new THREE.Quaternion(r.x, r.y, r.z, r.w);
     const root = new THREE.Vector3(p.x, p.y, p.z)
       .sub(new THREE.Vector3(0, centerY, 0).applyQuaternion(q));
-    return Math.min(...specs.map(w => root.y + new THREE.Vector3(w.x, w.y - w.radius, w.z).applyQuaternion(q).y));
+    const states = body._openWorldWheelStates || [];
+    return Math.min(...specs.map((w, i) => root.y
+      + new THREE.Vector3(w.x, w.y + (states[i]?.offset || 0) - w.radius, w.z).applyQuaternion(q).y));
   };
   const dynamicVehicleSpec = dynamicVehicleSpecs.lambo || Object.values(dynamicVehicleSpecs)[0];
   check('both car types produce real GLB suspension specs',
@@ -448,8 +452,16 @@ try {
     `bodyYaw=${bodyYaw.toFixed(2)} delta=${headingDelta.toFixed(2)}`);
   check('vehicle stays above the ground plane', t.y > 0.3, `centerY=${t.y.toFixed(2)}`);
   const lamboTireBottom = estimatedWheelBottom(rb, wheels, dynamicVehicleSpec.centerY);
-  check('Lambo visible tyres sit at ground level, not half buried', Math.abs(lamboTireBottom) < 0.11,
+  check('Lambo visible tyres sit at ground level, not half buried', Math.abs(lamboTireBottom) < 0.10,
     `estimated tire-bottom Y=${lamboTireBottom.toFixed(3)}`);
+
+  const lamboRotation = rb.rotation();
+  const lamboQ = new THREE.Quaternion(lamboRotation.x, lamboRotation.y, lamboRotation.z, lamboRotation.w);
+  const lamboUp = new THREE.Vector3(0, 1, 0).applyQuaternion(lamboQ);
+  const lamboTilt = Math.acos(THREE.MathUtils.clamp(lamboUp.y, -1, 1));
+  check('hard steering keeps the sports car planted instead of rolling onto two wheels',
+    (lastMotion?.wheelContacts || 0) >= 3 && lamboTilt < 0.40,
+    `contacts=${lastMotion?.wheelContacts ?? 0} tilt=${(lamboTilt * 180 / Math.PI).toFixed(1)}deg`);
 
   // Drive a real chassis up a ramp collider (nose points +Z). This verifies
   // throttle, wheel-ray contact, and rising ground height together.
@@ -505,7 +517,7 @@ try {
     check('Cybertruck chassis does not sink through the ground', truckPosition.y > 0.35,
       `centerY=${truckPosition.y.toFixed(2)}`);
     const truckTireBottom = estimatedWheelBottom(truck, truckSpec.wheels, truckSpec.centerY);
-    check('Cybertruck visible tyres sit at ground level, not half buried', Math.abs(truckTireBottom) < 0.11,
+    check('Cybertruck visible tyres sit at ground level, not half buried', Math.abs(truckTireBottom) < 0.10,
       `estimated tire-bottom Y=${truckTireBottom.toFixed(3)}`);
 
     const sunkTruck = physics.createVehicleBody(-40, -0.68, -30, vehicleYawOffset, [truckSpec.physicsBox], {
