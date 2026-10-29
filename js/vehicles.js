@@ -919,7 +919,7 @@ export class VehicleSystem {
     if (v.wheels && v.wheels.length) {
       const steerAngle = curSpd > 0.5 ? steerInput * 0.42 : 0;
       for (const w of v.wheels) {
-        if (w.front) w.pivot.rotation.y = steerAngle;
+        if (w.front) w.pivot.rotation.y = -steerAngle;
         if (w.axle === 'z') w.spinner.rotation.z = v.wheelSpin;
         else w.spinner.rotation.x = v.wheelSpin;
       }
