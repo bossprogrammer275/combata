@@ -621,7 +621,7 @@ export class World {
 
   async _loadCollisionManifest(a) {
     if (!a?.url || a.noCollision) return null;
-    const url = a.collisionManifest || a.url.replace(/\\.(glb|gltf)(?:[?#].*)?$/i, '_col.json');
+    const url = a.collisionManifest || a.url.replace(/\.(glb|gltf)(?:[?#].*)?$/i, '_col.json');
     if (!url || url === a.url) return null;
     if (!this._collisionManifestPromises) this._collisionManifestPromises = new Map();
     let pending = this._collisionManifestPromises.get(url);
@@ -807,7 +807,7 @@ export class World {
               if (a.building) this._addBuildingWallColliders(bbox, doorMeshes);
               else this.addCollider(center.x, bbox.min.y, center.z, size.x, size.y, size.z, !!a.climbable, a.type || null);
             }
-            console.log(`[World] Injected ${injected} collision boxes from ${a.collisionManifest || a.url.replace(/\\.(glb|gltf)(?:[?#].*)?$/i, '_col.json')}`);
+            console.log(`[World] Injected ${injected} collision boxes from ${a.collisionManifest || a.url.replace(/\.(glb|gltf)(?:[?#].*)?$/i, '_col.json')}`);
           } else if (a.building) {
             // Safe fallback when no authored proxies or generated sidecar exists.
             this._addBuildingWallColliders(bbox, doorMeshes);
