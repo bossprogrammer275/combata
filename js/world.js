@@ -181,7 +181,9 @@ export class World {
     return null;
   }
 
-  addInterior(min, max) { this.interiors.push({ min, max }); }
+  addInterior(min, max, transform = null) {
+    this.interiors.push({ min, max, transform });
+  }
 
   addPortal(pos, dir, target, type = 'enter', buildingIdx = -1) {
     const p = { pos: pos.clone(), dir: dir.clone(), target: target.clone(), type, buildingIdx };
@@ -262,7 +264,16 @@ export class World {
     this.roofAccess.push({ x, z, y: roofY, rx: rx || 6, rz: rz || 6 });
   }
   insideInterior(p) {
-    for (const v of this.interiors) if (p.x > v.min.x && p.x < v.max.x && p.z > v.min.z && p.z < v.max.z) return true;
+    for (const v of this.interiors) {
+      let x = p.x, z = p.z;
+      if (v.transform) {
+        const dx = p.x - v.transform.x, dz = p.z - v.transform.z;
+        const c = Math.cos(v.transform.yaw || 0), sn = Math.sin(v.transform.yaw || 0);
+        x = dx * c - dz * sn;
+        z = dx * sn + dz * c;
+      }
+      if (x > v.min.x && x < v.max.x && z > v.min.z && z < v.max.z) return true;
+    }
     return false;
   }
 
@@ -1239,16 +1250,20 @@ export class World {
   _registerBuildingDoors(a, model, doorMeshes, buildingIdx, transform = null) {
     const bd = this._buildingData[buildingIdx];
     const wallMargin = 1.0;
-    const interiorMin = new THREE.Vector3(bd.min.x + wallMargin, bd.min.y, bd.min.z + wallMargin);
-    const interiorMax = new THREE.Vector3(bd.max.x - wallMargin, bd.max.y, bd.max.z - wallMargin);
-    if (interiorMin.x < interiorMax.x && interiorMin.z < interiorMax.z) {
-      bd.interior = { min: interiorMin, max: interiorMax };
-      this.addInterior(interiorMin, interiorMax);
-    }
-
     const originX = transform?.x ?? a.x ?? 0;
     const originZ = transform?.z ?? a.z ?? 0;
     const yaw = transform?.yaw ?? a.ry ?? 0;
+    // The interior volume is stored in the same local coordinate system as the
+    // scaled GLB. An axis-aligned world bbox around a rotated building includes
+    // outdoor corners and causes false "inside" state near the perimeter.
+    const bounds = transform?.localBBox || new THREE.Box3(bd.min.clone(), bd.max.clone());
+    const interiorMin = new THREE.Vector3(bounds.min.x + wallMargin, bounds.min.y, bounds.min.z + wallMargin);
+    const interiorMax = new THREE.Vector3(bounds.max.x - wallMargin, bounds.max.y, bounds.max.z - wallMargin);
+    if (interiorMin.x < interiorMax.x && interiorMin.z < interiorMax.z) {
+      const interiorTransform = transform?.localBBox ? { x: originX, z: originZ, yaw } : null;
+      bd.interior = { min: interiorMin, max: interiorMax, transform: interiorTransform };
+      this.addInterior(interiorMin, interiorMax, interiorTransform);
+    }
     const c = Math.cos(yaw), sn = Math.sin(yaw);
     const localBBox = transform?.localBBox;
     const toLocal = (x, z) => {
