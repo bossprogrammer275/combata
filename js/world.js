@@ -619,6 +619,61 @@ export class World {
     return;
   }
 
+  async _loadCollisionManifest(a) {
+    if (!a?.url || a.noCollision) return null;
+    const url = a.collisionManifest || a.url.replace(/\\.(glb|gltf)(?:[?#].*)?$/i, '_col.json');
+    if (!url || url === a.url) return null;
+    if (!this._collisionManifestPromises) this._collisionManifestPromises = new Map();
+    let pending = this._collisionManifestPromises.get(url);
+    if (!pending) {
+      pending = fetch(url, { cache: 'force-cache' })
+        .then(response => response.ok ? response.json() : null)
+        .then(data => Array.isArray(data?.boxes) ? data : null)
+        .catch(() => null);
+      this._collisionManifestPromises.set(url, pending);
+    }
+    return pending;
+  }
+
+  _injectManifestColliders(manifest, a, scaleFactor, yOffset) {
+    const boxes = Array.isArray(manifest?.boxes) ? manifest.boxes : [];
+    if (!boxes.length) return 0;
+    const yaw = a.ry || 0;
+    const c = Math.cos(yaw), sn = Math.sin(yaw);
+    let count = 0;
+    for (const entry of boxes) {
+      let x, y, z, w, h, d;
+      if (Array.isArray(entry) && entry.length >= 6) {
+        [x, y, z, w, h, d] = entry;
+      } else if (entry && Array.isArray(entry.center) && Array.isArray(entry.size)) {
+        [x, y, z] = entry.center;
+        [w, h, d] = entry.size;
+      } else if (entry && Array.isArray(entry.min) && Array.isArray(entry.max)) {
+        x = (entry.min[0] + entry.max[0]) / 2;
+        y = (entry.min[1] + entry.max[1]) / 2;
+        z = (entry.min[2] + entry.max[2]) / 2;
+        w = entry.max[0] - entry.min[0];
+        h = entry.max[1] - entry.min[1];
+        d = entry.max[2] - entry.min[2];
+      } else continue;
+
+      if (![x, y, z, w, h, d].every(Number.isFinite) || w <= 0 || h <= 0 || d <= 0) continue;
+      const lx = x * scaleFactor, ly = y * scaleFactor, lz = z * scaleFactor;
+      const worldX = (a.x || 0) + lx * c + lz * sn;
+      const worldZ = (a.z || 0) - lx * sn + lz * c;
+      const worldH = h * scaleFactor;
+      // Rotate each local box's footprint into a conservative world AABB.
+      const worldW = (Math.abs(c) * w + Math.abs(sn) * d) * scaleFactor;
+      const worldD = (Math.abs(sn) * w + Math.abs(c) * d) * scaleFactor;
+      this.addCollider(
+        worldX, yOffset + ly - worldH / 2, worldZ,
+        worldW, worldH, worldD, !!a.climbable, a.type || null,
+      );
+      count++;
+    }
+    return count;
+  }
+
   async _loadGLBAsset(a) {
     if (!this._gltfLoader) this._gltfLoader = new GLTFLoader();
     if (!this._glbModelCache) this._glbModelCache = new Map();
@@ -645,17 +700,21 @@ export class World {
       const rawBBox = new THREE.Box3().setFromObject(model);
       const rawH = rawBBox.max.y - rawBBox.min.y;
 
-      // Auto-scale: targetH normalizes model height to real-world meters.
+      // Keep the sidecar's collision boxes on the exact same scale as the GLB.
+      let scaleFactor = 1;
       if (a.targetH && rawH > 0.01) {
-        model.scale.setScalar(a.targetH / rawH);
+        scaleFactor = a.targetH / rawH;
+        model.scale.setScalar(scaleFactor);
       } else if (a.scale) {
-        model.scale.setScalar(a.scale);
+        scaleFactor = a.scale;
+        model.scale.setScalar(scaleFactor);
       }
 
       // Position: snap model's bottom to ground (y=0), plus any elevation offset.
       model.updateMatrixWorld(true);
       const afterScaleBBox = new THREE.Box3().setFromObject(model);
-      model.position.set(a.x, -afterScaleBBox.min.y + (a.elevation || 0), a.z);
+      const yOffset = -afterScaleBBox.min.y + (a.elevation || 0);
+      model.position.set(a.x, yOffset, a.z);
       model.rotation.y = a.ry || 0;
       this.group.add(model);
       model.updateMatrixWorld(true);
@@ -695,6 +754,9 @@ export class World {
       const isRoad = assetUrl.includes('road.glb') || (assetUrl.includes('road') && !assetUrl.includes('barrier'));
 
       const bbox = new THREE.Box3().setFromObject(model, true);
+      // process-glbs.js emits sibling *_col.json sidecars. The loader used to
+      // never read them, so all that generated collision data was silently ignored.
+      const collisionManifest = await this._loadCollisionManifest(a);
       const collisionProxyBoxes = [];
       const doorMeshes = [];
       model.traverse((o) => {
@@ -721,26 +783,36 @@ export class World {
         const size = bbox.getSize(new THREE.Vector3());
         const center = bbox.getCenter(new THREE.Vector3());
         if (size.x > 0.1 && size.y > 0.1 && size.z > 0.1) {
-          if (a.building && collisionProxyBoxes.length) {
+          // Explicit col_* boxes are the preferred authoring format. They are
+          // hidden visuals but become solid gameplay colliders, for buildings
+          // as well as climbable props.
+          if (collisionProxyBoxes.length) {
             for (const p of collisionProxyBoxes) {
               if (p.size.x > 0.05 && p.size.y > 0.05 && p.size.z > 0.05) {
-                this.addCollider(p.center.x, p.min.y, p.center.z, p.size.x, p.size.y, p.size.z);
+                this.addCollider(p.center.x, p.min.y, p.center.z, p.size.x, p.size.y, p.size.z, !!a.climbable, a.type || null);
               }
             }
-          } else if (a.building) {
-            this._addBuildingWallColliders(bbox, doorMeshes);
           } else if (isTree) {
+            // Avoid blocking the road with foliage: trees collide at the trunk.
             this.addCollider(a.x, bbox.min.y, a.z, 0.5, size.y, 0.5);
           } else if (isLamp) {
             this.addCollider(a.x, bbox.min.y, a.z, 0.35, size.y, 0.35);
-          } else if (a.climbable) {
-            this.addCollider(center.x, bbox.min.y, center.z, size.x, size.y, size.z, true, a.type || null);
           } else if (a.collisionSize) {
-            this.addCollider(a.x, bbox.min.y, a.z, a.collisionSize[0], a.collisionH || size.y, a.collisionSize[1]);
+            this.addCollider(a.x, bbox.min.y, a.z, a.collisionSize[0], a.collisionH || size.y, a.collisionSize[1], !!a.climbable, a.type || null);
           } else if (a.collisionH) {
-            this.addCollider(center.x, bbox.min.y, center.z, size.x, a.collisionH, size.z);
+            this.addCollider(center.x, bbox.min.y, center.z, size.x, a.collisionH, size.z, !!a.climbable, a.type || null);
+          } else if (collisionManifest?.boxes?.length) {
+            const injected = this._injectManifestColliders(collisionManifest, a, scaleFactor, yOffset);
+            if (!injected) {
+              if (a.building) this._addBuildingWallColliders(bbox, doorMeshes);
+              else this.addCollider(center.x, bbox.min.y, center.z, size.x, size.y, size.z, !!a.climbable, a.type || null);
+            }
+            console.log(`[World] Injected ${injected} collision boxes from ${a.collisionManifest || a.url.replace(/\\.(glb|gltf)(?:[?#].*)?$/i, '_col.json')}`);
+          } else if (a.building) {
+            // Safe fallback when no authored proxies or generated sidecar exists.
+            this._addBuildingWallColliders(bbox, doorMeshes);
           } else {
-            this.addCollider(center.x, bbox.min.y, center.z, size.x, size.y, size.z);
+            this.addCollider(center.x, bbox.min.y, center.z, size.x, size.y, size.z, !!a.climbable, a.type || null);
           }
         }
       }
@@ -1256,22 +1328,28 @@ export class World {
     }
     this._ribbonBatch.push({ left, right, y, mat, closed });
   }
+  _removeWorldCollider(col) {
+    if (!col) return;
+    let i = this.colliders.indexOf(col);
+    if (i >= 0) this.colliders.splice(i, 1);
+    i = this.climbables.indexOf(col);
+    if (i >= 0) this.climbables.splice(i, 1);
+    if (this.bvhWorld) this.bvhWorld.removeAABB(col);
+    if (col.physicsCollider && this._physics) this._physics.removeCollider(col.physicsCollider);
+    col.physicsCollider = null;
+  }
+
   removeLoot(idx) {
     const L = this.lootPoints[idx];
     if (!L || L.looted) return;
     L.looted = true;
-    if (L.mesh) {
-      this.group.remove(L.mesh);
-      const r = this.reactiveObjects.find(o => o.mesh === L.mesh);
-      if (r) {
-        r.dead = true;
-        r.mesh.visible = false;
-        if (r.col) {
-          const i = this.colliders.indexOf(r.col);
-          if (i >= 0) this.colliders.splice(i, 1);
-          if (this.bvhWorld) this.bvhWorld.removeAABB(r.col);
-        }
-      }
+    if (L.mesh) this.group.remove(L.mesh);
+    this._removeWorldCollider(L.col);
+    const r = L.mesh && this.reactiveObjects.find(o => o.mesh === L.mesh);
+    if (r) {
+      r.dead = true;
+      r.mesh.visible = false;
+      this._removeWorldCollider(r.col);
     }
   }
 
