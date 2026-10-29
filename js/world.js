@@ -885,7 +885,8 @@ export class World {
         }
         // Simple stair meshes without a sidecar still get top-tread colliders.
         // Detailed assets should use *_col.json, which provides denser cells.
-        if (!collisionProxyBoxes.length) {
+        const hasStairProxy = collisionProxyBoxes.some(p => /stairs?/i.test(p.name));
+        if (!hasStairProxy) {
           let treadCount = 0;
           for (const stair of stairMeshes) {
             for (const step of this._collectStairStepBoxes(stair)) {
