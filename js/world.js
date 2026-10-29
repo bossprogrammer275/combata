@@ -757,12 +757,14 @@ export class World {
       const collisionProxyBoxes = [];
       const doorMeshes = [];
       const floorCollisionBoxes = [];
+      const stairMeshes = [];
       model.traverse((o) => {
         if (!o.isMesh) return;
         const isProxy = this._isCollisionMesh(o.name);
         const isDoor = this._isDoorMesh(o.name);
         const isFloor = this._isFloorMesh(o.name);
-        if (!isProxy && !isDoor && !isFloor) return;
+        const isStair = this._isStairMesh(o.name);
+        if (!isProxy && !isDoor && !isFloor && !isStair) return;
         o.updateWorldMatrix(true, false);
         const geo = o.geometry;
         if (!geo || !geo.attributes.position) return;
@@ -775,6 +777,7 @@ export class World {
         if (isProxy) collisionProxyBoxes.push(record);
         if (isDoor) doorMeshes.push(record);
         if (isFloor) floorCollisionBoxes.push(record);
+        if (isStair) stairMeshes.push(o);
       });
       // Collision helpers are hidden only after their dimensions have been read.
       model.traverse((o) => { if (o.isMesh && this._isCollisionMesh(o.name)) o.visible = false; });
@@ -833,6 +836,20 @@ export class World {
           const bottomY = floor.max.y - h;
           if (floor.size.x > 0.2 && floor.size.z > 0.2) {
             this.addCollider(floor.center.x, bottomY, floor.center.z, floor.size.x, h, floor.size.z);
+          }
+        }
+        // Simple stair meshes without a sidecar still get top-tread colliders.
+        // Detailed assets should use *_col.json, which provides denser cells.
+        if (!collisionProxyBoxes.length) {
+          let treadCount = 0;
+          for (const stair of stairMeshes) {
+            for (const step of this._collectStairStepBoxes(stair)) {
+              this.addCollider(step.x, step.topY - step.h, step.z, step.w, step.h, step.d);
+              treadCount++;
+            }
+          }
+          if (stairMeshes.length) {
+            console.log(`[World] Injected ${treadCount} walkable stair treads for ${assetName}`);
           }
         }
       }
@@ -933,6 +950,62 @@ export class World {
 
   _isStairMesh(name) {
     return (name || '').toLowerCase().startsWith('stairs_');
+  }
+
+  _collectStairStepBoxes(mesh) {
+    const geo = mesh?.geometry;
+    const pos = geo?.attributes?.position;
+    if (!pos || pos.count < 3) return [];
+    mesh.updateWorldMatrix(true, false);
+    const index = geo.index;
+    const triangleCount = index ? Math.floor(index.count / 3) : Math.floor(pos.count / 3);
+    if (triangleCount > 30000) return [];
+    const v = new THREE.Vector3();
+    const vertex = (i) => {
+      const sourceIndex = index ? index.getX(i) : i;
+      v.set(pos.getX(sourceIndex), pos.getY(sourceIndex), pos.getZ(sourceIndex));
+      return v.clone().applyMatrix4(mesh.matrixWorld);
+    };
+    const levels = new Map();
+    for (let t = 0; t < triangleCount; t++) {
+      const a = vertex(t * 3), b = vertex(t * 3 + 1), c = vertex(t * 3 + 2);
+      const minY = Math.min(a.y, b.y, c.y), maxY = Math.max(a.y, b.y, c.y);
+      if (maxY - minY > 0.08) continue; // only horizontal tread faces
+      const ux = b.x - a.x, uy = b.y - a.y, uz = b.z - a.z;
+      const vx = c.x - a.x, vy = c.y - a.y, vz = c.z - a.z;
+      const nx = uy * vz - uz * vy;
+      const ny = uz * vx - ux * vz;
+      const nz = ux * vy - uy * vx;
+      const normalLength = Math.hypot(nx, ny, nz);
+      if (normalLength < 1e-6 || Math.abs(ny / normalLength) < 0.85) continue;
+      const minX = Math.min(a.x, b.x, c.x), maxX = Math.max(a.x, b.x, c.x);
+      const minZ = Math.min(a.z, b.z, c.z), maxZ = Math.max(a.z, b.z, c.z);
+      if (maxX - minX < 0.05 || maxZ - minZ < 0.05) continue;
+      const topY = Math.round(((a.y + b.y + c.y) / 3) * 20) / 20;
+      let level = levels.get(topY);
+      if (!level) {
+        level = { minX, maxX, minZ, maxZ, topY };
+        levels.set(topY, level);
+      } else {
+        level.minX = Math.min(level.minX, minX);
+        level.maxX = Math.max(level.maxX, maxX);
+        level.minZ = Math.min(level.minZ, minZ);
+        level.maxZ = Math.max(level.maxZ, maxZ);
+      }
+    }
+    const steps = [];
+    for (const level of levels.values()) {
+      const w = level.maxX - level.minX + 0.03;
+      const d = level.maxZ - level.minZ + 0.03;
+      if (w < 0.1 || d < 0.1) continue;
+      steps.push({
+        x: (level.minX + level.maxX) / 2,
+        z: (level.minZ + level.maxZ) / 2,
+        topY: level.topY,
+        w, d, h: 0.12,
+      });
+    }
+    return steps;
   }
 
   _isFloorMesh(name) {
