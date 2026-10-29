@@ -553,6 +553,7 @@ export class VehicleSystem {
     this._removeParkedCollider(veh);
     player.vel.set(0, 0, 0);
     player.char.root.visible = false;
+    if (this.physics) this.physics.setPlayerCollisionEnabled(false);
     this._lookYaw = 0;
     this._lookPitch = 0.2;
     const totalYaw = veh.yaw + this._lookYaw;
@@ -571,6 +572,7 @@ export class VehicleSystem {
     veh.def.occupied = true;
     player.vel.set(0, 0, 0);
     player.char.root.visible = false;
+    if (this.physics) this.physics.setPlayerCollisionEnabled(false);
     this._lookYaw = 0;
     this._lookPitch = 0.2;
     const totalYaw = veh.yaw + this._lookYaw;
@@ -589,6 +591,7 @@ export class VehicleSystem {
     veh.def.occupied = false;
     player.pos.set(veh.pos.x + Math.cos(veh.yaw) * 3, 0.5, veh.pos.z - Math.sin(veh.yaw) * 3);
     player.vel.set(0, 0, 0);
+    if (this.physics) this.physics.setPlayerCollisionEnabled(true);
     player.onGround = true;
     player.yaw = veh.yaw + Math.PI;
     player.char.root.visible = true;
