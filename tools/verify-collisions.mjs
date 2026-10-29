@@ -290,5 +290,48 @@ check('lane markings stop at road junctions', () => {
   }
 });
 
+check('flyover ground support selects the correct elevation under stacked roads', () => {
+  const world = worldHarness();
+  world._addRoadSurfaceColliders(
+    [{ x: -20, z: 0, y: 0 }, { x: 20, z: 0, y: 0 }],
+    18, 0.06, false, 0.05,
+  );
+  world._addRoadSurfaceColliders(
+    [{ x: 0, z: -20, y: 0 }, { x: 0, z: 20, y: 6 }],
+    10, 0.06, false, 0.05,
+  );
+  const underDeck = world.groundHeightAt(0, 0, 0.18);
+  const onDeck = world.groundHeightAt(0, 20, 6.2);
+  assert.ok(Math.abs(underDeck - 0.06) < 0.02,
+    `under-deck support incorrectly selected elevated surface: ${underDeck}`);
+  assert.ok(Math.abs(onDeck - 6.06) < 0.02,
+    `elevated ramp support height is wrong: ${onDeck}`);
+});
+
+check('flyover builds a solid deck, raised supports, and concrete edge barriers', () => {
+  const world = Object.create(World.prototype);
+  world.group = new THREE.Group();
+  world.roadPhysicsMeshes = [];
+  world.mConcrete = () => new THREE.MeshStandardMaterial({ color: 0x777777 });
+  world.mCurb = () => new THREE.MeshStandardMaterial({ color: 0x888888 });
+  const pts = [
+    { x: 0, z: 0, y: 0 },
+    { x: 0, z: 25, y: 4 },
+    { x: 0, z: 50, y: 6 },
+    { x: 0, z: 75, y: 4 },
+    { x: 0, z: 100, y: 0 },
+  ];
+  world._buildFlyoverStructure(pts, 10, 0.06);
+  world._buildRoadGuardrails(pts, 10, 0.06);
+  const deck = world.roadPhysicsMeshes.find(m => m.kind === 'bridge_deck');
+  const supports = world.roadPhysicsMeshes.find(m => m.kind === 'bridge_support');
+  const barriers = world.roadPhysicsMeshes.find(m => m.kind === 'barrier');
+  assert.ok(deck?.geometry?.attributes?.position?.count > 0, 'flyover deck geometry is missing');
+  assert.ok(supports?.geometry?.attributes?.position?.count > 0, 'flyover piers/crossheads are missing');
+  assert.ok(barriers?.geometry?.attributes?.position?.count > 0, 'flyover guardrail geometry is missing');
+  assert.ok(deck.geometry.attributes.position.array.some(y => y > 5.5),
+    'raised road deck did not reach the authored elevation');
+});
+
 console.log(failures ? `[collision verify] ${failures} FAILURES` : '[collision verify] ALL CHECKS PASSED');
 process.exitCode = failures ? 1 : 0;
