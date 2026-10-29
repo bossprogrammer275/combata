@@ -418,7 +418,7 @@ export class VehicleSystem {
     v.parkedCol = this.world.addCollider(b.x, b.y, b.z, b.w, b.h, b.d);
   }
 
-  syncDynamicVehicle(v) {
+  syncDynamicVehicle(v, dt = 1 / 60) {
     if (!v?.physicsDynamic || !v.rapierBody) return;
     const t = v.rapierBody.translation();
     const rotation = v.rapierBody.rotation();
@@ -433,11 +433,20 @@ export class VehicleSystem {
     v.lateralVel = velocity.x * rx + velocity.z * rz;
     v.root.position.copy(v.pos);
     v.root.rotation.set(0, bodyYaw, 0);
+    const wheelStates = v.rapierBody._openWorldWheelStates || [];
+    const blend = 1 - Math.exp(-18 * Math.min(Math.max(dt, 0), 0.05));
+    for (let i = 0; i < v.wheels.length; i++) {
+      const wheel = v.wheels[i];
+      const state = wheelStates[i];
+      const targetOffset = state?.contact ? state.offset : (v.suspensionReady ? -0.18 : 0);
+      wheel.suspensionOffset += (targetOffset - wheel.suspensionOffset) * blend;
+      wheel.pivot.position.y = wheel.basePivotY + wheel.suspensionOffset;
+    }
     if (v.parkedCol) this._refreshParkedCollider(v);
   }
 
-  syncDynamicBodies() {
-    for (const v of this.vehicles) this.syncDynamicVehicle(v);
+  syncDynamicBodies(dt = 1 / 60) {
+    for (const v of this.vehicles) this.syncDynamicVehicle(v, dt);
   }
 
   async spawn(def) {
@@ -455,21 +464,42 @@ export class VehicleSystem {
       };
       const half = base.userData.half || { x: 1.05, z: 2.35 };
       const yawOffset = base.userData.yawOffset || 0;
-      // Re-resolve wheel rigs on the CLONE (base refs point at base nodes).
+      // Re-resolve the wheel rigs and measure their true positions/radii in
+      // normalized model-root space. These are used by the raycast suspension.
       const wheels = [];
+      root.updateMatrixWorld(true);
+      clone.updateMatrixWorld(true);
+      const rootInverse = root.matrixWorld.clone().invert();
       clone.traverse((o) => {
-        if (o.userData && o.userData.wheelPivot) {
-          const spinner = (o.children || []).find((c) => c.userData && c.userData.wheelSpinner) || null;
-          if (!spinner) return;
-          wheels.push({
-            pivot: o,
-            spinner,
-            axle: o.userData.wheelPivot.axle || 'x',
-            front: !!o.userData.wheelPivot.front,
-            center: o.position.clone(),
-            meshes: spinner.children.filter((c) => c.isMesh),
-          });
+        if (!(o.userData && o.userData.wheelPivot)) return;
+        const spinner = (o.children || []).find((c) => c.userData && c.userData.wheelSpinner) || null;
+        if (!spinner) return;
+        o.updateWorldMatrix(true, false);
+        const pivotRootMatrix = rootInverse.clone().multiply(o.matrixWorld);
+        const center = new THREE.Vector3().setFromMatrixPosition(pivotRootMatrix);
+        const meshes = spinner.children.filter((c) => c.isMesh);
+        let radius = 0;
+        for (const mesh of meshes) {
+          mesh.updateWorldMatrix(true, false);
+          const geo = mesh.geometry;
+          if (!geo || !geo.attributes.position) continue;
+          if (!geo.boundingBox) geo.computeBoundingBox();
+          if (!geo.boundingBox) continue;
+          const meshRootMatrix = rootInverse.clone().multiply(mesh.matrixWorld);
+          const localBox = new THREE.Box3().copy(geo.boundingBox).applyMatrix4(meshRootMatrix);
+          radius = Math.max(radius, localBox.getSize(new THREE.Vector3()).y * 0.5);
         }
+        wheels.push({
+          pivot: o,
+          spinner,
+          axle: o.userData.wheelPivot.axle || 'x',
+          front: !!o.userData.wheelPivot.front,
+          center,
+          basePivotY: o.position.y,
+          suspensionOffset: 0,
+          radius: THREE.MathUtils.clamp(radius || 0.32, 0.18, 0.5),
+          meshes,
+        });
       });
 
       // Parked orientation matches driving orientation exactly (no 180° snap).
@@ -478,9 +508,36 @@ export class VehicleSystem {
       root.rotation.y = yaw + yawOffset;
       this.scene.add(root);
 
-      const physicsCenterY = (bodyBox.min.y + bodyBox.max.y) * 0.5;
+      const suspensionReady = wheels.length >= 4 && wheels.every(w => w.radius >= 0.18 && w.center.y > bodyBox.min.y);
+      const physicsBox = {
+        min: bodyBox.min.clone(),
+        max: bodyBox.max.clone(),
+      };
+      if (suspensionReady) {
+        // Tires extend below the chassis. Keep the physical chassis above the
+        // road so raycast suspension, not a flat box bottom, supports the car.
+        const minWheelY = Math.min(...wheels.map(w => w.center.y));
+        const meanRadius = wheels.reduce((sum, w) => sum + w.radius, 0) / wheels.length;
+        physicsBox.min.y = THREE.MathUtils.clamp(
+          minWheelY + meanRadius * 0.18,
+          bodyBox.min.y + 0.05,
+          bodyBox.max.y - 0.3,
+        );
+        const cx = (bodyBox.min.x + bodyBox.max.x) * 0.5;
+        const cz = (bodyBox.min.z + bodyBox.max.z) * 0.5;
+        const hx = (bodyBox.max.x - bodyBox.min.x) * 0.44;
+        const hz = (bodyBox.max.z - bodyBox.min.z) * 0.46;
+        physicsBox.min.x = cx - hx; physicsBox.max.x = cx + hx;
+        physicsBox.min.z = cz - hz; physicsBox.max.z = cz + hz;
+      }
+      const physicsCenterY = (physicsBox.min.y + physicsBox.max.y) * 0.5;
+      const physicsWheels = wheels.map(w => ({
+        x: w.center.x, y: w.center.y, z: w.center.z,
+        radius: w.radius, front: w.front,
+      }));
       const v = {
-        def, root, rapierBody: null, physicsDynamic: false, physicsCenterY,
+        def, root, rapierBody: null, physicsDynamic: false, suspensionReady,
+        physicsCenterY, physicsBox, physicsWheels,
         kind, wheels, colBoxes, bodyBox, half,
         yawOffset, parkedCol: null,
         pos: new THREE.Vector3(def.x, def.elevation || 0, def.z),
@@ -497,20 +554,11 @@ export class VehicleSystem {
       // controller remains only as a no-Rapier fallback.
       if (this.physics && this.physics.world) {
         try {
-          const rapierBoxes = colBoxes
-            .filter((b) => {
-              const sx = b.max.x - b.min.x, sy = b.max.y - b.min.y, sz = b.max.z - b.min.z;
-              return Math.min(sx, sy, sz) > 0.025 && (sx * sy * sz) > 0.00015;
-            })
-            .sort((a, b2) => {
-              const va = (a.max.x - a.min.x) * (a.max.y - a.min.y) * (a.max.z - a.min.z);
-              const vb = (b2.max.x - b2.min.x) * (b2.max.y - b2.min.y) * (b2.max.z - b2.min.z);
-              return vb - va;
-            })
-            .slice(0, 32);
-          if (!rapierBoxes.length) rapierBoxes.push(bodyBox);
+          // One elevated chassis collider leaves tire clearance for suspension
+          // raycasts. The legacy custom boxes remain available to the fallback
+          // movement controller, but are not piled into the dynamic chassis.
           v.rapierBody = this.physics.createVehicleBody(
-            def.x, def.elevation || 0, def.z, yaw + yawOffset, rapierBoxes,
+            def.x, def.elevation || 0, def.z, yaw + yawOffset, [physicsBox],
             { dynamic: true, centerY: physicsCenterY, mass: v.mass },
           );
           v.physicsDynamic = !!v.rapierBody?._openWorldDynamic;
@@ -652,7 +700,7 @@ export class VehicleSystem {
     if (v.physicsDynamic && this.physics && v.rapierBody) {
       // Body pose/velocity come from the last completed Rapier step. Apply
       // controls as impulses; do not manually move or teleport the chassis.
-      this.syncDynamicVehicle(v);
+      this.syncDynamicVehicle(v, dt);
       const motion = this.physics.applyVehicleControls(v.rapierBody, {
         throttle,
         steer: steerInput,
