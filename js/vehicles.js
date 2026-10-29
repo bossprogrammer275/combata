@@ -10,6 +10,30 @@ export const CAR_MODELS = {
   cybertruck: { url: './data/models/cars/tesla_cybertruk_low_poly/scene.gltf', targetLen: 5.7, color: 0x888888, nose: 1 },
 };
 
+// Handling is deliberately different per chassis. Values are tuned for a fun,
+// responsive open-world game rather than pretending every vehicle weighs and
+// turns like the same generic car. Speeds/accelerations are m/s and m/s².
+export const CAR_PHYSICS = {
+  lambo: {
+    mass: 1480, drivetrain: 'rwd',
+    engineAcceleration: 12.5, reverseAcceleration: 4.5, brakeAcceleration: 16.5,
+    maxSpeed: 64, maxReverseSpeed: 10.5,
+    steeringAngle: 0.32, handbrakeSteerAngle: 0.48,
+    frontGrip: 7.4, rearGrip: 9.8, handbrakeRearGrip: 0.65,
+    suspensionRestLength: 0.21, suspensionTravel: 0.18,
+    springRate: 32000, springDamping: 3400,
+  },
+  cybertruck: {
+    mass: 3050, drivetrain: 'awd',
+    engineAcceleration: 8.8, reverseAcceleration: 3.8, brakeAcceleration: 14.5,
+    maxSpeed: 40, maxReverseSpeed: 8.5,
+    steeringAngle: 0.23, handbrakeSteerAngle: 0.34,
+    frontGrip: 6.4, rearGrip: 7.6, handbrakeRearGrip: 1.35,
+    suspensionRestLength: 0.25, suspensionTravel: 0.21,
+    springRate: 54000, springDamping: 5600,
+  },
+};
+
 // Rotate a root-space XZ rect by yaw -> world-space AABB extents.
 export function rotBoxXZ(bb, yaw, out) {
   const c = Math.cos(yaw), s = Math.sin(yaw);
@@ -431,9 +455,11 @@ export class VehicleSystem {
     const q = new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
     const bodyYaw = new THREE.Euler().setFromQuaternion(q, 'YXZ').y;
     v.pos.set(t.x, t.y - (v.physicsCenterY || 0), t.z);
+    // Body yaw rotates the imported model; gameplay yaw is the true travel
+    // heading after removing its source GLB's nose-axis correction.
     v.yaw = bodyYaw - (v.yawOffset || 0);
     const velocity = v.rapierBody.linvel();
-    const fx = -Math.sin(bodyYaw), fz = -Math.cos(bodyYaw);
+    const fx = -Math.sin(v.yaw), fz = -Math.cos(v.yaw);
     const rx = Math.cos(bodyYaw), rz = -Math.sin(bodyYaw);
     v.speed = velocity.x * fx + velocity.z * fz;
     v.lateralVel = velocity.x * rx + velocity.z * rz;
@@ -458,7 +484,8 @@ export class VehicleSystem {
       // The actively driven car already received its controls earlier this frame.
       if (v !== this.driver && v.physicsDynamic && v.rapierBody && this.physics) {
         this.physics.applyVehicleControls(v.rapierBody, {
-          throttle: 0, steer: 0, handbrake: false, dt, wheels: v.physicsWheels,
+          throttle: 0, steer: 0, handbrake: false, dt,
+          wheels: v.physicsWheels, tuning: v.physicsProfile,
         });
       }
       this.syncDynamicVehicle(v, dt);
@@ -551,9 +578,10 @@ export class VehicleSystem {
         x: w.center.x, y: w.center.y, z: w.center.z,
         radius: w.radius, front: w.front,
       }));
+      const physicsProfile = { ...(CAR_PHYSICS[kind] || CAR_PHYSICS.lambo) };
       const v = {
         def, root, rapierBody: null, physicsDynamic: false, suspensionReady,
-        physicsCenterY, physicsBox, physicsWheels,
+        physicsCenterY, physicsBox, physicsWheels, physicsProfile,
         kind, wheels, colBoxes, bodyBox, half,
         yawOffset, parkedCol: null,
         pos: new THREE.Vector3(def.x, def.elevation || 0, def.z),
@@ -561,7 +589,7 @@ export class VehicleSystem {
         speed: 0,
         steerAngle: 0,
         lateralVel: 0,
-        mass: 1450,
+        mass: physicsProfile.mass,
         pushForce: 0,
       };
 
@@ -575,7 +603,10 @@ export class VehicleSystem {
           // movement controller, but are not piled into the dynamic chassis.
           v.rapierBody = this.physics.createVehicleBody(
             def.x, def.elevation || 0, def.z, yaw + yawOffset, [physicsBox],
-            { dynamic: true, centerY: physicsCenterY, mass: v.mass },
+            {
+              dynamic: true, centerY: physicsCenterY, mass: v.mass,
+              yawOffset, tuning: physicsProfile,
+            },
           );
           v.physicsDynamic = !!v.rapierBody?._openWorldDynamic;
         } catch (e) { console.warn('[Vehicle] Dynamic Rapier body failed; using AABB fallback:', e); }
@@ -725,6 +756,7 @@ export class VehicleSystem {
         handbrake,
         dt,
         wheels: v.physicsWheels,
+        tuning: v.physicsProfile,
       });
       curSpd = motion ? motion.horizontalSpeed : Math.abs(v.speed);
       if (motion) {
