@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: write
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -16,6 +19,54 @@ jobs:
           node-version: 20
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+      - name: Generate missing city building collision sidecars
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          sources=(
+            data/models/assets/low_poly_skyscraper.glb
+            data/models/assets/kwara_revenue_house.glb
+            data/models/assets/ilorin_innovation_hub.glb
+          )
+          missing=()
+          for source in "${sources[@]}"; do
+            sidecar="${source%.glb}_col.json"
+            if [ ! -s "$sidecar" ]; then missing+=("$source"); fi
+          done
+          if [ "${#missing[@]}" -eq 0 ]; then
+            echo "All city building collision sidecars already exist."
+            exit 0
+          fi
+
+          node tools/process-glbs.js "${missing[@]}"
+
+          for source in "${missing[@]}"; do
+            sidecar="${source%.glb}_col.json"
+            if [ ! -s "$sidecar" ]; then
+              echo "::error::Collision manifest was not generated: $sidecar"
+              exit 1
+            fi
+            node --input-type=module -e '
+              import fs from "node:fs";
+              const file = process.argv[1];
+              const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
+              if (!Array.isArray(manifest.boxes) || manifest.boxes.length === 0) {
+                throw new Error(file + " has no collision boxes");
+              }
+              if (!manifest.boxes.every(b => Array.isArray(b) && b.length >= 6 && b.every(Number.isFinite))) {
+                throw new Error(file + " contains invalid collision boxes");
+              }
+              console.log(file + ": " + manifest.boxes.length + " collision boxes");
+            ' "$sidecar"
+            git add -- "$sidecar"
+          done
+
+          if ! git diff --cached --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "chore: generate city building collision sidecars [skip ci]"
+            git push origin HEAD:main
+          fi
       - name: Check JavaScript syntax
         run: |
           node --check js/world.js
