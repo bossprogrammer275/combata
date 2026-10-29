@@ -32,7 +32,12 @@ export class BVHWorld {
       const name = (child.name || '').toLowerCase();
       // Authoring-only collision proxies and portal/room markers belong in
       // AABB/portal systems, not mesh raycasts (otherwise invisible hits remain).
-      if (name.startsWith('col_') || name.startsWith('door_') || /^room_\d+_marker$/.test(name)) return;
+      if (
+        name.startsWith('col_') || name.startsWith('door_') ||
+        name.startsWith('window_') || name.startsWith('trim_') ||
+        name.startsWith('roof_detail') || name.startsWith('sign') ||
+        name.startsWith('awning') || /^room_\d+_marker$/.test(name)
+      ) return;
       const geo = child.geometry;
       if (!geo || !geo.attributes.position) return;
       if (geo.index && geo.index.count < 9) return;
