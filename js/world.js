@@ -635,7 +635,7 @@ export class World {
     return pending;
   }
 
-  _injectManifestColliders(manifest, a, scaleFactor, yOffset) {
+  _injectManifestColliders(manifest, a, scaleFactor, yOffset, doorMeshes = [], buildingBBox = null) {
     const boxes = Array.isArray(manifest?.boxes) ? manifest.boxes : [];
     if (!boxes.length) return 0;
     const yaw = a.ry || 0;
@@ -662,11 +662,36 @@ export class World {
       const worldX = (a.x || 0) + lx * c + lz * sn;
       const worldZ = (a.z || 0) - lx * sn + lz * c;
       const worldH = h * scaleFactor;
+      const worldBottom = yOffset + ly - worldH / 2;
       // Rotate each local box's footprint into a conservative world AABB.
       const worldW = (Math.abs(c) * w + Math.abs(sn) * d) * scaleFactor;
       const worldD = (Math.abs(sn) * w + Math.abs(c) * d) * scaleFactor;
+
+      // Manifests built from triangle grids can fill a doorway with a few
+      // conservative cells even though the door_* marker was excluded. Keep
+      // the entrance clear of small cell colliders while retaining the lintel
+      // and large wall segments.
+      const overlapsDoor = a.building && doorMeshes.some(door => {
+        const apertureMinX = door.min.x - 0.45;
+        const apertureMaxX = door.max.x + 0.45;
+        const apertureMinZ = door.min.z - 0.45;
+        const apertureMaxZ = door.max.z + 0.45;
+        const floorY = buildingBBox ? buildingBBox.min.y : 0;
+        const apertureTopY = Math.min(
+          buildingBBox ? buildingBBox.max.y : door.max.y + 0.5,
+          Math.max(door.max.y + 0.25, floorY + 2.15),
+        );
+        const horizontalOverlap =
+          worldX + worldW / 2 > apertureMinX && worldX - worldW / 2 < apertureMaxX &&
+          worldZ + worldD / 2 > apertureMinZ && worldZ - worldD / 2 < apertureMaxZ;
+        const verticalOverlap = worldBottom < apertureTopY && worldBottom + worldH > floorY - 0.05;
+        const isSmallCell = Math.max(worldW, worldD) <= Math.max(door.size.x, door.size.z) + 1.6;
+        return horizontalOverlap && verticalOverlap && isSmallCell;
+      });
+      if (overlapsDoor) continue;
+
       this.addCollider(
-        worldX, yOffset + ly - worldH / 2, worldZ,
+        worldX, worldBottom, worldZ,
         worldW, worldH, worldD, !!a.climbable, a.type || null,
       );
       count++;
@@ -819,7 +844,7 @@ export class World {
           } else if (a.collisionH) {
             this.addCollider(center.x, bbox.min.y, center.z, size.x, a.collisionH, size.z, !!a.climbable, a.type || null);
           } else if (collisionManifest?.boxes?.length) {
-            const injected = this._injectManifestColliders(collisionManifest, a, scaleFactor, yOffset);
+            const injected = this._injectManifestColliders(collisionManifest, a, scaleFactor, yOffset, doorMeshes, bbox);
             if (!injected) {
               if (a.building) this._addBuildingWallColliders(bbox, doorMeshes);
               else this.addCollider(center.x, bbox.min.y, center.z, size.x, size.y, size.z, !!a.climbable, a.type || null);
