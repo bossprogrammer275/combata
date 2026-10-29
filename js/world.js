@@ -368,9 +368,9 @@ export class World {
           let acc = 0;
           for (let i = 0; i < L; i++) {
             const u = i === 0 ? 0 : acc / totalLen;
-            positions.push(r.left[i].x, r.y, r.left[i].z);
+            positions.push(r.left[i].x, r.y + (r.left[i].y || 0), r.left[i].z);
             uvs.push(0, u * (totalLen / 6));
-            positions.push(r.right[i].x, r.y, r.right[i].z);
+            positions.push(r.right[i].x, r.y + (r.right[i].y || 0), r.right[i].z);
             uvs.push(1, u * (totalLen / 6));
             if (i < L - 1) {
               const a = vi, b = vi + 1, c = vi + 2, d = vi + 3;
@@ -1420,23 +1420,35 @@ export class World {
       const ux = dx / length, uz = dz / length;
       const centerX = (a.x + b.x) * 0.5;
       const centerZ = (a.z + b.z) * 0.5;
-      // A small longitudinal overlap closes gaps at curved-road joins. Keep the
-      // broad world AABB for fast CPU queries, but retain the actual orientation
-      // for Rapier and exact player-footprint checks.
+      const topA = (Number.isFinite(a.y) ? a.y : 0) + topY;
+      const topB = (Number.isFinite(b.y) ? b.y : 0) + topY;
+      const minTop = Math.min(topA, topB);
+      const maxTop = Math.max(topA, topB);
+      // Broadphase-only proxy. Its precise centreline and height profile are
+      // stored separately; Rapier uses the rendered road triangle mesh.
       const overlap = Math.min(0.18, length * 0.08);
       const segmentLength = length + overlap * 2;
       const boxW = Math.abs(ux) * segmentLength + Math.abs(uz) * width;
       const boxD = Math.abs(uz) * segmentLength + Math.abs(ux) * width;
+      const boxH = maxTop - minTop + thickness;
       const collider = this.addCollider(
-        centerX, topY - thickness, centerZ,
-        boxW + 0.035, thickness, boxD + 0.035, false, 'road_surface',
+        centerX, minTop - thickness, centerZ,
+        boxW + 0.035, boxH, boxD + 0.035, false, 'road_surface',
       );
-      // Height-sampling proxy only. Rapier gets the exact rendered ribbon mesh,
-      // so this broad-phase box is never allowed to push vehicles or pedestrians.
       collider.surfaceOnly = true;
+      collider.surfaceSegment = {
+        a: { x: a.x, z: a.z, y: topA },
+        b: { x: b.x, z: b.z, y: topB },
+        width,
+        thickness,
+      };
       collider.orientedBox = {
-        center: { x: centerX, y: topY - thickness / 2, z: centerZ },
-        halfExtents: { x: segmentLength / 2, y: thickness / 2, z: width / 2 },
+        center: { x: centerX, y: (topA + topB) / 2 - thickness / 2, z: centerZ },
+        halfExtents: {
+          x: segmentLength / 2,
+          y: thickness / 2 + Math.abs(topB - topA) / 2,
+          z: width / 2,
+        },
         yaw: Math.atan2(-uz, ux),
       };
       added++;
@@ -1444,21 +1456,37 @@ export class World {
     return added;
   }
 
-  groundHeightAt(x, z) {
+  // Highest valid support surface at XZ. Road proxies include centreline heights,
+  // so ramps and stacked roads can be sampled without treating road edges as walls.
+  groundHeightAt(x, z, maxHeight = Infinity) {
     let height = 0;
     const candidates = this.bvhWorld
       ? this.bvhWorld.queryAABB(x - 0.12, z - 0.12, x + 0.12, z + 0.12)
       : this.colliders;
     for (const c of candidates) {
+      if (c.surfaceOnly && c.surfaceSegment) {
+        const s = c.surfaceSegment;
+        const dx = s.b.x - s.a.x, dz = s.b.z - s.a.z;
+        const lenSq = dx * dx + dz * dz;
+        if (lenSq < 1e-8) continue;
+        const t = ((x - s.a.x) * dx + (z - s.a.z) * dz) / lenSq;
+        if (t < -0.01 || t > 1.01) continue;
+        const clampedT = THREE.MathUtils.clamp(t, 0, 1);
+        const px = s.a.x + dx * clampedT, pz = s.a.z + dz * clampedT;
+        if (Math.hypot(x - px, z - pz) > s.width * 0.5 + 0.15) continue;
+        const surfaceY = THREE.MathUtils.lerp(s.a.y, s.b.y, clampedT);
+        // A bridge may overlap a lower road in XZ. Only choose a surface the
+        // caller can actually stand on; don't teleport a ground-level player
+        // onto a deck several metres overhead.
+        if (surfaceY > maxHeight + 1e-4) continue;
+        height = Math.max(height, surfaceY);
+        continue;
+      }
+      // Road proxies are height-sampling metadata, never movement obstacles.
+      if (c.surfaceOnly || c.type === 'road_surface') continue;
       const h = c.max.y - c.min.y;
       if (h > 0.15 || c.min.y < -0.1 || c.max.y > 0.3) continue;
       if (x < c.min.x || x > c.max.x || z < c.min.z || z > c.max.z) continue;
-      if (c.orientedBox) {
-        const o = c.orientedBox, dx = x - o.center.x, dz = z - o.center.z;
-        const cs = Math.cos(o.yaw), sn = Math.sin(o.yaw);
-        const lx = dx * cs - dz * sn, lz = dx * sn + dz * cs;
-        if (Math.abs(lx) > o.halfExtents.x || Math.abs(lz) > o.halfExtents.z) continue;
-      }
       height = Math.max(height, c.max.y);
     }
     return height;
@@ -1471,10 +1499,13 @@ export class World {
     this._roadChains = [];
     function catmullRom(p0, p1, p2, p3, t) {
       const t2 = t * t, t3 = t2 * t;
-      return {
-        x: 0.5*((2*p1.x)+(-p0.x+p2.x)*t+(2*p0.x-5*p1.x+4*p2.x-p3.x)*t2+(-p0.x+3*p1.x-3*p2.x+p3.x)*t3),
-        z: 0.5*((2*p1.z)+(-p0.z+p2.z)*t+(2*p0.z-5*p1.z+4*p2.z-p3.z)*t2+(-p0.z+3*p1.z-3*p2.z+p3.z)*t3),
-      };
+      const sample = key => 0.5 * (
+        2 * p1[key]
+        + (-p0[key] + p2[key]) * t
+        + (2 * p0[key] - 5 * p1[key] + 4 * p2[key] - p3[key]) * t2
+        + (-p0[key] + 3 * p1[key] - 3 * p2[key] + p3[key]) * t3
+      );
+      return { x: sample('x'), z: sample('z'), y: sample('y') };
     }
     function smoothPts(pts, segs) {
       if (pts.length < 3) return pts;
@@ -1488,18 +1519,31 @@ export class World {
     }
     const chains = [];
     for (const rd of roads) {
-      const pts = rd.points || [];
-      if (pts.length < 2) continue;
+      const sourcePts = rd.points || [];
+      if (sourcePts.length < 2) continue;
       const W = rd.w || 12;
-      const closed = pts.length > 2 && pts[0][0] === pts[pts.length - 1][0] && pts[0][1] === pts[pts.length - 1][1];
-      const work = closed ? pts.slice(0, -1) : pts;
-      const raw = work.map(p => ({ x: p[0], z: p[1] }));
+      const baseElevation = Number.isFinite(rd.elevation) ? rd.elevation
+        : Number.isFinite(rd.y) ? rd.y : 0;
+      const closed = sourcePts.length > 2
+        && sourcePts[0][0] === sourcePts[sourcePts.length - 1][0]
+        && sourcePts[0][1] === sourcePts[sourcePts.length - 1][1];
+      const work = closed ? sourcePts.slice(0, -1) : sourcePts;
+      // Legacy points are [x,z]. Add a third ordinate [x,z,y] to author ramps.
+      const raw = work.map(p => ({
+        x: p[0], z: p[1],
+        y: Number.isFinite(p[2]) ? p[2] : baseElevation,
+      }));
       const smoothed = rd.smooth !== false ? smoothPts(raw, 6) : raw;
-      chains.push({ pts: smoothed, W, sidewalk: !!rd.sidewalk, closed });
+      chains.push({
+        pts: smoothed, W, sidewalk: !!rd.sidewalk, closed,
+        guardrails: !!(rd.guardrails || rd.bridge || rd.flyover),
+        flyover: !!(rd.flyover || rd.bridge),
+        keepEnds: !!rd.keepEnds,
+      });
     }
     for (const ch of chains) {
       ch.cutStart = 0; ch.cutEnd = 0;
-      if (ch.closed || ch.pts.length < 2) continue;
+      if (ch.closed || ch.keepEnds || ch.pts.length < 2) continue;
       const n = ch.pts.length;
       const sDir = { x: ch.pts[1].x - ch.pts[0].x, z: ch.pts[1].z - ch.pts[0].z };
       const eDir = { x: ch.pts[n - 1].x - ch.pts[n - 2].x, z: ch.pts[n - 1].z - ch.pts[n - 2].z };
@@ -1517,7 +1561,7 @@ export class World {
     for (let ci = 0; ci < chains.length; ci++) {
       const ch = chains[ci];
       const walkY = 0.12;
-      const pts = ch.closed ? ch.pts : this._trimChain(ch.pts, ch.cutStart, ch.cutEnd);
+      const pts = (ch.closed || ch.keepEnds) ? ch.pts : this._trimChain(ch.pts, ch.cutStart, ch.cutEnd);
       if (pts.length < 2) continue;
 
       // Rendered road and matching thin collision strip. Vehicles raycast these
@@ -1526,6 +1570,8 @@ export class World {
       const roadY = 0.06;
       this._strokeMitered(pts, ch.W, roadY, roadMat, ch.closed);
       this._addRoadSurfaceColliders(pts, ch.W, roadY, ch.closed, 0.05);
+      if (ch.flyover) this._buildFlyoverStructure(pts, ch.W, roadY);
+      if (ch.guardrails) this._buildRoadGuardrails(pts, ch.W, roadY);
 
       this._roadChains.push({ pts, W: ch.W, sidewalk: ch.sidewalk, roadY, closed: ch.closed });
       if (!ch.sidewalk) continue;
@@ -1604,7 +1650,7 @@ export class World {
 
   _offsetRoadPolyline(pts, offset) {
     const n = pts.length;
-    if (n < 2 || Math.abs(offset) < 1e-6) return pts.map(p => ({ x: p.x, z: p.z }));
+    if (n < 2 || Math.abs(offset) < 1e-6) return pts.map(p => ({ x: p.x, z: p.z, y: p.y || 0 }));
     return pts.map((p, i) => {
       const prev = pts[Math.max(0, i - 1)];
       const next = pts[Math.min(n - 1, i + 1)];
@@ -1626,7 +1672,7 @@ export class World {
         const miterLen = Math.hypot(nx, nz);
         if (miterLen > 2.2) { nx *= 2.2 / miterLen; nz *= 2.2 / miterLen; }
       }
-      return { x: p.x + nx * offset, z: p.z + nz * offset };
+      return { x: p.x + nx * offset, z: p.z + nz * offset, y: p.y || 0 };
     });
   }
 
@@ -1666,6 +1712,9 @@ export class World {
             const tA = THREE.MathUtils.clamp(ta, 0, 1);
             const tB = THREE.MathUtils.clamp(tb, 0, 1);
             const x = p.x + rx * tA, z = p.z + rz * tA;
+            const yA = THREE.MathUtils.lerp(p.y || 0, p2.y || 0, tA);
+            const yB = THREE.MathUtils.lerp(q.y || 0, q2.y || 0, tB);
+            if (Math.abs(yA - yB) > 1.25) continue;
             addHit(ia, ma.cumulative[ai] + rLen * tA, ib, mb.cumulative[bi] + sLen * tB, x, z);
           }
         }
@@ -1882,7 +1931,11 @@ export class World {
     const ax = pts[i0].x, az = pts[i0].z;
     let ddx = pts[i0 + 1].x - ax, ddz = pts[i0 + 1].z - az;
     const dl = Math.hypot(ddx, ddz) || 1;
-    out.push({ x: ax + ddx / dl * (s - acc), z: az + ddz / dl * (s - acc) });
+    const startT = segLens[i0] > 1e-6 ? THREE.MathUtils.clamp((s - acc) / segLens[i0], 0, 1) : 0;
+    out.push({
+      x: ax + ddx / dl * (s - acc), z: az + ddz / dl * (s - acc),
+      y: THREE.MathUtils.lerp(pts[i0].y || 0, pts[i0 + 1].y || 0, startT),
+    });
     for (let i = i0 + 1; i < L; i++) out.push(pts[i]);
     let rem = e;
     while (out.length > 1) {
@@ -1891,7 +1944,11 @@ export class World {
       if (l <= rem) { out.pop(); rem -= l; }
       else {
         const f = 1 - rem / l;
-        out[out.length - 1] = { x: prev.x + (last.x - prev.x) * f, z: prev.z + (last.z - prev.z) * f };
+        out[out.length - 1] = {
+          x: prev.x + (last.x - prev.x) * f,
+          z: prev.z + (last.z - prev.z) * f,
+          y: THREE.MathUtils.lerp(prev.y || 0, last.y || 0, f),
+        };
         break;
       }
     }
@@ -1899,6 +1956,136 @@ export class World {
   }
 
   // Place road.glb model clones along a polyline, adding thin road collision
+  // Build the structural pieces of a raised crossing from the same elevated
+  // centreline used by the asphalt ribbon. Vertices are in world coordinates,
+  // because registerStaticRoadMeshes consumes geometry positions directly.
+  _buildFlyoverStructure(pts, width, roadOffset = 0.06, slabThickness = 0.48, pierSpacing = 18) {
+    if (!pts || pts.length < 2) return;
+    const deckPositions = [], deckIndices = [];
+    const addQuad = (positions, indices, a, b, c, d) => {
+      const base = positions.length / 3;
+      for (const p of [a, b, c, d]) positions.push(p.x, p.y, p.z);
+      indices.push(base, base + 1, base + 2, base + 2, base + 1, base + 3);
+    };
+    const pointY = p => (Number.isFinite(p.y) ? p.y : 0) + roadOffset;
+    const crossSection = (p, nx, nz, side, bottom = false) => ({
+      x: p.x + nx * side,
+      y: pointY(p) - 0.035 - (bottom ? slabThickness : 0),
+      z: p.z + nz * side,
+    });
+
+    // Continuous concrete box deck: asphalt remains the tyre-contact surface;
+    // the slab supplies a visible underside and solid sides beneath it.
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1];
+      const dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz);
+      if (len < 0.05) continue;
+      const nx = -dz / len, nz = dx / len, half = width * 0.5;
+      const ltA = crossSection(a, nx, nz, half), rtA = crossSection(a, nx, nz, -half);
+      const ltB = crossSection(b, nx, nz, half), rtB = crossSection(b, nx, nz, -half);
+      const lbA = crossSection(a, nx, nz, half, true), rbA = crossSection(a, nx, nz, -half, true);
+      const lbB = crossSection(b, nx, nz, half, true), rbB = crossSection(b, nx, nz, -half, true);
+      addQuad(deckPositions, deckIndices, ltA, ltB, rtA, rtB);
+      addQuad(deckPositions, deckIndices, rbA, rbB, lbA, lbB);
+      addQuad(deckPositions, deckIndices, ltA, lbA, ltB, lbB);
+      addQuad(deckPositions, deckIndices, rtA, rtB, rbA, rbB);
+      addQuad(deckPositions, deckIndices, ltA, rtA, lbA, rbA);
+      addQuad(deckPositions, deckIndices, rtB, ltB, rbB, lbB);
+    }
+    const deckGeometry = new THREE.BufferGeometry();
+    deckGeometry.setAttribute('position', new THREE.Float32BufferAttribute(deckPositions, 3));
+    deckGeometry.setIndex(deckIndices);
+    deckGeometry.computeVertexNormals();
+    const deckMaterial = this.mConcrete([128, 130, 132]);
+    deckMaterial.side = THREE.DoubleSide;
+    deckMaterial.needsUpdate = true;
+    const deckMesh = new THREE.Mesh(deckGeometry, deckMaterial);
+    deckMesh.castShadow = true;
+    deckMesh.receiveShadow = true;
+    this.group.add(deckMesh);
+    this.roadPhysicsMeshes.push({ kind: 'bridge_deck', geometry: deckGeometry });
+
+    // Paired tapered columns and a crosshead beam every 18m where the road
+    // deck is high enough. Ground-height portions remain ramp-only.
+    const lengths = this._roadPolylineLengths(pts);
+    const totalLength = lengths[lengths.length - 1] || 0;
+    if (totalLength < pierSpacing) return;
+    const supportPositions = [], supportIndices = [];
+    const appendGeometry = geometry => {
+      const attr = geometry.attributes.position;
+      const base = supportPositions.length / 3;
+      for (let i = 0; i < attr.count; i++) supportPositions.push(attr.getX(i), attr.getY(i), attr.getZ(i));
+      if (geometry.index) for (const index of geometry.index.array) supportIndices.push(base + index);
+      else for (let i = 0; i < attr.count; i++) supportIndices.push(base + i);
+      geometry.dispose();
+    };
+    const sampleAt = distance => {
+      let i = 0;
+      while (i < lengths.length - 2 && lengths[i + 1] < distance) i++;
+      const segmentLength = Math.max(1e-6, lengths[i + 1] - lengths[i]);
+      const t = THREE.MathUtils.clamp((distance - lengths[i]) / segmentLength, 0, 1);
+      const a = pts[i], b = pts[i + 1];
+      const dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz) || 1;
+      return {
+        x: THREE.MathUtils.lerp(a.x, b.x, t), z: THREE.MathUtils.lerp(a.z, b.z, t),
+        y: THREE.MathUtils.lerp(a.y || 0, b.y || 0, t),
+        nx: -dz / len, nz: dx / len, dx, dz,
+      };
+    };
+    for (let distance = pierSpacing; distance < totalLength - 5; distance += pierSpacing) {
+      const s = sampleAt(distance);
+      const deckBottom = s.y + roadOffset - 0.035 - slabThickness;
+      const capHeight = 0.52;
+      const columnHeight = deckBottom - capHeight;
+      if (columnHeight < 1.9) continue;
+      for (const side of [-1, 1]) {
+        const x = s.x + s.nx * side * width * 0.32;
+        const z = s.z + s.nz * side * width * 0.32;
+        const column = new THREE.CylinderGeometry(0.54, 0.76, columnHeight, 8, 1, false);
+        column.translate(x, columnHeight * 0.5, z);
+        appendGeometry(column);
+      }
+      const cap = new THREE.BoxGeometry(width + 1.0, capHeight, 1.55);
+      const transform = new THREE.Object3D();
+      transform.position.set(s.x, deckBottom - capHeight * 0.5, s.z);
+      transform.rotation.y = Math.atan2(s.dx, s.dz);
+      transform.updateMatrix();
+      cap.applyMatrix4(transform.matrix);
+      appendGeometry(cap);
+    }
+    if (supportPositions.length) {
+      const supportGeometry = new THREE.BufferGeometry();
+      supportGeometry.setAttribute('position', new THREE.Float32BufferAttribute(supportPositions, 3));
+      supportGeometry.setIndex(supportIndices);
+      supportGeometry.computeVertexNormals();
+      const supportMaterial = this.mConcrete([116, 119, 121]);
+      supportMaterial.side = THREE.DoubleSide;
+      supportMaterial.needsUpdate = true;
+      const supportMesh = new THREE.Mesh(supportGeometry, supportMaterial);
+      supportMesh.castShadow = true;
+      supportMesh.receiveShadow = true;
+      this.group.add(supportMesh);
+      this.roadPhysicsMeshes.push({ kind: 'bridge_support', geometry: supportGeometry });
+    }
+  }
+
+  _buildRoadGuardrails(pts, width, yOffset = 0.06, height = 0.78, thickness = 0.22) {
+    if (!pts || pts.length < 2) return;
+    const positions = [], indices = [];
+    const quad = (a,b,c,d) => { const i=positions.length/3; for(const p of [a,b,c,d]) positions.push(p.x,p.y,p.z); indices.push(i,i+1,i+2,i+2,i+1,i+3); };
+    for(const side of [-1,1]) for(let i=0;i<pts.length-1;i++) {
+      const a=pts[i],b=pts[i+1],dx=b.x-a.x,dz=b.z-a.z,len=Math.hypot(dx,dz); if(len<0.05)continue;
+      const nx=-dz/len,nz=dx/len,p=(v,o,h=0)=>({x:v.x+nx*o,y:(v.y||0)+yOffset+h,z:v.z+nz*o});
+      const inner=side*(width/2-thickness),outer=side*width/2;
+      const ai=p(a,inner),bi=p(b,inner),ao=p(a,outer),bo=p(b,outer),ait=p(a,inner,height),bit=p(b,inner,height),aot=p(a,outer,height),bot=p(b,outer,height);
+      quad(ai,bi,ait,bit); quad(ao,aot,bo,bot); quad(ait,bit,aot,bot);
+    }
+    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.setIndex(indices);geo.computeVertexNormals();
+    const mat=this.mCurb();mat.side=THREE.DoubleSide;mat.needsUpdate=true;
+    const mesh=new THREE.Mesh(geo,mat);mesh.castShadow=true;mesh.receiveShadow=true;this.group.add(mesh);
+    this.roadPhysicsMeshes.push({kind:'barrier',geometry:geo});
+  }
+
   // Stroke a polyline as a solid mitered polygon (correct corners, no gaps) into _ribbonBatch.
   _strokeMitered(pts, w, y, mat, closed = false) {
     const L = pts.length;
