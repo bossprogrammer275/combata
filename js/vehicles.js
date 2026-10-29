@@ -472,7 +472,10 @@ export class VehicleSystem {
       const state = wheelStates[i];
       const targetOffset = state?.contact ? state.offset : (v.suspensionReady ? -0.18 : 0);
       wheel.suspensionOffset += (targetOffset - wheel.suspensionOffset) * blend;
-      wheel.pivot.position.y = wheel.basePivotY + wheel.suspensionOffset;
+      // The pivots are children of the source GLB root and their positions
+      // are in pre-normalization units. Convert suspension travel from metres
+      // back to those local units so scaled cars visibly use their suspension.
+      wheel.pivot.position.y = wheel.basePivotY + wheel.suspensionOffset / (wheel.modelScale || 1);
     }
     if (v.parkedCol) this._refreshParkedCollider(v);
   }
@@ -539,6 +542,7 @@ export class VehicleSystem {
           front: !!o.userData.wheelPivot.front,
           center,
           basePivotY: o.position.y,
+          modelScale: Math.max(1e-4, Math.abs(clone.scale.y || 1)),
           suspensionOffset: 0,
           radius: THREE.MathUtils.clamp(radius || 0.32, 0.18, 0.5),
           meshes,
@@ -854,6 +858,10 @@ export class VehicleSystem {
             const bzMin = rb.minZ + newZ, bzMax = rb.maxZ + newZ;
             const byMin = b.min.y + wY, byMax = b.max.y + wY;
             for (const c of nearCols) {
+              // Road, sidewalk and curb ribbons are low-profile surfaces, not
+              // vertical walls. Rapier uses their exact oriented footprints; the
+              // no-Rapier fallback must not push a car out of their broad AABBs.
+              if (c.type === 'road_surface') continue;
               // The driven car's own parked AABB is removed on entry. Do NOT
               // filter other parked AABBs: that old Set check made cars ghost
               // straight through every parked vehicle.
