@@ -159,11 +159,12 @@ function subdivideMeshCollision(mesh, cellSize, verticalQuantum, thickness, minC
     minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z);
   }
   if (!Number.isFinite(minX) || !Number.isFinite(minZ)) return [];
-  minX -= 0.1; maxX += 0.1; minZ -= 0.1; maxZ += 0.1;
+  const gridPadding = cellSize * 0.1;
+  minX -= gridPadding; maxX += gridPadding; minZ -= gridPadding; maxZ += gridPadding;
 
   const cols = Math.ceil((maxX - minX) / cellSize);
   const rows = Math.ceil((maxZ - minZ) / cellSize);
-  if (cols <= 0 || rows <= 0 || cols * rows > 5000) return [];
+  if (cols <= 0 || rows <= 0 || cols * rows > 50000) return [];
 
   // Triangle-first accumulation. The old implementation scanned every triangle
   // for every cell (O(cells * triangles)), freezing on detailed building meshes.
@@ -326,7 +327,8 @@ async function processGLB(inputPath) {
     const min = lb.min.clone().applyMatrix4(obj.matrixWorld);
     const max = lb.max.clone().applyMatrix4(obj.matrixWorld);
     const s = new THREE.Vector3().subVectors(max, min);
-    if (s.x < 0.05 || s.z < 0.05 || s.y < 0.05) return;
+    const minExtent = sceneHeight * 0.0005;
+    if (s.x < minExtent || s.z < minExtent || s.y < minExtent) return;
 
     if (meshNeedsSubdivision(obj)) {
       const cellSize = modelCellSize;
