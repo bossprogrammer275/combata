@@ -83,17 +83,22 @@ export class Physics {
     let count = 0;
     for (const source of pending) {
       const min = source.min, max = source.max;
-      const hx = (max.x - min.x) / 2;
-      const hy = (max.y - min.y) / 2;
-      const hz = (max.z - min.z) / 2;
+      const oriented = source.orientedBox || null;
+      const hx = oriented ? oriented.halfExtents.x : (max.x - min.x) / 2;
+      const hy = oriented ? oriented.halfExtents.y : (max.y - min.y) / 2;
+      const hz = oriented ? oriented.halfExtents.z : (max.z - min.z) / 2;
       if (![hx, hy, hz].every(Number.isFinite) || hx <= 0.001 || hy <= 0.001 || hz <= 0.001) continue;
-      const cx = (min.x + max.x) / 2;
-      const cy = (min.y + max.y) / 2;
-      const cz = (min.z + max.z) / 2;
+      const cx = oriented ? oriented.center.x : (min.x + max.x) / 2;
+      const cy = oriented ? oriented.center.y : (min.y + max.y) / 2;
+      const cz = oriented ? oriented.center.z : (min.z + max.z) / 2;
       const desc = RAPIER.ColliderDesc.cuboid(hx, hy, hz)
         .setTranslation(cx, cy, cz)
-        .setFriction(0.8)
+        .setFriction(source.type === 'road_surface' ? 0.72 : 0.8)
         .setRestitution(0);
+      if (oriented) {
+        const halfYaw = oriented.yaw / 2;
+        desc.setRotation({ x: 0, y: Math.sin(halfYaw), z: 0, w: Math.cos(halfYaw) });
+      }
       const collider = this.world.createCollider(desc, body);
       source.physicsCollider = {
         handle: collider.handle, min, max, userData: source,
