@@ -287,33 +287,161 @@ export class Physics {
     const forward = { x: -Math.sin(yaw), z: -Math.cos(yaw) };
     const right = { x: Math.cos(yaw), z: -Math.sin(yaw) };
     const velocity = body.linvel();
-    const forwardSpeed = velocity.x * forward.x + velocity.z * forward.z;
-    const lateralSpeed = velocity.x * right.x + velocity.z * right.z;
-    const horizontalSpeed = Math.hypot(velocity.x, velocity.z);
+    const angular = body.angvel();
+    let forwardSpeed = velocity.x * forward.x + velocity.z * forward.z;
+    let lateralSpeed = velocity.x * right.x + velocity.z * right.z;
+    let horizontalSpeed = Math.hypot(velocity.x, velocity.z);
     const mass = Math.max(600, body.mass());
     const throttle = THREE.MathUtils.clamp(controls.throttle || 0, -1, 1);
     const steer = THREE.MathUtils.clamp(controls.steer || 0, -1, 1);
     const handbrake = !!controls.handbrake;
+    const wheelSpecs = Array.isArray(controls.wheels) ? controls.wheels : [];
 
-    let acceleration = 0;
+    // ---- Four raycast suspension struts ----
+    // Wheel positions/radii are measured from the actual GLB rig. Cast from a
+    // chassis hardpoint, then apply spring-damper impulses at that hardpoint;
+    // the chassis no longer rests on a flat box pressed against the road.
+    const restLength = 0.22;
+    const travel = 0.18;
+    const springRate = 32000;
+    const springDamping = 3400;
+    const wheelStates = [];
+    const rayHits = [];
+    const bodyCenterY = body._openWorldCenterY || 0;
+    const gravityLoadPerWheel = mass * 9.81 / Math.max(1, wheelSpecs.length);
+
+    for (const wheel of wheelSpecs) {
+      const lx = wheel.x || 0;
+      const lz = wheel.z || 0;
+      const localHardpointY = (wheel.y || 0) - bodyCenterY + restLength;
+      // Three.js yaw convention: local +X/+Z rotates around world Y.
+      const hardpoint = {
+        x: translation.x + lx * Math.cos(yaw) + lz * Math.sin(yaw),
+        y: translation.y + localHardpointY,
+        z: translation.z - lx * Math.sin(yaw) + lz * Math.cos(yaw),
+      };
+      const radius = THREE.MathUtils.clamp(wheel.radius || 0.32, 0.18, 0.5);
+      const maxRay = radius + restLength + travel;
+      const ray = new RAPIER.Ray(hardpoint, { x: 0, y: -1, z: 0 });
+      let hit = null;
+      try {
+        hit = this.world.castRayAndGetNormal
+          ? this.world.castRayAndGetNormal(ray, maxRay, true, undefined, undefined, null, body)
+          : this.world.castRay(ray, maxRay, true, undefined, undefined, null, body);
+      } catch (error) {
+        // Preserve vehicle controls if a Rapier build doesn't expose the normal variant.
+        hit = this.world.castRay(ray, maxRay, true, undefined, undefined, null, body);
+      }
+
+      if (!hit || !hit.normal || hit.normal.y < 0.45) {
+        wheelStates.push({ contact: false, offset: -travel, front: !!wheel.front });
+        rayHits.push(null);
+        continue;
+      }
+      const suspensionLength = hit.timeOfImpact - radius;
+      if (suspensionLength < -0.04 || suspensionLength > restLength + travel) {
+        wheelStates.push({ contact: false, offset: -travel, front: !!wheel.front });
+        rayHits.push(null);
+        continue;
+      }
+
+      const compression = THREE.MathUtils.clamp(restLength - suspensionLength, -travel * 0.55, travel);
+      const anchorVerticalSpeed = velocity.y;
+      const springForce = THREE.MathUtils.clamp(
+        gravityLoadPerWheel + springRate * compression - springDamping * anchorVerticalSpeed,
+        0,
+        gravityLoadPerWheel * 1.85,
+      );
+      if (springForce > 0) {
+        body.applyImpulseAtPoint(
+          { x: 0, y: springForce * dt, z: 0 },
+          hardpoint,
+          true,
+        );
+      }
+      const contactPoint = {
+        x: hardpoint.x,
+        y: hardpoint.y - hit.timeOfImpact,
+        z: hardpoint.z,
+      };
+      const state = {
+        contact: true,
+        offset: THREE.MathUtils.clamp(restLength - suspensionLength, -travel * 0.55, travel),
+        compression,
+        suspensionLength,
+        normal: { x: hit.normal.x, y: hit.normal.y, z: hit.normal.z },
+        point: contactPoint,
+        hardpoint,
+        radius,
+        front: !!wheel.front,
+      };
+      wheelStates.push(state);
+      rayHits.push(state);
+    }
+    body._openWorldWheelStates = wheelStates;
+
+    // Longitudinal engine/brake forces go through grounded wheel contacts. If
+    // every wheel is airborne, throttle cannot magically accelerate the car.
+    let driveAcceleration = 0;
+    let brakeAcceleration = 0;
     if (throttle > 0.01) {
       const powerFade = THREE.MathUtils.clamp(1 - Math.max(0, forwardSpeed) / 48 * 0.72, 0.18, 1);
-      acceleration = forwardSpeed < -0.8 ? 9 * throttle : 7.2 * throttle * powerFade;
+      driveAcceleration = forwardSpeed < -0.8 ? 9 * throttle : 7.2 * throttle * powerFade;
     } else if (throttle < -0.01) {
-      acceleration = forwardSpeed > 1.0
-        ? -11 * Math.abs(throttle)
-        : -3.8 * Math.abs(throttle);
+      if (Math.abs(forwardSpeed) > 1.0 && Math.sign(forwardSpeed) !== Math.sign(throttle)) {
+        brakeAcceleration = 11 * Math.abs(throttle);
+      } else if (Math.abs(forwardSpeed) > 1.0 && Math.sign(forwardSpeed) === Math.sign(throttle)) {
+        // The reverse key also acts as a brake when the car is still going forward.
+        brakeAcceleration = 11 * Math.abs(throttle);
+      } else {
+        driveAcceleration = -3.8 * Math.abs(throttle);
+      }
     }
 
-    if (Math.abs(acceleration) > 1e-4) {
+    const grounded = wheelStates.map((state, index) => state.contact ? index : -1).filter(index => index >= 0);
+    const driveWheels = grounded.filter(index => !wheelSpecs[index].front);
+    const powered = driveWheels.length ? driveWheels : grounded;
+    const applyWheelImpulse = (indices, ix, iz, strength) => {
+      if (!indices.length || Math.abs(strength) < 1e-5) return;
+      const perWheelImpulse = strength * mass * dt / indices.length;
+      for (const index of indices) {
+        const state = wheelStates[index];
+        if (!state?.contact) continue;
+        body.applyImpulseAtPoint(
+          { x: ix * perWheelImpulse, y: 0, z: iz * perWheelImpulse },
+          state.point,
+          true,
+        );
+      }
+    };
+    if (wheelSpecs.length && grounded.length) {
+      applyWheelImpulse(powered, forward.x, forward.z, driveAcceleration);
+      if (brakeAcceleration > 0) {
+        const brakeSign = forwardSpeed === 0 ? 0 : -Math.sign(forwardSpeed);
+        applyWheelImpulse(grounded, forward.x * brakeSign, forward.z * brakeSign, brakeAcceleration);
+      }
+      if (handbrake && Math.abs(forwardSpeed) > 0.2) {
+        const rear = grounded.filter(index => !wheelSpecs[index].front);
+        const brakeWheels = rear.length ? rear : grounded;
+        const brakeSign = -Math.sign(forwardSpeed);
+        applyWheelImpulse(brakeWheels, forward.x * brakeSign, forward.z * brakeSign, 5.5);
+      }
+    } else if (!wheelSpecs.length) {
+      // Compatibility path for simple test bodies/vehicles without wheel rigs.
+      const acceleration = driveAcceleration - brakeAcceleration * Math.sign(forwardSpeed || 1);
       body.applyImpulse({
         x: forward.x * acceleration * mass * dt,
         y: 0,
         z: forward.z * acceleration * mass * dt,
       }, true);
+      if (handbrake && Math.abs(forwardSpeed) > 0.2) {
+        const brakeImpulse = -forwardSpeed * mass * (1 - Math.exp(-3.2 * dt));
+        body.applyImpulse({ x: forward.x * brakeImpulse, y: 0, z: forward.z * brakeImpulse }, true);
+      }
     }
 
-    // Rolling/air drag prevents indefinite coasting while preserving momentum.
+    // Aerodynamic/rolling drag acts horizontally but never applies an upward
+    // magic force. It slows coasting without stealing the suspension response.
     if (Math.abs(throttle) < 0.02 && horizontalSpeed > 0.05) {
       const dragRate = 0.11 + horizontalSpeed * 0.0018;
       body.applyImpulse({
@@ -323,45 +451,62 @@ export class Physics {
       }, true);
     }
 
-    // Lateral tyre force acts against velocity across the car. A handbrake
-    // intentionally reduces rear grip for a controlled but not instant drift.
-    const gripRate = handbrake ? 0.9 : 8.5;
-    const lateralImpulse = -lateralSpeed * mass * (1 - Math.exp(-gripRate * dt));
-    body.applyImpulse({
-      x: right.x * lateralImpulse,
-      y: 0,
-      z: right.z * lateralImpulse,
-    }, true);
-
-    if (handbrake && Math.abs(forwardSpeed) > 0.2) {
-      const brakeImpulse = -forwardSpeed * mass * (1 - Math.exp(-3.2 * dt));
-      body.applyImpulse({ x: forward.x * brakeImpulse, y: 0, z: forward.z * brakeImpulse }, true);
-    }
-
-    // Soft speed limits let collisions and gravity remain physical instead of
-    // clamping the car's position or velocity directly.
-    const maxForward = 40, maxReverse = 9;
-    if (forwardSpeed > maxForward) {
-      const impulse = -(forwardSpeed - maxForward) * mass * Math.min(1, dt * 3.5);
-      body.applyImpulse({ x: forward.x * impulse, y: 0, z: forward.z * impulse }, true);
-    } else if (forwardSpeed < -maxReverse) {
-      const impulse = (-maxReverse - forwardSpeed) * mass * Math.min(1, dt * 3.5);
-      body.applyImpulse({ x: forward.x * impulse, y: 0, z: forward.z * impulse }, true);
-    }
-
+    // Per-wheel tire forces are applied at the contact patch so front steering
+    // naturally creates yaw torque. A handbrake lowers rear grip; it does not
+    // turn the whole vehicle instantly like the previous arcade yaw controller.
     const wheelAngle = steer * (handbrake ? 0.45 : 0.28);
-    const targetYawRate = Math.abs(forwardSpeed) > 0.25
-      ? THREE.MathUtils.clamp(-(forwardSpeed / 2.8) * Math.tan(wheelAngle), -1.0, 1.0)
-      : 0;
-    const angular = body.angvel();
-    const steeringResponse = 1 - Math.exp(-(handbrake ? 3.2 : 5.5) * dt);
-    body.setAngvel({
-      x: angular.x,
-      y: angular.y + (targetYawRate - angular.y) * steeringResponse,
-      z: angular.z,
-    }, true);
+    if (wheelSpecs.length && grounded.length) {
+      for (const index of grounded) {
+        const wheel = wheelSpecs[index];
+        const state = wheelStates[index];
+        const wheelYaw = yaw - (wheel.front ? wheelAngle : 0);
+        const wheelRight = { x: Math.cos(wheelYaw), z: -Math.sin(wheelYaw) };
+        const rx = state.point.x - translation.x;
+        const rz = state.point.z - translation.z;
+        const pointVX = velocity.x + angular.y * rz;
+        const pointVZ = velocity.z - angular.y * rx;
+        const lateralAtWheel = pointVX * wheelRight.x + pointVZ * wheelRight.z;
+        const gripRate = handbrake && !wheel.front ? 0.9 : (wheel.front ? 7.0 : 9.0);
+        const lateralImpulse = -lateralAtWheel * (mass / grounded.length) * (1 - Math.exp(-gripRate * dt));
+        body.applyImpulseAtPoint(
+          { x: wheelRight.x * lateralImpulse, y: 0, z: wheelRight.z * lateralImpulse },
+          state.point,
+          true,
+        );
+      }
+    } else {
+      const gripRate = handbrake ? 0.9 : 8.5;
+      const lateralImpulse = -lateralSpeed * mass * (1 - Math.exp(-gripRate * dt));
+      body.applyImpulse({ x: right.x * lateralImpulse, y: 0, z: right.z * lateralImpulse }, true);
+    }
 
-    return { yaw, forwardSpeed, lateralSpeed, horizontalSpeed };
+    if (wheelSpecs.length && grounded.length) {
+      // Cap speed by reducing drive/braking impulse rather than teleporting or
+      // clamping the rigid body's velocity. Tire forces still govern turning.
+      const maxForward = 40, maxReverse = 9;
+      if (forwardSpeed > maxForward) {
+        const impulse = -(forwardSpeed - maxForward) * mass * Math.min(1, dt * 3.5);
+        body.applyImpulse({ x: forward.x * impulse, y: 0, z: forward.z * impulse }, true);
+      } else if (forwardSpeed < -maxReverse) {
+        const impulse = (-maxReverse - forwardSpeed) * mass * Math.min(1, dt * 3.5);
+        body.applyImpulse({ x: forward.x * impulse, y: 0, z: forward.z * impulse }, true);
+      }
+    } else if (!wheelSpecs.length) {
+      const wheelAngleRate = Math.abs(forwardSpeed) > 0.25
+        ? THREE.MathUtils.clamp(-(forwardSpeed / 2.8) * Math.tan(wheelAngle), -1.0, 1.0)
+        : 0;
+      const steeringResponse = 1 - Math.exp(-(handbrake ? 3.2 : 5.5) * dt);
+      body.setAngvel({
+        x: angular.x,
+        y: angular.y + (wheelAngleRate - angular.y) * steeringResponse,
+        z: angular.z,
+      }, true);
+    }
+
+    return {
+      yaw, forwardSpeed, lateralSpeed, horizontalSpeed,
+      wheelContacts: grounded.length, wheelStates,
+    };
   }
 
   updateVehicleBody(body, x, y, z, yaw = 0) {
