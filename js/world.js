@@ -792,6 +792,13 @@ export class World {
       const isRoad = assetUrl.includes('road.glb') || (assetUrl.includes('road') && !assetUrl.includes('barrier'));
 
       const bbox = new THREE.Box3().setFromObject(model, true);
+      // Invert only the placement translation/yaw (not scale) to preserve
+      // exact model-local door dimensions for rotated buildings.
+      const placementInverse = new THREE.Matrix4().compose(
+        new THREE.Vector3(a.x || 0, yOffset, a.z || 0),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(0, a.ry || 0, 0)),
+        new THREE.Vector3(1, 1, 1),
+      ).invert();
       const collisionProxyBoxes = [];
       const doorMeshes = [];
       const floorCollisionBoxes = [];
@@ -813,7 +820,16 @@ export class World {
         const meshBox = new THREE.Box3().copy(geo.boundingBox).applyMatrix4(o.matrixWorld);
         const size = meshBox.getSize(new THREE.Vector3());
         const center = meshBox.getCenter(new THREE.Vector3());
-        const record = { name: o.name, min: meshBox.min.clone(), max: meshBox.max.clone(), center, size };
+        const localMatrix = placementInverse.clone().multiply(o.matrixWorld);
+        const localBox = new THREE.Box3().copy(geo.boundingBox).applyMatrix4(localMatrix);
+        const localSize = localBox.getSize(new THREE.Vector3());
+        const localCenter = localBox.getCenter(new THREE.Vector3());
+        const record = {
+          name: o.name,
+          min: meshBox.min.clone(), max: meshBox.max.clone(), center, size,
+          localMin: localBox.min.clone(), localMax: localBox.max.clone(),
+          localCenter, localSize,
+        };
         if (isProxy) collisionProxyBoxes.push(record);
         if (isDoor) doorMeshes.push(record);
         if (isFloor) floorCollisionBoxes.push(record);
@@ -983,18 +999,20 @@ export class World {
 
     const sideOpenings = { west: [], east: [], north: [], south: [] };
     for (const door of doors) {
-      const p = toLocal(door.center.x, door.center.z);
+      const p = door.localCenter || toLocal(door.center.x, door.center.z);
       const side = [
         ['west', Math.abs(p.x - min.x)],
         ['east', Math.abs(p.x - max.x)],
         ['north', Math.abs(p.z - min.z)],
         ['south', Math.abs(p.z - max.z)],
       ].sort((a, b) => a[1] - b[1])[0][0];
-      // A door marker is a world-space AABB; recover a conservative local width
-      // even when the building is rotated relative to the city axes.
-      const scaleAxis = Math.max(0.5, Math.max(Math.abs(c), Math.abs(sn)));
+      // Use the doorway's exact unrotated, scaled dimensions when available.
+      // A world-axis-aligned box grows at diagonal angles and overestimates gaps.
+      const openingAxis = side === 'west' || side === 'east' ? 'z' : 'x';
+      const openingSize = door.localSize?.[openingAxis]
+        || Math.max(door.size.x, door.size.z) / Math.max(0.5, Math.max(Math.abs(c), Math.abs(sn)));
       const span = THREE.MathUtils.clamp(
-        Math.max(door.size.x, door.size.z) / scaleAxis + 0.25,
+        openingSize + 0.25,
         1.1,
         (side === 'west' || side === 'east' ? depth : width) * 0.6,
       );
@@ -1240,7 +1258,7 @@ export class World {
     const toWorldDirection = (x, z) => new THREE.Vector3(x * c + z * sn, 0, -x * sn + z * c).normalize();
 
     for (const door of doorMeshes) {
-      const local = toLocal(door.center.x, door.center.z);
+      const local = door.localCenter || toLocal(door.center.x, door.center.z);
       let side;
       if (localBBox) {
         const min = localBBox.min, max = localBBox.max;
