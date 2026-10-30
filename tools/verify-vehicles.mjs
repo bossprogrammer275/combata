@@ -281,6 +281,24 @@ try {
     // ---- wheels ----
     const wheels = scene.userData.wheels || [];
     console.log(`    wheels detected: ${wheels.length}`);
+    if (kind === 'cybertruck') {
+      for (let wi = 0; wi < wheels.length; wi++) {
+        const w = wheels[wi];
+        const members = (w.meshes || []).map(mesh => {
+          mesh.updateWorldMatrix(true, false);
+          if (!mesh.geometry?.boundingBox) mesh.geometry?.computeBoundingBox();
+          const box = new THREE.Box3().setFromObject(mesh);
+          const size = box.getSize(new THREE.Vector3());
+          const center = box.getCenter(new THREE.Vector3());
+          return {
+            name: mesh.name,
+            size: [size.x, size.y, size.z].map(v => +v.toFixed(3)),
+            center: [center.x, center.y, center.z].map(v => +v.toFixed(3)),
+          };
+        });
+        console.log(`    CYBERTRUCK_WHEEL_${wi} ${JSON.stringify({ axle:w.axle, hub:[w.center.x,w.center.y,w.center.z], memberCount:members.length, members })}`);
+      }
+    }
 
     // Capture the first real vehicle's runtime-equivalent suspension spec.
     // This exercises the actual normalized GLB pivots/radii below, not only a
