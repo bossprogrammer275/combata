@@ -62,7 +62,7 @@ try {
 
   browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist', '--disable-gpu-sandbox'] });
   page = await browser.newPage({
-    viewport: { width: 1600, height: 1000 },
+    viewport: { width: 1280, height: 800 },
     deviceScaleFactor: 1,
   });
   page.on('pageerror', e => pageErrors.push(String(e.stack || e)));
@@ -105,7 +105,7 @@ try {
   for (const [view, filename] of shots) {
     await page.evaluate(viewName => window.__CITY_PREVIEW__.setView(viewName), view);
     await page.waitForTimeout(900);
-    await page.screenshot({ path: path.join(outputDir, filename), animations: 'disabled' });
+    await page.screenshot({ path: path.join(outputDir, filename), animations: 'disabled', timeout: 120000 });
   }
   const finalReport = {
     ...report,
@@ -123,7 +123,7 @@ try {
   if (page) {
     try {
       await mkdir(outputDir, { recursive: true });
-      await page.screenshot({ path: path.join(outputDir, 'city-a-debug-failure.png'), animations: 'disabled' });
+      await page.screenshot({ path: path.join(outputDir, 'city-a-debug-failure.png'), animations: 'disabled', timeout: 60000 });
       const diagnostics = await page.evaluate(() => ({
         status: document.querySelector('#status')?.textContent || '',
         preview: window.__CITY_PREVIEW__ ? { ready: window.__CITY_PREVIEW__.ready, error: window.__CITY_PREVIEW__.error, report: window.__CITY_PREVIEW__.report } : null,
