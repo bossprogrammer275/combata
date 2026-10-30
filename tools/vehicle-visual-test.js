@@ -95,7 +95,10 @@ async function load(kind){
 function setInterior(enabled){
   if(!current)throw new Error('Load a vehicle first');
   if(system.interiorView!==enabled)system.toggleInteriorView();
-  system.updateChaseCamera(1/60,{mouseDX:0,mouseDY:0},player);
+  // Let the real runtime camera interpolation settle before any screenshot.
+  for(let frame=0;frame<36;frame++){
+    system.updateChaseCamera(1/60,{mouseDX:0,mouseDY:0},player);
+  }
   status.textContent=enabled?'Interior view · '+current.kind:'Exterior view · '+current.kind;
   render();
   const lights=current.cabinLights;
