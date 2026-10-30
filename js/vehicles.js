@@ -291,7 +291,7 @@ function vehicleNodeKey(root, node) {
 
 const STEERING_WHEEL_NAME = /(steering[\s_-]*wheel|wheel[\s_-]*steering|steer[\s_-]*wheel|volant|lenkrad)/i;
 
-function rigSteeringWheel(scene, config = {}, toLocal) {
+export function rigSteeringWheel(scene, config = {}, toLocal = (value) => value.clone()) {
   const configuredKeys = Array.isArray(config.meshKeys) ? config.meshKeys.filter(Boolean) : [];
   const byKey = new Map();
   scene.traverse(node => {
