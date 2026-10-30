@@ -798,6 +798,8 @@ class Game {
       toggle.disabled = !vehicle;
       toggle.textContent = this.vehicles && this.vehicles.interiorView ? 'EXIT COCKPIT VIEW · V' : 'ENTER COCKPIT VIEW · V';
     }
+    const reset = document.getElementById('cockpit-reset');
+    if (reset) reset.disabled = !vehicle;
     document.querySelectorAll('[data-cockpit-setting]').forEach((input) => {
       const key = input.dataset.cockpitSetting;
       input.disabled = !settings;
