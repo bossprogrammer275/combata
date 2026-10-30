@@ -43,27 +43,29 @@ export const CAR_PHYSICS = {
     uprightStrength: 3.8, uprightDamping: 4.3, uprightInertiaScale: 1.8,
     angularDamping: 0.82,
   },
-  // Cybertruck AWD: much heavier, longer wheelbase and softer suspension.
-  // Instant electric torque keeps it responsive off the line, but the mass,
-  // tyre response and longer wheelbase make it turn and settle like a pickup.
+  // Cybertruck AWD: retain its real pickup-scale mass and long wheelbase, but
+  // give the electric drivetrain and steering the quick response expected from
+  // a performance EV. Stronger tyres and roll control keep normal turns planted.
   cybertruck: {
     mass: 3009, drivetrain: 'awd', wheelbase: 3.635,
-    engineAcceleration: 6.8, reverseAcceleration: 4.6, brakeAcceleration: 10.5,
-    maxSpeed: 180 / 3.6, maxReverseSpeed: 10.0, speedometerMaxKmh: 180,
-    aeroDragArea: 1.15, rollingResistance: 0.016,
-    speedSteeringFalloff: 0.0088, minSteeringScale: 0.36, steeringResponse: 11.0,
-    antiRollStiffness: 29000, downforceCoefficient: 0.20, maxDownforceG: 0.15,
+    engineAcceleration: 12.8, reverseAcceleration: 5.8, brakeAcceleration: 15.5,
+    maxSpeed: 180 / 3.6, maxReverseSpeed: 13.0, speedometerMaxKmh: 180,
+    aeroDragArea: 1.15, rollingResistance: 0.014,
+    speedSteeringFalloff: 0.0075, minSteeringScale: 0.46, steeringResponse: 22.0,
+    antiRollStiffness: 42000, antiRollLoadTransferLimit: 0.22,
+    downforceCoefficient: 0.30, maxDownforceG: 0.25,
     frontDriveBias: 0.50,
-    driveGripUsageLimit: 0.88, brakingGripUsageLimit: 0.96, handbrakeGripUsageLimit: 0.80,
-    steeringAngle: 0.46, handbrakeSteerAngle: 0.50,
-    frontGrip: 6.2, rearGrip: 6.8, handbrakeRearGrip: 0.72,
-    frontCorneringStiffness: 54000, rearCorneringStiffness: 60000,
-    tireFriction: 1.06, handbrakeRearFriction: 0.50,
-    suspensionRestLength: 0.27, suspensionTravel: 0.23,
-    springRate: 50000, springDamping: 7600,
-    springDampingRelaxation: 5900, suspensionResponse: 25,
-    uprightStrength: 4.2, uprightDamping: 5.1, uprightInertiaScale: 1.8,
-    angularDamping: 1.15,
+    driveGripUsageLimit: 0.90, brakingGripUsageLimit: 0.97, handbrakeGripUsageLimit: 0.76,
+    steeringAngle: 0.56, handbrakeSteerAngle: 0.60,
+    frontGrip: 8.8, rearGrip: 9.4, handbrakeRearGrip: 0.62,
+    frontCorneringStiffness: 86000, rearCorneringStiffness: 93000,
+    tireFriction: 1.32, handbrakeRearFriction: 0.46,
+    suspensionRestLength: 0.23, suspensionTravel: 0.18,
+    springRate: 56000, springDamping: 8200,
+    springDampingRelaxation: 6500, suspensionResponse: 32,
+    uprightStrength: 4.8, uprightDamping: 5.6, uprightInertiaScale: 2.0,
+    rollUprightStrength: 9.0, rollUprightDamping: 8.5,
+    angularDamping: 1.0,
   },
   // Bugatti Bolide: light, AWD track-only hypercar, high downforce and slick grip.
   // The model asset is still the bundled sports-car GLB; this is only its preset.
@@ -740,7 +742,7 @@ export class VehicleSystem {
       // Keep the collision envelope where the model authored it, but place the
       // chassis mass centre lower. This reduces roll torque without kinematic
       // snapping or artificial wheel locking.
-      const comDrop = suspensionReady ? Math.min(0.22, (bodyBox.max.y - bodyBox.min.y) * 0.18) : 0;
+      const comDrop = suspensionReady ? Math.min(0.30, (bodyBox.max.y - bodyBox.min.y) * 0.24) : 0;
       const physicsCenterY = Math.max(0.22, colliderCenterY - comDrop);
       const physicsWheels = wheels.map(w => ({
         x: w.center.x, y: w.center.y, z: w.center.z,
