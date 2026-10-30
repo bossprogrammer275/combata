@@ -798,19 +798,28 @@ export class Physics {
     // and recoverable, while still allowing chassis pitch and roll over bumps.
     // Spring/damper struts handle heave; this only corrects excessive tilt.
     const chassisUp = new THREE.Vector3(0, 1, 0).applyQuaternion(q).normalize();
-    const uprightError = chassisUp.clone().cross(new THREE.Vector3(0, 1, 0));
+    const uprightErrorWorld = chassisUp.clone().cross(new THREE.Vector3(0, 1, 0));
+    const inverseRotation = q.clone().invert();
+    const uprightErrorLocal = uprightErrorWorld.clone().applyQuaternion(inverseRotation);
+    const angularLocal = new THREE.Vector3(angular.x, angular.y, angular.z).applyQuaternion(inverseRotation);
     const pitchUprightStrength = tune.pitchUprightStrength ?? tune.uprightStrength ?? 4.0;
     const pitchUprightDamping = tune.pitchUprightDamping ?? tune.uprightDamping ?? 3.0;
     const rollUprightStrength = tune.rollUprightStrength ?? tune.uprightStrength ?? 4.0;
     const rollUprightDamping = tune.rollUprightDamping ?? tune.uprightDamping ?? 3.0;
     const inertiaScale = tune.uprightInertiaScale ?? 1.8;
     const torqueScale = mass * inertiaScale * dt;
-    // Pitch remains free to follow ramps; roll gets a firmer chassis damper so
-    // ordinary steering does not unload a diagonal pair of tyres.
+    // Stabilization is tuned in chassis-local axes, then rotated back to world.
+    // Pitch remains free to follow ramps; roll gets a firmer damper so ordinary
+    // steering does not unload a diagonal pair of tyres at any vehicle heading.
+    const uprightTorqueWorld = new THREE.Vector3(
+      uprightErrorLocal.x * pitchUprightStrength - angularLocal.x * pitchUprightDamping,
+      0,
+      uprightErrorLocal.z * rollUprightStrength - angularLocal.z * rollUprightDamping,
+    ).multiplyScalar(torqueScale).applyQuaternion(q);
     body.applyTorqueImpulse({
-      x: (uprightError.x * pitchUprightStrength - angular.x * pitchUprightDamping) * torqueScale,
-      y: 0,
-      z: (uprightError.z * rollUprightStrength - angular.z * rollUprightDamping) * torqueScale,
+      x: uprightTorqueWorld.x,
+      y: uprightTorqueWorld.y,
+      z: uprightTorqueWorld.z,
     }, true);
 
     return {
