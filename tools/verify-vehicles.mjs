@@ -108,7 +108,7 @@ try {
   const { Physics } = await import('../js/physics.js');
   const {
     ackermannSteerAngle, updateChaseLook, resolveDriveAxes,
-    updateReverseCameraBlend, chaseCameraYaw,
+    updateReverseCameraBlend, chaseCameraYaw, getBridgeAwareChaseHeights,
   } = await import('../js/vehicle-steering.js');
 
   const steeringGeometryWheels = [
@@ -146,6 +146,19 @@ try {
   check('reverse camera changes with actual movement and holds through the stop',
     reverseCameraAtStop > 0.9 && cameraAfterForward < 0.1,
     `atReverse=${reverseCameraAtStop.toFixed(2)} afterForward=${cameraAfterForward.toFixed(2)}`);
+  const groundChaseHeights = getBridgeAwareChaseHeights(0.06, 0.06, 2.8, 1.0);
+  const bridgeChaseHeights = getBridgeAwareChaseHeights(7.06, 7.06, 2.8, 1.0);
+  const cameraPastBridgeEdge = getBridgeAwareChaseHeights(7.06, 0.06, 2.8, 1.0);
+  check('chase camera rises with the vehicle onto elevated bridges',
+    Math.abs(bridgeChaseHeights.cameraY - groundChaseHeights.cameraY - 7.0) < 1e-8
+      && Math.abs(bridgeChaseHeights.lookY - groundChaseHeights.lookY - 7.0) < 1e-8,
+    `groundCameraY=${groundChaseHeights.cameraY.toFixed(2)} bridgeCameraY=${bridgeChaseHeights.cameraY.toFixed(2)}`);
+  check('chase camera does not drop to ground level when the trailing camera is beyond the bridge deck',
+    cameraPastBridgeEdge.cameraY > 9.8 && cameraPastBridgeEdge.supportY === 7.06,
+    `cameraY=${cameraPastBridgeEdge.cameraY.toFixed(2)} supportY=${cameraPastBridgeEdge.supportY.toFixed(2)}`);
+  check('camera-height sampling ignores an unrelated lower deck beneath the driven bridge',
+    getBridgeAwareChaseHeights(7.06, 0.06, 2.8, 1.0).cameraY > 9.8);
+
   let cameraLook = { yaw: 1.1, pitch: 0.85, idleTime: 0 };
   for (let i = 0; i < 90; i++) {
     cameraLook = updateChaseLook(cameraLook, { dt: 1 / 60, throttle: 0, speed: 0 });
