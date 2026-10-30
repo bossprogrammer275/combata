@@ -183,7 +183,8 @@ function classifyCarMeshes(items, options = {}) {
       hierarchyName += ` ${node.name || ''}`;
       node = node.parent;
     }
-    if (/(steer|dashboard|cockpit|interior|instrument|seat|pedal|gear.?shift)/i.test(hierarchyName)) return false;
+    if (/steer/i.test(m.o.name || '')
+      || /(dashboard|cockpit|interior|instrument|seat|pedal|gear.?shift)/i.test(hierarchyName)) return false;
     if (m.s.y < 0.30 || m.s.y > 1.05) return false;
     if ((m.c.y - all.min.y) > 0.40 * total.y) return false;
     const lateralRatio = Math.abs(m.c.x - cx0) / Math.max(0.001, total.x * 0.5);
