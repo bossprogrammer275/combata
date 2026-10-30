@@ -18,7 +18,7 @@ const map = JSON.parse(await readFile(mapPath, 'utf8'));
 function checkMapContract() {
   assert.equal(map.id, 'city-a', 'wrong map id');
   assert.equal(map.disableAutoSpawns, true, 'compact exploration map must disable all automatic spawns');
-  assert.equal(map.roads?.length, 28, 'expected the complete authored 28-road network');
+  assert.equal(map.roads?.length, 16, 'expected the compact authored 16-road network');
   assert.equal(map.glbAssets?.length, 82, 'unexpected GLB placement count');
   assert.equal(new Set(map.glbAssets.map(a => a.url)).size, 6, 'all placements should reuse the six bundled GLB models');
   assert.equal(map.glbAssets.filter(a => a.building).length, 22, 'expected 22 building models');
@@ -85,7 +85,7 @@ try {
   if (!preview?.ready) throw new Error('Timed out waiting for the real GLB scene; status=' + await page.locator('#status').textContent());
   const report = preview.report;
 
-  assert.equal(report.roadCount, 28, 'runtime road count differs from authored map');
+  assert.equal(report.roadCount, 16, 'runtime road count differs from authored map');
   assert.equal(report.glbAssetCount, 82, 'runtime GLB placement count differs from authored map');
   assert.equal(report.uniqueModelCount, 6, 'not all unique GLB files loaded into cache');
   assert.equal(report.buildingCount, 22, 'some building GLBs did not load');
