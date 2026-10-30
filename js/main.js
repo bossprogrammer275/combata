@@ -554,6 +554,28 @@ class Game {
     };
     $('respawn-btn').onclick = () => { this.audio.click(); this.respawn(); };
     $('resume-btn').onclick = () => { this.audio.click(); this.resume(); };
+    $('open-cockpit-settings').onclick = () => { this.audio.click(); this.showPausePanel('cockpit'); };
+    $('cockpit-back').onclick = () => { this.audio.click(); this.showPausePanel('main'); };
+    $('cockpit-resume-btn').onclick = () => { this.audio.click(); this.resume(); };
+    $('cockpit-reset').onclick = () => {
+      if (this.vehicles && this.vehicles.resetInteriorCameraSettings()) this.refreshCockpitSettingsUI();
+    };
+    $('cockpit-view-toggle').onclick = () => {
+      if (this.vehicles && this.vehicles.driver) {
+        this.vehicles.toggleInteriorView();
+        this.refreshCockpitSettingsUI();
+      }
+    };
+    document.querySelectorAll('[data-cockpit-setting]').forEach((input) => {
+      input.addEventListener('input', () => {
+        const key = input.dataset.cockpitSetting;
+        const value = Number(input.value);
+        if (this.vehicles && this.vehicles.setInteriorCameraSetting(key, value)) {
+          const output = document.querySelector('[data-cockpit-value="' + key + '"]');
+          if (output) output.textContent = this.formatCockpitSetting(key, value);
+        }
+      });
+    });
     $('sens').oninput = (e) => { this.player.sensitivity = parseFloat(e.target.value); this.profile.data.settings.sens = parseFloat(e.target.value); this.profile.save(); };
     $('vol').oninput = (e) => { this.audio.setVolume(parseFloat(e.target.value)); this.profile.data.settings.vol = parseFloat(e.target.value); this.profile.save(); };
     $('quality').onchange = (e) => { this.applyQuality(e.target.value); this.profile.data.settings.quality = e.target.value; this.profile.save(); };
@@ -595,6 +617,7 @@ class Game {
     ]);
     const updateDriveAxes = () => Object.assign(I, resolveDriveAxes(driveKeys));
     addEventListener('keydown', (e) => {
+      if (this.state === 'paused' && e.code !== 'Escape') { e.preventDefault(); return; }
       if (driveKeyCodes.has(e.code)) {
         e.preventDefault();
         driveKeys.add(e.code);
@@ -681,8 +704,11 @@ class Game {
         case 'F7': if (this.state === 'playing' && this.world.atmosphere) { this.world.atmosphere.timeSpeed = Math.max((this.world.atmosphere.timeSpeed || 0) - 2, 0); this.hud.toast(`TIME SPEED: ${this.world.atmosphere.timeSpeed.toFixed(0)}x`); } break;
         case 'F8': if (this.state === 'playing' && this.world.atmosphere) { const tod = this.world.atmosphere; const times = [{name:'MORNING',h:8},{name:'AFTERNOON',h:14},{name:'EVENING',h:18},{name:'NIGHT',h:22}]; let ci = times.findIndex(t => { const d = Math.abs(tod.timeOfDay - t.h); return d < 3 || d > 21; }); ci = (ci + 1) % times.length; tod.setTime(times[ci].h); this.hud.toast(`TIME: ${times[ci].name}`); } break;
         case 'Escape':
-          if (this.fullMapOpen) this.toggleFullMap();
+          e.preventDefault();
+          if (this.state === 'paused') this.resume();
+          else if (this.fullMapOpen) this.toggleFullMap();
           else if (this.tools && this.tools.isOpen()) this.tools.close();
+          else if (this.state === 'playing') this.pause();
           break;
       }
     });
@@ -755,8 +781,60 @@ class Game {
     try { const p = this.renderer.domElement.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
   }
 
-  pause() { if (this.state !== 'playing') return; this.state = 'paused'; document.getElementById('pause-screen').style.display = 'flex'; }
-  resume() { document.getElementById('pause-screen').style.display = 'none'; this.state = 'playing'; this.lockPointer(); }
+  formatCockpitSetting(key, value) {
+    const degrees = key === 'lookPitch' || key === 'lookYaw';
+    return Number(value).toFixed(degrees ? 1 : 2) + (degrees ? '°' : ' m');
+  }
+
+  refreshCockpitSettingsUI() {
+    const vehicle = this.vehicles && this.vehicles.driver;
+    const settings = this.vehicles && this.vehicles.getInteriorCameraSettings();
+    const hint = document.getElementById('cockpit-settings-hint');
+    const toggle = document.getElementById('cockpit-view-toggle');
+    if (hint) hint.textContent = vehicle
+      ? vehicle.kind.toUpperCase() + ' · CHANGES SAVE FOR THIS VEHICLE'
+      : 'ENTER A VEHICLE TO ADJUST ITS COCKPIT CAMERA. EACH VEHICLE KEEPS ITS OWN SETTINGS.';
+    if (toggle) {
+      toggle.disabled = !vehicle;
+      toggle.textContent = this.vehicles && this.vehicles.interiorView ? 'EXIT COCKPIT VIEW · V' : 'ENTER COCKPIT VIEW · V';
+    }
+    document.querySelectorAll('[data-cockpit-setting]').forEach((input) => {
+      const key = input.dataset.cockpitSetting;
+      input.disabled = !settings;
+      if (settings && Number.isFinite(settings[key])) input.value = String(settings[key]);
+      const output = document.querySelector('[data-cockpit-value="' + key + '"]');
+      if (output) output.textContent = this.formatCockpitSetting(key, settings ? settings[key] : Number(input.value));
+    });
+  }
+
+  showPausePanel(panel = 'main') {
+    document.getElementById('pause-main-panel').classList.toggle('hidden', panel !== 'main');
+    document.getElementById('pause-cockpit-panel').classList.toggle('hidden', panel !== 'cockpit');
+    if (panel === 'cockpit') this.refreshCockpitSettingsUI();
+  }
+
+  pause() {
+    if (this.state !== 'playing') return;
+    this.state = 'paused';
+    if (this._driveKeys) this._driveKeys.clear();
+    this.input.forward = 0; this.input.right = 0;
+    this.input.fire = false; this.input.ads = false;
+    this.input.sprint = false; this.input.crouch = false; this.input.jump = false;
+    if (document.pointerLockElement) document.exitPointerLock();
+    this.showPausePanel('main');
+    document.getElementById('pause-screen').style.display = 'flex';
+  }
+
+  resume() {
+    if (this.state !== 'paused') return;
+    document.getElementById('pause-screen').style.display = 'none';
+    this.state = 'playing';
+    if (this.vehicles && this.vehicles.driver) {
+      this.vehicles._camPos = null;
+      this.vehicles._camLook = null;
+    }
+    this.lockPointer();
+  }
 
   toggleFullMap() {
     this.fullMapOpen = !this.fullMapOpen;
