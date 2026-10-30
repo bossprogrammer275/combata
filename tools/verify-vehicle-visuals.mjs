@@ -52,14 +52,17 @@ try{
   await page.waitForFunction(()=>window.__vehicleVisualTest?.ready===true,{timeout:30000});
 
   const configs=[
-    {kind:'lambo',expectedHeight:1.02,prefix:'lamborghini'},
-    {kind:'cybertruck',expectedHeight:1.42,prefix:'cybertruck'},
+    {kind:'lambo',expectedHeight:1.02,expectedFov:82,prefix:'lamborghini'},
+    {kind:'cybertruck',expectedHeight:1.42,expectedFov:82,prefix:'cybertruck'},
   ];
   for(const spec of configs){
     const base=await page.evaluate(async kind=>await window.__vehicleVisualTest.load(kind),spec.kind);
     check(spec.kind+' loads through the actual VehicleSystem',base.meshCount>0,'meshes='+base.meshCount);
     check(spec.kind+' has four road-wheel rigs',base.wheelCount===4,'wheels='+base.wheelCount);
     check(spec.kind+' uses its own driver eye height',Math.abs(base.height-spec.expectedHeight)<1e-6,`height=${base.height}m`);
+    check(spec.kind+' camera eye point stays below the roofline',
+      base.rootDimensions.y-base.height>0.08,
+      `roof clearance=${(base.rootDimensions.y-base.height).toFixed(2)}m`);
     check(spec.kind+' cabin lights start disabled',base.lightsInitiallyOff);
     check(spec.kind+' cabin fill remains subtle',
       base.lightIntensities.length===2
@@ -75,6 +78,7 @@ try{
     const interior=await page.evaluate(()=>window.__vehicleVisualTest.interior());
     check(spec.kind+' interior camera activates cabin lighting',interior.lightsVisible&&interior.interiorView);
     check(spec.kind+' camera uses the calibrated profile',Math.abs(interior.cameraHeight-spec.expectedHeight)<1e-6);
+    check(spec.kind+' interior FOV reaches its settled profile',Math.abs(interior.fov-spec.expectedFov)<0.35,`fov=${interior.fov.toFixed(2)}°`);
     const insideShot=await capture(page,spec.prefix+'-interior');
     if(spec.kind==='cybertruck'){
       for(const preset of [
