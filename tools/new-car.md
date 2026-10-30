@@ -79,7 +79,7 @@ Use the **Load car** field to paste a model path, for example:
 /data/models/cars/mycar/scene.glb
 ```
 
-The interior camera's `height` is the driver's eye height measured up from the vehicle's ground/tyre contact level. It is not the roof height and must not be shared between cars with different ride heights and cabin proportions.
+The interior camera's `height` is the driver's eye height measured up from the vehicle's ground/tyre contact level. It is not the roof height and must not be shared between cars with different ride heights and cabin proportions. Asset Lab fits the preview vehicle to the **Target body length** field before showing Cabin view, so adjust that length first; then tune eye height and seat offsets in the fitted model space.
 
 Current calibrated starting points:
 
