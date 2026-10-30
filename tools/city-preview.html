@@ -5,6 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>City A — Internal World Preview</title>
+  <script type="importmap">{"imports":{"three":"/js/lib/three.module.js","three-mesh-bvh":"/js/lib/three-mesh-bvh.module.js"}}</script>
   <style>
     *{box-sizing:border-box}
     html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111612;color:#edf2e8;font:13px/1.4 system-ui,Segoe UI,sans-serif}
@@ -39,8 +40,8 @@
   </section>
   <div id="foot">Internal visual inspection · drag to orbit · scroll to zoom · no NPCs or loot</div>
   <script type="module">
-    import * as THREE from './js/lib/three.module.js';
-    import { World } from './js/world.js';
+    import * as THREE from 'three';
+    import { World } from '/js/world.js';
 
     const state = { errors: [], warnings: [], ready: false, view: 'overview' };
     const originalWarn = console.warn.bind(console);
