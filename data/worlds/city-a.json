@@ -2292,21 +2292,21 @@
     {
       "x": 16,
       "z": 184,
-      "ry": 0,
+      "ry": 1.57,
       "kind": "lambo",
       "elevation": 0
     },
     {
       "x": 29,
       "z": 184,
-      "ry": 0,
+      "ry": 1.57,
       "kind": "cybertruck",
       "elevation": 0
     },
     {
       "x": 42,
       "z": 184,
-      "ry": 0,
+      "ry": 1.57,
       "kind": "bugatti",
       "elevation": 0
     }
