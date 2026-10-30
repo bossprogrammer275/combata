@@ -69,7 +69,7 @@ try {
   page.on('requestfailed', req => pageErrors.push('Request failed: ' + req.url() + ' — ' + (req.failure()?.errorText || 'unknown')));
 
   await page.goto(baseUrl + '/tools/city-preview.html', { waitUntil: 'domcontentloaded', timeout: 30000 });
-  await page.waitForFunction(() => window.__CITY_PREVIEW__?.ready === true, { timeout: 180000 });
+  await page.waitForFunction(() => window.__CITY_PREVIEW__?.ready === true, null, { timeout: 180000 });
   const report = await page.evaluate(() => window.__CITY_PREVIEW__.report);
 
   assert.equal(report.roadCount, 28, 'runtime road count differs from authored map');
