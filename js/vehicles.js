@@ -7,6 +7,10 @@ import {
   ackermannSteerAngle, updateChaseLook, updateReverseCameraBlend, chaseCameraYaw,
   getBridgeAwareChaseHeights,
 } from './vehicle-steering.js';
+import {
+  clampCockpitCameraValue, COCKPIT_CAMERA_SETTING_KEYS,
+  getCockpitLookAngles, resolveCockpitCameraProfile,
+} from './vehicle-cockpit.js';
 
 export const CAR_MODELS = {
   // nose: -1 = model nose faces local -Z (three.js forward convention),
@@ -533,6 +537,13 @@ export class VehicleSystem {
     this._speedometerCanvas = null;
     this._speedometerCtx = null;
     this.interiorView = false;
+    this._cockpitProfiles = {};
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const saved = JSON.parse(localStorage.getItem('sc_cockpit_camera_profiles_v1') || '{}');
+        if (saved && typeof saved === 'object' && !Array.isArray(saved)) this._cockpitProfiles = saved;
+      }
+    } catch (error) { console.warn('[Vehicle] Cockpit camera settings could not be loaded:', error); }
     this._initSpeedometer();
   }
 
@@ -920,13 +931,18 @@ export class VehicleSystem {
         radius: w.radius, front: w.front,
       }));
       const physicsProfile = { ...(CAR_PHYSICS[kind] || CAR_PHYSICS.lambo) };
+      const baseInteriorCamera = base.userData.assetOverride?.interiorCamera
+        || physicsProfile.interiorCamera
+        || { height: Math.max(0.85, (bodyBox.max.y - bodyBox.min.y) * 0.62), forward: 0.18, side: 0, lookAhead: 18, pitch: 0, fov: 82 };
+      const interiorCamera = resolveCockpitCameraProfile(baseInteriorCamera, this._cockpitProfiles[kind]);
       const v = {
         def, root, rapierBody: null, physicsDynamic: false, suspensionReady,
         physicsCenterY, physicsBox, physicsWheels, physicsProfile,
         kind, wheels, steeringWheel, colBoxes, bodyBox, half,
         yawOffset, parkedCol: null,
-        interiorCamera: base.userData.assetOverride?.interiorCamera || physicsProfile.interiorCamera || { height: Math.max(0.85, (bodyBox.max.y - bodyBox.min.y) * 0.62), forward: 0.18, side: 0, lookAhead: 18, pitch: 0, fov: 82 },
-        cabinLights: createCabinLights(root, kind, base.userData.assetOverride?.interiorCamera || physicsProfile.interiorCamera),
+        baseInteriorCamera: { ...baseInteriorCamera },
+        interiorCamera,
+        cabinLights: createCabinLights(root, kind, baseInteriorCamera),
         pos: new THREE.Vector3(def.x, def.elevation || 0, def.z),
         yaw,
         speed: 0,
@@ -1328,6 +1344,56 @@ export class VehicleSystem {
     return this.interiorView;
   }
 
+  getInteriorCameraSettings() {
+    return this.driver ? { ...this.driver.interiorCamera } : null;
+  }
+
+  _saveCockpitCameraProfiles() {
+    if (!this.driver) return;
+    const kind = this.driver.kind;
+    const profile = {};
+    for (const key of COCKPIT_CAMERA_SETTING_KEYS) profile[key] = this.driver.interiorCamera[key];
+    this._cockpitProfiles[kind] = profile;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('sc_cockpit_camera_profiles_v1', JSON.stringify(this._cockpitProfiles));
+      }
+    } catch (error) { console.warn('[Vehicle] Cockpit camera settings could not be saved:', error); }
+  }
+
+  setInteriorCameraSetting(key, value) {
+    if (!this.driver) return false;
+    const next = clampCockpitCameraValue(key, value);
+    if (next === null) return false;
+    const kind = this.driver.kind;
+    for (const vehicle of this.vehicles) {
+      if (vehicle.kind === kind) vehicle.interiorCamera[key] = next;
+    }
+    this._saveCockpitCameraProfiles();
+    this._camPos = null;
+    this._camLook = null;
+    return true;
+  }
+
+  resetInteriorCameraSettings() {
+    if (!this.driver) return false;
+    const kind = this.driver.kind;
+    for (const vehicle of this.vehicles) {
+      if (vehicle.kind === kind) {
+        vehicle.interiorCamera = resolveCockpitCameraProfile(vehicle.baseInteriorCamera, {});
+      }
+    }
+    delete this._cockpitProfiles[kind];
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('sc_cockpit_camera_profiles_v1', JSON.stringify(this._cockpitProfiles));
+      }
+    } catch (error) { console.warn('[Vehicle] Cockpit camera settings could not be reset:', error); }
+    this._camPos = null;
+    this._camLook = null;
+    return true;
+  }
+
   updateChaseCamera(dt, input, player) {
     const v = this.driver;
     if (!v) return;
@@ -1356,9 +1422,16 @@ export class VehicleSystem {
       const cabin = v.interiorCamera || { height: 1.05, forward: 0.2, side: 0, lookAhead: 18, pitch: 0, fov: 82 };
       const rotation = v.root.quaternion;
       const cameraLocal = new THREE.Vector3(cabin.side || 0, cabin.height || 1.05, cabin.forward || 0).applyQuaternion(rotation);
-      const lookLocal = new THREE.Vector3((cabin.side || 0) + Math.sin(this._lookYaw) * 0.7,
-        (cabin.height || 1.05) + Math.tan(this._lookPitch - 0.2) * 2.2,
-        (cabin.forward || 0) + (cabin.lookAhead || 18)).applyQuaternion(rotation);
+      const lookAngles = getCockpitLookAngles(cabin, this._lookYaw, this._lookPitch);
+      const lookDistance = Math.max(2, Number(cabin.lookAhead) || 18);
+      const lookDirection = new THREE.Vector3(
+        Math.sin(lookAngles.yaw),
+        Math.tan(lookAngles.pitch),
+        Math.cos(lookAngles.yaw),
+      ).normalize().multiplyScalar(lookDistance);
+      const lookLocal = new THREE.Vector3(
+        cabin.side || 0, cabin.height || 1.05, cabin.forward || 0,
+      ).add(lookDirection).applyQuaternion(rotation);
       const cabinPosition = v.pos.clone().add(cameraLocal);
       const cabinLook = v.pos.clone().add(lookLocal);
       if (!this._camPos) { this._camPos = cabinPosition.clone(); this._camLook = cabinLook.clone(); }

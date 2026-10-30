@@ -101,6 +101,10 @@ In Asset Lab, use **Cabin view** and tune:
 
 Save the override. Runtime loads the saved per-model camera profile. A saved override takes precedence over the default in `CAR_PHYSICS`.
 
+For in-game fine tuning, enter the vehicle, press **Esc → COCKPIT ADJUSTMENTS**, and adjust Forward/Backward, Height, Left/Right, Look Up/Down and Look Left/Right. These values are saved per vehicle type in the player's local settings and are applied on top of the model's calibrated base profile. **V** still switches between chase and cockpit view. Reset This Vehicle restores that vehicle's calibrated defaults.
+
+The in-game position sliders move the virtual driver viewpoint. They do not deform or physically translate a seat mesh in the GLB; model geometry must be edited separately when the actual seat needs repositioning.
+
 ## 4. Cabin geometry and lighting
 
 A camera and a light cannot create a missing interior. The GLB itself needs real cabin geometry if the driver is expected to see a detailed steering wheel, dashboard, display, seats, centre console, pedals, door cards and windscreen framing.

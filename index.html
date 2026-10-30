@@ -215,7 +215,35 @@
   #death-screen .title{font-size:46px;color:var(--warn);text-shadow:0 0 30px rgba(192,57,43,.5)}
   .stats{display:flex;gap:36px;margin:22px 0}
   .stat{text-align:center}.stat .v{font-size:34px;font-weight:800;color:#fff}.stat .l{font-size:11px;letter-spacing:2px;color:var(--dim)}
-  #pause-screen{display:none}
+  #pause-screen{
+    display:none;z-index:90;padding:24px 14px;
+    background:rgba(5,8,6,.94);backdrop-filter:blur(14px);
+  }
+  .pause-shell{width:min(860px,96vw);display:flex;flex-direction:column;gap:18px}
+  .pause-heading{display:flex;align-items:center;justify-content:space-between;gap:14px;border-bottom:1px solid var(--line);padding-bottom:14px}
+  .pause-kicker{font-size:10px;letter-spacing:3px;color:var(--accent)}
+  .pause-title{font-size:34px;font-weight:900;letter-spacing:5px;color:#fff;margin-top:4px}
+  .pause-subtitle{font-size:10px;color:var(--dim);letter-spacing:2px;margin-top:5px}
+  .pause-panel{width:100%;display:flex;flex-direction:column;gap:14px}
+  .pause-actions{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:10px}
+  .pause-note{font-size:10px;color:var(--dim);letter-spacing:1px;text-align:center}
+  .cockpit-status{padding:10px 12px;border:1px solid var(--line);background:rgba(201,162,39,.055);color:var(--accent);font-size:10px;letter-spacing:2px;text-align:center}
+  .cockpit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .cockpit-group{background:rgba(255,255,255,.035);border:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:13px;min-width:0}
+  .cockpit-group-title{font-size:11px;letter-spacing:3px;color:var(--accent);padding-bottom:7px;border-bottom:1px solid var(--line)}
+  .cockpit-control{display:flex;flex-direction:column;gap:6px}
+  .cockpit-control-head{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:11px;letter-spacing:1px;color:var(--ink)}
+  .cockpit-control-head output{color:var(--accent);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .cockpit-control input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer}
+  .cockpit-control input[type=range]:disabled{opacity:.35;cursor:not-allowed}
+  .pause-shell button:disabled{opacity:.35;cursor:not-allowed;filter:saturate(.3)}
+  @media(max-width:620px){
+    .cockpit-grid{grid-template-columns:1fr}
+    .pause-heading{align-items:flex-start;flex-direction:column}
+    .pause-title{font-size:27px}
+    .pause-shell{gap:12px}
+    .pause-actions .btn{flex:1;padding:11px 14px}
+  }
   #match-screen{display:none}
 
   /* Loading */
@@ -468,9 +496,76 @@
 
 <!-- PAUSE -->
 <div class="screen" id="pause-screen">
-  <div class="title" style="font-size:40px">PAUSED</div>
-  <div class="subtitle">OPERATION SUSPENDED</div>
-  <button class="btn" id="resume-btn">RESUME</button>
+  <div class="pause-shell">
+    <div class="pause-heading">
+      <div>
+        <div class="pause-kicker">STRIKE COMMAND · SYSTEM MENU</div>
+        <div class="pause-title">OPERATION PAUSED</div>
+        <div class="pause-subtitle">THE SIMULATION IS SUSPENDED</div>
+      </div>
+      <div class="pause-note">PRESS ESC TO RESUME</div>
+    </div>
+
+    <section class="pause-panel" id="pause-main-panel">
+      <div class="pause-actions">
+        <button class="btn" id="resume-btn">RESUME GAME</button>
+        <button class="btn sm ghost" id="open-cockpit-settings">COCKPIT ADJUSTMENTS</button>
+      </div>
+      <div class="pause-note">Cockpit adjustments are saved separately for each vehicle.</div>
+    </section>
+
+    <section class="pause-panel hidden" id="pause-cockpit-panel">
+      <div>
+        <div class="panel-h">DRIVER POSITION & CAMERA ANGLES</div>
+        <div class="pause-note" style="text-align:left">Move the viewpoint to fit the driver seat, then set the default resting look direction.</div>
+      </div>
+      <div class="cockpit-status" id="cockpit-settings-hint">ENTER A VEHICLE TO ADJUST ITS COCKPIT CAMERA.</div>
+
+      <div class="cockpit-grid">
+        <div class="cockpit-group">
+          <div class="cockpit-group-title">POSITION ADJUSTMENTS</div>
+
+          <label class="cockpit-control">
+            <span class="cockpit-control-head"><span>FORWARD / BACKWARD</span><output data-cockpit-value="forward">0.16 m</output></span>
+            <input type="range" data-cockpit-setting="forward" min="-1.2" max="1.2" step="0.01" value="0.16">
+          </label>
+
+          <label class="cockpit-control">
+            <span class="cockpit-control-head"><span>UP / DOWN · SEAT HEIGHT</span><output data-cockpit-value="height">0.98 m</output></span>
+            <input type="range" data-cockpit-setting="height" min="0.5" max="2.2" step="0.01" value="0.98">
+          </label>
+
+          <label class="cockpit-control">
+            <span class="cockpit-control-head"><span>LEFT / RIGHT</span><output data-cockpit-value="side">0.00 m</output></span>
+            <input type="range" data-cockpit-setting="side" min="-0.8" max="0.8" step="0.01" value="0">
+          </label>
+        </div>
+
+        <div class="cockpit-group">
+          <div class="cockpit-group-title">ANGLE ADJUSTMENTS</div>
+
+          <label class="cockpit-control">
+            <span class="cockpit-control-head"><span>LOOK UP / DOWN</span><output data-cockpit-value="lookPitch">0.0°</output></span>
+            <input type="range" data-cockpit-setting="lookPitch" min="-25" max="25" step="0.5" value="0">
+          </label>
+
+          <label class="cockpit-control">
+            <span class="cockpit-control-head"><span>LOOK LEFT / RIGHT</span><output data-cockpit-value="lookYaw">0.0°</output></span>
+            <input type="range" data-cockpit-setting="lookYaw" min="-25" max="25" step="0.5" value="0">
+          </label>
+
+          <div class="pause-note" style="text-align:left">These angles offset the default forward view. Mouse look still works normally while driving.</div>
+        </div>
+      </div>
+
+      <div class="pause-actions">
+        <button class="btn sm blue" id="cockpit-view-toggle" disabled>ENTER COCKPIT VIEW · V</button>
+        <button class="btn sm ghost" id="cockpit-reset" >RESET THIS VEHICLE</button>
+        <button class="btn sm ghost" id="cockpit-back">BACK</button>
+        <button class="btn sm" id="cockpit-resume-btn">RESUME</button>
+      </div>
+    </section>
+  </div>
 </div>
 
 <script type="importmap">{"imports":{"three":"./js/lib/three.module.js","three-mesh-bvh":"./js/lib/three-mesh-bvh.module.js"}}</script>
