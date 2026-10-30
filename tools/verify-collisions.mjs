@@ -357,5 +357,54 @@ check('flyover builds a solid deck, raised supports, and concrete edge barriers'
     `raised road deck did not reach the authored elevation: maxY=${highestDeckY}`);
 });
 
+check('elevated asphalt ribbons preserve bridge waypoint heights', () => {
+  const world = Object.create(World.prototype);
+  world._ribbonBatch = [];
+  world._strokeMitered(
+    [{ x: 0, z: 0, y: 0 }, { x: 0, z: 20, y: 6 }],
+    10, 0.06, {},
+  );
+  const ribbon = world._ribbonBatch[0];
+  assert.ok(ribbon, 'elevated road ribbon was not batched');
+  assert.equal(ribbon.left[0].y, 0);
+  assert.equal(ribbon.right[0].y, 0);
+  assert.equal(ribbon.left[1].y, 6);
+  assert.equal(ribbon.right[1].y, 6);
+});
+
+check('road marking slices interpolate height along an elevated bridge', () => {
+  const world = Object.create(World.prototype);
+  const pts = [{ x: 0, z: 0, y: 0 }, { x: 0, z: 20, y: 6 }];
+  const slice = world._sliceRoadPolyline(pts, [0, 20], 5, 15);
+  assert.equal(slice.length, 2);
+  assert.ok(Math.abs(slice[0].y - 1.5) < 1e-6, `start height=${slice[0].y}`);
+  assert.ok(Math.abs(slice[1].y - 4.5) < 1e-6, `end height=${slice[1].y}`);
+});
+
+check('lane and crosswalk markings inherit elevated bridge profiles', () => {
+  const world = Object.create(World.prototype);
+  world._ribbonBatch = [];
+  world._mats = {};
+  world._mat = function (key, make) {
+    if (!this._mats[key]) this._mats[key] = make();
+    return this._mats[key];
+  };
+  world._findRoadJunctions = () => [[]];
+  world._buildRoadMarkings([{
+    pts: [{ x: 0, z: 0, y: 0 }, { x: 0, z: 60, y: 6 }],
+    W: 10, roadY: 0.06, closed: false,
+  }]);
+  assert.ok(world._ribbonBatch.length > 0, 'no markings were batched');
+  const elevatedMarks = world._ribbonBatch.filter(r =>
+    [...r.left, ...r.right].some(p => Number.isFinite(p.y) && p.y > 0.5));
+  assert.ok(elevatedMarks.length > 0, 'lane markings were flattened onto ground level');
+  for (const ribbon of world._ribbonBatch) {
+    for (const p of [...ribbon.left, ...ribbon.right]) {
+      assert.ok(Number.isFinite(p.y), 'marking vertex lost its interpolated elevation');
+      assert.ok(p.y >= -1e-5 && p.y <= 6.00001, `marking elevation escaped deck profile: ${p.y}`);
+    }
+  }
+});
+
 console.log(failures ? `[collision verify] ${failures} FAILURES` : '[collision verify] ALL CHECKS PASSED');
 process.exitCode = failures ? 1 : 0;
