@@ -1,0 +1,50 @@
+name: City A visual preview
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'data/worlds/city-a.json'
+      - 'data/models/assets/**'
+      - 'js/world.js'
+      - 'js/textures.js'
+      - 'tools/city-preview.html'
+      - 'tools/verify-city-preview.mjs'
+      - '.github/workflows/city-preview.yml'
+  pull_request:
+    paths:
+      - 'data/worlds/city-a.json'
+      - 'data/models/assets/**'
+      - 'js/world.js'
+      - 'js/textures.js'
+      - 'tools/city-preview.html'
+      - 'tools/verify-city-preview.mjs'
+      - '.github/workflows/city-preview.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Install headless Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Build real-world preview and verify the empty exploration map
+        run: node tools/verify-city-preview.mjs
+      - name: Upload city screenshots and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: city-a-visual-preview
+          path: artifacts/city-a-preview/
+          if-no-files-found: warn
+          retention-days: 14
