@@ -121,12 +121,21 @@ function setCabinLights(dome,dashboard){
   render();
   return {dome:domeLight?.intensity,dashboard:dashboardLight?.intensity};
 }
+function setCameraSide(side){
+  if(!current)throw new Error('No current vehicle');
+  current.interiorCamera.side=Number(side)||0;
+  let result=null;
+  for(let frame=0;frame<36;frame++)result=system.updateChaseCamera(1/60,{mouseDX:0,mouseDY:0},player);
+  render();
+  return {side:current.interiorCamera.side,cameraPosition:camera.position.toArray(),fov:camera.fov};
+}
 window.__vehicleVisualTest={
   report,
   async load(kind){return await load(kind);},
   interior(){return setInterior(true);},
   exterior(){return setExterior();},
   setCabinLights(dome,dashboard){return setCabinLights(dome,dashboard);},
+  setCameraSide(side){return setCameraSide(side);},
   details(){return {report,headings:Object.keys(CAR_PHYSICS)};},
 };
 window.addEventListener('error',e=>report.errors.push(String(e.message||e.error||'window error')));
