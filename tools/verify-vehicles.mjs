@@ -104,8 +104,43 @@ try {
   await waitForServer();
   console.log('[verify] server up on ' + BASE);
 
+  const steeringGeometryWheels = [
+    { x: -0.82, front: true }, { x: 0.82, front: true },
+    { x: -0.82, front: false }, { x: 0.82, front: false },
+  ];
+  const rightInside = ackermannSteerAngle(0.42, 0.82, steeringGeometryWheels, 2.7);
+  const rightOutside = ackermannSteerAngle(0.42, -0.82, steeringGeometryWheels, 2.7);
+  const leftInside = ackermannSteerAngle(-0.42, -0.82, steeringGeometryWheels, 2.7);
+  const leftOutside = ackermannSteerAngle(-0.42, 0.82, steeringGeometryWheels, 2.7);
+  check('Ackermann steering turns the inner front wheel sharper in both directions',
+    rightInside > rightOutside && Math.abs(leftInside) > Math.abs(leftOutside)
+      && rightOutside > 0 && leftOutside < 0,
+    `right inner/outer=${(rightInside * 180 / Math.PI).toFixed(1)}/${(rightOutside * 180 / Math.PI).toFixed(1)}deg left inner/outer=${(leftInside * 180 / Math.PI).toFixed(1)}/${(leftOutside * 180 / Math.PI).toFixed(1)}deg`);
+  let cameraLook = { yaw: 1.1, pitch: 0.85, idleTime: 0 };
+  for (let i = 0; i < 90; i++) {
+    cameraLook = updateChaseLook(cameraLook, { dt: 1 / 60, throttle: 0, speed: 0 });
+  }
+  check('free camera look stays free while parked',
+    Math.abs(cameraLook.yaw - 1.1) < 1e-6 && Math.abs(cameraLook.pitch - 0.85) < 1e-6,
+    `yaw=${cameraLook.yaw.toFixed(2)} pitch=${cameraLook.pitch.toFixed(2)}`);
+  for (let i = 0; i < 150; i++) {
+    cameraLook = updateChaseLook(cameraLook, { dt: 1 / 60, throttle: 1, speed: 18 });
+  }
+  check('chase camera recentres smoothly after acceleration resumes',
+    Math.abs(cameraLook.yaw) < 0.12 && Math.abs(cameraLook.pitch - 0.2) < 0.15,
+    `yaw=${cameraLook.yaw.toFixed(2)} pitch=${cameraLook.pitch.toFixed(2)}`);
+  cameraLook = updateChaseLook(cameraLook, { dt: 1 / 60, mouseDX: 50, throttle: 1, speed: 18 });
+  const manuallyLooked = cameraLook.yaw;
+  for (let i = 0; i < 5; i++) {
+    cameraLook = updateChaseLook(cameraLook, { dt: 1 / 60, throttle: 1, speed: 18 });
+  }
+  check('camera free-look pauses recentering while mouse input is active',
+    cameraLook.idleTime < 0.2 && Math.abs(cameraLook.yaw - manuallyLooked) < 0.08,
+    `idle=${cameraLook.idleTime.toFixed(2)} yaw=${cameraLook.yaw.toFixed(2)}`);
+
   const { loadCarModel, CAR_MODELS, CAR_PHYSICS, VehicleSystem } = await import('../js/vehicles.js');
   const { Physics } = await import('../js/physics.js');
+  const { ackermannSteerAngle, updateChaseLook } = await import('../js/vehicle-steering.js');
 
   const spawnHarness = Object.create(VehicleSystem.prototype);
   const spawnCalls = [];

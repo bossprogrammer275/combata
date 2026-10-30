@@ -1,6 +1,7 @@
 // Physics engine wrapper around Rapier.js (WASM).
 // Provides: world simulation, character controller, vehicle controller, raycasting.
 import * as THREE from 'three';
+import { ackermannSteerAngle } from './vehicle-steering.js';
 
 let RAPIER = null; // Rapier WASM module (high-level API)
 
@@ -665,13 +666,17 @@ export class Physics {
     const wheelAngle = steer * (handbrake
       ? (tune.handbrakeSteerAngle ?? 0.42)
       : (tune.steeringAngle ?? 0.28)) * steeringScale;
+    const wheelSteerAngles = wheelSpecs.map(wheel => wheel.front
+      ? ackermannSteerAngle(wheelAngle, wheel.x || 0, wheelSpecs, tune.wheelbase ?? 2.7)
+      : 0);
+    body._openWorldSteerAngles = wheelSteerAngles;
     if (wheelSpecs.length && grounded.length) {
       for (const index of grounded) {
         const wheel = wheelSpecs[index];
         const state = wheelStates[index];
         const chassisUp = new THREE.Vector3(0, 1, 0).applyQuaternion(q).normalize();
         const wheelRightV = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
-        if (wheel.front) wheelRightV.applyAxisAngle(chassisUp, -wheelAngle);
+        if (wheel.front) wheelRightV.applyAxisAngle(chassisUp, -(wheelSteerAngles[index] || 0));
         // Tyre lateral force stays tangent to the road plane.
         wheelRightV.y = 0;
         if (wheelRightV.lengthSq() < 1e-8) wheelRightV.set(Math.cos(bodyYaw), 0, -Math.sin(bodyYaw));

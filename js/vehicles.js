@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from './lib/GLTFLoader.js';
 import { prefetch } from './model-loader.js';
+import { ackermannSteerAngle, updateChaseLook } from './vehicle-steering.js';
 
 export const CAR_MODELS = {
   // nose: -1 = model nose faces local -Z (three.js forward convention),
@@ -22,11 +23,11 @@ export const CAR_PHYSICS = {
     engineAcceleration: 12.5, reverseAcceleration: 4.8, brakeAcceleration: 15.0,
     maxSpeed: 64, maxReverseSpeed: 11.0, speedometerMaxKmh: 230,
     aeroDragArea: 0.90, rollingResistance: 0.014,
-    speedSteeringFalloff: 0.008, minSteeringScale: 0.48, steeringResponse: 10.5,
+    speedSteeringFalloff: 0.0075, minSteeringScale: 0.40, steeringResponse: 12.5,
     antiRollStiffness: 22000, downforceCoefficient: 0.38, maxDownforceG: 0.22,
     frontDriveBias: 0.35,
     driveGripUsageLimit: 0.76, brakingGripUsageLimit: 0.92, handbrakeGripUsageLimit: 0.82,
-    steeringAngle: 0.26, handbrakeSteerAngle: 0.43,
+    steeringAngle: 0.47, handbrakeSteerAngle: 0.50,
     frontGrip: 7.4, rearGrip: 9.2, handbrakeRearGrip: 0.7,
     tireFriction: 1.30, handbrakeRearFriction: 0.52,
     suspensionRestLength: 0.21, suspensionTravel: 0.18,
@@ -43,11 +44,11 @@ export const CAR_PHYSICS = {
     engineAcceleration: 9.5, reverseAcceleration: 4.8, brakeAcceleration: 10.5,
     maxSpeed: 180 / 3.6, maxReverseSpeed: 9.0, speedometerMaxKmh: 180,
     aeroDragArea: 1.15, rollingResistance: 0.016,
-    speedSteeringFalloff: 0.006, minSteeringScale: 0.55, steeringResponse: 8.0,
+    speedSteeringFalloff: 0.0075, minSteeringScale: 0.44, steeringResponse: 10.5,
     antiRollStiffness: 32000, downforceCoefficient: 0.20, maxDownforceG: 0.15,
     frontDriveBias: 0.50,
     driveGripUsageLimit: 0.76, brakingGripUsageLimit: 0.92, handbrakeGripUsageLimit: 0.82,
-    steeringAngle: 0.20, handbrakeSteerAngle: 0.30,
+    steeringAngle: 0.42, handbrakeSteerAngle: 0.44,
     frontGrip: 5.9, rearGrip: 6.5, handbrakeRearGrip: 1.0,
     tireFriction: 1.02, handbrakeRearFriction: 0.64,
     suspensionRestLength: 0.25, suspensionTravel: 0.21,
@@ -65,11 +66,11 @@ export const CAR_PHYSICS = {
     engineAcceleration: 14.5, reverseAcceleration: 5.8, brakeAcceleration: 13.5,
     maxSpeed: 380 / 3.6, maxReverseSpeed: 12, speedometerMaxKmh: 380,
     aeroDragArea: 1.22, rollingResistance: 0.012,
-    speedSteeringFalloff: 0.0085, minSteeringScale: 0.34, steeringResponse: 12.0,
+    speedSteeringFalloff: 0.0085, minSteeringScale: 0.32, steeringResponse: 13.5,
     antiRollStiffness: 27000, downforceCoefficient: 2.65, maxDownforceG: 2.05,
     frontDriveBias: 0.44,
     driveGripUsageLimit: 0.76, brakingGripUsageLimit: 0.92, handbrakeGripUsageLimit: 0.82,
-    steeringAngle: 0.21, handbrakeSteerAngle: 0.37,
+    steeringAngle: 0.45, handbrakeSteerAngle: 0.48,
     frontGrip: 8.7, rearGrip: 9.1, handbrakeRearGrip: 0.75,
     tireFriction: 1.35, handbrakeRearFriction: 0.55,
     suspensionRestLength: 0.20, suspensionTravel: 0.17,
@@ -359,6 +360,7 @@ export class VehicleSystem {
     this._camLook = null;
     this._lookYaw = 0;
     this._lookPitch = 0.2;
+    this._lookIdleTime = 0;
     this._enterState = null;
     this._speedometerCanvas = null;
     this._speedometerCtx = null;
@@ -797,6 +799,7 @@ export class VehicleSystem {
     if (this.physics) this.physics.setPlayerCollisionEnabled(false);
     this._lookYaw = 0;
     this._lookPitch = 0.2;
+    this._lookIdleTime = 0;
     const totalYaw = this._worldYaw(veh) + this._lookYaw;
     const cx = -Math.sin(totalYaw), cz = -Math.cos(totalYaw);
     const camDist = 5.5;
@@ -816,6 +819,7 @@ export class VehicleSystem {
     if (this.physics) this.physics.setPlayerCollisionEnabled(false);
     this._lookYaw = 0;
     this._lookPitch = 0.2;
+    this._lookIdleTime = 0;
     const totalYaw = this._worldYaw(veh) + this._lookYaw;
     const cx = -Math.sin(totalYaw), cz = -Math.cos(totalYaw);
     const camDist = 5.5;
@@ -1077,10 +1081,12 @@ export class VehicleSystem {
       const steerAngle = steerInput * (handbrake
         ? (visualTune.handbrakeSteerAngle ?? 0.4)
         : (visualTune.steeringAngle ?? 0.28)) * visualSteeringScale;
-      const wheelSteerBlend = 1 - Math.exp(-Math.max(8, (visualTune.steeringResponse || 10) * 1.5) * Math.min(Math.max(dt, 0), 0.05));
+      const wheelSteerBlend = 1 - Math.exp(-Math.max(10, (visualTune.steeringResponse || 10) * 1.7) * Math.min(Math.max(dt, 0), 0.05));
       for (const w of v.wheels) {
         if (w.front) {
-          const targetSteer = -steerAngle;
+          const targetSteer = -ackermannSteerAngle(
+            steerAngle, w.center.x, v.physicsWheels, visualTune.wheelbase || 2.7,
+          );
           w.pivot.rotation.y += (targetSteer - w.pivot.rotation.y) * wheelSteerBlend;
         }
         const spin = v.wheelTravel / Math.max(0.18, w.radius || 0.42);
@@ -1097,8 +1103,17 @@ export class VehicleSystem {
     // ===== CAMERA — free 360° mouse look (yaw unbounded, wide pitch) =====
     const mdx = input.mouseDX || 0;
     const mdy = input.mouseDY || 0;
-    this._lookYaw -= mdx * 0.003;
-    this._lookPitch = THREE.MathUtils.clamp(this._lookPitch - mdy * 0.003, -0.9, 1.1);
+    const lookState = updateChaseLook({
+      yaw: this._lookYaw,
+      pitch: this._lookPitch,
+      idleTime: this._lookIdleTime,
+    }, {
+      mouseDX: mdx, mouseDY: mdy, dt,
+      throttle, speed: curSpd,
+    });
+    this._lookYaw = lookState.yaw;
+    this._lookPitch = lookState.pitch;
+    this._lookIdleTime = lookState.idleTime;
     input.mouseDX = 0; input.mouseDY = 0;
 
     const totalYaw = this._worldYaw(v) + this._lookYaw;
