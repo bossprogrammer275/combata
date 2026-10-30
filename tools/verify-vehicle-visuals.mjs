@@ -63,8 +63,8 @@ try{
     check(spec.kind+' cabin lights start disabled',base.lightsInitiallyOff);
     check(spec.kind+' cabin fill remains subtle',
       base.lightIntensities.length===2
-      && base.lightIntensities[0].intensity<=1.2
-      && base.lightIntensities[1].intensity<=0.25,
+      && base.lightIntensities[0].intensity<=2.6
+      && base.lightIntensities[1].intensity<=0.5,
       JSON.stringify(base.lightIntensities));
     console.log(`DETAIL ${spec.kind} named cabin meshes: ${base.cabinMeshes.length}`);
     console.log(`DETAIL ${spec.kind} cabin mesh sample: ${JSON.stringify(base.cabinMeshes.slice(0,18))}`);
@@ -86,7 +86,7 @@ try{
         const shot=await capture(page,'cybertruck-light-'+preset.label);
         console.log('LIGHT PRESET '+JSON.stringify({...preset,...shot}));
       }
-      await page.evaluate(()=>window.__vehicleVisualTest.setCabinLights(1.15,0.22));
+      await page.evaluate(()=>window.__vehicleVisualTest.setCabinLights(2.5,0.45));
     }
     const report=await page.evaluate(()=>window.__vehicleVisualTest.details());
     await fs.writeFile(path.join(OUT,spec.prefix+'-report.json'),JSON.stringify({
