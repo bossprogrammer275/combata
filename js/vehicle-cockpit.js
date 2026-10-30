@@ -4,7 +4,7 @@ export const COCKPIT_CAMERA_LIMITS = Object.freeze({
   height: Object.freeze({ min: 0.5, max: 2.2 }),
   side: Object.freeze({ min: -0.8, max: 0.8 }),
   lookPitch: Object.freeze({ min: -25, max: 25 }),
-  lookYaw: Object.freeze({ min: -45, max: 45 }),
+  lookYaw: Object.freeze({ min: -25, max: 25 }),
 });
 
 export const COCKPIT_CAMERA_SETTING_KEYS = Object.freeze(
