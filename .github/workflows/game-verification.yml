@@ -28,6 +28,19 @@ jobs:
           node --check js/vehicles.js
           node --check tools/asset-lab.js
           node --check tools/verify-vehicles.mjs
+          node --check tools/verify-vehicle-visuals.mjs
+      - name: Install isolated headless browser
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Render and test real vehicles in disposable browser
+        run: node tools/verify-vehicle-visuals.mjs
+      - name: Upload temporary vehicle screenshots and reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vehicle-visual-test-${{ github.run_id }}
+          path: artifacts/vehicle-visual-test/
+          if-no-files-found: warn
+          retention-days: 1
       - name: Verify world and collision geometry
         run: node tools/verify-collisions.mjs
       - name: Verify vehicle grounding and drive physics
