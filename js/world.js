@@ -629,14 +629,14 @@ export class World {
     }
 
     // Prefetch all GLB binaries off main thread in parallel before decoding
-    const glbUrls = assets.map(a => a.url).filter(u => u && (u.endsWith('.glb') || u.endsWith('.gltf')));
+    const glbUrls = [...new Set(assets.map(a => a.url).filter(u => u && (u.endsWith('.glb') || u.endsWith('.gltf'))))];
     if (glbUrls.length) {
       prefetch(glbUrls);
       console.log(`[World] Prefetching ${glbUrls.length} model binaries in background`);
     }
 
     // Load assets in parallel batches of 4
-    const CONCURRENT = 4;
+    const CONCURRENT = 8;
     for (let i = 0; i < assets.length; i += CONCURRENT) {
       const batch = assets.slice(i, i + CONCURRENT);
       await Promise.allSettled(batch.map(a => this._loadGLBAsset(a)));
@@ -1644,7 +1644,9 @@ export class World {
     // Paint is independent geometry so road markings can stop before junctions.
     this._buildRoadMarkings(this._roadChains);
 
-    // Ambient spawn points along every road every ~55m
+    // Legacy combat maps receive ambient spawn points. Compact exploration maps
+    // can opt out so empty authored spawn arrays stay genuinely empty.
+    if (!this.sceneData?.disableAutoSpawns) {
     for (const ch of this._roadChains) {
       const pts = ch.pts;
       let acc = 0;
@@ -1664,6 +1666,7 @@ export class World {
           }
         }
       }
+    }
     }
   }
 
@@ -2206,6 +2209,7 @@ export class World {
 
   // ===== SPAWN POINTS FALLBACK =====
   _finishSpawnPoints() {
+    if (this.sceneData?.disableAutoSpawns) return;
     if (!this.spawnPoints.length) {
       const P = (x, z) => this.spawnPoints.push(new THREE.Vector3(x, 0, z));
       for (let i = 0; i < 80; i++) {
