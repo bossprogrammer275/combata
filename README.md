@@ -35,7 +35,7 @@ Controls in the current game: **W/Up** throttle, **S/Down** brake/reverse, **A/D
 
 Use [`tools/new-car.md`](./tools/new-car.md) for the required incoming-car checklist. The Asset Lab at `/tools/asset-lab.html` can load a new model from `/data/models/cars/`, tune its per-car interior camera, assign and preview a separate steering-wheel pivot, and save per-asset overrides. A 450° steering-wheel value is lock-to-lock (±225° from centre), not a 450° rotation each way.
 
-Driver camera heights are vehicle-specific and measured from tyre/road ground: Lamborghini 0.98 m, Cybertruck 1.42 m, and the temporary Bugatti profile 1.04 m. Do not reuse one interior camera height across different vehicle classes.
+Driver camera heights are vehicle-specific and measured from tyre/road ground: Lamborghini 0.98 m, Cybertruck 1.42 m, and the temporary Bugatti profile 1.04 m. Do not reuse one interior camera height across different vehicle classes. Press **Esc** in-game to open the pause menu, then choose **Cockpit Adjustments** for per-vehicle viewpoint position and resting look-angle controls. Adjustments persist locally for each vehicle type.
 
 Cabin illumination is deliberately subtle. It can lift dark materials but cannot replace missing dashboard, steering-wheel, seat or console geometry in a GLB.
 
