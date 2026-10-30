@@ -38,6 +38,8 @@ checkMapContract();
 
 let server;
 let browser;
+let page;
+const pageErrors = [];
 try {
   server = spawn(process.execPath, ['server.js'], {
     cwd: root,
@@ -59,18 +61,29 @@ try {
   assert.ok(ready, 'local preview server did not become ready:\n' + serverOutput);
 
   browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
-  const page = await browser.newPage({
+  page = await browser.newPage({
     viewport: { width: 1600, height: 1000 },
     deviceScaleFactor: 1,
   });
-  const pageErrors = [];
   page.on('pageerror', e => pageErrors.push(String(e.stack || e)));
   page.on('console', msg => { if (msg.type() === 'error') pageErrors.push(msg.text()); });
   page.on('requestfailed', req => pageErrors.push('Request failed: ' + req.url() + ' — ' + (req.failure()?.errorText || 'unknown')));
 
   await page.goto(baseUrl + '/tools/city-preview.html', { waitUntil: 'domcontentloaded', timeout: 30000 });
-  await page.waitForFunction(() => window.__CITY_PREVIEW__?.ready === true, null, { timeout: 180000 });
-  const report = await page.evaluate(() => window.__CITY_PREVIEW__.report);
+  let preview = null;
+  const deadline = Date.now() + 180000;
+  while (Date.now() < deadline) {
+    if (pageErrors.length) throw new Error('Browser failed before preview booted:\\n' + pageErrors.join('\\n'));
+    preview = await page.evaluate(() => {
+      const value = window.__CITY_PREVIEW__;
+      return value ? { ready: value.ready, error: value.error, report: value.report } : null;
+    });
+    if (preview?.ready === true) break;
+    if (preview?.ready === false) throw new Error('Preview initialization failed: ' + preview.error);
+    await page.waitForTimeout(500);
+  }
+  if (!preview?.ready) throw new Error('Timed out waiting for the real GLB scene; status=' + await page.locator('#status').textContent());
+  const report = preview.report;
 
   assert.equal(report.roadCount, 28, 'runtime road count differs from authored map');
   assert.equal(report.glbAssetCount, 82, 'runtime GLB placement count differs from authored map');
@@ -107,6 +120,17 @@ try {
   console.log('[city preview] ALL CHECKS PASSED');
 } catch (error) {
   console.error('[city preview] FAILED', error?.stack || error);
+  if (page) {
+    try {
+      await mkdir(outputDir, { recursive: true });
+      await page.screenshot({ path: path.join(outputDir, 'city-a-debug-failure.png'), animations: 'disabled' });
+      const diagnostics = await page.evaluate(() => ({
+        status: document.querySelector('#status')?.textContent || '',
+        preview: window.__CITY_PREVIEW__ ? { ready: window.__CITY_PREVIEW__.ready, error: window.__CITY_PREVIEW__.error, report: window.__CITY_PREVIEW__.report } : null,
+      })).catch(() => null);
+      await writeFile(path.join(outputDir, 'debug.json'), JSON.stringify({ diagnostics, pageErrors }, null, 2) + '\\n');
+    } catch (diagnosticError) { console.error('[city preview] diagnostic capture failed', String(diagnosticError)); }
+  }
   process.exitCode = 1;
 } finally {
   if (browser) await browser.close().catch(() => {});
