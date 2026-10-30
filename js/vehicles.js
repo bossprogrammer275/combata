@@ -2,7 +2,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from './lib/GLTFLoader.js';
 import { prefetch } from './model-loader.js';
-import { ackermannSteerAngle, updateChaseLook } from './vehicle-steering.js';
+import {
+  ackermannSteerAngle, updateChaseLook, updateReverseCameraBlend, chaseCameraYaw,
+} from './vehicle-steering.js';
 
 export const CAR_MODELS = {
   // nose: -1 = model nose faces local -Z (three.js forward convention),
@@ -366,6 +368,7 @@ export class VehicleSystem {
     this._lookYaw = 0;
     this._lookPitch = 0.2;
     this._lookIdleTime = 0;
+    this._reverseCameraBlend = 0;
     this._enterState = null;
     this._speedometerCanvas = null;
     this._speedometerCtx = null;
@@ -585,8 +588,8 @@ export class VehicleSystem {
     const forward = new THREE.Vector3(0, 0, -Math.cos(v.yawOffset || 0)).applyQuaternion(q);
     forward.y = 0; if (forward.lengthSq() < 1e-8) forward.set(-Math.sin(v.yaw), 0, -Math.cos(v.yaw));
     forward.normalize();
-    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
-    right.y = 0; if (right.lengthSq() < 1e-8) right.set(Math.cos(bodyYaw), 0, -Math.sin(bodyYaw));
+    const right = forward.clone().cross(new THREE.Vector3(0, 1, 0));
+    if (right.lengthSq() < 1e-8) right.set(Math.cos(v.yaw), 0, -Math.sin(v.yaw));
     right.normalize();
     v.speed = velocity.x * forward.x + velocity.z * forward.z;
     v.lateralVel = velocity.x * right.x + velocity.z * right.z;
@@ -609,20 +612,33 @@ export class VehicleSystem {
     if (v.parkedCol) this._refreshParkedCollider(v);
   }
 
-  syncDynamicBodies(dt = 1 / 60) {
-    for (const v of this.vehicles) {
-      // Unoccupied cars still need passive spring/damper forces or their raised
-      // chassis colliders would settle through the model origin onto the road.
-      // The actively driven car already received its controls earlier this frame.
-      if (v !== this.driver && v.physicsDynamic && v.rapierBody && this.physics) {
-        this.physics.applyVehicleControls(v.rapierBody, {
-          throttle: 0, steer: 0, handbrake: false, dt,
-          wheels: v.physicsWheels, tuning: v.physicsProfile,
-          surfaceAt: (x, z, y) => this.world?.vehicleSurfaceAt?.(x, z, y),
-        });
+  stepPhysics(dt) {
+    if (!this.physics || !this.physics.world) return;
+    for (const vehicle of this.vehicles) {
+      if (!vehicle.physicsDynamic || !vehicle.rapierBody) continue;
+      const active = vehicle === this.driver;
+      const drive = active ? (vehicle._pendingDriveInput || {}) : {};
+      const motion = this.physics.applyVehicleControls(vehicle.rapierBody, {
+        throttle: active ? (drive.throttle || 0) : 0,
+        steer: active ? (drive.steer || 0) : 0,
+        handbrake: active ? !!drive.handbrake : false,
+        dt,
+        wheels: vehicle.physicsWheels,
+        tuning: vehicle.physicsProfile,
+        surfaceAt: (x, z, y) => this.world?.vehicleSurfaceAt?.(x, z, y),
+      });
+      if (active && motion) {
+        vehicle.speed = motion.forwardSpeed;
+        vehicle.lateralVel = motion.lateralSpeed;
+        vehicle._lastMotion = motion;
       }
-      this.syncDynamicVehicle(v, dt);
     }
+  }
+
+  syncDynamicBodies(dt = 1 / 60) {
+    // Vehicle forces were applied before each solver step. Copy the completed
+    // physics pose into the visible chassis and wheel rigs after all substeps.
+    for (const v of this.vehicles) this.syncDynamicVehicle(v, dt);
   }
 
   async spawn(def) {
@@ -805,7 +821,8 @@ export class VehicleSystem {
     this._lookYaw = 0;
     this._lookPitch = 0.2;
     this._lookIdleTime = 0;
-    const totalYaw = this._worldYaw(veh) + this._lookYaw;
+    this._reverseCameraBlend = 0;
+    const totalYaw = (veh.yaw || 0) + this._lookYaw;
     const cx = -Math.sin(totalYaw), cz = -Math.cos(totalYaw);
     const camDist = 5.5;
     const camH = 3.2;
@@ -825,7 +842,8 @@ export class VehicleSystem {
     this._lookYaw = 0;
     this._lookPitch = 0.2;
     this._lookIdleTime = 0;
-    const totalYaw = this._worldYaw(veh) + this._lookYaw;
+    this._reverseCameraBlend = 0;
+    const totalYaw = (veh.yaw || 0) + this._lookYaw;
     const cx = -Math.sin(totalYaw), cz = -Math.cos(totalYaw);
     const camDist = 5.5;
     const camH = 3.2;
@@ -909,20 +927,10 @@ export class VehicleSystem {
       // Body pose/velocity come from the last completed Rapier step. Apply
       // controls as impulses; do not manually move or teleport the chassis.
       this.syncDynamicVehicle(v, dt);
-      const motion = this.physics.applyVehicleControls(v.rapierBody, {
-        throttle,
-        steer: steerInput,
-        handbrake,
-        dt,
-        wheels: v.physicsWheels,
-        tuning: v.physicsProfile,
-        surfaceAt: (x, z, y) => this.world?.vehicleSurfaceAt?.(x, z, y),
-      });
-      curSpd = motion ? motion.horizontalSpeed : Math.abs(v.speed);
-      if (motion) {
-        v.speed = motion.forwardSpeed;
-        v.lateralVel = motion.lateralSpeed;
-      }
+      curSpd = Math.hypot(v.speed || 0, v.lateralVel || 0);
+      // Held input is re-applied before every Rapier substep so tyre forces
+      // stay consistent when the render frame rate changes.
+      v._pendingDriveInput = { throttle, steer: steerInput, handbrake };
       this._pushPlayerNearby(v, curSpd);
     } else {
       const absSpd = Math.abs(v.speed);
@@ -1111,33 +1119,46 @@ export class VehicleSystem {
       this.audio.engine(Math.min(1, curSpd / 35));
     }
 
-    // ===== CAMERA — free 360° mouse look (yaw unbounded, wide pitch) =====
-    const mdx = input.mouseDX || 0;
-    const mdy = input.mouseDY || 0;
+    // Camera positioning is performed after Rapier finishes the frame's steps.
+  }
+
+  updateChaseCamera(dt, input, player) {
+    const v = this.driver;
+    if (!v) return;
+    const curSpd = Math.hypot(v.speed || 0, v.lateralVel || 0);
     const lookState = updateChaseLook({
       yaw: this._lookYaw,
       pitch: this._lookPitch,
       idleTime: this._lookIdleTime,
     }, {
-      mouseDX: mdx, mouseDY: mdy, dt,
-      throttle, speed: curSpd,
+      mouseDX: input.mouseDX || 0,
+      mouseDY: input.mouseDY || 0,
+      dt,
+      throttle: v._pendingDriveInput?.throttle || 0,
+      speed: curSpd,
     });
     this._lookYaw = lookState.yaw;
     this._lookPitch = lookState.pitch;
     this._lookIdleTime = lookState.idleTime;
-    input.mouseDX = 0; input.mouseDY = 0;
+    input.mouseDX = 0;
+    input.mouseDY = 0;
 
-    const totalYaw = this._worldYaw(v) + this._lookYaw;
+    this._reverseCameraBlend = updateReverseCameraBlend(
+      this._reverseCameraBlend || 0, v.speed || 0, dt,
+    );
+    // Gameplay heading determines the physical rear. _worldYaw includes the
+    // GLB's model-axis correction and is only for the imported vehicle mesh.
+    const totalYaw = chaseCameraYaw(v.yaw || 0, this._lookYaw, this._reverseCameraBlend);
     const cx = -Math.sin(totalYaw), cz = -Math.cos(totalYaw);
-
-    const turnAmount = Math.abs(steerInput);
+    const turnAmount = Math.abs(v.steerInput || 0);
     const camDist = 5.5 - turnAmount * 0.8 + Math.min(1.5, curSpd * 0.04);
     const camH = 2.8 + this._lookPitch * 2.2;
-
     const tPos = new THREE.Vector3(v.pos.x - cx * camDist, camH, v.pos.z - cz * camDist);
     const tLook = new THREE.Vector3(v.pos.x + cx * 4.5, 1.0, v.pos.z + cz * 4.5);
-
-    if (!this._camPos) { this._camPos = tPos.clone(); this._camLook = tLook.clone(); }
+    if (!this._camPos) {
+      this._camPos = tPos.clone();
+      this._camLook = tLook.clone();
+    }
     this._camPos.lerp(tPos, Math.min(1, dt * 14));
     this._camLook.lerp(tLook, Math.min(1, dt * 12));
     this.camera.position.copy(this._camPos);
@@ -1148,12 +1169,9 @@ export class VehicleSystem {
       this.camera.fov += (tfov - this.camera.fov) * Math.min(1, dt * 5);
       this.camera.updateProjectionMatrix();
     }
-
     player.pos.set(v.pos.x, 0.5, v.pos.z);
     player.yaw = this._worldYaw(v);
     if (this.physics) this.physics.setPlayerPosition(player.pos.x, player.pos.y, player.pos.z);
-
-    // Speedometer
     this._drawSpeedometer(curSpd * 3.6, v.kind);
   }
 
