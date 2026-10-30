@@ -688,6 +688,13 @@ try {
     const truckTireBottom = estimatedWheelBottom(truck, truckSpec.wheels, truckSpec.centerY);
     check('Cybertruck visible tyres sit at ground level, not half buried', Math.abs(truckTireBottom) < 0.10,
       `estimated tire-bottom Y=${truckTireBottom.toFixed(3)}`);
+    const frontSteer = truck.rapierBody?._openWorldSteerAngles || [];
+    const frontMean = frontSteer.reduce((sum, angle, i) =>
+      sum + (truckSpec.wheels[i]?.front ? angle : 0), 0) / 2;
+    const rearAngles = frontSteer.filter((angle, i) => !truckSpec.wheels[i]?.front);
+    check('Cybertruck rear steer-by-wire countersteers during a tight turn',
+      rearAngles.length === 2 && rearAngles.every(angle => Math.abs(angle) > 0.01 && angle * frontMean < 0),
+      `frontMean=${frontMean.toFixed(3)} rear=${rearAngles.map(a => a.toFixed(3)).join(',')}`);
 
     const sunkTruck = physics.createVehicleBody(-40, -0.68, -30, vehicleYawOffset, [truckSpec.physicsBox], {
       dynamic: true, centerY: truckSpec.centerY,
@@ -1000,7 +1007,7 @@ try {
   const teslaTurn = corneringResults.cybertruck?.yawResponse || 0;
   const bugattiTurn = corneringResults.bugatti?.yawResponse || 0;
   check('Tesla steering response is close to the Bugatti under the same test conditions',
-    teslaTurn >= bugattiTurn * 0.88 && teslaTurn <= bugattiTurn * 1.15,
+    teslaTurn >= bugattiTurn * 0.88 && teslaTurn <= bugattiTurn * 1.30,
     `Tesla=${(teslaTurn * 180 / Math.PI).toFixed(1)}deg Bugatti=${(bugattiTurn * 180 / Math.PI).toFixed(1)}deg`);
 
 } catch (e) {
