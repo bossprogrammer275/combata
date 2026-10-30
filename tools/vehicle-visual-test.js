@@ -88,6 +88,7 @@ async function load(kind){
   system.interiorView=false;
   camera.fov=62;camera.updateProjectionMatrix();
   camera.position.set(-7,4,-8);camera.lookAt(0,0.85,0);
+  status.textContent='Loaded '+kind+' · '+base.meshCount+' meshes · '+base.wheelCount+' wheels';
   render();
   return base;
 }
@@ -95,6 +96,7 @@ function setInterior(enabled){
   if(!current)throw new Error('Load a vehicle first');
   if(system.interiorView!==enabled)system.toggleInteriorView();
   system.updateChaseCamera(1/60,{mouseDX:0,mouseDY:0},player);
+  status.textContent=enabled?'Interior view · '+current.kind:'Exterior view · '+current.kind;
   render();
   const lights=current.cabinLights;
   return {
