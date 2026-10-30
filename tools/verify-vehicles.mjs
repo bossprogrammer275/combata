@@ -108,7 +108,7 @@ try {
   const { Physics } = await import('../js/physics.js');
   const {
     ackermannSteerAngle, updateChaseLook, resolveDriveAxes,
-    updateReverseCameraBlend, chaseCameraYaw, getBridgeAwareChaseHeights,
+    updateReverseCameraBlend, chaseCameraYaw, getBridgeAwareChaseHeights, resolveRearSteerRatio,
   } = await import('../js/vehicle-steering.js');
 
   const steeringGeometryWheels = [
@@ -247,13 +247,17 @@ try {
     assert.equal(CAR_PHYSICS.cybertruck.drivetrain, 'awd');
     assert.ok(CAR_PHYSICS.cybertruck.springRate > CAR_PHYSICS.lambo.springRate);
     assert.equal(CAR_PHYSICS.cybertruck.speedometerMaxKmh, 180);
+    assert.equal(CAR_PHYSICS.cybertruck.rearSteerLowSpeedRatio, -0.26);
+    assert.ok(resolveRearSteerRatio(0, CAR_PHYSICS.cybertruck) < -0.2);
+    assert.ok(resolveRearSteerRatio(40, CAR_PHYSICS.cybertruck) > 0.05);
     assert.equal(CAR_PHYSICS.cybertruck.mass, 3009);
     assert.ok(Math.abs(CAR_PHYSICS.cybertruck.maxSpeed - 50) < 1e-8);
     assert.equal(CAR_PHYSICS.lambo.speedometerMaxKmh, 230);
     assert.equal(CAR_PHYSICS.bugatti.speedometerMaxKmh, 380);
-    assert.equal(CAR_PHYSICS.bugatti.mass, 1450);
+    assert.equal(CAR_PHYSICS.bugatti.mass, 1995);
+    assert.ok(Math.abs(CAR_PHYSICS.bugatti.wheelbase - 2.711) < 1e-6);
     assert.ok(Math.abs(CAR_PHYSICS.bugatti.maxSpeed - 380 / 3.6) < 1e-8);
-    assert.ok(CAR_PHYSICS.bugatti.maxDownforceG > 2.0);
+    assert.ok(CAR_PHYSICS.bugatti.maxDownforceG < 1.0);
     assert.ok(CAR_PHYSICS.bugatti.maxSpeed > CAR_PHYSICS.lambo.maxSpeed);
     assert.ok(CAR_PHYSICS.cybertruck.maxSpeed < CAR_PHYSICS.lambo.maxSpeed);
     assert.ok(CAR_PHYSICS.bugatti.maxSpeed > CAR_PHYSICS.lambo.maxSpeed);
@@ -281,24 +285,6 @@ try {
     // ---- wheels ----
     const wheels = scene.userData.wheels || [];
     console.log(`    wheels detected: ${wheels.length}`);
-    if (kind === 'cybertruck') {
-      for (let wi = 0; wi < wheels.length; wi++) {
-        const w = wheels[wi];
-        const members = (w.meshes || []).map(mesh => {
-          mesh.updateWorldMatrix(true, false);
-          if (!mesh.geometry?.boundingBox) mesh.geometry?.computeBoundingBox();
-          const box = new THREE.Box3().setFromObject(mesh);
-          const size = box.getSize(new THREE.Vector3());
-          const center = box.getCenter(new THREE.Vector3());
-          return {
-            name: mesh.name,
-            size: [size.x, size.y, size.z].map(v => +v.toFixed(3)),
-            center: [center.x, center.y, center.z].map(v => +v.toFixed(3)),
-          };
-        });
-        console.log(`    CYBERTRUCK_WHEEL_${wi} ${JSON.stringify({ axle:w.axle, hub:[w.center.x,w.center.y,w.center.z], memberCount:members.length, members })}`);
-      }
-    }
 
     // Capture the first real vehicle's runtime-equivalent suspension spec.
     // This exercises the actual normalized GLB pivots/radii below, not only a
@@ -350,6 +336,32 @@ try {
       };
     }
     if (wheels.length === 4) {
+      if (kind === 'cybertruck') {
+        const tyreParts = wheels.map((wheel) => (wheel.meshes || []).filter((mesh) => {
+          mesh.updateWorldMatrix(true, false);
+          const bounds = new THREE.Box3().setFromObject(mesh);
+          const size = bounds.getSize(new THREE.Vector3());
+          const dims = [size.x, size.y, size.z].sort((a, b) => b - a);
+          return dims[0] > 0.82 && dims[1] > 0.82 && dims[2] > 0.30 && dims[2] < 0.60;
+        }));
+        check('Cybertruck full rubber tyre mesh is attached to every wheel spinner',
+          tyreParts.every(parts => parts.length >= 1),
+          `tyreMeshesPerWheel=${tyreParts.map(parts => parts.length).join(',')}`);
+        const tyre = tyreParts[0]?.[0];
+        if (tyre) {
+          tyre.updateWorldMatrix(true, false);
+          const beforeTyre = tyre.matrixWorld.elements.slice();
+          wheels[0].spinner.rotation[wheels[0].axle === 'z' ? 'z' : 'x'] += 0.7;
+          scene.updateMatrixWorld(true);
+          const tyreMoves = beforeTyre.some((value, index) =>
+            Math.abs(value - tyre.matrixWorld.elements[index]) > 1e-6);
+          check('Cybertruck tyre rubber rotates with the rim, not only the hub',
+            tyreMoves, `wheelMeshes=${wheels[0].meshes.length}`);
+          wheels[0].spinner.rotation[wheels[0].axle === 'z' ? 'z' : 'x'] -= 0.7;
+        } else {
+          check('Cybertruck tyre rubber rotates with the rim, not only the hub', false);
+        }
+      }
       const quads = new Set(wheels.map((w) => `${Math.sign(w.center.x)},${Math.sign(w.center.z)}`));
       check('4 wheels in 4 quadrants', quads.size === 4);
       check('wheels low on body', wheels.every((w) => w.center.y < 0.65),
