@@ -1365,7 +1365,10 @@ export class VehicleSystem {
     if (!this.driver) return false;
     const next = clampCockpitCameraValue(key, value);
     if (next === null) return false;
-    this.driver.interiorCamera[key] = next;
+    const kind = this.driver.kind;
+    for (const vehicle of this.vehicles) {
+      if (vehicle.kind === kind) vehicle.interiorCamera[key] = next;
+    }
     this._saveCockpitCameraProfiles();
     this._camPos = null;
     this._camLook = null;
@@ -1375,7 +1378,11 @@ export class VehicleSystem {
   resetInteriorCameraSettings() {
     if (!this.driver) return false;
     const kind = this.driver.kind;
-    this.driver.interiorCamera = resolveCockpitCameraProfile(this.driver.baseInteriorCamera, {});
+    for (const vehicle of this.vehicles) {
+      if (vehicle.kind === kind) {
+        vehicle.interiorCamera = resolveCockpitCameraProfile(vehicle.baseInteriorCamera, {});
+      }
+    }
     delete this._cockpitProfiles[kind];
     try {
       if (typeof localStorage !== 'undefined') {
