@@ -4,6 +4,7 @@ import { GLTFLoader } from './lib/GLTFLoader.js';
 import { prefetch } from './model-loader.js';
 import {
   ackermannSteerAngle, updateChaseLook, updateReverseCameraBlend, chaseCameraYaw,
+  getBridgeAwareChaseHeights,
 } from './vehicle-steering.js';
 
 export const CAR_MODELS = {
@@ -1153,8 +1154,25 @@ export class VehicleSystem {
     const turnAmount = Math.abs(v.steerInput || 0);
     const camDist = 5.5 - turnAmount * 0.8 + Math.min(1.5, curSpd * 0.04);
     const camH = 2.8 + this._lookPitch * 2.2;
-    const tPos = new THREE.Vector3(v.pos.x - cx * camDist, camH, v.pos.z - cz * camDist);
-    const tLook = new THREE.Vector3(v.pos.x + cx * 4.5, 1.0, v.pos.z + cz * 4.5);
+    const tPos = new THREE.Vector3(v.pos.x - cx * camDist, 0, v.pos.z - cz * camDist);
+    const tLook = new THREE.Vector3(v.pos.x + cx * 4.5, 0, v.pos.z + cz * 4.5);
+
+    // Sample the support surface at the actual chase-camera XZ. The max-height
+    // gate rejects a different bridge deck above the vehicle (for example,
+    // when driving underneath an overpass), while selecting the deck being
+    // driven on when the camera is over that same bridge.
+    const vehicleGroundY = Number.isFinite(v.pos.y) ? v.pos.y : 0;
+    let cameraSurfaceY = null;
+    if (typeof this.world?.groundHeightAt === 'function') {
+      cameraSurfaceY = this.world.groundHeightAt(
+        tPos.x, tPos.z, vehicleGroundY + 1.25,
+      );
+    }
+    const cameraHeights = getBridgeAwareChaseHeights(
+      vehicleGroundY, cameraSurfaceY, camH, 1.0,
+    );
+    tPos.y = cameraHeights.cameraY;
+    tLook.y = cameraHeights.lookY;
     if (!this._camPos) {
       this._camPos = tPos.clone();
       this._camLook = tLook.clone();
