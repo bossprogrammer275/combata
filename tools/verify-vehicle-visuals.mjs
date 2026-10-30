@@ -76,6 +76,18 @@ try{
     check(spec.kind+' interior camera activates cabin lighting',interior.lightsVisible&&interior.interiorView);
     check(spec.kind+' camera uses the calibrated profile',Math.abs(interior.cameraHeight-spec.expectedHeight)<1e-6);
     const insideShot=await capture(page,spec.prefix+'-interior');
+    if(spec.kind==='cybertruck'){
+      for(const preset of [
+        {dome:2.5,dashboard:0.45,label:'2_5-0_45'},
+        {dome:4.0,dashboard:0.70,label:'4_0-0_70'},
+        {dome:6.0,dashboard:1.00,label:'6_0-1_00'},
+      ]){
+        await page.evaluate(p=>window.__vehicleVisualTest.setCabinLights(p.dome,p.dashboard),preset);
+        const shot=await capture(page,'cybertruck-light-'+preset.label);
+        console.log('LIGHT PRESET '+JSON.stringify({...preset,...shot}));
+      }
+      await page.evaluate(()=>window.__vehicleVisualTest.setCabinLights(1.15,0.22));
+    }
     const report=await page.evaluate(()=>window.__vehicleVisualTest.details());
     await fs.writeFile(path.join(OUT,spec.prefix+'-report.json'),JSON.stringify({
       base,exterior,interior,cabinModelDetails:report.report.vehicles[spec.kind],
