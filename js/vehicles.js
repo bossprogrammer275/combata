@@ -257,7 +257,7 @@ export async function loadCarModel(kind = 'lambo') {
     // more separate meshes than the sports-car asset. Keep those parts together
     // around each wheel hub so the complete rubber tyre spins with the rim.
     const wheelClassificationOptions = kind === 'cybertruck'
-      ? { wheelMemberRadius: 0.56, wheelMemberMaxSize: 1.28, wheelMemberHeightTolerance: 0.42 }
+      ? { wheelMemberRadius: 0.30, wheelMemberMaxSize: 1.15, wheelMemberHeightTolerance: 1.05 }
       : {};
     scene.traverse(o => {
       if (o.isMesh) {
