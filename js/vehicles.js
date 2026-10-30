@@ -289,7 +289,7 @@ function vehicleNodeKey(root, node) {
   return parts.reverse().join('/');
 }
 
-const STEERING_WHEEL_NAME = /(steering[\\s_-]*wheel|wheel[\\s_-]*steering|steer[\\s_-]*wheel|volant|lenkrad)/i;
+const STEERING_WHEEL_NAME = /(steering[\s_-]*wheel|wheel[\s_-]*steering|steer[\s_-]*wheel|volant|lenkrad)/i;
 
 function rigSteeringWheel(scene, config = {}, toLocal) {
   const configuredKeys = Array.isArray(config.meshKeys) ? config.meshKeys.filter(Boolean) : [];
