@@ -853,6 +853,70 @@ try {
   check('AWD vehicle keeps steering authority while accelerating',
     (truckMotion?.forwardSpeed ?? 0) > 2 && Math.abs(truckYawDelta) > 0.04,
     `forwardSpeed=${truckMotion?.forwardSpeed?.toFixed(2)} yawDelta=${truckYawDelta.toFixed(2)} contacts=${truckMotion?.wheelContacts ?? 0}`);
+  // Compare ordinary straight acceleration with combined throttle + steering,
+  // then verify each car still turns after the driver lifts off the accelerator.
+  const handlingPass = (kind, x, { startSpeed = 0, throttle = 0, steer = 0, frames = 100 } = {}) => {
+    const spec = dynamicVehicleSpecs[kind];
+    if (!spec) return null;
+    const tune = CAR_PHYSICS[kind];
+    const body = physics.createVehicleBody(x, 0, -90, vehicleYawOffset, [spec.physicsBox], {
+      dynamic: true, centerY: spec.centerY,
+      mass: tune.mass, yawOffset: vehicleYawOffset, tuning: tune,
+      angularDamping: tune.angularDamping,
+    });
+    for (let i = 0; i < 110; i++) {
+      physics.step(1 / 60, (h) => physics.applyVehicleControls(body, {
+        throttle: 0, steer: 0, handbrake: false, dt: h,
+        wheels: spec.wheels, tuning: tune,
+        surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
+      }));
+    }
+    if (startSpeed > 0) body.setLinvel({ x: 0, y: 0, z: -startSpeed }, true);
+    const startRotation = body.rotation();
+    const startYaw = new THREE.Euler().setFromQuaternion(
+      new THREE.Quaternion(startRotation.x, startRotation.y, startRotation.z, startRotation.w), 'YXZ',
+    ).y;
+    let motion = null;
+    for (let i = 0; i < frames; i++) {
+      physics.step(1 / 60, (h) => {
+        motion = physics.applyVehicleControls(body, {
+          throttle, steer, handbrake: false, dt: h,
+          wheels: spec.wheels, tuning: tune,
+          surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
+        });
+      });
+    }
+    const rotation = body.rotation();
+    const yaw = new THREE.Euler().setFromQuaternion(
+      new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w), 'YXZ',
+    ).y;
+    const result = {
+      speed: motion?.forwardSpeed ?? 0,
+      yawChange: Math.abs(Math.atan2(Math.sin(yaw - startYaw), Math.cos(yaw - startYaw))),
+      contacts: motion?.wheelContacts ?? 0,
+    };
+    physics.removeVehicleBody(body);
+    return result;
+  };
+
+  for (const [kind, x] of [['cybertruck', -180], ['bugatti', -100]]) {
+    const straight = handlingPass(kind, x, { throttle: 1, steer: 0, frames: 100 });
+    const acceleratingTurn = handlingPass(kind, x + 45, { throttle: 1, steer: 0.72, frames: 100 });
+    const coastingTurn = handlingPass(kind, x + 90, { startSpeed: 15, throttle: 0, steer: 0.85, frames: 90 });
+    check(`${kind} keeps useful acceleration while steering`,
+      !!straight && !!acceleratingTurn
+        && acceleratingTurn.speed > straight.speed * 0.68
+        && acceleratingTurn.yawChange > 0.12
+        && acceleratingTurn.contacts >= 3,
+      `straight=${straight?.speed.toFixed(2)}m/s combined=${acceleratingTurn?.speed.toFixed(2)}m/s yaw=${(acceleratingTurn?.yawChange * 180 / Math.PI).toFixed(1)}deg`);
+    check(`${kind} still turns decisively while coasting with no throttle`,
+      !!coastingTurn && coastingTurn.yawChange > 0.18
+        && coastingTurn.speed > 2
+        && coastingTurn.speed < 15
+        && coastingTurn.contacts >= 3,
+      `coastSpeed=${coastingTurn?.speed.toFixed(2)}m/s yaw=${(coastingTurn?.yawChange * 180 / Math.PI).toFixed(1)}deg`);
+  }
+
   // Isolated cornering lab: drive each real GLB on a clean Rapier ground plane.
   // A normal ~0.5g turn should not unload a diagonal wheel pair or roll the
   // chassis onto one corner. This stays in the developer test harness only.
