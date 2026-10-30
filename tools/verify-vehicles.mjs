@@ -108,9 +108,33 @@ try {
   const { Physics } = await import('../js/physics.js');
   const { createPowertrainState, stepVehiclePowertrain } = await import('../js/vehicle-powertrains.js');
   const {
+    clampCockpitCameraValue, getCockpitLookAngles, resolveCockpitCameraProfile,
+  } = await import('../js/vehicle-cockpit.js');
+  const {
     ackermannSteerAngle, updateChaseLook, resolveDriveAxes,
     updateReverseCameraBlend, chaseCameraYaw, getBridgeAwareChaseHeights, 
   } = await import('../js/vehicle-steering.js');
+
+  const lamboCockpit = resolveCockpitCameraProfile(
+    { height: 0.98, forward: 0.16, side: 0, lookAhead: 18, fov: 82 },
+    { height: 2.8, forward: -0.42, side: 0.24, lookPitch: 12, lookYaw: -9 },
+  );
+  const teslaCockpit = resolveCockpitCameraProfile(
+    { height: 1.42, forward: 0.30, side: 0, lookAhead: 20, fov: 82 },
+    {},
+  );
+  check('cockpit profiles preserve each vehicle camera baseline and clamp saved seat offsets',
+    lamboCockpit.height === 2.2 && lamboCockpit.forward === -0.42
+      && lamboCockpit.side === 0.24 && teslaCockpit.height === 1.42,
+    `Lambo height=${lamboCockpit.height.toFixed(2)}m Tesla height=${teslaCockpit.height.toFixed(2)}m`);
+  const lookOffset = getCockpitLookAngles(lamboCockpit, 0.1, 0.2);
+  check('cockpit resting look angles offset mouse look without replacing it',
+    Math.abs(lookOffset.yaw - (0.1 - 9 * Math.PI / 180)) < 1e-9
+      && Math.abs(lookOffset.pitch - 12 * Math.PI / 180) < 1e-9,
+    `yaw=${lookOffset.yaw.toFixed(3)}rad pitch=${lookOffset.pitch.toFixed(3)}rad`);
+  check('cockpit camera setting keys reject unknown and non-numeric values',
+    clampCockpitCameraValue('fov', 90) === null
+      && clampCockpitCameraValue('height', 'not-a-number') === null);
 
   const steeringGeometryWheels = [
     { x: -0.82, front: true }, { x: 0.82, front: true },
