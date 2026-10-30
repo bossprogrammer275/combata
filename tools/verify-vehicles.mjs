@@ -264,8 +264,13 @@ try {
     assert.equal(CAR_PHYSICS.cybertruck.powertrain.type, 'ev');
     assert.equal(CAR_PHYSICS.lambo.powertrain.type, 'dct');
     assert.equal(CAR_PHYSICS.bugatti.powertrain.type, 'dct');
-    assert.equal(CAR_PHYSICS.cybertruck.interiorCamera.height, 1.34);
-    assert.equal(CAR_PHYSICS.lambo.interiorCamera.height, 0.98);
+    assert.equal(CAR_PHYSICS.lambo.interiorCamera.height, 1.02,
+      'Lamborghini eye point is the lower, sports-car cabin height');
+    assert.equal(CAR_PHYSICS.cybertruck.interiorCamera.height, 1.42,
+      'Cybertruck eye point is higher for its pickup cabin');
+    assert.ok(CAR_PHYSICS.cybertruck.interiorCamera.height
+      - CAR_PHYSICS.lambo.interiorCamera.height > 0.35,
+      'vehicle interior cameras must not share one generic height');
     assert.equal(CAR_PHYSICS.cybertruck.mass, 3009);
     assert.ok(Math.abs(CAR_PHYSICS.cybertruck.maxSpeed - 50) < 1e-8);
     assert.equal(CAR_PHYSICS.lambo.speedometerMaxKmh, 230);
@@ -310,11 +315,40 @@ try {
         'ratios=' + lateralRatios.map(ratio => ratio.toFixed(2)).join(','));
 
       const cabinNames = wheels.flatMap(wheel => wheel.meshes || [])
-        .filter(mesh => /(steer|dashboard|cockpit|interior|instrument|seat|pedal|gear.?shift)/i.test(mesh.name || ''))
-        .map(mesh => mesh.name);
+        .filter(mesh => {
+          let node = mesh;
+          while (node) {
+            if (/(steer|dashboard|cockpit|interior|instrument|seat|pedal|gear.?shift)/i.test(node.name || '')) return true;
+            node = node.parent;
+          }
+          return false;
+        })
+        .map(mesh => mesh.name || '(unnamed cabin mesh)');
       check('steering/dashboard meshes are excluded from tyre rigs',
         cabinNames.length === 0,
         cabinNames.join(', ') || 'no cabin meshes rigged as tyres');
+    }
+
+    const steeringPivots = [];
+    scene.traverse(node => { if (node.userData?.steeringWheelPivot) steeringPivots.push(node); });
+    if (steeringPivots.length) {
+      const pivot = steeringPivots[0];
+      const spec = pivot.userData.steeringWheelPivot;
+      const drivenMesh = pivot.children.find(node => node.isMesh)
+        || pivot.getObjectByProperty('isMesh', true);
+      if (drivenMesh) {
+        drivenMesh.updateWorldMatrix(true, false);
+        const before = drivenMesh.matrixWorld.elements.slice();
+        pivot.rotation[spec.axis || 'x'] += 0.12;
+        scene.updateMatrixWorld(true);
+        const after = drivenMesh.matrixWorld.elements.slice();
+        check('interior steering wheel has its own animated pivot',
+          before.some((value, i) => Math.abs(value - after[i]) > 1e-6),
+          'axis=' + (spec.axis || 'x') + ' source=' + (spec.source || 'configured'));
+        pivot.rotation[spec.axis || 'x'] -= 0.12;
+      }
+    } else {
+      console.log('  INFO  no steering-wheel node was confidently name-detected; use Asset Lab to assign the mesh');
     }
 
     // Capture the first real vehicle's runtime-equivalent suspension spec.
