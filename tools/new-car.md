@@ -85,7 +85,7 @@ Current calibrated starting points:
 
 | Vehicle | Interior camera height |
 |---|---:|
-| Lamborghini | 1.02 m |
+| Lamborghini | 0.98 m |
 | Tesla Cybertruck | 1.42 m |
 | Bugatti profile | 1.04 m |
 
