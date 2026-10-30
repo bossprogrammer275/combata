@@ -254,7 +254,8 @@ try {
 
   check('vehicle types have distinct physics tuning', () => {
     assert.notEqual(CAR_PHYSICS.lambo.mass, CAR_PHYSICS.cybertruck.mass);
-    assert.ok(CAR_PHYSICS.lambo.engineAcceleration > CAR_PHYSICS.cybertruck.engineAcceleration);
+    assert.notEqual(CAR_PHYSICS.lambo.powertrain.type, CAR_PHYSICS.cybertruck.powertrain.type);
+    assert.ok(CAR_PHYSICS.lambo.powertrain.maxAcceleration > CAR_PHYSICS.cybertruck.powertrain.maxAcceleration);
     assert.ok(CAR_PHYSICS.lambo.maxSpeed > CAR_PHYSICS.cybertruck.maxSpeed);
     assert.equal(CAR_PHYSICS.lambo.drivetrain, 'rwd');
     assert.equal(CAR_PHYSICS.cybertruck.drivetrain, 'awd');
