@@ -54,12 +54,12 @@
     const counts = document.querySelector('#counts');
     const busy = document.querySelector('#busy');
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    renderer.setPixelRatio(1);
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.08;
-    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.enabled = false; // CI software rendering cannot afford shadow-map passes.
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     mount.appendChild(renderer.domElement);
 
@@ -127,7 +127,7 @@
       if (!response.ok) throw new Error('City JSON returned HTTP ' + response.status);
       const map = await response.json();
       status.textContent = 'Building roads, bridges and real GLB instances…';
-      const world = new World(scene, 'high', map);
+      const world = new World(scene, 'medium', map);
       await world.assetsReady;
       let meshCount = 0;
       world.group.traverse(o => { if (o.isMesh) meshCount++; });
