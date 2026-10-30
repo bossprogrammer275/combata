@@ -107,7 +107,7 @@ try {
   check('Esc opens the pause menu and Esc from pause resumes the game',
     appSource.includes("else if (this.state === 'playing') this.pause();")
       && appSource.includes("if (this.state === 'paused') this.resume();")
-      && appSource.includes("id=\"pause-screen\""));
+      && pageSource.includes("id=\"pause-screen\""));
   check('pause menu contains all five cockpit camera adjustments',
     ['forward', 'height', 'side', 'lookPitch', 'lookYaw'].every((key) =>
       pageSource.includes('data-cockpit-setting="' + key + '"'))
