@@ -28,7 +28,10 @@ export const CAR_PHYSICS = {
   lambo: {
     mass: 1480, drivetrain: 'rwd', wheelbase: 2.70,
     powertrain: { type: 'dct', gearRatios: [3.13, 2.59, 1.81, 1.32, 1.02, 0.84, 0.68], finalDrive: 3.45, wheelRadius: 0.34, idleRpm: 900, redline: 8500, upshiftRpm: 8100, downshiftRpm: 2700, shiftTime: 0.15, peakTorqueNm: 600, maxAcceleration: 13.8, torqueCurve: [[900, 390], [2000, 470], [3500, 540], [5000, 600], [6500, 590], [7800, 555], [8500, 500]] },
-    interiorCamera: { height: 0.98, forward: 0.16, side: 0, lookAhead: 18, pitch: 0, fov: 82 },
+    // Eye point is measured up from tyre/road ground. The low supercar cabin
+    // must not reuse the taller pickup camera profile.
+    interiorCamera: { height: 1.02, forward: 0.16, side: 0, lookAhead: 18, pitch: 0, fov: 82 },
+    steeringWheel: { axis: 'x', maxAngleDeg: 450, sign: 1, response: 11 },
     engineAcceleration: 11.8, reverseAcceleration: 5.4, brakeAcceleration: 16.0,
     maxSpeed: 64, maxReverseSpeed: 13.0, speedometerMaxKmh: 230,
     aeroDragArea: 0.90, rollingResistance: 0.013,
@@ -52,7 +55,9 @@ export const CAR_PHYSICS = {
   cybertruck: {
     mass: 3009, drivetrain: 'awd', wheelbase: 3.635,
     powertrain: { type: 'ev', maxMotorTorque: 1500, peakPowerKw: 450, finalDrive: 9.0, wheelRadius: 0.43, maxAcceleration: 11.5, regenDeceleration: 1.15, torqueCurve: [[0, 1500], [4500, 1500], [9000, 1120], [14000, 650], [18000, 0]] },
-    interiorCamera: { height: 1.34, forward: 0.30, side: 0, lookAhead: 20, pitch: 0, fov: 82 },
+    // Taller cabin: a higher eye point is intentional and verified separately.
+    interiorCamera: { height: 1.42, forward: 0.30, side: 0, lookAhead: 20, pitch: 0, fov: 82 },
+    steeringWheel: { axis: 'x', maxAngleDeg: 450, sign: 1, response: 9 },
     engineAcceleration: 12.8, reverseAcceleration: 5.8, brakeAcceleration: 15.5,
     maxSpeed: 180 / 3.6, maxReverseSpeed: 13.0, speedometerMaxKmh: 180,
     aeroDragArea: 1.15, rollingResistance: 0.014,
@@ -82,7 +87,8 @@ export const CAR_PHYSICS = {
   bugatti: {
     mass: 1995, drivetrain: 'awd', wheelbase: 2.711,
     powertrain: { type: 'dct', gearRatios: [2.92, 1.89, 1.42, 1.09, 0.88, 0.73, 0.62], finalDrive: 3.25, wheelRadius: 0.36, idleRpm: 850, redline: 7000, upshiftRpm: 6750, downshiftRpm: 2300, shiftTime: 0.11, peakTorqueNm: 1600, maxAcceleration: 15.8, torqueCurve: [[850, 1100], [1500, 1450], [2500, 1600], [4000, 1550], [5500, 1450], [7000, 1200]] },
-    interiorCamera: { height: 1.00, forward: 0.20, side: 0, lookAhead: 20, pitch: 0, fov: 82 },
+    interiorCamera: { height: 1.04, forward: 0.20, side: 0, lookAhead: 20, pitch: 0, fov: 82 },
+    steeringWheel: { axis: 'x', maxAngleDeg: 450, sign: 1, response: 10 },
     engineAcceleration: 14.5, reverseAcceleration: 5.8, brakeAcceleration: 15.0,
     maxSpeed: 380 / 3.6, maxReverseSpeed: 12, speedometerMaxKmh: 380,
     aeroDragArea: 1.22, rollingResistance: 0.012,
@@ -183,8 +189,7 @@ function classifyCarMeshes(items, options = {}) {
       hierarchyName += ` ${node.name || ''}`;
       node = node.parent;
     }
-    if (/steer/i.test(m.o.name || '')
-      || /(dashboard|cockpit|interior|instrument|seat|pedal|gear.?shift)/i.test(hierarchyName)) return false;
+    if (/(steer|dashboard|cockpit|interior|instrument|seat|pedal|gear.?shift)/i.test(hierarchyName)) return false;
     if (m.s.y < 0.30 || m.s.y > 1.05) return false;
     if ((m.c.y - all.min.y) > 0.40 * total.y) return false;
     const lateralRatio = Math.abs(m.c.x - cx0) / Math.max(0.001, total.x * 0.5);
@@ -254,19 +259,101 @@ function createCabinLights(root, kind, cameraProfile = null) {
   group.name = 'interior-cabin-lights';
   group.visible = false;
 
-  const dome = new THREE.PointLight(0xffe8c8, 58, 5.8, 2);
-  dome.name = 'cabin-dome-light';
-  dome.position.set(0, cabin.height + 0.30, -0.18);
+  // These are low-intensity fill lights, not visible white lamps. They only
+  // lift dark material detail close to the driver; they must never bleach the
+  // dashboard, seats or windscreen.
+  const dome = new THREE.PointLight(0xd9a875, 1.15, 2.8, 2);
+  dome.name = 'cabin-dome-fill';
+  dome.position.set(0, cabin.height + 0.12, -0.18);
   dome.castShadow = false;
 
-  const dashboard = new THREE.PointLight(0xdceaff, 30, 4.2, 2);
+  const dashboard = new THREE.PointLight(0x9aabc0, 0.22, 1.65, 2);
   dashboard.name = 'cabin-dashboard-fill';
-  dashboard.position.set(0, Math.max(0.55, cabin.height - 0.12), 0.95);
+  dashboard.position.set(0, Math.max(0.55, cabin.height - 0.20), 0.58);
   dashboard.castShadow = false;
 
   group.add(dome, dashboard);
   root.add(group);
   return group;
+}
+
+function vehicleNodeKey(root, node) {
+  const parts = [];
+  let current = node;
+  while (current && current !== root) {
+    const parent = current.parent;
+    const index = parent ? parent.children.indexOf(current) : 0;
+    parts.push((current.name || current.type || 'node') + '[' + index + ']');
+    current = parent;
+  }
+  return parts.reverse().join('/');
+}
+
+const STEERING_WHEEL_NAME = /(steering[\\s_-]*wheel|wheel[\\s_-]*steering|steer[\\s_-]*wheel|volant|lenkrad)/i;
+
+function rigSteeringWheel(scene, config = {}, toLocal) {
+  const configuredKeys = Array.isArray(config.meshKeys) ? config.meshKeys.filter(Boolean) : [];
+  const byKey = new Map();
+  scene.traverse(node => {
+    if (node.isMesh) byKey.set(vehicleNodeKey(scene, node), node);
+  });
+
+  let selected = configuredKeys.map(key => byKey.get(key)).filter(Boolean);
+  let source = 'manual';
+  if (!selected.length) {
+    selected = [];
+    scene.traverse(node => {
+      if (!node.isMesh) return;
+      let current = node;
+      while (current && current !== scene) {
+        if (STEERING_WHEEL_NAME.test(current.name || '')) {
+          selected.push(node);
+          break;
+        }
+        current = current.parent;
+      }
+    });
+    source = 'name-detected';
+  }
+
+  selected = [...new Set(selected)];
+  if (!selected.length) return null;
+
+  // Remove a selected descendant when one of its selected mesh ancestors will
+  // already carry it. This prevents a part being attached twice.
+  const selectedSet = new Set(selected);
+  selected = selected.filter(node => {
+    let parent = node.parent;
+    while (parent && parent !== scene) {
+      if (selectedSet.has(parent)) return false;
+      parent = parent.parent;
+    }
+    return true;
+  });
+
+  const bounds = new THREE.Box3();
+  for (const mesh of selected) bounds.expandByObject(mesh);
+  if (bounds.isEmpty()) return null;
+
+  const size = bounds.getSize(new THREE.Vector3());
+  const inferredAxis = size.x <= size.y && size.x <= size.z ? 'x'
+    : (size.y <= size.z ? 'y' : 'z');
+  const axis = ['x', 'y', 'z'].includes(config.axis) ? config.axis : inferredAxis;
+  const pivot = new THREE.Group();
+  pivot.name = 'vehicle-steering-wheel-pivot';
+  pivot.position.copy(toLocal(bounds.getCenter(new THREE.Vector3())));
+  pivot.userData.steeringWheelPivot = {
+    axis,
+    maxAngleDeg: THREE.MathUtils.clamp(Number(config.maxAngleDeg) || 450, 90, 900),
+    sign: Number(config.sign) < 0 ? -1 : 1,
+    response: THREE.MathUtils.clamp(Number(config.response) || 10, 3, 24),
+    source,
+    meshKeys: selected.map(mesh => vehicleNodeKey(scene, mesh)),
+  };
+  scene.add(pivot);
+  pivot.updateMatrixWorld(true);
+  for (const mesh of selected) pivot.attach(mesh);
+  return { pivot, meshes: selected };
 }
 
 function rigWheels(scene, wheelInfos, toLocal) {
@@ -362,13 +449,20 @@ export async function loadCarModel(kind = 'lambo') {
       }
     }
 
+    const steeringWheelRig = rigSteeringWheel(
+      scene,
+      { ...(CAR_PHYSICS[kind]?.steeringWheel || {}), ...(scene.userData.assetOverride?.steeringWheel || {}) },
+      toLocal,
+    );
+    const steeringWheelMeshes = new Set(steeringWheelRig?.meshes || []);
+
     const colBoxes = [];
     if (cls.hasBody) {
       const items = meshWorldBoxes(scene);
       const wheelSet = new Set();
       for (const w of cls.wheelInfos) for (const m of w.meshes) wheelSet.add(m);
       for (const m of items) {
-        if (cls.blobs.has(m.o) || wheelSet.has(m.o)) continue;
+        if (cls.blobs.has(m.o) || wheelSet.has(m.o) || steeringWheelMeshes.has(m.o)) continue;
         colBoxes.push({ min: m.min.clone(), max: m.max.clone() });
       }
     }
@@ -385,6 +479,7 @@ export async function loadCarModel(kind = 'lambo') {
       r.pivot.userData.wheelPivot.front = r.front;
     }
     scene.userData.wheels = rigs;
+    scene.userData.hasSteeringWheelRig = !!steeringWheelRig;
 
     const fin = new THREE.Box3().setFromObject(scene);
     const fsize = fin.getSize(new THREE.Vector3());
@@ -725,6 +820,19 @@ export class VehicleSystem {
       // Re-resolve the wheel rigs and measure their true positions/radii in
       // normalized model-root space. These are used by the raycast suspension.
       const wheels = [];
+      let steeringWheel = null;
+      clone.traverse((node) => {
+        const spec = node.userData?.steeringWheelPivot;
+        if (!spec) return;
+        steeringWheel = {
+          pivot: node,
+          axis: spec.axis || 'x',
+          maxAngleRad: (THREE.MathUtils.clamp(Number(spec.maxAngleDeg) || 450, 90, 900) * 0.5) * Math.PI / 180,
+          sign: Number(spec.sign) < 0 ? -1 : 1,
+          response: THREE.MathUtils.clamp(Number(spec.response) || 10, 3, 24),
+          angle: 0,
+        };
+      });
       root.updateMatrixWorld(true);
       clone.updateMatrixWorld(true);
       const rootInverse = root.matrixWorld.clone().invert();
@@ -815,7 +923,7 @@ export class VehicleSystem {
       const v = {
         def, root, rapierBody: null, physicsDynamic: false, suspensionReady,
         physicsCenterY, physicsBox, physicsWheels, physicsProfile,
-        kind, wheels, colBoxes, bodyBox, half,
+        kind, wheels, steeringWheel, colBoxes, bodyBox, half,
         yawOffset, parkedCol: null,
         interiorCamera: base.userData.assetOverride?.interiorCamera || physicsProfile.interiorCamera || { height: Math.max(0.85, (bodyBox.max.y - bodyBox.min.y) * 0.62), forward: 0.18, side: 0, lookAhead: 18, pitch: 0, fov: 82 },
         cabinLights: createCabinLights(root, kind, base.userData.assetOverride?.interiorCamera || physicsProfile.interiorCamera),
@@ -1187,6 +1295,14 @@ export class VehicleSystem {
         if (w.axle === 'z') w.spinner.rotation.z = spin;
         else w.spinner.rotation.x = spin;
       }
+    }
+
+    if (v.steeringWheel) {
+      const rig = v.steeringWheel;
+      const response = 1 - Math.exp(-rig.response * Math.min(Math.max(dt, 0), 0.05));
+      const target = steerInput * rig.maxAngleRad * rig.sign;
+      rig.angle += (target - rig.angle) * response;
+      rig.pivot.rotation[rig.axis] = rig.angle;
     }
 
     // Engine sound
