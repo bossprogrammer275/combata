@@ -23,6 +23,11 @@ jobs:
         run: corepack enable && corepack prepare pnpm@10 --activate
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Syntax-check vehicle runtime and calibration tools
+        run: |
+          node --check js/vehicles.js
+          node --check tools/asset-lab.js
+          node --check tools/verify-vehicles.mjs
       - name: Verify world and collision geometry
         run: node tools/verify-collisions.mjs
       - name: Verify vehicle grounding and drive physics
