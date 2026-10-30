@@ -171,10 +171,23 @@ function classifyCarMeshes(items, options = {}) {
       && (m.min.y - all.min.y) < 0.15) blobs.add(m.o);
   }
   // Wheel candidates: round in side view, thin across the axle, low on the body.
+  // Wheel candidates must sit low and near the left/right outer edges. Round
+  // steering wheels, dashboard rings and cabin trim can resemble tyres in a
+  // bounding-box test, but they are close to the centreline and must be excluded.
+  const cx0 = (all.min.x + all.max.x) / 2, cz0 = (all.min.z + all.max.z) / 2;
   const cands = annotated.filter((m) => {
     if (blobs.has(m.o)) return false;
-    if (m.s.y < 0.28 || m.s.y > 1.05) return false;
-    if ((m.c.y - all.min.y) > 0.45 * total.y) return false;
+    let node = m.o;
+    let hierarchyName = '';
+    while (node) {
+      hierarchyName += ` ${node.name || ''}`;
+      node = node.parent;
+    }
+    if (/(steer|dashboard|cockpit|interior|instrument|seat|pedal|gear.?shift)/i.test(hierarchyName)) return false;
+    if (m.s.y < 0.30 || m.s.y > 1.05) return false;
+    if ((m.c.y - all.min.y) > 0.40 * total.y) return false;
+    const lateralRatio = Math.abs(m.c.x - cx0) / Math.max(0.001, total.x * 0.5);
+    if (lateralRatio < (options.wheelSideRatio ?? 0.52)) return false;
     const side = Math.max(m.s.x, m.s.z);
     if (Math.abs(m.s.y - side) > 0.38 * m.s.y) return false; // not round
     if (Math.min(m.s.x, m.s.z) > 0.8 * m.s.y) return false;  // not thin-axled
@@ -182,7 +195,6 @@ function classifyCarMeshes(items, options = {}) {
     return true;
   });
   // One wheel per XZ quadrant around the model center.
-  const cx0 = (all.min.x + all.max.x) / 2, cz0 = (all.min.z + all.max.z) / 2;
   const wheels = [];
   if (cands.length >= 4) {
     for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
@@ -231,6 +243,31 @@ function classifyCarMeshes(items, options = {}) {
 // Wrap each wheel's meshes in steer -> spin pivots anchored at the hub.
 // attach() preserves world transforms, so visuals don't move at all.
 // NOTE: pivot.position lives in scene space, so hub centers are converted.
+// Soft, local cabin illumination. It is enabled only while the interior camera
+// is active, so it does not brighten parked vehicles or leak across the city.
+// Vehicle model forward is local +Z after the root's yaw-axis correction.
+function createCabinLights(root, kind) {
+  const profile = CAR_PHYSICS[kind] || CAR_PHYSICS.lambo;
+  const cabin = profile.interiorCamera || { height: 1.0 };
+  const group = new THREE.Group();
+  group.name = 'interior-cabin-lights';
+  group.visible = false;
+
+  const dome = new THREE.PointLight(0xffe8c8, 58, 5.8, 2);
+  dome.name = 'cabin-dome-light';
+  dome.position.set(0, cabin.height + 0.30, -0.18);
+  dome.castShadow = false;
+
+  const dashboard = new THREE.PointLight(0xdceaff, 30, 4.2, 2);
+  dashboard.name = 'cabin-dashboard-fill';
+  dashboard.position.set(0, Math.max(0.55, cabin.height - 0.12), 0.95);
+  dashboard.castShadow = false;
+
+  group.add(dome, dashboard);
+  root.add(group);
+  return group;
+}
+
 function rigWheels(scene, wheelInfos, toLocal) {
   const rigs = [];
   for (const w of wheelInfos) {
@@ -780,6 +817,7 @@ export class VehicleSystem {
         kind, wheels, colBoxes, bodyBox, half,
         yawOffset, parkedCol: null,
         interiorCamera: base.userData.assetOverride?.interiorCamera || physicsProfile.interiorCamera || { height: Math.max(0.85, (bodyBox.max.y - bodyBox.min.y) * 0.62), forward: 0.18, side: 0, lookAhead: 18, pitch: 0, fov: 82 },
+        cabinLights: createCabinLights(root, kind),
         pos: new THREE.Vector3(def.x, def.elevation || 0, def.z),
         yaw,
         speed: 0,
@@ -842,6 +880,7 @@ export class VehicleSystem {
     if (this.driver || this._enterState) return false;
     this.driver = veh;
     this.interiorView = false;
+    this._setInteriorLights(false);
     veh.def.occupied = true;
     // Drop the parked footprint so the driven car never collides with itself.
     this._removeParkedCollider(veh);
@@ -866,6 +905,7 @@ export class VehicleSystem {
     this._enterState = null;
     this.driver = veh;
     this.interiorView = false;
+    this._setInteriorLights(false);
     veh.def.occupied = true;
     player.vel.set(0, 0, 0);
     player.char.root.visible = false;
@@ -886,6 +926,8 @@ export class VehicleSystem {
   exit(player) {
     const veh = this.driver;
     if (!veh) return;
+    this._setInteriorLights(false);
+    this.interiorView = false;
     this.driver = null;
     veh.def.occupied = false;
     const carYaw = this._worldYaw(veh);
@@ -1154,9 +1196,16 @@ export class VehicleSystem {
     // Camera positioning is performed after Rapier finishes the frame's steps.
   }
 
+  _setInteriorLights(enabled) {
+    for (const vehicle of this.vehicles) {
+      if (vehicle.cabinLights) vehicle.cabinLights.visible = !!enabled && vehicle === this.driver;
+    }
+  }
+
   toggleInteriorView() {
     if (!this.driver) return false;
     this.interiorView = !this.interiorView;
+    this._setInteriorLights(this.interiorView);
     this._camPos = null;
     this._camLook = null;
     return this.interiorView;
