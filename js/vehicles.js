@@ -246,9 +246,9 @@ function classifyCarMeshes(items, options = {}) {
 // Soft, local cabin illumination. It is enabled only while the interior camera
 // is active, so it does not brighten parked vehicles or leak across the city.
 // Vehicle model forward is local +Z after the root's yaw-axis correction.
-function createCabinLights(root, kind) {
+function createCabinLights(root, kind, cameraProfile = null) {
   const profile = CAR_PHYSICS[kind] || CAR_PHYSICS.lambo;
-  const cabin = profile.interiorCamera || { height: 1.0 };
+  const cabin = cameraProfile || profile.interiorCamera || { height: 1.0 };
   const group = new THREE.Group();
   group.name = 'interior-cabin-lights';
   group.visible = false;
@@ -817,7 +817,7 @@ export class VehicleSystem {
         kind, wheels, colBoxes, bodyBox, half,
         yawOffset, parkedCol: null,
         interiorCamera: base.userData.assetOverride?.interiorCamera || physicsProfile.interiorCamera || { height: Math.max(0.85, (bodyBox.max.y - bodyBox.min.y) * 0.62), forward: 0.18, side: 0, lookAhead: 18, pitch: 0, fov: 82 },
-        cabinLights: createCabinLights(root, kind),
+        cabinLights: createCabinLights(root, kind, base.userData.assetOverride?.interiorCamera || physicsProfile.interiorCamera),
         pos: new THREE.Vector3(def.x, def.elevation || 0, def.z),
         yaw,
         speed: 0,
