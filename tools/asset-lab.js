@@ -78,9 +78,9 @@ function capture(){renderer.render(scene,camera);renderer.domElement.toBlob(blob
 function addCustomVehicle(){
  let url=$('new-vehicle-url').value.trim().replace(/\\/g,'/');
  if(url.startsWith('./'))url=url.slice(1);
- if(!url.startsWith('/'))url='/'+url.replace(/^\\/+/, '');
- if(!/^\\/data\\/models\\/cars\\/.+\\.(glb|gltf)$/i.test(url)){$('status').textContent='Use a GLB/GLTF stored inside /data/models/cars/.';return;}
- const name=url.split('/').pop().replace(/\\.(glb|gltf)$/i,'').replace(/[_-]+/g,' ');
+ if(!url.startsWith('/'))url='/'+url.replace(/^\/+/, '');
+ if(!/^\/data\/models\/cars\/.+\.(glb|gltf)$/i.test(url)){$('status').textContent='Use a GLB/GLTF stored inside /data/models/cars/.';return;}
+ const name=url.split('/').pop().replace(/\.(glb|gltf)$/i,'').replace(/[_-]+/g,' ');
  assets[url]={name,kind:'vehicle',camera:{height:1.08,forward:.2,side:0,lookAhead:18,pitch:0,fov:82}};
  let option=[...$('asset-select').options].find(o=>o.value===url);
  if(!option){option=document.createElement('option');option.value=url;option.textContent='NEW VEHICLE · '+name;$('asset-select').append(option);}
