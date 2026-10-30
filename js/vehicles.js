@@ -262,12 +262,12 @@ function createCabinLights(root, kind, cameraProfile = null) {
   // These are low-intensity fill lights, not visible white lamps. They only
   // lift dark material detail close to the driver; they must never bleach the
   // dashboard, seats or windscreen.
-  const dome = new THREE.PointLight(0xd9a875, 1.15, 2.8, 2);
+  const dome = new THREE.PointLight(0xd9a875, 2.5, 2.8, 2);
   dome.name = 'cabin-dome-fill';
   dome.position.set(0, cabin.height + 0.12, -0.18);
   dome.castShadow = false;
 
-  const dashboard = new THREE.PointLight(0x9aabc0, 0.22, 1.65, 2);
+  const dashboard = new THREE.PointLight(0x9aabc0, 0.45, 1.65, 2);
   dashboard.name = 'cabin-dashboard-fill';
   dashboard.position.set(0, Math.max(0.55, cabin.height - 0.20), 0.58);
   dashboard.castShadow = false;
