@@ -1,0 +1,34 @@
+name: Temporary cockpit settings validation
+
+on:
+  push:
+    branches: [feature/cockpit-camera-settings]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@10 --activate
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Syntax-check changed runtime files
+        run: |
+          node --check js/main.js
+          node --check js/vehicles.js
+          node --check js/vehicle-cockpit.js
+          node --check tools/verify-vehicles.mjs
+      - name: Verify vehicle and cockpit camera behavior
+        run: node tools/verify-vehicles.mjs
+      - name: Verify world collision integrity
+        run: node tools/verify-collisions.mjs
