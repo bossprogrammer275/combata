@@ -30,7 +30,7 @@ export const CAR_PHYSICS = {
     powertrain: { type: 'dct', gearRatios: [3.13, 2.59, 1.81, 1.32, 1.02, 0.84, 0.68], finalDrive: 3.45, wheelRadius: 0.34, idleRpm: 900, redline: 8500, upshiftRpm: 8100, downshiftRpm: 2700, shiftTime: 0.15, peakTorqueNm: 600, maxAcceleration: 13.8, torqueCurve: [[900, 390], [2000, 470], [3500, 540], [5000, 600], [6500, 590], [7800, 555], [8500, 500]] },
     // Eye point is measured up from tyre/road ground. The low supercar cabin
     // must not reuse the taller pickup camera profile.
-    interiorCamera: { height: 1.02, forward: 0.16, side: 0, lookAhead: 18, pitch: 0, fov: 82 },
+    interiorCamera: { height: 0.98, forward: 0.16, side: 0, lookAhead: 18, pitch: 0, fov: 82 },
     steeringWheel: { axis: 'x', maxAngleDeg: 450, sign: 1, response: 11 },
     engineAcceleration: 11.8, reverseAcceleration: 5.4, brakeAcceleration: 16.0,
     maxSpeed: 64, maxReverseSpeed: 13.0, speedometerMaxKmh: 230,
