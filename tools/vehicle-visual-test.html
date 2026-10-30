@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vehicle visual test</title>
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#171b20;color:#eee;font:14px system-ui,sans-serif}
+#view{width:100%;height:100%;display:block}
+#status{position:fixed;left:12px;top:12px;padding:8px 12px;background:#0c1118dd;border:1px solid #52606e;border-radius:8px;z-index:2}
+</style>
+<script type="importmap">{"imports":{"three":"../js/lib/three.module.js"}}</script>
+</head>
+<body>
+<div id="status">Preparing isolated vehicle visual test…</div>
+<canvas id="view"></canvas>
+<script type="module" src="./vehicle-visual-test.js"></script>
+</body>
+</html>
