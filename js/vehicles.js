@@ -148,7 +148,7 @@ function boxSize(b, out) {
 }
 
 // Classify meshes: ground-blob discs, wheels (+hub hardware), body shell.
-function classifyCarMeshes(items) {
+function classifyCarMeshes(items, options = {}) {
   const all = new THREE.Box3();
   const tmp = new THREE.Vector3();
   for (const m of items) all.expandByPoint(m.min), all.expandByPoint(m.max);
@@ -196,14 +196,18 @@ function classifyCarMeshes(items) {
   }
   const wheelMeshes = new Set();
   const wheelInfos = [];
+  const wheelMemberRadius = options.wheelMemberRadius ?? 0.30;
+  const wheelMemberMaxSize = options.wheelMemberMaxSize ?? 1.15;
+  const wheelMemberHeightTolerance = options.wheelMemberHeightTolerance ?? 0.35;
   if (wheels.length === 4) {
     // Attach hub hardware (rims, bolts, brake discs): small meshes hugging the hub.
     for (const w of wheels) {
       const members = annotated.filter((m) =>
         !blobs.has(m.o)
-        && m.c.distanceTo(w.best.c) < 0.30
-        && Math.max(m.s.x, m.s.y, m.s.z) < 1.15
-        && m.s.y < 1.05);
+        && m.c.distanceTo(w.best.c) < wheelMemberRadius
+        && Math.abs(m.c.y - w.best.c.y) < wheelMemberHeightTolerance
+        && Math.max(m.s.x, m.s.y, m.s.z) < wheelMemberMaxSize
+        && m.s.y < wheelMemberMaxSize);
       for (const m of members) wheelMeshes.add(m.o);
       const bs = w.best.s;
       wheelInfos.push({
@@ -249,6 +253,12 @@ export async function loadCarModel(kind = 'lambo') {
   try {
     const gltf = await new Promise((res, rej) => loader.load(def.url, res, undefined, rej));
     const scene = gltf.scene;
+    // The Cybertruck GLB splits tyre sidewalls, tread, rim and hub details into
+    // more separate meshes than the sports-car asset. Keep those parts together
+    // around each wheel hub so the complete rubber tyre spins with the rim.
+    const wheelClassificationOptions = kind === 'cybertruck'
+      ? { wheelMemberRadius: 0.56, wheelMemberMaxSize: 1.28, wheelMemberHeightTolerance: 0.42 }
+      : {};
     scene.traverse(o => {
       if (o.isMesh) {
         o.castShadow = true;
@@ -266,7 +276,7 @@ export async function loadCarModel(kind = 'lambo') {
     });
 
     // Pass 1: find the body shell, scale longest HORIZONTAL body axis to targetLen.
-    let cls = classifyCarMeshes(meshWorldBoxes(scene));
+    let cls = classifyCarMeshes(meshWorldBoxes(scene), wheelClassificationOptions);
     const bodySize = cls.hasBody
       ? cls.bodyBox.getSize(new THREE.Vector3())
       : cls.total.clone();
@@ -275,7 +285,7 @@ export async function loadCarModel(kind = 'lambo') {
     scene.updateMatrixWorld(true);
 
     // Pass 2 (final space): recenter XZ on the body, ground the bottom at y=0.
-    cls = classifyCarMeshes(meshWorldBoxes(scene));
+    cls = classifyCarMeshes(meshWorldBoxes(scene), wheelClassificationOptions);
     const bb = cls.hasBody ? cls.bodyBox : cls.all;
     const bc = bb.getCenter(new THREE.Vector3());
     scene.position.x -= bc.x;
@@ -286,7 +296,7 @@ export async function loadCarModel(kind = 'lambo') {
     // Pass 3: final classification in normalized space. Boxes below are in
     // ROOT space (== world coords here, root identity): the clone keeps the
     // base position/scale, so they translate with the vehicle root directly.
-    cls = classifyCarMeshes(meshWorldBoxes(scene));
+    cls = classifyCarMeshes(meshWorldBoxes(scene), wheelClassificationOptions);
     const s = scene.scale.x; // uniform
     const toLocal = (v) => v.clone().sub(scene.position).divideScalar(s);
 
@@ -304,7 +314,7 @@ export async function loadCarModel(kind = 'lambo') {
       if (isFinite(minY) && Math.abs(minY) > 1e-4) {
         scene.position.y -= minY;
         scene.updateMatrixWorld(true);
-        cls = classifyCarMeshes(meshWorldBoxes(scene));
+        cls = classifyCarMeshes(meshWorldBoxes(scene), wheelClassificationOptions);
       }
     }
 
