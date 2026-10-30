@@ -21,6 +21,7 @@
 <div class="bar" style="margin:9px 0"><button id="detect-steering">Detect steering wheel</button><button id="use-selected-steering">Use selected mesh</button></div>
 <div class="bar" style="margin-bottom:8px"><button id="add-selected-steering">Add selected part</button><button id="clear-steering" class="danger">Clear rig</button></div>
 <label class="hint" for="steering-axis">Pivot axis</label><select id="steering-axis" style="width:100%;margin:4px 0 10px"><option value="x">X · across vehicle</option><option value="y">Y · vertical</option><option value="z">Z · front/back</option><option value="auto">Auto · thinnest dimension</option></select>
+<label class="hint" for="steering-sign">Rotation direction</label><select id="steering-sign" style="width:100%;margin:4px 0 10px"><option value="1">Normal</option><option value="-1">Reverse</option></select>
 <div class="field"><div class="field-head"><span>Steering wheel lock-to-lock (°)</span><output id="steering-limit-value">450°</output></div><input id="steering-limit" type="range" min="180" max="1080" step="15" value="450"></div>
 <div class="field"><div class="field-head"><span>Preview input</span><output id="steering-preview-value">0%</output></div><input id="steering-preview" type="range" min="-100" max="100" step="1" value="0"></div>
 <div class="hint">The selected mesh rig is saved with this model. The game animates it from steering input; it is not added to the road-wheel suspension.</div>
