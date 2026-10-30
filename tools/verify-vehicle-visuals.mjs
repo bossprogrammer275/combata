@@ -61,7 +61,7 @@ try{
     check(spec.kind+' has four road-wheel rigs',base.wheelCount===4,'wheels='+base.wheelCount);
     check(spec.kind+' uses its own driver eye height',Math.abs(base.height-spec.expectedHeight)<1e-6,`height=${base.height}m`);
     check(spec.kind+' camera eye point stays below the roofline',
-      base.rootDimensions.y-base.height>0.08,
+      base.rootDimensions.y-base.height>0.12,
       `roof clearance=${(base.rootDimensions.y-base.height).toFixed(2)}m`);
     check(spec.kind+' cabin lights start disabled',base.lightsInitiallyOff);
     check(spec.kind+' cabin fill remains subtle',
