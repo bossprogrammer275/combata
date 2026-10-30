@@ -36,7 +36,7 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Install headless Chromium
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
       - name: Build real-world preview and verify the empty exploration map
         run: node tools/verify-city-preview.mjs
       - name: Upload city screenshots and report
