@@ -60,7 +60,7 @@ try {
   }
   assert.ok(ready, 'local preview server did not become ready:\n' + serverOutput);
 
-  browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
+  browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist', '--disable-gpu-sandbox'] });
   page = await browser.newPage({
     viewport: { width: 1600, height: 1000 },
     deviceScaleFactor: 1,
