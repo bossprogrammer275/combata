@@ -1416,9 +1416,15 @@ export class VehicleSystem {
       const rotation = v.root.quaternion;
       const cameraLocal = new THREE.Vector3(cabin.side || 0, cabin.height || 1.05, cabin.forward || 0).applyQuaternion(rotation);
       const lookAngles = getCockpitLookAngles(cabin, this._lookYaw, this._lookPitch);
-      const lookLocal = new THREE.Vector3((cabin.side || 0) + Math.sin(lookAngles.yaw) * 0.7,
-        (cabin.height || 1.05) + Math.tan(lookAngles.pitch) * 2.2,
-        (cabin.forward || 0) + (cabin.lookAhead || 18)).applyQuaternion(rotation);
+      const lookDistance = Math.max(2, Number(cabin.lookAhead) || 18);
+      const lookDirection = new THREE.Vector3(
+        Math.sin(lookAngles.yaw),
+        Math.tan(lookAngles.pitch),
+        Math.cos(lookAngles.yaw),
+      ).normalize().multiplyScalar(lookDistance);
+      const lookLocal = new THREE.Vector3(
+        cabin.side || 0, cabin.height || 1.05, cabin.forward || 0,
+      ).add(lookDirection).applyQuaternion(rotation);
       const cabinPosition = v.pos.clone().add(cameraLocal);
       const cabinLook = v.pos.clone().add(lookLocal);
       if (!this._camPos) { this._camPos = cabinPosition.clone(); this._camLook = cabinLook.clone(); }
