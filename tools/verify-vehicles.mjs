@@ -106,7 +106,10 @@ try {
 
   const { loadCarModel, CAR_MODELS, CAR_PHYSICS, VehicleSystem } = await import('../js/vehicles.js');
   const { Physics } = await import('../js/physics.js');
-  const { ackermannSteerAngle, updateChaseLook } = await import('../js/vehicle-steering.js');
+  const {
+    ackermannSteerAngle, updateChaseLook, resolveDriveAxes,
+    updateReverseCameraBlend, chaseCameraYaw,
+  } = await import('../js/vehicle-steering.js');
 
   const steeringGeometryWheels = [
     { x: -0.82, front: true }, { x: 0.82, front: true },
@@ -120,6 +123,29 @@ try {
     rightInside > rightOutside && Math.abs(leftInside) > Math.abs(leftOutside)
       && rightOutside > 0 && leftOutside < 0,
     `right inner/outer=${(rightInside * 180 / Math.PI).toFixed(1)}/${(rightOutside * 180 / Math.PI).toFixed(1)}deg left inner/outer=${(leftInside * 180 / Math.PI).toFixed(1)}/${(leftOutside * 180 / Math.PI).toFixed(1)}deg`);
+  const wasdTurn = resolveDriveAxes(new Set(['KeyW', 'KeyD']));
+  const reverseLeft = resolveDriveAxes(new Set(['KeyS', 'KeyA']));
+  const mixedArrowTurn = resolveDriveAxes(new Set(['KeyW', 'ArrowLeft']));
+  const aliasHeld = resolveDriveAxes(new Set(['KeyW', 'ArrowUp', 'ArrowRight']));
+  check('WASD and arrow keys support simultaneous drive + steering combinations',
+    wasdTurn.forward === 1 && wasdTurn.right === 1
+      && reverseLeft.forward === -1 && reverseLeft.right === -1
+      && mixedArrowTurn.forward === 1 && mixedArrowTurn.right === -1
+      && aliasHeld.forward === 1 && aliasHeld.right === 1,
+    `W+D=${wasdTurn.forward}/${wasdTurn.right} S+A=${reverseLeft.forward}/${reverseLeft.right} W+Left=${mixedArrowTurn.forward}/${mixedArrowTurn.right}`);
+  const forwardCameraYaw = chaseCameraYaw(0, 0, 0);
+  const reverseCameraYaw = chaseCameraYaw(0, 0, 1);
+  check('chase camera sits behind the car forward and moves to the front while reversing',
+    Math.cos(forwardCameraYaw) > 0.99 && Math.cos(reverseCameraYaw) < -0.99,
+    `forwardYaw=${forwardCameraYaw.toFixed(2)} reverseYaw=${reverseCameraYaw.toFixed(2)}`);
+  let reverseCamera = 0;
+  for (let i = 0; i < 60; i++) reverseCamera = updateReverseCameraBlend(reverseCamera, -8, 1 / 60);
+  const reverseCameraAtStop = updateReverseCameraBlend(reverseCamera, 0, 1 / 60);
+  let cameraAfterForward = reverseCameraAtStop;
+  for (let i = 0; i < 60; i++) cameraAfterForward = updateReverseCameraBlend(cameraAfterForward, 5, 1 / 60);
+  check('reverse camera changes with actual movement and holds through the stop',
+    reverseCameraAtStop > 0.9 && cameraAfterForward < 0.1,
+    `atReverse=${reverseCameraAtStop.toFixed(2)} afterForward=${cameraAfterForward.toFixed(2)}`);
   let cameraLook = { yaw: 1.1, pitch: 0.85, idleTime: 0 };
   for (let i = 0; i < 90; i++) {
     cameraLook = updateChaseLook(cameraLook, { dt: 1 / 60, throttle: 0, speed: 0 });
@@ -353,6 +379,13 @@ try {
   const physics = new Physics();
   physics.createWorld();
   physics.addGroundPlane();
+  const substepDurations = [];
+  const substepCount = physics.step(1 / 30, (h) => substepDurations.push(h));
+  check('Rapier splits a slow frame into four small physics substeps',
+    substepCount === 4 && substepDurations.length === 4
+      && substepDurations.every(h => h <= 1 / 120 + 1e-8)
+      && Math.abs(substepDurations.reduce((sum, h) => sum + h, 0) - 1 / 30) < 1e-8,
+    `steps=${substepCount} maxDt=${Math.max(...substepDurations).toFixed(5)}`);
   physics.createPlayerBody(0, 3, 0);
   // Rapier refreshes broadphase/query state during its first world step.
   physics.step(1 / 60);
@@ -668,6 +701,35 @@ try {
     `warmup=${supportWarmup?.wheelContacts ?? 0} contacts=${gapMotion?.wheelContacts ?? 0}`);
 
 
+  const steadyBody = physics.createVehicleBody(165, 0, 18, vehicleYawOffset, [dynamicVehicleSpec.physicsBox], {
+    dynamic: true, centerY: dynamicVehicleSpec.centerY,
+    mass: CAR_PHYSICS.lambo.mass, yawOffset: vehicleYawOffset,
+    tuning: CAR_PHYSICS.lambo, angularDamping: CAR_PHYSICS.lambo.angularDamping,
+  });
+  let steadyMotion = null;
+  let steadyMinY = Infinity, steadyMaxY = -Infinity, steadyMaxTilt = 0, steadyMinContacts = 4;
+  for (let i = 0; i < 480; i++) {
+    physics.step(1 / 60, (h) => {
+      steadyMotion = physics.applyVehicleControls(steadyBody, {
+        throttle: 0, steer: 0, handbrake: false, dt: h,
+        wheels, tuning: CAR_PHYSICS.lambo,
+        surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
+      });
+    });
+    if (i < 180) continue;
+    const p = steadyBody.translation();
+    const r = steadyBody.rotation();
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(new THREE.Quaternion(r.x, r.y, r.z, r.w));
+    const tilt = Math.acos(THREE.MathUtils.clamp(up.y, -1, 1));
+    steadyMinY = Math.min(steadyMinY, p.y);
+    steadyMaxY = Math.max(steadyMaxY, p.y);
+    steadyMaxTilt = Math.max(steadyMaxTilt, tilt);
+    steadyMinContacts = Math.min(steadyMinContacts, steadyMotion?.wheelContacts ?? 0);
+  }
+  check('car suspension settles without continuous shaking on flat ground',
+    steadyMaxY - steadyMinY < 0.06 && steadyMaxTilt < 0.12 && steadyMinContacts >= 3,
+    `verticalRange=${(steadyMaxY - steadyMinY).toFixed(4)}m maxTilt=${(steadyMaxTilt * 180 / Math.PI).toFixed(2)}deg minContacts=${steadyMinContacts}`);
+
   const reverseBody = physics.createVehicleBody(40, 0, 0, vehicleYawOffset, [dynamicVehicleSpec.physicsBox], {
     dynamic: true, centerY: dynamicVehicleSpec.centerY,
     mass: CAR_PHYSICS.lambo.mass, yawOffset: vehicleYawOffset,
@@ -694,6 +756,9 @@ try {
   check('reverse throttle accelerates past walking pace while steering',
     (reverseMotion?.forwardSpeed ?? 0) < -2.5 && Math.abs(reverseYawDelta) > 0.03,
     `reverseSpeed=${reverseMotion?.forwardSpeed?.toFixed(2)} yawDelta=${reverseYawDelta.toFixed(2)} z=${reversePose.z.toFixed(2)}`);
+  check('right steering creates the opposite yaw response in reverse',
+    headingDelta * reverseYawDelta < 0,
+    `forwardYaw=${headingDelta.toFixed(2)} reverseYaw=${reverseYawDelta.toFixed(2)}`);
 
   const driftBody = physics.createVehicleBody(70, 0, -10, vehicleYawOffset, [dynamicVehicleSpec.physicsBox], {
     dynamic: true, centerY: dynamicVehicleSpec.centerY,
