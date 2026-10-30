@@ -688,7 +688,7 @@ try {
     const truckTireBottom = estimatedWheelBottom(truck, truckSpec.wheels, truckSpec.centerY);
     check('Cybertruck visible tyres sit at ground level, not half buried', Math.abs(truckTireBottom) < 0.10,
       `estimated tire-bottom Y=${truckTireBottom.toFixed(3)}`);
-    const frontSteer = truck.rapierBody?._openWorldSteerAngles || [];
+    const frontSteer = truck._openWorldSteerAngles || [];
     const frontMean = frontSteer.reduce((sum, angle, i) =>
       sum + (truckSpec.wheels[i]?.front ? angle : 0), 0) / 2;
     const rearAngles = frontSteer.filter((angle, i) => !truckSpec.wheels[i]?.front);
