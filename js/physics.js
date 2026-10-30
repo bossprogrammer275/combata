@@ -563,15 +563,16 @@ export class Physics {
         antiRollLimit,
       );
       if (Math.abs(transferForce) < 1) continue;
-      // Apply the balancing couple to the chassis: reduce the force on
-      // the more-compressed side and add it on the more-extended side.
+      // The suspension forces act on the chassis at the strut mounts.
+      // Lift the more-compressed side and lower the opposite side to oppose
+      // the body roll moment without adding net vertical force.
       body.applyImpulseAtPoint(
-        { x: 0, y: -transferForce * dt, z: 0 },
+        { x: 0, y: transferForce * dt, z: 0 },
         wheelStates[left].hardpoint,
         true,
       );
       body.applyImpulseAtPoint(
-        { x: 0, y: transferForce * dt, z: 0 },
+        { x: 0, y: -transferForce * dt, z: 0 },
         wheelStates[right].hardpoint,
         true,
       );
