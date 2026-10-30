@@ -16,6 +16,7 @@ import { AchievementSystem } from './achievements.js';
 import { VehicleSystem } from './vehicles.js';
 import { Civilians } from './civilians.js';
 import { Physics } from './physics.js';
+import { resolveDriveAxes } from './vehicle-steering.js';
 import { prefetch } from './model-loader.js';
 
 const currentScene = new URLSearchParams(location.search).get('scene') || 'city-a.json';
@@ -588,19 +589,20 @@ class Game {
   bindInput() {
     const I = this.input;
     const driveKeys = this._driveKeys || (this._driveKeys = new Set());
-    const updateDriveAxes = () => {
-      I.forward = Number(driveKeys.has('KeyW') || driveKeys.has('ArrowUp'))
-        - Number(driveKeys.has('KeyS') || driveKeys.has('ArrowDown'));
-      I.right = Number(driveKeys.has('KeyD') || driveKeys.has('ArrowRight'))
-        - Number(driveKeys.has('KeyA') || driveKeys.has('ArrowLeft'));
-    };
+    const driveKeyCodes = new Set([
+      'KeyW', 'KeyA', 'KeyS', 'KeyD',
+      'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight',
+    ]);
+    const updateDriveAxes = () => Object.assign(I, resolveDriveAxes(driveKeys));
     addEventListener('keydown', (e) => {
+      if (driveKeyCodes.has(e.code)) {
+        e.preventDefault();
+        driveKeys.add(e.code);
+        updateDriveAxes();
+        return;
+      }
       if (e.repeat) return;
       switch (e.code) {
-        case 'KeyW': case 'ArrowUp': driveKeys.add(e.code); updateDriveAxes(); break;
-        case 'KeyS': case 'ArrowDown': driveKeys.add(e.code); updateDriveAxes(); break;
-        case 'KeyA': case 'ArrowLeft': driveKeys.add(e.code); updateDriveAxes(); break;
-        case 'KeyD': case 'ArrowRight': driveKeys.add(e.code); updateDriveAxes(); break;
         case 'ShiftLeft': case 'ShiftRight': I.sprint = true; break;
         case 'KeyC': case 'ControlLeft': I.crouch = true; e.preventDefault(); break;
         case 'Space': I.jump = true; e.preventDefault(); break;
@@ -681,12 +683,11 @@ class Game {
       }
     });
     addEventListener('keyup', (e) => {
-      if (driveKeys.delete(e.code)) updateDriveAxes();
+      if (driveKeyCodes.has(e.code)) {
+        e.preventDefault();
+        if (driveKeys.delete(e.code)) updateDriveAxes();
+      }
       switch (e.code) {
-        case 'KeyW': case 'ArrowUp': driveKeys.delete(e.code); updateDriveAxes(); break;
-        case 'KeyS': case 'ArrowDown': driveKeys.delete(e.code); updateDriveAxes(); break;
-        case 'KeyA': case 'ArrowLeft': driveKeys.delete(e.code); updateDriveAxes(); break;
-        case 'KeyD': case 'ArrowRight': driveKeys.delete(e.code); updateDriveAxes(); break;
         case 'ShiftLeft': case 'ShiftRight': I.sprint = false; break;
         case 'KeyC': case 'ControlLeft': I.crouch = false; break;
         case 'Space': I.jump = false; break;
@@ -965,8 +966,17 @@ class Game {
     } else {
       this.player.update(dt, this.input);
     }
-    if (this.physics && this.physics.world) this.physics.step(dt);
-    if (this.vehicles) this.vehicles.syncDynamicBodies();
+    if (this.physics && this.physics.world) {
+      this.physics.step(dt, (physicsDt) => {
+        if (this.vehicles) this.vehicles.stepPhysics(physicsDt);
+      });
+    }
+    if (this.vehicles) {
+      this.vehicles.syncDynamicBodies(dt);
+      if (this.vehicles.driver) {
+        this.vehicles.updateChaseCamera(dt, this.input, this.player);
+      }
+    }
 
     // update atmospheric sky (time-of-day, lighting, clouds)
     if (this.world.atmosphere) {
