@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from './lib/GLTFLoader.js';
 import { prefetch } from './model-loader.js';
 import {
-  ackermannSteerAngle, updateChaseLook, updateReverseCameraBlend, chaseCameraYaw,
+  ackermannSteerAngle, resolveRearSteerRatio, updateChaseLook, updateReverseCameraBlend, chaseCameraYaw,
   getBridgeAwareChaseHeights,
 } from './vehicle-steering.js';
 
@@ -51,15 +51,22 @@ export const CAR_PHYSICS = {
     engineAcceleration: 12.8, reverseAcceleration: 5.8, brakeAcceleration: 15.5,
     maxSpeed: 180 / 3.6, maxReverseSpeed: 13.0, speedometerMaxKmh: 180,
     aeroDragArea: 1.15, rollingResistance: 0.014,
-    speedSteeringFalloff: 0.010, minSteeringScale: 0.43, steeringResponse: 22.0,
+    speedSteeringFalloff: 0.0075, minSteeringScale: 0.50, steeringResponse: 28.0,
     antiRollStiffness: 42000, antiRollLoadTransferLimit: 0.22,
     downforceCoefficient: 0.30, maxDownforceG: 0.25,
     frontDriveBias: 0.50,
-    driveGripUsageLimit: 0.90, brakingGripUsageLimit: 0.97, handbrakeGripUsageLimit: 0.76,
-    steeringAngle: 0.68, handbrakeSteerAngle: 0.70,
-    frontGrip: 8.8, rearGrip: 9.4, handbrakeRearGrip: 0.62,
-    frontCorneringStiffness: 86000, rearCorneringStiffness: 93000,
-    tireFriction: 1.32, handbrakeRearFriction: 0.46,
+    // Steer-by-wire four-wheel steering: rear wheels counter-steer in tight
+    // turns, then blend toward a small same-phase stability assist at speed.
+    rearSteerLowSpeedRatio: -0.26, rearSteerHighSpeedRatio: 0.06,
+    rearSteerBlendStart: 7.0, rearSteerBlendEnd: 24.0,
+    // Keep drive acceleration available while reserving a useful tyre grip
+    // margin for cornering, instead of spending nearly the whole friction circle
+    // on the electric motor under combined throttle and steering.
+    driveGripUsageLimit: 0.80, brakingGripUsageLimit: 0.97, handbrakeGripUsageLimit: 0.76,
+    steeringAngle: 0.75, handbrakeSteerAngle: 0.72,
+    frontGrip: 9.2, rearGrip: 9.8, handbrakeRearGrip: 0.62,
+    frontCorneringStiffness: 92000, rearCorneringStiffness: 99000,
+    tireFriction: 1.60, handbrakeRearFriction: 0.46,
     suspensionRestLength: 0.23, suspensionTravel: 0.18,
     springRate: 56000, springDamping: 8200,
     springDampingRelaxation: 6500, suspensionResponse: 32,
@@ -67,21 +74,22 @@ export const CAR_PHYSICS = {
     rollUprightStrength: 9.0, rollUprightDamping: 8.5,
     angularDamping: 1.0,
   },
-  // Bugatti Bolide: light, AWD track-only hypercar, high downforce and slick grip.
-  // The model asset is still the bundled sports-car GLB; this is only its preset.
+  // Bugatti Chiron-style 380 km/h AWD road-hypercar preset. Mass and
+  // wheelbase use the Chiron's published baseline; grip and downforce are
+  // gameplay tuning. The dedicated Bugatti GLB has not been added yet.
   bugatti: {
-    mass: 1450, drivetrain: 'awd', wheelbase: 2.75,
+    mass: 1995, drivetrain: 'awd', wheelbase: 2.711,
     engineAcceleration: 14.5, reverseAcceleration: 5.8, brakeAcceleration: 15.0,
     maxSpeed: 380 / 3.6, maxReverseSpeed: 12, speedometerMaxKmh: 380,
     aeroDragArea: 1.22, rollingResistance: 0.012,
-    speedSteeringFalloff: 0.011, minSteeringScale: 0.28, steeringResponse: 16.0,
-    antiRollStiffness: 30000, downforceCoefficient: 2.65, maxDownforceG: 2.05,
+    speedSteeringFalloff: 0.009, minSteeringScale: 0.35, steeringResponse: 20.0,
+    antiRollStiffness: 36000, downforceCoefficient: 1.15, maxDownforceG: 0.85,
     frontDriveBias: 0.44,
-    driveGripUsageLimit: 0.90, brakingGripUsageLimit: 0.97, handbrakeGripUsageLimit: 0.74,
-    steeringAngle: 0.52, handbrakeSteerAngle: 0.56,
-    frontGrip: 10.2, rearGrip: 10.8, handbrakeRearGrip: 0.42,
-    frontCorneringStiffness: 105000, rearCorneringStiffness: 112000,
-    tireFriction: 1.52, handbrakeRearFriction: 0.34,
+    driveGripUsageLimit: 0.82, brakingGripUsageLimit: 0.97, handbrakeGripUsageLimit: 0.74,
+    steeringAngle: 0.60, handbrakeSteerAngle: 0.62,
+    frontGrip: 10.5, rearGrip: 11.1, handbrakeRearGrip: 0.42,
+    frontCorneringStiffness: 120000, rearCorneringStiffness: 128000,
+    tireFriction: 1.70, handbrakeRearFriction: 0.34,
     suspensionRestLength: 0.19, suspensionTravel: 0.15,
     springRate: 42000, springDamping: 5500,
     springDampingRelaxation: 4100, suspensionResponse: 36,
@@ -1098,16 +1106,18 @@ export class VehicleSystem {
         ? (visualTune.handbrakeSteerAngle ?? 0.4)
         : (visualTune.steeringAngle ?? 0.28)) * visualSteeringScale;
       const physicalSteerAngles = v.physicsDynamic ? v.rapierBody?._openWorldSteerAngles : null;
+      const rearSteerRatio = resolveRearSteerRatio(curSpd, visualTune);
       const modelRightSign = Math.cos(v.yawOffset || 0) >= 0 ? 1 : -1;
       const wheelSteerBlend = 1 - Math.exp(-Math.max(12, (visualTune.steeringResponse || 10) * 1.7) * Math.min(Math.max(dt, 0), 0.05));
       for (let wheelIndex = 0; wheelIndex < v.wheels.length; wheelIndex++) {
         const w = v.wheels[wheelIndex];
-        if (w.front) {
-          const physicalAngle = physicalSteerAngles?.[wheelIndex];
+        const axleAngle = w.front ? steerAngle : steerAngle * rearSteerRatio;
+        const physicalAngle = physicalSteerAngles?.[wheelIndex];
+        if (w.front || Math.abs(rearSteerRatio) > 1e-4 || Number.isFinite(physicalAngle)) {
           const targetSteer = Number.isFinite(physicalAngle)
             ? -physicalAngle
             : -ackermannSteerAngle(
-              steerAngle, w.center.x, v.physicsWheels, visualTune.wheelbase || 2.7, modelRightSign,
+              axleAngle, w.center.x, v.physicsWheels, visualTune.wheelbase || 2.7, modelRightSign,
             );
           w.pivot.rotation.y += (targetSteer - w.pivot.rotation.y) * wheelSteerBlend;
         }
