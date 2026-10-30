@@ -344,9 +344,10 @@ export class Physics {
     forwardV.y = 0;
     if (forwardV.lengthSq() < 1e-8) forwardV.set(-Math.sin(yaw), 0, -Math.cos(yaw));
     forwardV.normalize();
-    const rightV = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
-    rightV.y = 0;
-    if (rightV.lengthSq() < 1e-8) rightV.set(Math.cos(bodyYaw), 0, -Math.sin(bodyYaw));
+    // The GLBs use a +Z nose and a PI model correction, so local +X is
+    // not always gameplay-right. Derive right from forward x world-up.
+    const rightV = forwardV.clone().cross(new THREE.Vector3(0, 1, 0));
+    if (rightV.lengthSq() < 1e-8) rightV.set(Math.cos(yaw), 0, -Math.sin(yaw));
     rightV.normalize();
     const forward = { x: forwardV.x, z: forwardV.z };
     const right = { x: rightV.x, z: rightV.z };
@@ -372,6 +373,8 @@ export class Physics {
     const travel = tune.suspensionTravel ?? 0.18;
     const springRate = tune.springRate ?? 32000;
     const springDamping = tune.springDamping ?? 3400;
+    const springDampingRelaxation = tune.springDampingRelaxation ?? springDamping * 0.78;
+    const suspensionResponse = tune.suspensionResponse ?? 28;
     const wheelStates = [];
     const rayHits = [];
     const supportCache = body._openWorldWheelSupportCache || (body._openWorldWheelSupportCache = []);
@@ -423,8 +426,8 @@ export class Physics {
       if (!hit || !hit.normal || hit.normal.y < 0.45) {
         const cached = supportCache[wheelIndex];
         if (cached && cached.age < 1
-          && Math.hypot(hardpoint.x - cached.hardpoint.x, hardpoint.z - cached.hardpoint.z) < 0.35
-          && Math.abs(hardpoint.y - cached.hardpoint.y) < 0.20) {
+          && Math.hypot(hardpoint.x - cached.hardpoint.x, hardpoint.z - cached.hardpoint.z) < Math.max(0.35, horizontalSpeed * dt * 1.35)
+          && Math.abs(hardpoint.y - cached.hardpoint.y) < 0.16) {
           const timeOfImpact = hardpoint.y - cached.pointY;
           const suspensionLength = timeOfImpact - radius;
           if (suspensionLength >= -maxCompression && suspensionLength <= restLength + travel) {
@@ -457,20 +460,46 @@ export class Physics {
         continue;
       }
 
-      const compression = THREE.MathUtils.clamp(restLength - suspensionLength, -maxCompression, travel);
+      const targetCompression = THREE.MathUtils.clamp(restLength - suspensionLength, -maxCompression, travel);
+      const cachedSupport = supportCache[wheelIndex];
+      const compressionBlend = 1 - Math.exp(-suspensionResponse * dt);
+      const compression = Number.isFinite(cachedSupport?.compressionFiltered)
+        ? cachedSupport.compressionFiltered
+          + (targetCompression - cachedSupport.compressionFiltered) * compressionBlend
+        : targetCompression;
       const hardpointX = hardpoint.x - translation.x;
+      const hardpointY = hardpoint.y - translation.y;
       const hardpointZ = hardpoint.z - translation.z;
-      // Vertical velocity at the strut mount includes the chassis' angular
-      // velocity; this damps pitch/roll oscillations instead of only heave.
-      const anchorVerticalSpeed = velocity.y + angular.z * hardpointX - angular.x * hardpointZ;
+      let contactNormal = new THREE.Vector3(hit.normal.x, hit.normal.y, hit.normal.z).normalize();
+      if (cachedSupport?.normal && !hit._openWorldGrace) {
+        const previousNormal = new THREE.Vector3(
+          cachedSupport.normal.x, cachedSupport.normal.y, cachedSupport.normal.z,
+        ).normalize();
+        if (previousNormal.dot(contactNormal) > 0.72) {
+          contactNormal = previousNormal.lerp(contactNormal, 1 - Math.exp(-24 * dt)).normalize();
+        }
+      }
+      // Damping uses the complete velocity at the strut mount projected onto
+      // the road normal. This is stable on ramps and when the chassis pitches.
+      const anchorVX = velocity.x + angular.y * hardpointZ - angular.z * hardpointY;
+      const anchorVY = velocity.y + angular.z * hardpointX - angular.x * hardpointZ;
+      const anchorVZ = velocity.z + angular.x * hardpointY - angular.y * hardpointX;
+      const anchorNormalSpeed = anchorVX * contactNormal.x
+        + anchorVY * contactNormal.y + anchorVZ * contactNormal.z;
+      const damping = anchorNormalSpeed < 0 ? springDamping : springDampingRelaxation;
+      const normalBaseLoad = gravityLoadPerWheel / Math.max(0.55, contactNormal.y);
       const springForce = THREE.MathUtils.clamp(
-        gravityLoadPerWheel + springRate * compression - springDamping * anchorVerticalSpeed,
+        normalBaseLoad + springRate * compression - damping * anchorNormalSpeed,
         0,
-        gravityLoadPerWheel * 1.85,
+        normalBaseLoad * 1.75,
       );
       if (springForce > 0) {
         body.applyImpulseAtPoint(
-          { x: 0, y: springForce * dt, z: 0 },
+          {
+            x: contactNormal.x * springForce * dt,
+            y: contactNormal.y * springForce * dt,
+            z: contactNormal.z * springForce * dt,
+          },
           hardpoint,
           true,
         );
@@ -484,9 +513,12 @@ export class Physics {
         supportCache[wheelIndex] = {
           pointY: contactPoint.y,
           hardpoint: { x: hardpoint.x, y: hardpoint.y, z: hardpoint.z },
-          normal: { x: hit.normal.x, y: hit.normal.y, z: hit.normal.z },
+          normal: { x: contactNormal.x, y: contactNormal.y, z: contactNormal.z },
+          compressionFiltered: compression,
           age: 0,
         };
+      } else if (supportCache[wheelIndex]) {
+        supportCache[wheelIndex].compressionFiltered = compression;
       }
       let surface = null;
       if (typeof controls.surfaceAt === 'function') {
@@ -495,10 +527,10 @@ export class Physics {
       if (!surface) surface = { surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 };
       const state = {
         contact: true,
-        offset: THREE.MathUtils.clamp(restLength - suspensionLength, -travel, travel),
+        offset: THREE.MathUtils.clamp(compression, -travel, travel),
         compression,
         suspensionLength,
-        normal: { x: hit.normal.x, y: hit.normal.y, z: hit.normal.z },
+        normal: { x: contactNormal.x, y: contactNormal.y, z: contactNormal.z },
         point: contactPoint,
         hardpoint,
         radius,
@@ -513,7 +545,7 @@ export class Physics {
     // applies all cornering force at the tyre contact patches and can roll the
     // sprung mass until the inside tyres visibly lift.
     const antiRollStiffness = tune.antiRollStiffness ?? 22000;
-    const antiRollLimit = mass * 9.81 * 0.22;
+    const antiRollLimit = mass * 9.81 * 0.12;
     for (const frontAxle of [true, false]) {
       let left = -1, right = -1;
       for (let i = 0; i < wheelSpecs.length; i++) {
@@ -531,16 +563,15 @@ export class Physics {
         antiRollLimit,
       );
       if (Math.abs(transferForce) < 1) continue;
-      // If left compresses more, add an upward force on that side and the
-      // opposite force on the right. Equal impulses resist roll without adding
-      // artificial net lift to the whole car.
+      // Apply the balancing couple to the chassis: reduce the force on
+      // the more-compressed side and add it on the more-extended side.
       body.applyImpulseAtPoint(
-        { x: 0, y: transferForce * dt, z: 0 },
+        { x: 0, y: -transferForce * dt, z: 0 },
         wheelStates[left].hardpoint,
         true,
       );
       body.applyImpulseAtPoint(
-        { x: 0, y: -transferForce * dt, z: 0 },
+        { x: 0, y: transferForce * dt, z: 0 },
         wheelStates[right].hardpoint,
         true,
       );
@@ -666,48 +697,56 @@ export class Physics {
     const wheelAngle = steer * (handbrake
       ? (tune.handbrakeSteerAngle ?? 0.42)
       : (tune.steeringAngle ?? 0.28)) * steeringScale;
+    const modelRightSign = Math.cos(yawOffset) >= 0 ? 1 : -1;
     const wheelSteerAngles = wheelSpecs.map(wheel => wheel.front
-      ? ackermannSteerAngle(wheelAngle, wheel.x || 0, wheelSpecs, tune.wheelbase ?? 2.7)
+      ? ackermannSteerAngle(wheelAngle, wheel.x || 0, wheelSpecs, tune.wheelbase ?? 2.7, modelRightSign)
       : 0);
     body._openWorldSteerAngles = wheelSteerAngles;
     if (wheelSpecs.length && grounded.length) {
       for (const index of grounded) {
         const wheel = wheelSpecs[index];
         const state = wheelStates[index];
-        const chassisUp = new THREE.Vector3(0, 1, 0).applyQuaternion(q).normalize();
-        const wheelRightV = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
-        if (wheel.front) wheelRightV.applyAxisAngle(chassisUp, -(wheelSteerAngles[index] || 0));
-        // Tyre lateral force stays tangent to the road plane.
-        wheelRightV.y = 0;
-        if (wheelRightV.lengthSq() < 1e-8) wheelRightV.set(Math.cos(bodyYaw), 0, -Math.sin(bodyYaw));
-        wheelRightV.normalize();
-        const wheelRight = { x: wheelRightV.x, z: wheelRightV.z };
+        const wheelForwardV = forwardV.clone();
+        if (wheel.front) {
+          wheelForwardV.applyAxisAngle(new THREE.Vector3(0, 1, 0), -(wheelSteerAngles[index] || 0));
+        }
+        wheelForwardV.y = 0;
+        if (wheelForwardV.lengthSq() < 1e-8) wheelForwardV.set(forward.x, 0, forward.z);
+        wheelForwardV.normalize();
+        const wheelRightV = wheelForwardV.clone().cross(new THREE.Vector3(0, 1, 0)).normalize();
         const rx = state.point.x - translation.x;
         const ry = state.point.y - translation.y;
         const rz = state.point.z - translation.z;
         const pointVX = velocity.x + angular.y * rz - angular.z * ry;
+        const pointVY = velocity.y + angular.z * rx - angular.x * rz;
         const pointVZ = velocity.z + angular.x * ry - angular.y * rx;
-        const lateralAtWheel = pointVX * wheelRight.x + pointVZ * wheelRight.z;
-        const gripRate = handbrake && !wheel.front
-          ? (tune.handbrakeRearGrip ?? 0.9)
-          : (wheel.front
-            ? (tune.frontGrip ?? 7.0)
-            : (tune.rearGrip ?? 9.0));
-        let lateralImpulse = -lateralAtWheel * (mass / grounded.length) * (1 - Math.exp(-gripRate * dt));
-        const rearHandbrakeMu = handbrake && !wheel.front
-          ? (tune.handbrakeRearFriction ?? 0.55)
-          : (tune.tireFriction ?? 1.2);
+        const pointVelocity = new THREE.Vector3(pointVX, pointVY, pointVZ);
+        const wheelLongSpeed = pointVelocity.dot(wheelForwardV);
+        const wheelLateralSpeed = pointVelocity.dot(wheelRightV);
+        const slipAngle = Math.atan2(wheelLateralSpeed, Math.max(tune.lowSpeedCorneringReference ?? 4.0, Math.abs(wheelLongSpeed)));
+        const corneringStiffness = wheel.front
+          ? (tune.frontCorneringStiffness ?? 60000)
+          : (tune.rearCorneringStiffness ?? 68000);
+        const handbrakeRear = handbrake && !wheel.front;
+        const rearCorneringScale = handbrakeRear ? (tune.handbrakeRearGrip ?? 0.7) : 1;
         const surfaceGrip = THREE.MathUtils.clamp(state.surface?.grip ?? 1, 0.2, 1.4);
-        const normalImpulse = Math.max(0, state.normalLoad || 0) * (tune.tireFriction ?? 1.2) * surfaceGrip * dt;
+        const tireMu = tune.tireFriction ?? 1.2;
+        const cornerMu = handbrakeRear ? (tune.handbrakeRearFriction ?? 0.55) : tireMu;
+        const normalImpulse = Math.max(0, state.normalLoad || 0) * tireMu * surfaceGrip * dt;
         const usedLongitudinal = Math.min(normalImpulse, longitudinalImpulseByWheel[index] || 0);
         const combinedGripScale = normalImpulse > 1e-6
           ? Math.sqrt(Math.max(0, 1 - (usedLongitudinal / normalImpulse) ** 2))
           : 0;
+        // A brush-style slip-angle response: small slip produces proportional
+        // cornering force, while the friction circle limits large slides.
+        const lateralForce = -corneringStiffness * slipAngle * rearCorneringScale;
         const maxLateralImpulse = Math.max(0, state.normalLoad || 0)
-          * rearHandbrakeMu * surfaceGrip * dt * combinedGripScale;
-        lateralImpulse = THREE.MathUtils.clamp(lateralImpulse, -maxLateralImpulse, maxLateralImpulse);
+          * cornerMu * surfaceGrip * dt * combinedGripScale;
+        const lateralImpulse = THREE.MathUtils.clamp(
+          lateralForce * dt, -maxLateralImpulse, maxLateralImpulse,
+        );
         body.applyImpulseAtPoint(
-          { x: wheelRight.x * lateralImpulse, y: 0, z: wheelRight.z * lateralImpulse },
+          { x: wheelRightV.x * lateralImpulse, y: wheelRightV.y * lateralImpulse, z: wheelRightV.z * lateralImpulse },
           state.point,
           true,
         );

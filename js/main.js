@@ -587,13 +587,20 @@ class Game {
 
   bindInput() {
     const I = this.input;
+    const driveKeys = this._driveKeys || (this._driveKeys = new Set());
+    const updateDriveAxes = () => {
+      I.forward = Number(driveKeys.has('KeyW') || driveKeys.has('ArrowUp'))
+        - Number(driveKeys.has('KeyS') || driveKeys.has('ArrowDown'));
+      I.right = Number(driveKeys.has('KeyD') || driveKeys.has('ArrowRight'))
+        - Number(driveKeys.has('KeyA') || driveKeys.has('ArrowLeft'));
+    };
     addEventListener('keydown', (e) => {
       if (e.repeat) return;
       switch (e.code) {
-        case 'KeyW': case 'ArrowUp': I.forward = 1; break;
-        case 'KeyS': case 'ArrowDown': I.forward = -1; break;
-        case 'KeyA': case 'ArrowLeft': I.right = -1; break;
-        case 'KeyD': case 'ArrowRight': I.right = 1; break;
+        case 'KeyW': case 'ArrowUp': driveKeys.add(e.code); updateDriveAxes(); break;
+        case 'KeyS': case 'ArrowDown': driveKeys.add(e.code); updateDriveAxes(); break;
+        case 'KeyA': case 'ArrowLeft': driveKeys.add(e.code); updateDriveAxes(); break;
+        case 'KeyD': case 'ArrowRight': driveKeys.add(e.code); updateDriveAxes(); break;
         case 'ShiftLeft': case 'ShiftRight': I.sprint = true; break;
         case 'KeyC': case 'ControlLeft': I.crouch = true; e.preventDefault(); break;
         case 'Space': I.jump = true; e.preventDefault(); break;
@@ -674,17 +681,23 @@ class Game {
       }
     });
     addEventListener('keyup', (e) => {
+      if (driveKeys.delete(e.code)) updateDriveAxes();
       switch (e.code) {
-        case 'KeyW': case 'ArrowUp': if (I.forward === 1) I.forward = 0; break;
-        case 'KeyS': case 'ArrowDown': if (I.forward === -1) I.forward = 0; break;
-        case 'KeyA': case 'ArrowLeft': if (I.right === -1) I.right = 0; break;
-        case 'KeyD': case 'ArrowRight': if (I.right === 1) I.right = 0; break;
+        case 'KeyW': case 'ArrowUp': driveKeys.delete(e.code); updateDriveAxes(); break;
+        case 'KeyS': case 'ArrowDown': driveKeys.delete(e.code); updateDriveAxes(); break;
+        case 'KeyA': case 'ArrowLeft': driveKeys.delete(e.code); updateDriveAxes(); break;
+        case 'KeyD': case 'ArrowRight': driveKeys.delete(e.code); updateDriveAxes(); break;
         case 'ShiftLeft': case 'ShiftRight': I.sprint = false; break;
         case 'KeyC': case 'ControlLeft': I.crouch = false; break;
         case 'Space': I.jump = false; break;
         case 'KeyF': I.climb = false; break;
         case 'KeyZ': I.climb = false; break;
       }
+    });
+    addEventListener('blur', () => {
+      driveKeys.clear();
+      updateDriveAxes();
+      I.sprint = false; I.crouch = false; I.jump = false;
     });
     addEventListener('mousedown', (e) => {
       if (this.state !== 'playing' || this.player.skydive || (this.tools && this.tools.isOpen())) return;

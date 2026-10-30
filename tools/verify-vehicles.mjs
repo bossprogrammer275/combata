@@ -112,10 +112,10 @@ try {
     { x: -0.82, front: true }, { x: 0.82, front: true },
     { x: -0.82, front: false }, { x: 0.82, front: false },
   ];
-  const rightInside = ackermannSteerAngle(0.42, 0.82, steeringGeometryWheels, 2.7);
-  const rightOutside = ackermannSteerAngle(0.42, -0.82, steeringGeometryWheels, 2.7);
-  const leftInside = ackermannSteerAngle(-0.42, -0.82, steeringGeometryWheels, 2.7);
-  const leftOutside = ackermannSteerAngle(-0.42, 0.82, steeringGeometryWheels, 2.7);
+  const rightInside = ackermannSteerAngle(0.42, -0.82, steeringGeometryWheels, 2.7, -1);
+  const rightOutside = ackermannSteerAngle(0.42, 0.82, steeringGeometryWheels, 2.7, -1);
+  const leftInside = ackermannSteerAngle(-0.42, 0.82, steeringGeometryWheels, 2.7, -1);
+  const leftOutside = ackermannSteerAngle(-0.42, -0.82, steeringGeometryWheels, 2.7, -1);
   check('Ackermann steering turns the inner front wheel sharper in both directions',
     rightInside > rightOutside && Math.abs(leftInside) > Math.abs(leftOutside)
       && rightOutside > 0 && leftOutside < 0,
@@ -438,6 +438,17 @@ try {
       + new THREE.Vector3(w.x, w.y + (states[i]?.offset || 0) - w.radius, w.z).applyQuaternion(q).y));
   };
   const dynamicVehicleSpec = dynamicVehicleSpecs.lambo || Object.values(dynamicVehicleSpecs)[0];
+  check('sports car and Cybertruck use separate drivetrain and chassis tuning',
+    CAR_PHYSICS.lambo.drivetrain === 'rwd'
+      && CAR_PHYSICS.cybertruck.drivetrain === 'awd'
+      && CAR_PHYSICS.lambo.wheelbase < CAR_PHYSICS.cybertruck.wheelbase
+      && CAR_PHYSICS.lambo.frontCorneringStiffness > CAR_PHYSICS.cybertruck.frontCorneringStiffness
+      && CAR_PHYSICS.cybertruck.mass > CAR_PHYSICS.lambo.mass * 1.8,
+    `sport=${CAR_PHYSICS.lambo.drivetrain}:${CAR_PHYSICS.lambo.wheelbase}m truck=${CAR_PHYSICS.cybertruck.drivetrain}:${CAR_PHYSICS.cybertruck.wheelbase}m`);
+  check('handbrake drift keeps rear grip deliberately below normal driving grip',
+    CAR_PHYSICS.lambo.handbrakeRearGrip < CAR_PHYSICS.lambo.rearGrip
+      && CAR_PHYSICS.cybertruck.handbrakeRearFriction < CAR_PHYSICS.cybertruck.tireFriction,
+    `sport rear grip=${CAR_PHYSICS.lambo.handbrakeRearGrip} truck rear friction=${CAR_PHYSICS.cybertruck.handbrakeRearFriction}`);
   check('both car types produce real GLB suspension specs',
     !!dynamicVehicleSpecs.lambo && !!dynamicVehicleSpecs.cybertruck &&
       dynamicVehicleSpecs.lambo.wheels.length === 4 && dynamicVehicleSpecs.cybertruck.wheels.length === 4,
@@ -480,6 +491,12 @@ try {
   check('wheel contact states are exposed for wheel animation',
     Array.isArray(rb._openWorldWheelStates) && rb._openWorldWheelStates.length === 4,
     `states=${rb._openWorldWheelStates?.length ?? 0}`);
+  check('physics publishes distinct Ackermann angles for the front wheel pivots',
+    Array.isArray(rb._openWorldSteerAngles)
+      && rb._openWorldSteerAngles.filter((a, i) => wheels[i]?.front && Math.abs(a) > 0.01).length === 2
+      && Math.abs(rb._openWorldSteerAngles.find((a, i) => wheels[i]?.front) -
+        rb._openWorldSteerAngles.findLast((a, i) => wheels[i]?.front)) > 0.01,
+    `angles=${(rb._openWorldSteerAngles || []).map(a => (a * 180 / Math.PI).toFixed(1)).join(',')}`);
   check('tyre raycasts carry the sampled surface modifiers into physics',
     rb._openWorldWheelStates.filter(s => s.contact).every(s => s.surface?.surface === 'asphalt' && s.surface.grip === 1),
     `surfaces=${rb._openWorldWheelStates.map(s => s.surface?.surface || 'no-contact').join(',')}`);
@@ -677,6 +694,28 @@ try {
   check('reverse throttle accelerates past walking pace while steering',
     (reverseMotion?.forwardSpeed ?? 0) < -2.5 && Math.abs(reverseYawDelta) > 0.03,
     `reverseSpeed=${reverseMotion?.forwardSpeed?.toFixed(2)} yawDelta=${reverseYawDelta.toFixed(2)} z=${reversePose.z.toFixed(2)}`);
+
+  const driftBody = physics.createVehicleBody(70, 0, -10, vehicleYawOffset, [dynamicVehicleSpec.physicsBox], {
+    dynamic: true, centerY: dynamicVehicleSpec.centerY,
+    mass: CAR_PHYSICS.lambo.mass, yawOffset: vehicleYawOffset,
+    tuning: CAR_PHYSICS.lambo, angularDamping: CAR_PHYSICS.lambo.angularDamping,
+  });
+  physics.step(1 / 60);
+  physics.updateVehicleBody(driftBody, 70, 0, -10, vehicleYawOffset);
+  physics.step(1 / 60);
+  driftBody.setLinvel({ x: 0, y: 0, z: -16 }, true);
+  let driftMotion = null;
+  for (let i = 0; i < 50; i++) {
+    driftMotion = physics.applyVehicleControls(driftBody, {
+      throttle: 0.2, steer: 0.8, handbrake: true, dt: 1 / 60,
+      wheels, tuning: CAR_PHYSICS.lambo,
+      surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
+    });
+    physics.step(1 / 60);
+  }
+  check('handbrake drift lets the rear slide while front steering stays active',
+    Math.abs(driftMotion?.lateralSpeed ?? 0) > 0.15 && (driftMotion?.wheelContacts ?? 0) >= 3,
+    `lateralSpeed=${driftMotion?.lateralSpeed?.toFixed(2) ?? 'n/a'} contacts=${driftMotion?.wheelContacts ?? 0}`);
 
   const acceleratingTruckSpec = dynamicVehicleSpecs.cybertruck;
   const truckBody = physics.createVehicleBody(-40, 0, 0, vehicleYawOffset, [acceleratingTruckSpec.physicsBox], {

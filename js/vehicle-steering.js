@@ -1,5 +1,5 @@
 // Shared steering geometry and chase-camera look behaviour for all vehicles.
-export function ackermannSteerAngle(centerAngle, wheelX, wheels = [], wheelbase = 2.7) {
+export function ackermannSteerAngle(centerAngle, wheelX, wheels = [], wheelbase = 2.7, lateralSign = 1) {
   const angle = Number.isFinite(centerAngle) ? centerAngle : 0;
   if (Math.abs(angle) < 1e-4 || !Array.isArray(wheels) || wheels.length < 2) return angle;
   const xs = wheels.map(w => Number(w?.x)).filter(Number.isFinite);
@@ -10,7 +10,8 @@ export function ackermannSteerAngle(centerAngle, wheelX, wheels = [], wheelbase 
   // Positive steering means a right turn in this game's local XZ convention.
   // The wheel on the inside of the turn steers farther than the outside wheel.
   const turnRadius = wheelbase / Math.max(1e-4, Math.tan(Math.abs(angle)));
-  const isInside = angle > 0 ? wheelX > 0 : wheelX < 0;
+  const vehicleRightX = wheelX * (lateralSign < 0 ? -1 : 1);
+  const isInside = angle > 0 ? vehicleRightX > 0 : vehicleRightX < 0;
   const wheelRadius = Math.max(0.25, turnRadius + (isInside ? -trackWidth : trackWidth) * 0.5);
   return Math.sign(angle) * Math.atan(wheelbase / wheelRadius);
 }

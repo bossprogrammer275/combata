@@ -18,65 +18,70 @@ export const CAR_MODELS = {
 // responsive open-world game rather than pretending every vehicle weighs and
 // turns like the same generic car. Speeds/accelerations are m/s and m/s².
 export const CAR_PHYSICS = {
+  // Rear-drive mid-engine sports car: short wheelbase, sharp steering,
+  // strong brakes and firm, quick suspension. The rear axle remains the
+  // traction limit, so throttle can still induce power oversteer.
   lambo: {
     mass: 1480, drivetrain: 'rwd', wheelbase: 2.70,
-    engineAcceleration: 12.5, reverseAcceleration: 4.8, brakeAcceleration: 15.0,
-    maxSpeed: 64, maxReverseSpeed: 11.0, speedometerMaxKmh: 230,
-    aeroDragArea: 0.90, rollingResistance: 0.014,
-    speedSteeringFalloff: 0.0075, minSteeringScale: 0.40, steeringResponse: 12.5,
-    antiRollStiffness: 22000, downforceCoefficient: 0.38, maxDownforceG: 0.22,
+    engineAcceleration: 11.8, reverseAcceleration: 5.4, brakeAcceleration: 16.0,
+    maxSpeed: 64, maxReverseSpeed: 13.0, speedometerMaxKmh: 230,
+    aeroDragArea: 0.90, rollingResistance: 0.013,
+    speedSteeringFalloff: 0.0105, minSteeringScale: 0.30, steeringResponse: 15.0,
+    antiRollStiffness: 25000, downforceCoefficient: 0.38, maxDownforceG: 0.22,
     frontDriveBias: 0.35,
-    driveGripUsageLimit: 0.76, brakingGripUsageLimit: 0.92, handbrakeGripUsageLimit: 0.82,
-    steeringAngle: 0.47, handbrakeSteerAngle: 0.50,
-    frontGrip: 7.4, rearGrip: 9.2, handbrakeRearGrip: 0.7,
-    tireFriction: 1.30, handbrakeRearFriction: 0.52,
-    suspensionRestLength: 0.21, suspensionTravel: 0.18,
-    springRate: 32000, springDamping: 4800,
+    driveGripUsageLimit: 0.88, brakingGripUsageLimit: 0.96, handbrakeGripUsageLimit: 0.78,
+    steeringAngle: 0.54, handbrakeSteerAngle: 0.58,
+    frontGrip: 8.4, rearGrip: 9.5, handbrakeRearGrip: 0.48,
+    frontCorneringStiffness: 72000, rearCorneringStiffness: 79000,
+    tireFriction: 1.42, handbrakeRearFriction: 0.38,
+    suspensionRestLength: 0.20, suspensionTravel: 0.16,
+    springRate: 34000, springDamping: 5000,
+    springDampingRelaxation: 3700, suspensionResponse: 32,
     uprightStrength: 3.8, uprightDamping: 4.3, uprightInertiaScale: 1.8,
-    angularDamping: 0.9,
+    angularDamping: 0.82,
   },
-  // Tesla Cybertruck Premium AWD reference: ~3,009 kg curb mass,
-  // 0-100 km/h ~4.3 s and 180 km/h top speed.
-  // Sources: Tesla owner's manual and published AWD specifications.
-  // https://www.tesla.com/ownersmanual/cybertruck/en_us/GUID-12A976DD-EB60-431B-AFF1-5A37E95006DB.html
+  // Cybertruck AWD: much heavier, longer wheelbase and softer suspension.
+  // Instant electric torque keeps it responsive off the line, but the mass,
+  // tyre response and longer wheelbase make it turn and settle like a pickup.
   cybertruck: {
     mass: 3009, drivetrain: 'awd', wheelbase: 3.635,
-    engineAcceleration: 9.5, reverseAcceleration: 4.8, brakeAcceleration: 10.5,
-    maxSpeed: 180 / 3.6, maxReverseSpeed: 9.0, speedometerMaxKmh: 180,
+    engineAcceleration: 6.8, reverseAcceleration: 4.6, brakeAcceleration: 10.5,
+    maxSpeed: 180 / 3.6, maxReverseSpeed: 10.0, speedometerMaxKmh: 180,
     aeroDragArea: 1.15, rollingResistance: 0.016,
-    speedSteeringFalloff: 0.0075, minSteeringScale: 0.44, steeringResponse: 10.5,
-    antiRollStiffness: 32000, downforceCoefficient: 0.20, maxDownforceG: 0.15,
+    speedSteeringFalloff: 0.0088, minSteeringScale: 0.36, steeringResponse: 11.0,
+    antiRollStiffness: 29000, downforceCoefficient: 0.20, maxDownforceG: 0.15,
     frontDriveBias: 0.50,
-    driveGripUsageLimit: 0.76, brakingGripUsageLimit: 0.92, handbrakeGripUsageLimit: 0.82,
-    steeringAngle: 0.42, handbrakeSteerAngle: 0.44,
-    frontGrip: 5.9, rearGrip: 6.5, handbrakeRearGrip: 1.0,
-    tireFriction: 1.02, handbrakeRearFriction: 0.64,
-    suspensionRestLength: 0.25, suspensionTravel: 0.21,
-    springRate: 54000, springDamping: 8200,
-    uprightStrength: 4.5, uprightDamping: 5.0, uprightInertiaScale: 1.8,
-    angularDamping: 1.3,
+    driveGripUsageLimit: 0.88, brakingGripUsageLimit: 0.96, handbrakeGripUsageLimit: 0.80,
+    steeringAngle: 0.46, handbrakeSteerAngle: 0.50,
+    frontGrip: 6.2, rearGrip: 6.8, handbrakeRearGrip: 0.72,
+    frontCorneringStiffness: 54000, rearCorneringStiffness: 60000,
+    tireFriction: 1.06, handbrakeRearFriction: 0.50,
+    suspensionRestLength: 0.27, suspensionTravel: 0.23,
+    springRate: 50000, springDamping: 7600,
+    springDampingRelaxation: 5900, suspensionResponse: 25,
+    uprightStrength: 4.2, uprightDamping: 5.1, uprightInertiaScale: 1.8,
+    angularDamping: 1.15,
   },
-  // Bugatti Bolide reference (official Jan-2025 technical sheet):
-  // 1,450 kg theoretical dry mass, permanent AWD, 380 km/h, 0-100 in 2.2 s,
-  // 100-0 km/h in 30 m, racing slicks, and nearly 3,000 kg of downforce at max speed.
-  // Cd*A is 1.22 m² in high-speed configuration.
-  // Source: https://bugatti-newsroom.imgix.net/67a4b4ec6578153cb3dd2194/technical-specifications-bugatti-bolide-en.pdf
+  // Bugatti Bolide: light, AWD track-only hypercar, high downforce and slick grip.
+  // The model asset is still the bundled sports-car GLB; this is only its preset.
   bugatti: {
     mass: 1450, drivetrain: 'awd', wheelbase: 2.75,
-    engineAcceleration: 14.5, reverseAcceleration: 5.8, brakeAcceleration: 13.5,
+    engineAcceleration: 14.5, reverseAcceleration: 5.8, brakeAcceleration: 15.0,
     maxSpeed: 380 / 3.6, maxReverseSpeed: 12, speedometerMaxKmh: 380,
     aeroDragArea: 1.22, rollingResistance: 0.012,
-    speedSteeringFalloff: 0.0085, minSteeringScale: 0.32, steeringResponse: 13.5,
-    antiRollStiffness: 27000, downforceCoefficient: 2.65, maxDownforceG: 2.05,
+    speedSteeringFalloff: 0.011, minSteeringScale: 0.28, steeringResponse: 16.0,
+    antiRollStiffness: 30000, downforceCoefficient: 2.65, maxDownforceG: 2.05,
     frontDriveBias: 0.44,
-    driveGripUsageLimit: 0.76, brakingGripUsageLimit: 0.92, handbrakeGripUsageLimit: 0.82,
-    steeringAngle: 0.45, handbrakeSteerAngle: 0.48,
-    frontGrip: 8.7, rearGrip: 9.1, handbrakeRearGrip: 0.75,
-    tireFriction: 1.35, handbrakeRearFriction: 0.55,
-    suspensionRestLength: 0.20, suspensionTravel: 0.17,
-    springRate: 42000, springDamping: 5400,
+    driveGripUsageLimit: 0.90, brakingGripUsageLimit: 0.97, handbrakeGripUsageLimit: 0.74,
+    steeringAngle: 0.52, handbrakeSteerAngle: 0.56,
+    frontGrip: 10.2, rearGrip: 10.8, handbrakeRearGrip: 0.42,
+    frontCorneringStiffness: 105000, rearCorneringStiffness: 112000,
+    tireFriction: 1.52, handbrakeRearFriction: 0.34,
+    suspensionRestLength: 0.19, suspensionTravel: 0.15,
+    springRate: 42000, springDamping: 5500,
+    springDampingRelaxation: 4100, suspensionResponse: 36,
     uprightStrength: 4.0, uprightDamping: 4.6, uprightInertiaScale: 1.8,
-    angularDamping: 0.95,
+    angularDamping: 0.88,
   },
 };
 
@@ -1081,12 +1086,18 @@ export class VehicleSystem {
       const steerAngle = steerInput * (handbrake
         ? (visualTune.handbrakeSteerAngle ?? 0.4)
         : (visualTune.steeringAngle ?? 0.28)) * visualSteeringScale;
-      const wheelSteerBlend = 1 - Math.exp(-Math.max(10, (visualTune.steeringResponse || 10) * 1.7) * Math.min(Math.max(dt, 0), 0.05));
-      for (const w of v.wheels) {
+      const physicalSteerAngles = v.physicsDynamic ? v.rapierBody?._openWorldSteerAngles : null;
+      const modelRightSign = Math.cos(v.yawOffset || 0) >= 0 ? 1 : -1;
+      const wheelSteerBlend = 1 - Math.exp(-Math.max(12, (visualTune.steeringResponse || 10) * 1.7) * Math.min(Math.max(dt, 0), 0.05));
+      for (let wheelIndex = 0; wheelIndex < v.wheels.length; wheelIndex++) {
+        const w = v.wheels[wheelIndex];
         if (w.front) {
-          const targetSteer = -ackermannSteerAngle(
-            steerAngle, w.center.x, v.physicsWheels, visualTune.wheelbase || 2.7,
-          );
+          const physicalAngle = physicalSteerAngles?.[wheelIndex];
+          const targetSteer = Number.isFinite(physicalAngle)
+            ? -physicalAngle
+            : -ackermannSteerAngle(
+              steerAngle, w.center.x, v.physicsWheels, visualTune.wheelbase || 2.7, modelRightSign,
+            );
           w.pivot.rotation.y += (targetSteer - w.pivot.rotation.y) * wheelSteerBlend;
         }
         const spin = v.wheelTravel / Math.max(0.18, w.radius || 0.42);
