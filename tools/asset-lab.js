@@ -29,7 +29,7 @@ function buildCameraControls(){const cfg=currentConfig.interiorCamera,fields=[['
 function steeringCfg(){currentConfig.steeringWheel ||= {meshKeys:[],axis:'auto',maxAngleDeg:450,sign:1,response:10};currentConfig.steeringWheel.meshKeys ||= [];return currentConfig.steeringWheel;}
 function nodeNamePath(node){const names=[];let n=node;while(n&&n!==currentRoot){names.push(n.name||n.type||'node');n=n.parent;}return names.reverse().join(' / ');}
 function detectSteeringCandidates(){
- const named=meshNodes.filter(n=>/(steering[\\s_-]*wheel|wheel[\\s_-]*steering|steer[\\s_-]*wheel|volant|lenkrad)/i.test(nodeNamePath(n)));
+ const named=meshNodes.filter(n=>/(steering[\s_-]*wheel|wheel[\s_-]*steering|steer[\s_-]*wheel|volant|lenkrad)/i.test(nodeNamePath(n)));
  if(named.length)return named;
  // Geometry-only fallback: suggest a central, elevated, thin circular mesh;
  // the user must confirm it, since dashboard gauges can have similar bounds.
