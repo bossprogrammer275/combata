@@ -16,6 +16,21 @@ export function ackermannSteerAngle(centerAngle, wheelX, wheels = [], wheelbase 
   return Math.sign(angle) * Math.atan(wheelbase / wheelRadius);
 }
 
+// Rear steering uses opposite-phase at parking/urban speeds for a tighter
+// turning circle, then eases toward same-phase stability as speed increases.
+// A missing low-speed ratio keeps conventional front-steer vehicles unchanged.
+export function resolveRearSteerRatio(speed, tuning = {}) {
+  const low = Number.isFinite(tuning.rearSteerLowSpeedRatio)
+    ? tuning.rearSteerLowSpeedRatio : 0;
+  const high = Number.isFinite(tuning.rearSteerHighSpeedRatio)
+    ? tuning.rearSteerHighSpeedRatio : low;
+  const start = Number.isFinite(tuning.rearSteerBlendStart) ? tuning.rearSteerBlendStart : 8;
+  const end = Math.max(start + 0.1, Number.isFinite(tuning.rearSteerBlendEnd) ? tuning.rearSteerBlendEnd : 28);
+  const t = Math.max(0, Math.min(1, (Math.abs(Number(speed) || 0) - start) / (end - start)));
+  const smooth = t * t * (3 - 2 * t);
+  return low + (high - low) * smooth;
+}
+
 export function resolveDriveAxes(pressedKeys) {
   const has = (code) => !!pressedKeys?.has?.(code);
   return {
