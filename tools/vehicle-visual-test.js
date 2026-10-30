@@ -8,17 +8,14 @@ renderer.setPixelRatio(1);
 renderer.setSize(1440,900,false);
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure=1;
+renderer.toneMappingExposure=1.2;
 
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x202832);
-scene.add(new THREE.HemisphereLight(0xc9d8e8,0x23252c,0.72));
-const key=new THREE.DirectionalLight(0xffedda,1.5);
+scene.add(new THREE.HemisphereLight(0xcfe3ff,0x5a5c50,0.9));
+const key=new THREE.DirectionalLight(0xfff1dd,1.8);
 key.position.set(-5,9,7);
 scene.add(key);
-const fill=new THREE.DirectionalLight(0x9bb9df,0.34);
-fill.position.set(5,4,-6);
-scene.add(fill);
 const ground=new THREE.Mesh(
   new THREE.PlaneGeometry(100,100),
   new THREE.MeshStandardMaterial({color:0x292d32,roughness:0.94,metalness:0.02})
@@ -53,7 +50,7 @@ function listCabinMeshes(root){
     if(!n.isMesh)return;
     const chain=[];let p=n;
     while(p){if(p.name)chain.push(p.name);p=p.parent;}
-    if(/interior|cabin|dashboard|seat|steer|console|door.?panel|mirror|gauge|instrument|pedal|wheel/i.test(chain.join(' '))){
+    if(/interior|cabin|dashboard|seat|steer|console|door.?panel|mirror|gauge|instrument|pedal/i.test(chain.join(' '))){
       found.push({name:n.name||'(unnamed)',hierarchy:chain.slice(0,5).reverse().join('/')});
     }
   });
@@ -75,6 +72,8 @@ async function load(kind){
   const lights=vehicle.cabinLights;
   const base={
     height:vehicle.interiorCamera.height,
+    modelName:vehicle.kind,
+    rootDimensions:(()=>{const b=new THREE.Box3().setFromObject(vehicle.root),s=b.getSize(new THREE.Vector3());return {x:s.x,y:s.y,z:s.z};})(),
     wheelCount:vehicle.wheels.length,
     meshCount:0,
     cabinMeshes:[],
@@ -83,6 +82,7 @@ async function load(kind){
   };
   vehicle.root.traverse(n=>{if(n.isMesh)base.meshCount++;});
   base.cabinMeshes=listCabinMeshes(vehicle.root);
+  base.meshNameSamples=[];vehicle.root.traverse(n=>{if(n.isMesh&&base.meshNameSamples.length<80)base.meshNameSamples.push(n.name||'(unnamed)');});
   report.vehicles[kind]=base;
   system._setInteriorLights(false);
   system.interiorView=false;
