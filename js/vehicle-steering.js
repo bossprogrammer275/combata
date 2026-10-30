@@ -72,3 +72,20 @@ export function updateChaseLook(state, input = {}) {
   }
   return { yaw, pitch, idleTime };
 }
+
+// Keep the chase camera in the same vertical space as the vehicle when it
+// climbs ramps, bridges, flyovers, or stacked roads. A sampled support surface
+// may raise the camera, but a lower road beneath a bridge must never pull it down.
+export function getBridgeAwareChaseHeights(vehicleY, sampledSurfaceY, cameraOffset, lookOffset = 1.0) {
+  const baseY = Number.isFinite(vehicleY) ? vehicleY : 0;
+  const supportY = Number.isFinite(sampledSurfaceY)
+    ? Math.max(baseY, sampledSurfaceY)
+    : baseY;
+  const heightOffset = Number.isFinite(cameraOffset) ? Math.max(0.65, cameraOffset) : 2.8;
+  const targetOffset = Number.isFinite(lookOffset) ? lookOffset : 1.0;
+  return {
+    cameraY: supportY + heightOffset,
+    lookY: baseY + targetOffset,
+    supportY,
+  };
+}
