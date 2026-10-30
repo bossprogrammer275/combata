@@ -264,7 +264,7 @@ try {
     assert.equal(CAR_PHYSICS.cybertruck.powertrain.type, 'ev');
     assert.equal(CAR_PHYSICS.lambo.powertrain.type, 'dct');
     assert.equal(CAR_PHYSICS.bugatti.powertrain.type, 'dct');
-    assert.equal(CAR_PHYSICS.lambo.interiorCamera.height, 1.02,
+    assert.equal(CAR_PHYSICS.lambo.interiorCamera.height, 0.98,
       'Lamborghini eye point is the lower, sports-car cabin height');
     assert.equal(CAR_PHYSICS.cybertruck.interiorCamera.height, 1.42,
       'Cybertruck eye point is higher for its pickup cabin');
