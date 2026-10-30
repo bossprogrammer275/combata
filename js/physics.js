@@ -1,7 +1,8 @@
 // Physics engine wrapper around Rapier.js (WASM).
 // Provides: world simulation, character controller, vehicle controller, raycasting.
 import * as THREE from 'three';
-import { ackermannSteerAngle, resolveRearSteerRatio } from './vehicle-steering.js';
+import { ackermannSteerAngle } from './vehicle-steering.js';
+import { createPowertrainState, stepVehiclePowertrain } from './vehicle-powertrains.js';
 
 let RAPIER = null; // Rapier WASM module (high-level API)
 
@@ -325,6 +326,7 @@ export class Physics {
     body._openWorldGroundY = y;
     body._openWorldYawOffset = options.yawOffset || 0;
     body._openWorldTuning = options.tuning || {};
+    body._openWorldPowertrainState = createPowertrainState(body._openWorldTuning);
     body._openWorldColliderCount = created;
     this._vehicleBodies.set(body.handle, body);
     return body;
@@ -599,35 +601,14 @@ export class Physics {
       body.applyImpulse({ x: 0, y: -downforce * dt, z: 0 }, true);
     }
 
-    // Longitudinal engine/brake forces go through grounded wheel contacts. If
-    // every wheel is airborne, throttle cannot magically accelerate the car.
-    let driveAcceleration = 0;
-    let brakeAcceleration = 0;
-    const maxForward = (tune.maxSpeed ?? 40) * surfaceSpeedMultiplier;
-    const engineAcceleration = tune.engineAcceleration ?? 7.2;
-    const reverseAcceleration = tune.reverseAcceleration ?? 3.8;
-    const serviceBrake = tune.brakeAcceleration ?? 11;
-    if (throttle > 0.01) {
-      if (forwardSpeed < -0.8) {
-        // W while rolling backwards is a brake command until speed is low.
-        brakeAcceleration = serviceBrake * throttle;
-      } else {
-        const powerFade = THREE.MathUtils.clamp(1 - Math.max(0, forwardSpeed) / maxForward * 0.72, 0.18, 1);
-        driveAcceleration = engineAcceleration * throttle * powerFade;
-      }
-    } else if (throttle < -0.01) {
-      if (forwardSpeed > 0.8) {
-        // S brakes forward travel, but must never brake a car already reversing.
-        brakeAcceleration = serviceBrake * Math.abs(throttle);
-      } else {
-        driveAcceleration = -reverseAcceleration * Math.abs(throttle);
-      }
-    }
-
-    const driveWheels = grounded.filter(index => !wheelSpecs[index].front);
+    // Independent EV or combustion powertrain; each car keeps its own torque/gear behaviour.
+    const powertrain = stepVehiclePowertrain(body._openWorldPowertrainState || (body._openWorldPowertrainState = createPowertrainState(tune)), tune, throttle, forwardSpeed, dt, surfaceSpeedMultiplier);
+    const driveAcceleration = powertrain.driveAcceleration;
+    const brakeAcceleration = powertrain.brakeAcceleration;
+    const maxForward = powertrain.maxForward;
     const frontDriveWheels = grounded.filter(index => wheelSpecs[index].front);
     const rearDriveWheels = grounded.filter(index => !wheelSpecs[index].front);
-    const powered = tune.drivetrain === 'awd' ? grounded : (rearDriveWheels.length ? rearDriveWheels : grounded);
+    const powered = tune.drivetrain === 'fwd' ? (frontDriveWheels.length ? frontDriveWheels : grounded) : (rearDriveWheels.length ? rearDriveWheels : grounded);
     const longitudinalImpulseByWheel = new Array(wheelSpecs.length).fill(0);
     const applyWheelImpulse = (indices, ix, iz, strength, gripBudget = 1) => {
       if (!indices.length || Math.abs(strength) < 1e-5) return;
@@ -707,9 +688,9 @@ export class Physics {
       ? (tune.handbrakeSteerAngle ?? 0.42)
       : (tune.steeringAngle ?? 0.28)) * steeringScale;
     const modelRightSign = Math.cos(yawOffset) >= 0 ? 1 : -1;
-    const rearSteerRatio = resolveRearSteerRatio(horizontalSpeed, tune);
     const wheelSteerAngles = wheelSpecs.map(wheel => {
-      const axleAngle = wheel.front ? wheelAngle : wheelAngle * rearSteerRatio;
+      // Four-wheel steering is disabled: only the front axle steers.
+      const axleAngle = wheel.front ? wheelAngle : 0;
       if (Math.abs(axleAngle) < 1e-4) return 0;
       return ackermannSteerAngle(
         axleAngle, wheel.x || 0, wheelSpecs, tune.wheelbase ?? 2.7, modelRightSign,
@@ -830,6 +811,8 @@ export class Physics {
     return {
       yaw, forwardSpeed, lateralSpeed, horizontalSpeed,
       wheelContacts: grounded.length, wheelStates,
+      gear: powertrain.gear, rpm: powertrain.rpm, engineLoad: powertrain.engineLoad,
+      powertrainType: powertrain.powertrainType,
     };
   }
 

@@ -632,7 +632,11 @@ class Game {
             else this.hud.hideTransitMenu();
           }
           break;
-        case 'KeyV': if (this.state === 'playing' && !(this.vehicles && this.vehicles.driver)) this.toggleView(); break;
+        case 'KeyV':
+          if (this.state === 'playing' && this.vehicles && this.vehicles.driver) this.vehicles.toggleInteriorView();
+          else if (this.state === 'playing') this.toggleView();
+          break;
+        case 'F6': window.open('./tools/asset-lab.html', 'strike-command-asset-lab'); break;
         case 'KeyQ': if (this.state === 'playing' && !this.player.skydive && !(this.vehicles && this.vehicles.driver)) this.weapons.swap(1); break;
         case 'KeyE':
           if (this.state === 'playing') {

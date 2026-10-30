@@ -27,7 +27,7 @@ These are gameplay tuning values, not claims about exact real-world performance.
 | Profile | Mass | Drive | Acceleration tune | Speed cap | Handling focus |
 |---|---:|---|---:|---:|---|
 | Lambo | 1,480 kg | Rear-wheel drive | 12.5 m/s² | 64 m/s (about 230 km/h) | Fast response, stronger rear grip, loose handbrake |
-| Cybertruck | 3,050 kg | All-wheel drive | 8.8 m/s² | 40 m/s (about 144 km/h) | Heavier feel, firmer suspension, calmer steering |
+| Cybertruck | 3,009 kg | All-wheel drive | EV motor torque map | 50 m/s (180 km/h) | Heavy EV, single-speed reduction, regenerative lift-off braking |
 
 Controls in the current game: **W/Up** throttle, **S/Down** brake/reverse, **A/D** or **Left/Right** steering, **Space** handbrake, and **E** to enter or exit.
 

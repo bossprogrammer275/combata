@@ -20,6 +20,7 @@ function getLanIp() {
 const PORT = process.env.PORT || 3000;
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WORLDS_DIR = join(__dirname, 'data', 'worlds');
+const ASSET_OVERRIDES_FILE = join(__dirname, 'data', 'asset-overrides.json');
 const app = express();
 const httpServer = createServer(app);
 
@@ -32,6 +33,27 @@ app.use(express.static(__dirname, {
   }
 }));
 app.get('/favicon.ico', (req, res) => res.status(204).end());
+
+ // Asset Lab persistence. Edits are kept separate from city map layout JSON.
+app.get('/api/asset-overrides', async (req, res) => {
+  try { const parsed = JSON.parse(await readFile(ASSET_OVERRIDES_FILE, 'utf8')); res.json(parsed && parsed.assets ? parsed : { version: 1, assets: {} }); }
+  catch (e) { if (e && e.code === 'ENOENT') return res.json({ version: 1, assets: {} }); res.status(500).json({ error: String(e) }); }
+});
+app.post('/api/asset-overrides', async (req, res) => {
+  const data = req.body && req.body.data;
+  if (typeof data !== 'string' || data.length > 5000000) return res.status(400).json({ error: 'bad asset override data' });
+  try {
+    const parsed = JSON.parse(data);
+    if (!parsed || !parsed.assets || typeof parsed.assets !== 'object' || Array.isArray(parsed.assets)) return res.status(400).json({ error: 'expected an assets object' });
+    for (const key of Object.keys(parsed.assets)) {
+      if (!key.startsWith('/data/models/') && !key.startsWith('./data/models/')) return res.status(400).json({ error: 'asset path is outside data/models' });
+      if (!parsed.assets[key] || typeof parsed.assets[key] !== 'object') return res.status(400).json({ error: 'invalid asset entry' });
+    }
+    await writeFile(ASSET_OVERRIDES_FILE, JSON.stringify({ version: 1, assets: parsed.assets }, null, 2), 'utf8');
+    res.json({ ok: true, assets: Object.keys(parsed.assets).length });
+  } catch (e) { res.status(400).json({ error: String(e) }); }
+});
+
 
 // map editor: list / load / save scene JSONs (data/worlds/*.json only)
 app.get('/api/scenes', async (req, res) => {

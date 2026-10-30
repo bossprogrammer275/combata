@@ -106,9 +106,10 @@ try {
 
   const { loadCarModel, CAR_MODELS, CAR_PHYSICS, VehicleSystem } = await import('../js/vehicles.js');
   const { Physics } = await import('../js/physics.js');
+  const { createPowertrainState, stepVehiclePowertrain } = await import('../js/vehicle-powertrains.js');
   const {
     ackermannSteerAngle, updateChaseLook, resolveDriveAxes,
-    updateReverseCameraBlend, chaseCameraYaw, getBridgeAwareChaseHeights, resolveRearSteerRatio,
+    updateReverseCameraBlend, chaseCameraYaw, getBridgeAwareChaseHeights, 
   } = await import('../js/vehicle-steering.js');
 
   const steeringGeometryWheels = [
@@ -239,6 +240,18 @@ try {
     assert.ok(Math.abs(VehicleSystem.prototype._worldYaw({ yaw: 0.42 }) - 0.42) < 1e-8);
   });
 
+  check('EV motor and combustion DCT have distinct powertrain dynamics', () => {
+    const evState = createPowertrainState(CAR_PHYSICS.cybertruck);
+    const iceState = createPowertrainState(CAR_PHYSICS.lambo);
+    const evLaunch = stepVehiclePowertrain(evState, CAR_PHYSICS.cybertruck, 1, 0, 1 / 60);
+    const iceLaunch = stepVehiclePowertrain(iceState, CAR_PHYSICS.lambo, 1, 0, 1 / 60);
+    assert.equal(evLaunch.powertrainType, 'electric-single-speed');
+    assert.equal(iceLaunch.powertrainType, 'dct');
+    assert.equal(evLaunch.gear, 'D');
+    assert.equal(iceLaunch.gear, '1');
+    assert.ok(evLaunch.driveAcceleration > 0 && iceLaunch.driveAcceleration > 0);
+  });
+
   check('vehicle types have distinct physics tuning', () => {
     assert.notEqual(CAR_PHYSICS.lambo.mass, CAR_PHYSICS.cybertruck.mass);
     assert.ok(CAR_PHYSICS.lambo.engineAcceleration > CAR_PHYSICS.cybertruck.engineAcceleration);
@@ -247,9 +260,11 @@ try {
     assert.equal(CAR_PHYSICS.cybertruck.drivetrain, 'awd');
     assert.ok(CAR_PHYSICS.cybertruck.springRate > CAR_PHYSICS.lambo.springRate);
     assert.equal(CAR_PHYSICS.cybertruck.speedometerMaxKmh, 180);
-    assert.equal(CAR_PHYSICS.cybertruck.rearSteerLowSpeedRatio, -0.26);
-    assert.ok(resolveRearSteerRatio(0, CAR_PHYSICS.cybertruck) < -0.2);
-    assert.ok(resolveRearSteerRatio(40, CAR_PHYSICS.cybertruck) > 0.05);
+    assert.equal(CAR_PHYSICS.cybertruck.powertrain.type, 'ev');
+    assert.equal(CAR_PHYSICS.lambo.powertrain.type, 'dct');
+    assert.equal(CAR_PHYSICS.bugatti.powertrain.type, 'dct');
+    assert.equal(CAR_PHYSICS.cybertruck.interiorCamera.height, 1.34);
+    assert.equal(CAR_PHYSICS.lambo.interiorCamera.height, 0.98);
     assert.equal(CAR_PHYSICS.cybertruck.mass, 3009);
     assert.ok(Math.abs(CAR_PHYSICS.cybertruck.maxSpeed - 50) < 1e-8);
     assert.equal(CAR_PHYSICS.lambo.speedometerMaxKmh, 230);
@@ -692,8 +707,8 @@ try {
     const frontMean = frontSteer.reduce((sum, angle, i) =>
       sum + (truckSpec.wheels[i]?.front ? angle : 0), 0) / 2;
     const rearAngles = frontSteer.filter((angle, i) => !truckSpec.wheels[i]?.front);
-    check('Cybertruck rear steer-by-wire countersteers during a tight turn',
-      rearAngles.length === 2 && rearAngles.every(angle => Math.abs(angle) > 0.01 && angle * frontMean < 0),
+    check('Cybertruck rear wheels stay straight under steering input',
+      rearAngles.length === 2 && rearAngles.every(angle => Math.abs(angle) < 0.01),
       `frontMean=${frontMean.toFixed(3)} rear=${rearAngles.map(a => a.toFixed(3)).join(',')}`);
 
     const sunkTruck = physics.createVehicleBody(-40, -0.68, -30, vehicleYawOffset, [truckSpec.physicsBox], {

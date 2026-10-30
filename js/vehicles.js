@@ -2,8 +2,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from './lib/GLTFLoader.js';
 import { prefetch } from './model-loader.js';
+import { loadAssetOverrides, applyAssetOverrides } from './asset-overrides.js';
 import {
-  ackermannSteerAngle, resolveRearSteerRatio, updateChaseLook, updateReverseCameraBlend, chaseCameraYaw,
+  ackermannSteerAngle, updateChaseLook, updateReverseCameraBlend, chaseCameraYaw,
   getBridgeAwareChaseHeights,
 } from './vehicle-steering.js';
 
@@ -26,6 +27,8 @@ export const CAR_PHYSICS = {
   // traction limit, so throttle can still induce power oversteer.
   lambo: {
     mass: 1480, drivetrain: 'rwd', wheelbase: 2.70,
+    powertrain: { type: 'dct', gearRatios: [3.13, 2.59, 1.81, 1.32, 1.02, 0.84, 0.68], finalDrive: 3.45, wheelRadius: 0.34, idleRpm: 900, redline: 8500, upshiftRpm: 8100, downshiftRpm: 2700, shiftTime: 0.15, peakTorqueNm: 600, maxAcceleration: 13.8, torqueCurve: [[900, 390], [2000, 470], [3500, 540], [5000, 600], [6500, 590], [7800, 555], [8500, 500]] },
+    interiorCamera: { height: 0.98, forward: 0.16, side: 0, lookAhead: 18, pitch: 0, fov: 82 },
     engineAcceleration: 11.8, reverseAcceleration: 5.4, brakeAcceleration: 16.0,
     maxSpeed: 64, maxReverseSpeed: 13.0, speedometerMaxKmh: 230,
     aeroDragArea: 0.90, rollingResistance: 0.013,
@@ -48,6 +51,8 @@ export const CAR_PHYSICS = {
   // a performance EV. Stronger tyres and roll control keep normal turns planted.
   cybertruck: {
     mass: 3009, drivetrain: 'awd', wheelbase: 3.635,
+    powertrain: { type: 'ev', maxMotorTorque: 1500, peakPowerKw: 450, finalDrive: 9.0, wheelRadius: 0.43, maxAcceleration: 11.5, regenDeceleration: 1.15, torqueCurve: [[0, 1500], [4500, 1500], [9000, 1120], [14000, 650], [18000, 0]] },
+    interiorCamera: { height: 1.34, forward: 0.30, side: 0, lookAhead: 20, pitch: 0, fov: 82 },
     engineAcceleration: 12.8, reverseAcceleration: 5.8, brakeAcceleration: 15.5,
     maxSpeed: 180 / 3.6, maxReverseSpeed: 13.0, speedometerMaxKmh: 180,
     aeroDragArea: 1.15, rollingResistance: 0.014,
@@ -55,10 +60,7 @@ export const CAR_PHYSICS = {
     antiRollStiffness: 42000, antiRollLoadTransferLimit: 0.22,
     downforceCoefficient: 0.30, maxDownforceG: 0.25,
     frontDriveBias: 0.50,
-    // Steer-by-wire four-wheel steering: rear wheels counter-steer in tight
-    // turns, then blend toward a small same-phase stability assist at speed.
-    rearSteerLowSpeedRatio: -0.26, rearSteerHighSpeedRatio: 0.06,
-    rearSteerBlendStart: 7.0, rearSteerBlendEnd: 24.0,
+    // Rear axle stays aligned; only the front axle steers.
     // Keep drive acceleration available while reserving a useful tyre grip
     // margin for cornering, instead of spending nearly the whole friction circle
     // on the electric motor under combined throttle and steering.
@@ -79,6 +81,8 @@ export const CAR_PHYSICS = {
   // gameplay tuning. The dedicated Bugatti GLB has not been added yet.
   bugatti: {
     mass: 1995, drivetrain: 'awd', wheelbase: 2.711,
+    powertrain: { type: 'dct', gearRatios: [2.92, 1.89, 1.42, 1.09, 0.88, 0.73, 0.62], finalDrive: 3.25, wheelRadius: 0.36, idleRpm: 850, redline: 7000, upshiftRpm: 6750, downshiftRpm: 2300, shiftTime: 0.11, peakTorqueNm: 1600, maxAcceleration: 15.8, torqueCurve: [[850, 1100], [1500, 1450], [2500, 1600], [4000, 1550], [5500, 1450], [7000, 1200]] },
+    interiorCamera: { height: 1.00, forward: 0.20, side: 0, lookAhead: 20, pitch: 0, fov: 82 },
     engineAcceleration: 14.5, reverseAcceleration: 5.8, brakeAcceleration: 15.0,
     maxSpeed: 380 / 3.6, maxReverseSpeed: 12, speedometerMaxKmh: 380,
     aeroDragArea: 1.22, rollingResistance: 0.012,
@@ -253,6 +257,8 @@ export async function loadCarModel(kind = 'lambo') {
   try {
     const gltf = await new Promise((res, rej) => loader.load(def.url, res, undefined, rej));
     const scene = gltf.scene;
+    await loadAssetOverrides();
+    applyAssetOverrides(scene, def.url); // node transforms are applied before mesh fitting and collision extraction
     // The Cybertruck GLB splits tyre sidewalls, tread, rim and hub details into
     // more separate meshes than the sports-car asset. Keep those parts together
     // around each wheel hub so the complete rubber tyre spins with the rim.
@@ -393,6 +399,7 @@ export class VehicleSystem {
     this._enterState = null;
     this._speedometerCanvas = null;
     this._speedometerCtx = null;
+    this.interiorView = false;
     this._initSpeedometer();
   }
 
@@ -409,7 +416,7 @@ export class VehicleSystem {
     this._speedometerCtx = canvas.getContext('2d');
   }
 
-  _drawSpeedometer(kmh, kind = 'lambo') {
+  _drawSpeedometer(kmh, kind = 'lambo', telemetry = null) {
     const ctx = this._speedometerCtx;
     if (!ctx) return;
     const W = 140, H = 140, cx = W / 2, cy = H / 2 + 10, r = 52;
@@ -473,7 +480,7 @@ export class VehicleSystem {
     ctx.fillText('KM/H', cx, cy + 18);
 
     // Gear indicator
-    const gear = kmh < 1 ? 'N' : kmh < 30 ? '1' : kmh < 55 ? '2' : kmh < 85 ? '3' : kmh < 115 ? '4' : '5';
+    const gear = telemetry?.gear ?? (kmh < 1 ? 'N' : kmh < 30 ? '1' : kmh < 55 ? '2' : kmh < 85 ? '3' : kmh < 115 ? '4' : '5');
     ctx.fillStyle = '#c9a227';
     ctx.font = '700 13px "Bebas Neue", "Oswald", sans-serif';
     ctx.fillText(gear, cx + 40, cy - 2);
@@ -772,6 +779,7 @@ export class VehicleSystem {
         physicsCenterY, physicsBox, physicsWheels, physicsProfile,
         kind, wheels, colBoxes, bodyBox, half,
         yawOffset, parkedCol: null,
+        interiorCamera: base.userData.assetOverride?.interiorCamera || physicsProfile.interiorCamera || { height: Math.max(0.85, (bodyBox.max.y - bodyBox.min.y) * 0.62), forward: 0.18, side: 0, lookAhead: 18, pitch: 0, fov: 82 },
         pos: new THREE.Vector3(def.x, def.elevation || 0, def.z),
         yaw,
         speed: 0,
@@ -833,6 +841,7 @@ export class VehicleSystem {
   enter(veh, player) {
     if (this.driver || this._enterState) return false;
     this.driver = veh;
+    this.interiorView = false;
     veh.def.occupied = true;
     // Drop the parked footprint so the driven car never collides with itself.
     this._removeParkedCollider(veh);
@@ -856,6 +865,7 @@ export class VehicleSystem {
   _finishEnter(veh, player) {
     this._enterState = null;
     this.driver = veh;
+    this.interiorView = false;
     veh.def.occupied = true;
     player.vel.set(0, 0, 0);
     player.char.root.visible = false;
@@ -1116,14 +1126,13 @@ export class VehicleSystem {
         ? (visualTune.handbrakeSteerAngle ?? 0.4)
         : (visualTune.steeringAngle ?? 0.28)) * visualSteeringScale;
       const physicalSteerAngles = v.physicsDynamic ? v.rapierBody?._openWorldSteerAngles : null;
-      const rearSteerRatio = resolveRearSteerRatio(curSpd, visualTune);
       const modelRightSign = Math.cos(v.yawOffset || 0) >= 0 ? 1 : -1;
       const wheelSteerBlend = 1 - Math.exp(-Math.max(12, (visualTune.steeringResponse || 10) * 1.7) * Math.min(Math.max(dt, 0), 0.05));
       for (let wheelIndex = 0; wheelIndex < v.wheels.length; wheelIndex++) {
         const w = v.wheels[wheelIndex];
-        const axleAngle = w.front ? steerAngle : steerAngle * rearSteerRatio;
+        const axleAngle = w.front ? steerAngle : 0;
         const physicalAngle = physicalSteerAngles?.[wheelIndex];
-        if (w.front || Math.abs(rearSteerRatio) > 1e-4 || Number.isFinite(physicalAngle)) {
+        if (w.front || Number.isFinite(physicalAngle)) {
           const targetSteer = Number.isFinite(physicalAngle)
             ? -physicalAngle
             : -ackermannSteerAngle(
@@ -1143,6 +1152,14 @@ export class VehicleSystem {
     }
 
     // Camera positioning is performed after Rapier finishes the frame's steps.
+  }
+
+  toggleInteriorView() {
+    if (!this.driver) return false;
+    this.interiorView = !this.interiorView;
+    this._camPos = null;
+    this._camLook = null;
+    return this.interiorView;
   }
 
   updateChaseCamera(dt, input, player) {
@@ -1169,6 +1186,28 @@ export class VehicleSystem {
     this._reverseCameraBlend = updateReverseCameraBlend(
       this._reverseCameraBlend || 0, v.speed || 0, dt,
     );
+    if (this.interiorView) {
+      const cabin = v.interiorCamera || { height: 1.05, forward: 0.2, side: 0, lookAhead: 18, pitch: 0, fov: 82 };
+      const rotation = v.root.quaternion;
+      const cameraLocal = new THREE.Vector3(cabin.side || 0, cabin.height || 1.05, cabin.forward || 0).applyQuaternion(rotation);
+      const lookLocal = new THREE.Vector3((cabin.side || 0) + Math.sin(this._lookYaw) * 0.7,
+        (cabin.height || 1.05) + Math.tan(this._lookPitch - 0.2) * 2.2,
+        (cabin.forward || 0) + (cabin.lookAhead || 18)).applyQuaternion(rotation);
+      const cabinPosition = v.pos.clone().add(cameraLocal);
+      const cabinLook = v.pos.clone().add(lookLocal);
+      if (!this._camPos) { this._camPos = cabinPosition.clone(); this._camLook = cabinLook.clone(); }
+      this._camPos.lerp(cabinPosition, Math.min(1, dt * 16));
+      this._camLook.lerp(cabinLook, Math.min(1, dt * 16));
+      this.camera.position.copy(this._camPos);
+      this.camera.lookAt(this._camLook);
+      const fov = cabin.fov || 82;
+      if (Math.abs(this.camera.fov - fov) > 0.05) { this.camera.fov += (fov - this.camera.fov) * Math.min(1, dt * 8); this.camera.updateProjectionMatrix(); }
+      player.pos.set(v.pos.x, 0.5, v.pos.z);
+      player.yaw = this._worldYaw(v);
+      if (this.physics) this.physics.setPlayerPosition(player.pos.x, player.pos.y, player.pos.z);
+      this._drawSpeedometer(curSpd * 3.6, v.kind, v._lastMotion);
+      return;
+    }
     // Gameplay heading determines the physical rear. _worldYaw includes the
     // GLB's model-axis correction and is only for the imported vehicle mesh.
     const totalYaw = chaseCameraYaw(v.yaw || 0, this._lookYaw, this._reverseCameraBlend);
@@ -1212,7 +1251,7 @@ export class VehicleSystem {
     player.pos.set(v.pos.x, 0.5, v.pos.z);
     player.yaw = this._worldYaw(v);
     if (this.physics) this.physics.setPlayerPosition(player.pos.x, player.pos.y, player.pos.z);
-    this._drawSpeedometer(curSpd * 3.6, v.kind);
+    this._drawSpeedometer(curSpd * 3.6, v.kind, v._lastMotion);
   }
 
   _pushPlayerNearby(v, absSpd) {

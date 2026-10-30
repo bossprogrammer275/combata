@@ -5,6 +5,7 @@ import { GLTFLoader } from './lib/GLTFLoader.js';
 import { BVHWorld } from './bvh-collision.js';
 import { Atmosphere } from './atmosphere.js';
 import { prefetch } from './model-loader.js';
+import { loadAssetOverrides, applyAssetOverrides } from './asset-overrides.js';
 
 function rng(a, b) { return a + Math.random() * (b - a); }
 
@@ -751,6 +752,15 @@ export class World {
         baseScene = await pending;
       }
       const model = baseScene.clone(true);
+      await loadAssetOverrides();
+      const assetEdit = applyAssetOverrides(model, a.url);
+      const rootEdit = assetEdit.root || {};
+      const rootPos = rootEdit.position || {}, rootRot = rootEdit.rotation || {}, rootScale = rootEdit.scale || {};
+      const sx = Number.isFinite(rootScale.x) ? rootScale.x : 1, sy = Number.isFinite(rootScale.y) ? rootScale.y : 1, sz = Number.isFinite(rootScale.z) ? rootScale.z : 1;
+      const uniformRootScale = Math.abs(sx-sy)<1e-5 && Math.abs(sx-sz)<1e-5;
+      const hasMeshEdits = Object.keys(assetEdit.meshes || {}).length > 0;
+      const rootTilted = Math.abs(rootRot.x || 0)>1e-5 || Math.abs(rootRot.z || 0)>1e-5;
+      a = { ...a, x:(a.x||0)+(Number(rootPos.x)||0), z:(a.z||0)+(Number(rootPos.z)||0), elevation:(a.elevation||0)+(Number(rootPos.y)||0), ry:(a.ry||0)+(Number(rootRot.y)||0) };
 
       // Measure raw bbox BEFORE any transforms
       const rawBBox = new THREE.Box3().setFromObject(model);
@@ -765,13 +775,15 @@ export class World {
         scaleFactor = a.scale;
         model.scale.setScalar(scaleFactor);
       }
+      model.scale.set(model.scale.x*sx, model.scale.y*sy, model.scale.z*sz);
+      if (uniformRootScale) scaleFactor *= sx;
+      model.rotation.set(Number(rootRot.x)||0, a.ry||0, Number(rootRot.z)||0);
 
       // Position: snap model's bottom to ground (y=0), plus any elevation offset.
       model.updateMatrixWorld(true);
       const afterScaleBBox = new THREE.Box3().setFromObject(model);
       const yOffset = -afterScaleBBox.min.y + (a.elevation || 0);
       model.position.set(a.x, yOffset, a.z);
-      model.rotation.y = a.ry || 0;
       this.group.add(model);
       model.updateMatrixWorld(true);
 
@@ -866,7 +878,7 @@ export class World {
       // Prefer usable authored col_* meshes. Avoid fetching a manifest when a
       // dedicated proxy type or explicit per-world collision dimensions win.
       const collisionManifest = !usableCollisionProxyBoxes.length && !isTree && !isLamp &&
-        !a.collisionSize && !a.collisionH
+        !a.collisionSize && !a.collisionH && !hasMeshEdits && uniformRootScale && !rootTilted
         ? await this._loadCollisionManifest(a)
         : null;
       // True only if this loading path actually injected sidecar colliders.
