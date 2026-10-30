@@ -104,6 +104,10 @@ try {
   await waitForServer();
   console.log('[verify] server up on ' + BASE);
 
+  const { loadCarModel, CAR_MODELS, CAR_PHYSICS, VehicleSystem } = await import('../js/vehicles.js');
+  const { Physics } = await import('../js/physics.js');
+  const { ackermannSteerAngle, updateChaseLook } = await import('../js/vehicle-steering.js');
+
   const steeringGeometryWheels = [
     { x: -0.82, front: true }, { x: 0.82, front: true },
     { x: -0.82, front: false }, { x: 0.82, front: false },
@@ -138,9 +142,6 @@ try {
     cameraLook.idleTime < 0.2 && Math.abs(cameraLook.yaw - manuallyLooked) < 0.08,
     `idle=${cameraLook.idleTime.toFixed(2)} yaw=${cameraLook.yaw.toFixed(2)}`);
 
-  const { loadCarModel, CAR_MODELS, CAR_PHYSICS, VehicleSystem } = await import('../js/vehicles.js');
-  const { Physics } = await import('../js/physics.js');
-  const { ackermannSteerAngle, updateChaseLook } = await import('../js/vehicle-steering.js');
 
   const spawnHarness = Object.create(VehicleSystem.prototype);
   const spawnCalls = [];
