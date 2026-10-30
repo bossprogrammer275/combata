@@ -110,11 +110,20 @@ function setInterior(enabled){
 function setExterior(){
   return setInterior(false);
 }
+function setCabinLights(dome,dashboard){
+  if(!current?.cabinLights)throw new Error('No current vehicle lights');
+  const [domeLight,dashboardLight]=current.cabinLights.children;
+  if(domeLight)domeLight.intensity=Math.max(0,Number(dome)||0);
+  if(dashboardLight)dashboardLight.intensity=Math.max(0,Number(dashboard)||0);
+  render();
+  return {dome:domeLight?.intensity,dashboard:dashboardLight?.intensity};
+}
 window.__vehicleVisualTest={
   report,
   async load(kind){return await load(kind);},
   interior(){return setInterior(true);},
   exterior(){return setExterior();},
+  setCabinLights(dome,dashboard){return setCabinLights(dome,dashboard);},
   details(){return {report,headings:Object.keys(CAR_PHYSICS)};},
 };
 window.addEventListener('error',e=>report.errors.push(String(e.message||e.error||'window error')));
