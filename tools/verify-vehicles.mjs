@@ -821,6 +821,85 @@ try {
   check('AWD vehicle keeps steering authority while accelerating',
     (truckMotion?.forwardSpeed ?? 0) > 2 && Math.abs(truckYawDelta) > 0.04,
     `forwardSpeed=${truckMotion?.forwardSpeed?.toFixed(2)} yawDelta=${truckYawDelta.toFixed(2)} contacts=${truckMotion?.wheelContacts ?? 0}`);
+  // Isolated cornering lab: drive each real GLB on a clean Rapier ground plane.
+  // A normal ~0.5g turn should not unload a diagonal wheel pair or roll the
+  // chassis onto one corner. This stays in the developer test harness only.
+  const corneringKinds = ['lambo', 'cybertruck', 'bugatti'];
+  for (let kindIndex = 0; kindIndex < corneringKinds.length; kindIndex++) {
+    const kind = corneringKinds[kindIndex];
+    const spec = dynamicVehicleSpecs[kind];
+    if (!spec) {
+      check(`${kind} has a real wheel spec for the isolated cornering lab`, false);
+      continue;
+    }
+    const tune = CAR_PHYSICS[kind];
+    const startX = 320 + kindIndex * 80;
+    const startZ = 240;
+    const body = physics.createVehicleBody(startX, 0, startZ, vehicleYawOffset, [spec.physicsBox], {
+      dynamic: true, centerY: spec.centerY,
+      mass: tune.mass, yawOffset: vehicleYawOffset,
+      tuning: tune, angularDamping: tune.angularDamping,
+    });
+    physics.step(1 / 60);
+    physics.updateVehicleBody(body, startX, 0, startZ, vehicleYawOffset);
+    physics.step(1 / 60);
+    for (let i = 0; i < 120; i++) {
+      physics.step(1 / 60, (h) => {
+        physics.applyVehicleControls(body, {
+          throttle: 0, steer: 0, handbrake: false, dt: h,
+          wheels: spec.wheels, tuning: tune,
+        });
+      });
+    }
+    body.setLinvel({ x: 0, y: 0, z: -10 }, true);
+    let minContacts = 4;
+    let maxTilt = 0;
+    let maxWheelHeightSpread = 0;
+    let maxDiagonalLift = 0;
+    let diagonalMissFrames = 0;
+    let firstYaw = Math.PI;
+    let lastYaw = Math.PI;
+    const frontRight = spec.wheels.findIndex(w => w.front && w.x < 0);
+    const rearLeft = spec.wheels.findIndex(w => !w.front && w.x > 0);
+    for (let frame = 0; frame < 150; frame++) {
+      let motion = null;
+      physics.step(1 / 60, (h) => {
+        motion = physics.applyVehicleControls(body, {
+          throttle: 0.05, steer: 0.30, handbrake: false, dt: h,
+          wheels: spec.wheels, tuning: tune,
+        });
+      });
+      const rotation = body.rotation();
+      const q = new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
+      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
+      maxTilt = Math.max(maxTilt, Math.acos(THREE.MathUtils.clamp(up.y, -1, 1)));
+      minContacts = Math.min(minContacts, motion?.wheelContacts ?? 0);
+      const p = body.translation();
+      const root = new THREE.Vector3(p.x, p.y, p.z)
+        .sub(new THREE.Vector3(0, spec.centerY, 0).applyQuaternion(q));
+      const states = body._openWorldWheelStates || [];
+      const bottoms = spec.wheels.map((w, i) => root.y
+        + new THREE.Vector3(w.x, w.y + (states[i]?.offset || 0) - w.radius, w.z).applyQuaternion(q).y);
+      maxWheelHeightSpread = Math.max(maxWheelHeightSpread, Math.max(...bottoms) - Math.min(...bottoms));
+      if (frontRight >= 0 && rearLeft >= 0) {
+        maxDiagonalLift = Math.max(maxDiagonalLift, bottoms[frontRight], bottoms[rearLeft]);
+        if (!states[frontRight]?.contact || !states[rearLeft]?.contact) diagonalMissFrames++;
+      }
+      const currentYaw = new THREE.Euler().setFromQuaternion(q, 'YXZ').y;
+      lastYaw = Math.atan2(Math.sin(currentYaw - vehicleYawOffset), Math.cos(currentYaw - vehicleYawOffset));
+      if (frame === 0) firstYaw = lastYaw;
+    }
+    const yawResponse = Math.abs(Math.atan2(Math.sin(lastYaw - firstYaw), Math.cos(lastYaw - firstYaw)));
+    check(`${kind} keeps all four tyres supported in a normal corner`, minContacts === 4,
+      `minContacts=${minContacts}/4`);
+    check(`${kind} avoids diagonal wheel lift and excessive body roll`,
+      maxDiagonalLift < 0.14 && maxTilt < 0.26 && diagonalMissFrames < 18,
+      `diagonalLift=${maxDiagonalLift.toFixed(3)}m roll/pitch=${(maxTilt * 180 / Math.PI).toFixed(1)}deg diagonalMissFrames=${diagonalMissFrames}`);
+    check(`${kind} has responsive steering under load`, yawResponse > 0.08,
+      `yawChange=${(yawResponse * 180 / Math.PI).toFixed(1)}deg wheelHeightSpread=${maxWheelHeightSpread.toFixed(3)}m`);
+    physics.removeVehicleBody(body);
+  }
+
 } catch (e) {
   failures++;
   console.log('[verify] ERROR', e && e.stack ? e.stack : e);
