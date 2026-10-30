@@ -1,7 +1,7 @@
 // Physics engine wrapper around Rapier.js (WASM).
 // Provides: world simulation, character controller, vehicle controller, raycasting.
 import * as THREE from 'three';
-import { ackermannSteerAngle } from './vehicle-steering.js';
+import { ackermannSteerAngle, resolveRearSteerRatio } from './vehicle-steering.js';
 
 let RAPIER = null; // Rapier WASM module (high-level API)
 
@@ -707,16 +707,21 @@ export class Physics {
       ? (tune.handbrakeSteerAngle ?? 0.42)
       : (tune.steeringAngle ?? 0.28)) * steeringScale;
     const modelRightSign = Math.cos(yawOffset) >= 0 ? 1 : -1;
-    const wheelSteerAngles = wheelSpecs.map(wheel => wheel.front
-      ? ackermannSteerAngle(wheelAngle, wheel.x || 0, wheelSpecs, tune.wheelbase ?? 2.7, modelRightSign)
-      : 0);
+    const rearSteerRatio = resolveRearSteerRatio(horizontalSpeed, tune);
+    const wheelSteerAngles = wheelSpecs.map(wheel => {
+      const axleAngle = wheel.front ? wheelAngle : wheelAngle * rearSteerRatio;
+      if (Math.abs(axleAngle) < 1e-4) return 0;
+      return ackermannSteerAngle(
+        axleAngle, wheel.x || 0, wheelSpecs, tune.wheelbase ?? 2.7, modelRightSign,
+      );
+    });
     body._openWorldSteerAngles = wheelSteerAngles;
     if (wheelSpecs.length && grounded.length) {
       for (const index of grounded) {
         const wheel = wheelSpecs[index];
         const state = wheelStates[index];
         const wheelForwardV = forwardV.clone();
-        if (wheel.front) {
+        if (Math.abs(wheelSteerAngles[index] || 0) > 1e-5) {
           wheelForwardV.applyAxisAngle(new THREE.Vector3(0, 1, 0), -(wheelSteerAngles[index] || 0));
         }
         wheelForwardV.y = 0;
