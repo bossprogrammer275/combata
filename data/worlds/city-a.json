@@ -1,7 +1,7 @@
 {
   "id": "city-a",
   "name": "Ilorin City — Compact GRA & Business District",
-  "version": 3,
+  "version": 4,
   "bounds": 228,
   "disableAutoSpawns": true,
   "startPoint": {
@@ -519,193 +519,9 @@
       ]
     },
     {
-      "name": "Market Street",
+      "name": "GRA S-Bend Test Route",
       "w": 10,
-      "sidewalk": true,
-      "smooth": true,
-      "points": [
-        [
-          -202,
-          -28
-        ],
-        [
-          -178,
-          -23
-        ],
-        [
-          -154,
-          -18
-        ],
-        [
-          -130,
-          -12
-        ],
-        [
-          -108,
-          -7
-        ],
-        [
-          -85,
-          -3
-        ],
-        [
-          -62,
-          1
-        ],
-        [
-          -38,
-          6
-        ],
-        [
-          -16,
-          12
-        ]
-      ]
-    },
-    {
-      "name": "Unity Road Connector",
-      "w": 10,
-      "sidewalk": true,
-      "smooth": true,
-      "points": [
-        [
-          -190,
-          143
-        ],
-        [
-          -158,
-          137
-        ],
-        [
-          -126,
-          128
-        ],
-        [
-          -96,
-          119
-        ],
-        [
-          -65,
-          111
-        ],
-        [
-          -34,
-          106
-        ],
-        [
-          -4,
-          105
-        ],
-        [
-          28,
-          109
-        ],
-        [
-          60,
-          118
-        ],
-        [
-          91,
-          131
-        ]
-      ]
-    },
-    {
-      "name": "Old GRA Curve",
-      "w": 9,
-      "sidewalk": true,
-      "smooth": true,
-      "points": [
-        [
-          -195,
-          -145
-        ],
-        [
-          -186,
-          -119
-        ],
-        [
-          -178,
-          -92
-        ],
-        [
-          -172,
-          -64
-        ],
-        [
-          -169,
-          -35
-        ],
-        [
-          -170,
-          -5
-        ],
-        [
-          -177,
-          24
-        ],
-        [
-          -188,
-          52
-        ],
-        [
-          -198,
-          80
-        ]
-      ]
-    },
-    {
-      "name": "Sango Commercial Link",
-      "w": 10,
-      "sidewalk": true,
-      "smooth": true,
-      "points": [
-        [
-          -28,
-          -202
-        ],
-        [
-          -5,
-          -176
-        ],
-        [
-          18,
-          -150
-        ],
-        [
-          40,
-          -124
-        ],
-        [
-          60,
-          -98
-        ],
-        [
-          78,
-          -70
-        ],
-        [
-          92,
-          -39
-        ],
-        [
-          104,
-          -8
-        ],
-        [
-          118,
-          23
-        ],
-        [
-          137,
-          51
-        ]
-      ]
-    },
-    {
-      "name": "Residential S Bend",
-      "w": 9,
-      "sidewalk": true,
+      "sidewalk": false,
       "smooth": true,
       "points": [
         [
@@ -763,145 +579,13 @@
       ]
     },
     {
-      "name": "Tanke Neighbourhood Road",
-      "w": 9,
-      "sidewalk": true,
-      "smooth": true,
-      "points": [
-        [
-          -116,
-          201
-        ],
-        [
-          -111,
-          170
-        ],
-        [
-          -106,
-          142
-        ],
-        [
-          -98,
-          113
-        ],
-        [
-          -83,
-          85
-        ],
-        [
-          -62,
-          61
-        ],
-        [
-          -37,
-          42
-        ],
-        [
-          -10,
-          30
-        ],
-        [
-          19,
-          23
-        ],
-        [
-          48,
-          22
-        ]
-      ]
-    },
-    {
-      "name": "East Residential Loop",
-      "w": 9,
-      "sidewalk": true,
-      "smooth": true,
-      "points": [
-        [
-          118,
-          -176
-        ],
-        [
-          145,
-          -159
-        ],
-        [
-          169,
-          -137
-        ],
-        [
-          187,
-          -109
-        ],
-        [
-          195,
-          -78
-        ],
-        [
-          194,
-          -47
-        ],
-        [
-          184,
-          -17
-        ],
-        [
-          169,
-          10
-        ],
-        [
-          148,
-          32
-        ],
-        [
-          123,
-          48
-        ]
-      ]
-    },
-    {
-      "name": "West Service Street",
-      "w": 8,
-      "sidewalk": false,
-      "smooth": true,
-      "points": [
-        [
-          -197,
-          -78
-        ],
-        [
-          -178,
-          -76
-        ],
-        [
-          -159,
-          -72
-        ],
-        [
-          -139,
-          -66
-        ],
-        [
-          -120,
-          -58
-        ],
-        [
-          -102,
-          -47
-        ],
-        [
-          -86,
-          -35
-        ]
-      ]
-    },
-    {
       "name": "Innovation Hub Access",
       "w": 8,
       "sidewalk": true,
       "smooth": true,
       "points": [
         [
-          10,
+          -10,
           -120
         ],
         [
@@ -951,198 +635,6 @@
         [
           76,
           -30
-        ]
-      ]
-    },
-    {
-      "name": "Central Market Access",
-      "w": 8,
-      "sidewalk": true,
-      "smooth": true,
-      "points": [
-        [
-          -151,
-          -48
-        ],
-        [
-          -125,
-          -44
-        ],
-        [
-          -99,
-          -39
-        ],
-        [
-          -73,
-          -32
-        ],
-        [
-          -49,
-          -22
-        ],
-        [
-          -28,
-          -9
-        ]
-      ]
-    },
-    {
-      "name": "West Test Loop",
-      "w": 11,
-      "sidewalk": false,
-      "smooth": true,
-      "points": [
-        [
-          -194,
-          174
-        ],
-        [
-          -198,
-          135
-        ],
-        [
-          -199,
-          95
-        ],
-        [
-          -190,
-          58
-        ],
-        [
-          -170,
-          26
-        ],
-        [
-          -142,
-          4
-        ],
-        [
-          -109,
-          -8
-        ],
-        [
-          -73,
-          -9
-        ],
-        [
-          -39,
-          2
-        ],
-        [
-          -10,
-          23
-        ],
-        [
-          8,
-          52
-        ],
-        [
-          9,
-          88
-        ]
-      ]
-    },
-    {
-      "name": "East Test Loop",
-      "w": 11,
-      "sidewalk": false,
-      "smooth": true,
-      "points": [
-        [
-          108,
-          174
-        ],
-        [
-          145,
-          165
-        ],
-        [
-          177,
-          143
-        ],
-        [
-          197,
-          112
-        ],
-        [
-          201,
-          76
-        ],
-        [
-          193,
-          41
-        ],
-        [
-          174,
-          13
-        ],
-        [
-          145,
-          -7
-        ],
-        [
-          111,
-          -15
-        ],
-        [
-          76,
-          -9
-        ],
-        [
-          53,
-          9
-        ]
-      ]
-    },
-    {
-      "name": "Southern Test Connector",
-      "w": 10,
-      "sidewalk": false,
-      "smooth": true,
-      "points": [
-        [
-          -190,
-          174
-        ],
-        [
-          -151,
-          177
-        ],
-        [
-          -111,
-          177
-        ],
-        [
-          -71,
-          173
-        ],
-        [
-          -32,
-          165
-        ],
-        [
-          7,
-          154
-        ],
-        [
-          45,
-          139
-        ],
-        [
-          82,
-          119
-        ],
-        [
-          116,
-          96
-        ],
-        [
-          145,
-          69
-        ],
-        [
-          174,
-          38
         ]
       ]
     },
@@ -1270,34 +762,6 @@
           194,
           170,
           0
-        ]
-      ]
-    },
-    {
-      "name": "Compact City Perimeter",
-      "w": 8,
-      "sidewalk": false,
-      "smooth": false,
-      "points": [
-        [
-          -207,
-          -198
-        ],
-        [
-          207,
-          -198
-        ],
-        [
-          207,
-          198
-        ],
-        [
-          -207,
-          198
-        ],
-        [
-          -207,
-          -198
         ]
       ]
     }
@@ -2409,7 +1873,9 @@
         5,
         6,
         7,
-        8
+        8,
+        9,
+        10
       ],
       "purpose": "straight-line stability, steering authority and braking"
     },
@@ -2417,11 +1883,7 @@
       "name": "GRA S-Bend",
       "type": "sweeping-corners",
       "roadIndexes": [
-        13,
-        15,
-        17,
-        22,
-        23
+        11
       ],
       "purpose": "rapid left-right transitions and body-roll control"
     },
@@ -2429,7 +1891,7 @@
       "name": "Flyover Ramp Test",
       "type": "elevation-change",
       "roadIndexes": [
-        25
+        14
       ],
       "purpose": "suspension compression, crest stability and bridge landings"
     },
@@ -2437,7 +1899,7 @@
       "name": "Fate Bridge Test",
       "type": "raised-crossing",
       "roadIndexes": [
-        26
+        15
       ],
       "purpose": "elevated traction and stacked-road surface selection"
     }
