@@ -1691,6 +1691,7 @@ export class World {
       const t = segLen > 1e-6 ? THREE.MathUtils.clamp((distance - cumulative[i]) / segLen, 0, 1) : 0;
       return {
         x: THREE.MathUtils.lerp(pts[i].x, pts[i + 1].x, t),
+        y: THREE.MathUtils.lerp(Number(pts[i].y) || 0, Number(pts[i + 1].y) || 0, t),
         z: THREE.MathUtils.lerp(pts[i].z, pts[i + 1].z, t),
       };
     };
@@ -1881,9 +1882,10 @@ export class World {
         if (len < 1e-5) continue;
         const nx = -dz / len, nz = dx / len;
         const center = tangent[Math.floor(tangent.length / 2)];
+        const roadY = Number(center.y) || 0;
         const ends = [
-          { x: center.x - nx * transverseHalf, z: center.z - nz * transverseHalf },
-          { x: center.x + nx * transverseHalf, z: center.z + nz * transverseHalf },
+          { x: center.x - nx * transverseHalf, y: roadY, z: center.z - nz * transverseHalf },
+          { x: center.x + nx * transverseHalf, y: roadY, z: center.z + nz * transverseHalf },
         ];
         this._strokeMitered(ends, 0.14, chain.roadY + 0.008, crosswalk, false);
       }
@@ -2176,8 +2178,9 @@ export class World {
       } else {
         mx = 0; mz = 0;
       }
-      left.push({ x: p.x + mx * hw, z: p.z + mz * hw });
-      right.push({ x: p.x - mx * hw, z: p.z - mz * hw });
+      const y = Number(p.y) || 0;
+      left.push({ x: p.x + mx * hw, y, z: p.z + mz * hw });
+      right.push({ x: p.x - mx * hw, y, z: p.z - mz * hw });
     }
     this._ribbonBatch.push({ left, right, y, mat, closed });
   }
