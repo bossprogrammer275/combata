@@ -66,7 +66,7 @@ function updateSteeringPreview(){
 function refreshSteeringStatus(){
  const cfg=steeringCfg(),names=cfg.meshKeys.map(key=>meshNodes.find(n=>n.userData.assetLabKey===key)?.name||key.split('/').pop()).filter(Boolean);
  $('steering-status').textContent=names.length?'Rig parts: '+names.join(', ')+' · axis '+cfg.axis+' · '+num(cfg.maxAngleDeg,450)+'° lock-to-lock': 'No steering wheel assigned. Detect a named candidate or select its mesh and assign it manually.';
- $('steering-axis').value=cfg.axis||'auto';$('steering-limit').value=num(cfg.maxAngleDeg,450);$('steering-limit-value').textContent=num(cfg.maxAngleDeg,450)+'°';
+ $('steering-axis').value=cfg.axis||'auto';$('steering-sign').value=Number(cfg.sign)<0?'-1':'1';$('steering-limit').value=num(cfg.maxAngleDeg,450);$('steering-limit-value').textContent=num(cfg.maxAngleDeg,450)+'°';
  $('steering-preview-value').textContent=$('steering-preview').value+'%';
 }
 function buildSteeringControls(){if(!currentRoot||assets[currentUrl]?.kind!=='vehicle')return;refreshSteeringStatus();updateSteeringPreview();}
@@ -91,7 +91,7 @@ $('detect-steering').onclick=()=>{const candidates=detectSteeringCandidates();if
 $('use-selected-steering').onclick=()=>{if(!selectedMesh)return;steeringCfg().meshKeys=[selectedMesh.userData.assetLabKey];$('steering-preview').value='0';updateSteeringPreview();};
 $('add-selected-steering').onclick=()=>{if(!selectedMesh)return;const keys=steeringCfg().meshKeys;if(!keys.includes(selectedMesh.userData.assetLabKey))keys.push(selectedMesh.userData.assetLabKey);updateSteeringPreview();};
 $('clear-steering').onclick=()=>{steeringCfg().meshKeys=[];$('steering-preview').value='0';updateSteeringPreview();};
-$('steering-axis').onchange=e=>{steeringCfg().axis=e.target.value;updateSteeringPreview();};
+$('steering-axis').onchange=e=>{steeringCfg().axis=e.target.value;updateSteeringPreview();};$('steering-sign').onchange=e=>{steeringCfg().sign=Number(e.target.value)<0?-1:1;updateSteeringPreview();};
 $('steering-limit').oninput=e=>{steeringCfg().maxAngleDeg=Number(e.target.value);refreshSteeringStatus();updateSteeringPreview();};
 $('steering-preview').oninput=()=>updateSteeringPreview();
 $('reset-camera').onclick=resetView;$('interior-view').onclick=showCabin;$('screenshot').onclick=capture;$('save').onclick=save;
