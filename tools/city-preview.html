@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <base href="/">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>City A — Internal World Preview</title>
+  <style>
+    *{box-sizing:border-box}
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111612;color:#edf2e8;font:13px/1.4 system-ui,Segoe UI,sans-serif}
+    #view{position:fixed;inset:0}
+    canvas{display:block;width:100%;height:100%}
+    #panel{position:fixed;left:16px;top:14px;z-index:3;max-width:min(680px,calc(100vw - 32px));padding:12px 14px;background:rgba(12,17,15,.84);border:1px solid rgba(255,255,255,.15);border-radius:9px;backdrop-filter:blur(12px)}
+    #title{font-weight:750;letter-spacing:.1em;font-size:13px}
+    #status{margin-top:4px;color:#c0cabb;font-size:11px}
+    #counts{margin-top:6px;color:#8fc9a5;font-size:11px}
+    #views{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+    button{border:1px solid #65756c;background:#27332c;color:#eef6ee;padding:5px 9px;border-radius:6px;font:600 11px system-ui;cursor:pointer}
+    button[aria-pressed=true]{background:#c6dfc9;color:#17231a;border-color:#c6dfc9}
+    #foot{position:fixed;bottom:12px;left:16px;color:rgba(255,255,255,.7);font-size:11px;text-shadow:0 1px 4px #000;pointer-events:none}
+    #busy{position:fixed;inset:0;display:grid;place-items:center;background:#111612;z-index:10;color:#dce8da;letter-spacing:.12em;font-weight:700}
+    #busy.hide{display:none}
+  </style>
+</head>
+<body>
+  <div id="view"></div>
+  <div id="busy">LOADING CITY A · REAL GLB ASSETS</div>
+  <section id="panel">
+    <div id="title">ILORIN CITY · INTERNAL PREVIEW</div>
+    <div id="status">Loading authored roads and GLB models…</div>
+    <div id="counts"></div>
+    <div id="views">
+      <button data-view="overview" aria-pressed="true">Overview</button>
+      <button data-view="civic">Civic landmarks</button>
+      <button data-view="boulevard">Street level</button>
+      <button data-view="flyover">Flyovers</button>
+      <button data-view="south">Southern blocks</button>
+    </div>
+  </section>
+  <div id="foot">Internal visual inspection · drag to orbit · scroll to zoom · no NPCs or loot</div>
+  <script type="module">
+    import * as THREE from './js/lib/three.module.js';
+    import { World } from './js/world.js';
+
+    const state = { errors: [], warnings: [], ready: false, view: 'overview' };
+    const originalWarn = console.warn.bind(console);
+    const originalError = console.error.bind(console);
+    console.warn = (...args) => { state.warnings.push(args.map(String).join(' ')); originalWarn(...args); };
+    console.error = (...args) => { state.errors.push(args.map(String).join(' ')); originalError(...args); };
+
+    const mount = document.querySelector('#view');
+    const status = document.querySelector('#status');
+    const counts = document.querySelector('#counts');
+    const busy = document.querySelector('#busy');
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.08;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    mount.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.2, 2400);
+    const presets = {
+      overview: { target: [0, 0, 0], distance: 455, yaw: 0.72, pitch: 0.88 },
+      civic: { target: [-3, 8, -88], distance: 205, yaw: 0.86, pitch: 0.55 },
+      boulevard: { target: [35, 3, -49], distance: 105, yaw: 0.72, pitch: 0.28 },
+      flyover: { target: [15, 4, 20], distance: 205, yaw: 0.65, pitch: 0.49 },
+      south: { target: [0, 4, 134], distance: 175, yaw: 0.78, pitch: 0.38 },
+    };
+    const target = new THREE.Vector3();
+    let orbit = { yaw: 0.72, pitch: 0.88, distance: 455 };
+    const clamp = THREE.MathUtils.clamp;
+    function applyCamera() {
+      const p = presets[state.view];
+      target.set(...p.target);
+      orbit = { yaw: p.yaw, pitch: p.pitch, distance: p.distance };
+      camera.position.set(
+        target.x + orbit.distance * Math.cos(orbit.pitch) * Math.sin(orbit.yaw),
+        target.y + orbit.distance * Math.sin(orbit.pitch),
+        target.z + orbit.distance * Math.cos(orbit.pitch) * Math.cos(orbit.yaw)
+      );
+      camera.lookAt(target);
+      document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === state.view)));
+    }
+    function setView(name) {
+      if (!presets[name]) throw new Error('Unknown camera preset: ' + name);
+      state.view = name;
+      applyCamera();
+    }
+    document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+
+    let dragging = false, lastX = 0, lastY = 0;
+    renderer.domElement.addEventListener('pointerdown', e => { dragging = true; lastX = e.clientX; lastY = e.clientY; renderer.domElement.setPointerCapture(e.pointerId); });
+    renderer.domElement.addEventListener('pointerup', () => { dragging = false; });
+    renderer.domElement.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      const dx = e.clientX - lastX, dy = e.clientY - lastY;
+      lastX = e.clientX; lastY = e.clientY;
+      orbit.yaw -= dx * 0.0045;
+      orbit.pitch = clamp(orbit.pitch + dy * 0.0035, 0.12, 1.35);
+      camera.position.set(
+        target.x + orbit.distance * Math.cos(orbit.pitch) * Math.sin(orbit.yaw),
+        target.y + orbit.distance * Math.sin(orbit.pitch),
+        target.z + orbit.distance * Math.cos(orbit.pitch) * Math.cos(orbit.yaw)
+      );
+      camera.lookAt(target);
+    });
+    renderer.domElement.addEventListener('wheel', e => {
+      e.preventDefault();
+      orbit.distance = clamp(orbit.distance * (e.deltaY > 0 ? 1.09 : 0.92), 25, 850);
+      camera.position.set(
+        target.x + orbit.distance * Math.cos(orbit.pitch) * Math.sin(orbit.yaw),
+        target.y + orbit.distance * Math.sin(orbit.pitch),
+        target.z + orbit.distance * Math.cos(orbit.pitch) * Math.cos(orbit.yaw)
+      );
+      camera.lookAt(target);
+    }, { passive: false });
+
+    try {
+      status.textContent = 'Loading map data…';
+      const response = await fetch('/data/worlds/city-a.json', { cache: 'no-store' });
+      if (!response.ok) throw new Error('City JSON returned HTTP ' + response.status);
+      const map = await response.json();
+      status.textContent = 'Building roads, bridges and real GLB instances…';
+      const world = new World(scene, 'high', map);
+      await world.assetsReady;
+      let meshCount = 0;
+      world.group.traverse(o => { if (o.isMesh) meshCount++; });
+      const uniqueModels = world._glbModelCache?.size || 0;
+      const buildings = world._buildingData?.length || 0;
+      state.ready = true;
+      state.report = {
+        roadCount: map.roads?.length || 0,
+        glbAssetCount: map.glbAssets?.length || 0,
+        uniqueModelCount: uniqueModels,
+        buildingCount: buildings,
+        meshCount,
+        spawnPointCount: world.spawnPoints.length,
+        lootPointCount: world.lootPoints.length,
+        colliderCount: world.colliders.length,
+        warningCount: state.warnings.length,
+        errors: state.errors.slice(),
+      };
+      status.textContent = 'World ready · real assets loaded';
+      counts.textContent = `${state.report.roadCount} roads · ${state.report.glbAssetCount} GLB placements · ${uniqueModels} unique models · ${meshCount} meshes · ${world.colliders.length} colliders`;
+      applyCamera();
+      busy.classList.add('hide');
+      window.__CITY_PREVIEW__ = {
+        ready: true, scene, world, camera, renderer, state,
+        report: state.report, setView,
+      };
+    } catch (error) {
+      state.errors.push(String(error?.stack || error));
+      status.textContent = 'Preview failed: ' + error.message;
+      window.__CITY_PREVIEW__ = { ready: false, state, error: String(error?.stack || error) };
+      busy.textContent = 'CITY PREVIEW FAILED · SEE CONSOLE';
+      throw error;
+    }
+
+    function frame() {
+      requestAnimationFrame(frame);
+      renderer.render(scene, camera);
+    }
+    frame();
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
