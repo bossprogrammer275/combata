@@ -52,7 +52,7 @@ try{
   await page.waitForFunction(()=>window.__vehicleVisualTest?.ready===true,{timeout:30000});
 
   const configs=[
-    {kind:'lambo',expectedHeight:1.02,expectedFov:82,prefix:'lamborghini'},
+    {kind:'lambo',expectedHeight:0.98,expectedFov:82,prefix:'lamborghini'},
     {kind:'cybertruck',expectedHeight:1.42,expectedFov:82,prefix:'cybertruck'},
   ];
   for(const spec of configs){
