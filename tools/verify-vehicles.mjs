@@ -302,6 +302,21 @@ try {
     const wheels = scene.userData.wheels || [];
     console.log(`    wheels detected: ${wheels.length}`);
 
+    if (wheels.length === 4) {
+      const lateralRatios = wheels.map((wheel) =>
+        Math.abs(wheel.center.x - center.x) / Math.max(0.001, size.x * 0.5));
+      check('wheel pivots stay at outboard tyre positions',
+        lateralRatios.every(ratio => ratio >= 0.52),
+        'ratios=' + lateralRatios.map(ratio => ratio.toFixed(2)).join(','));
+
+      const cabinNames = wheels.flatMap(wheel => wheel.meshes || [])
+        .filter(mesh => /(steer|dashboard|cockpit|interior|instrument|seat|pedal|gear.?shift)/i.test(mesh.name || ''))
+        .map(mesh => mesh.name);
+      check('steering/dashboard meshes are excluded from tyre rigs',
+        cabinNames.length === 0,
+        cabinNames.join(', ') || 'no cabin meshes rigged as tyres');
+    }
+
     // Capture the first real vehicle's runtime-equivalent suspension spec.
     // This exercises the actual normalized GLB pivots/radii below, not only a
     // synthetic set of four wheel points.
