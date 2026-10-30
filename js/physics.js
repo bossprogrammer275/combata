@@ -42,14 +42,21 @@ export class Physics {
     return this.world;
   }
 
-  step(dt) {
-    if (!this.world) return;
-    // Kinematic player/vehicle controllers submit a new target each render
-    // frame, so Rapier must step every frame. Bound the timestep after stalls
-    // instead of accumulating fixed steps that would overwrite kinematic targets.
-    this.world.timestep = Math.min(Math.max(dt || 1 / 60, 1 / 240), 1 / 30);
-    this.world.step(this._eventQueue);
-    this._stepCount++;
+  step(dt, beforeSubstep = null) {
+    if (!this.world) return 0;
+    // Keep solver steps small on low-frame-rate machines. The vehicle callback
+    // refreshes each raycast suspension and tyre force before every substep.
+    const frameDt = Math.min(Math.max(dt || 1 / 60, 1 / 240), 1 / 30);
+    const maxSubstep = 1 / 120;
+    const substeps = Math.max(1, Math.ceil(frameDt / maxSubstep));
+    const subDt = frameDt / substeps;
+    for (let i = 0; i < substeps; i++) {
+      if (typeof beforeSubstep === 'function') beforeSubstep(subDt);
+      this.world.timestep = subDt;
+      this.world.step(this._eventQueue);
+      this._stepCount++;
+    }
+    return substeps;
   }
 
   // ===== COLLIDER REGISTRATION =====
@@ -425,7 +432,7 @@ export class Physics {
       // ray misses at road edges without letting a car float over real gaps.
       if (!hit || !hit.normal || hit.normal.y < 0.45) {
         const cached = supportCache[wheelIndex];
-        if (cached && cached.age < 1
+        if (cached && cached.age < 2
           && Math.hypot(hardpoint.x - cached.hardpoint.x, hardpoint.z - cached.hardpoint.z) < Math.max(0.35, horizontalSpeed * dt * 1.35)
           && Math.abs(hardpoint.y - cached.hardpoint.y) < 0.16) {
           const timeOfImpact = hardpoint.y - cached.pointY;
@@ -724,7 +731,14 @@ export class Physics {
         const pointVelocity = new THREE.Vector3(pointVX, pointVY, pointVZ);
         const wheelLongSpeed = pointVelocity.dot(wheelForwardV);
         const wheelLateralSpeed = pointVelocity.dot(wheelRightV);
-        const slipAngle = Math.atan2(wheelLateralSpeed, Math.max(tune.lowSpeedCorneringReference ?? 4.0, Math.abs(wheelLongSpeed)));
+        // Slip-angle sign follows the direction the tyre is rolling. Reversing
+        // changes the lateral force/yaw response even though wheels still face
+        // the vehicle's nose.
+        const rollingDirection = Math.abs(wheelLongSpeed) > 0.75 ? Math.sign(wheelLongSpeed) : 1;
+        const slipAngle = Math.atan2(
+          wheelLateralSpeed * rollingDirection,
+          Math.max(tune.lowSpeedCorneringReference ?? 4.0, Math.abs(wheelLongSpeed)),
+        );
         const corneringStiffness = wheel.front
           ? (tune.frontCorneringStiffness ?? 60000)
           : (tune.rearCorneringStiffness ?? 68000);
