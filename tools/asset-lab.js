@@ -6,7 +6,7 @@ const assets={
 '/data/models/assets/ilorin_innovation_hub.glb':{name:'Ilorin Innovation Hub',kind:'building'},
 '/data/models/assets/kwara_revenue_house.glb':{name:'Kwara Revenue House',kind:'building'},
 '/data/models/assets/low_poly_skyscraper.glb':{name:'Low-poly skyscraper',kind:'building'},
-'/data/models/cars/CAR Model by Ignition Labs - 5zUWP5UsLg-.glb':{name:'Lamborghini model',kind:'vehicle',targetLen:4.7,camera:{height:1.02,forward:.16,side:0,lookAhead:18,pitch:0,fov:82}},
+'/data/models/cars/CAR Model by Ignition Labs - 5zUWP5UsLg-.glb':{name:'Lamborghini model',kind:'vehicle',targetLen:4.7,camera:{height:.98,forward:.16,side:0,lookAhead:18,pitch:0,fov:82}},
 '/data/models/cars/tesla_cybertruk_low_poly/scene.gltf':{name:'Tesla Cybertruck',kind:'vehicle',targetLen:5.7,camera:{height:1.42,forward:.3,side:0,lookAhead:20,pitch:0,fov:82}}};
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x111914);scene.add(new THREE.HemisphereLight(0xdcebe0,0x26352a,2.1));
 const key=new THREE.DirectionalLight(0xfff1d9,3.2);key.position.set(8,12,9);scene.add(key);const fill=new THREE.DirectionalLight(0x9ab9d6,1);fill.position.set(-8,6,-7);scene.add(fill);scene.add(new THREE.GridHelper(80,80,0x49604e,0x26352a));
