@@ -901,20 +901,24 @@
       "smooth": true,
       "points": [
         [
-          7,
-          -109
+          10,
+          -120
         ],
         [
-          -8,
-          -113
+          -5,
+          -126
         ],
         [
-          -16,
-          -118
+          -14,
+          -134
         ],
         [
-          -23,
-          -122
+          -20,
+          -141
+        ],
+        [
+          -24,
+          -147
         ]
       ]
     },
@@ -925,24 +929,28 @@
       "smooth": true,
       "points": [
         [
-          125,
-          -42
+          130,
+          -55
         ],
         [
           118,
-          -44
-        ],
-        [
-          112,
-          -47
-        ],
-        [
-          106,
-          -50
+          -52
         ],
         [
           105,
-          -52
+          -47
+        ],
+        [
+          92,
+          -40
+        ],
+        [
+          80,
+          -34
+        ],
+        [
+          72,
+          -30
         ]
       ]
     },
@@ -1300,8 +1308,8 @@
   "glbAssets": [
     {
       "url": "./data/models/assets/kwara_revenue_house.glb",
-      "x": 72,
-      "z": -52,
+      "x": 40,
+      "z": -30,
       "ry": 0,
       "targetH": 38,
       "tags": [
@@ -1316,8 +1324,8 @@
     },
     {
       "url": "./data/models/assets/ilorin_innovation_hub.glb",
-      "x": -48,
-      "z": -126,
+      "x": -46,
+      "z": -147,
       "ry": 0,
       "targetH": 15,
       "tags": [
@@ -1327,20 +1335,6 @@
         "innovation",
         "ilorin",
         "landmark"
-      ],
-      "building": true
-    },
-    {
-      "url": "./data/models/assets/low_poly_skyscraper.glb",
-      "x": 35,
-      "z": -25,
-      "ry": 0,
-      "targetH": 18,
-      "tags": [
-        "structural",
-        "commercial",
-        "office",
-        "skyline"
       ],
       "building": true
     },
@@ -1472,10 +1466,10 @@
     },
     {
       "url": "./data/models/assets/low_poly_skyscraper.glb",
-      "x": -105,
-      "z": -165,
+      "x": 110,
+      "z": -155,
       "ry": 0,
-      "targetH": 19,
+      "targetH": 18,
       "tags": [
         "structural",
         "commercial",
@@ -1486,10 +1480,24 @@
     },
     {
       "url": "./data/models/assets/low_poly_skyscraper.glb",
-      "x": 15,
-      "z": -55,
+      "x": 25,
+      "z": -105,
       "ry": 1.57,
       "targetH": 16,
+      "tags": [
+        "structural",
+        "commercial",
+        "office",
+        "skyline"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
+      "x": -105,
+      "z": -165,
+      "ry": 0,
+      "targetH": 19,
       "tags": [
         "structural",
         "commercial",
@@ -1514,9 +1522,51 @@
     },
     {
       "url": "./data/models/assets/low_poly_skyscraper.glb",
+      "x": -150,
+      "z": 155,
+      "ry": 1.57,
+      "targetH": 15,
+      "tags": [
+        "structural",
+        "commercial",
+        "office",
+        "skyline"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
+      "x": -115,
+      "z": 105,
+      "ry": 0,
+      "targetH": 17,
+      "tags": [
+        "structural",
+        "commercial",
+        "office",
+        "skyline"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
+      "x": 45,
+      "z": 160,
+      "ry": 1.57,
+      "targetH": 16,
+      "tags": [
+        "structural",
+        "commercial",
+        "office",
+        "skyline"
+      ],
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": 15,
       "z": 5,
-      "ry": 1.57,
+      "ry": 0,
       "targetH": 16,
       "tags": [
         "structural",
@@ -1530,7 +1580,7 @@
       "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": 70,
       "z": 20,
-      "ry": 0,
+      "ry": 1.57,
       "targetH": 18,
       "tags": [
         "structural",
@@ -1544,22 +1594,8 @@
       "url": "./data/models/assets/low_poly_skyscraper.glb",
       "x": 135,
       "z": 15,
-      "ry": 1.57,
-      "targetH": 20,
-      "tags": [
-        "structural",
-        "commercial",
-        "office",
-        "skyline"
-      ],
-      "building": true
-    },
-    {
-      "url": "./data/models/assets/low_poly_skyscraper.glb",
-      "x": 110,
-      "z": -160,
       "ry": 0,
-      "targetH": 18,
+      "targetH": 20,
       "tags": [
         "structural",
         "commercial",
@@ -1574,34 +1610,6 @@
       "z": -60,
       "ry": 1.57,
       "targetH": 16,
-      "tags": [
-        "structural",
-        "commercial",
-        "office",
-        "skyline"
-      ],
-      "building": true
-    },
-    {
-      "url": "./data/models/assets/low_poly_skyscraper.glb",
-      "x": -190,
-      "z": -5,
-      "ry": 0,
-      "targetH": 15,
-      "tags": [
-        "structural",
-        "commercial",
-        "office",
-        "skyline"
-      ],
-      "building": true
-    },
-    {
-      "url": "./data/models/assets/low_poly_skyscraper.glb",
-      "x": 50,
-      "z": 60,
-      "ry": 1.57,
-      "targetH": 17,
       "tags": [
         "structural",
         "commercial",
@@ -1744,8 +1752,8 @@
     },
     {
       "url": "./data/models/assets/low_poly_street_light.glb",
-      "x": -70.4,
-      "z": -148.1,
+      "x": -86.8,
+      "z": -147.7,
       "ry": 0.02,
       "targetH": 4.5,
       "tags": [
@@ -1788,8 +1796,8 @@
     },
     {
       "url": "./data/models/assets/low_poly_street_light.glb",
-      "x": -19.8,
-      "z": -147.3,
+      "x": -20,
+      "z": -152.5,
       "ry": 0.02,
       "targetH": 4.5,
       "tags": [
@@ -1843,9 +1851,9 @@
     },
     {
       "url": "./data/models/assets/low_poly_street_light.glb",
-      "x": 78.7,
-      "z": -21.1,
-      "ry": 0.07,
+      "x": 77.3,
+      "z": -44.1,
+      "ry": 0.05,
       "targetH": 4.5,
       "tags": [
         "street-furniture",
@@ -1942,8 +1950,8 @@
     },
     {
       "url": "./data/models/assets/low_poly_street_light.glb",
-      "x": 48.4,
-      "z": 88.1,
+      "x": 50.6,
+      "z": 70.8,
       "ry": 1.45,
       "targetH": 4.5,
       "tags": [
@@ -2308,14 +2316,14 @@
   "loot": [],
   "named": [
     {
-      "x": 72,
-      "z": -52,
+      "x": 40,
+      "z": -30,
       "name": "KWARA REVENUE HOUSE · KWIRS",
       "color": "#4ac0ff"
     },
     {
-      "x": -48,
-      "z": -126,
+      "x": -46,
+      "z": -147,
       "name": "ILORIN INNOVATION HUB",
       "color": "#4ac08a"
     },
