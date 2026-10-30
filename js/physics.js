@@ -731,12 +731,10 @@ export class Physics {
         const pointVelocity = new THREE.Vector3(pointVX, pointVY, pointVZ);
         const wheelLongSpeed = pointVelocity.dot(wheelForwardV);
         const wheelLateralSpeed = pointVelocity.dot(wheelRightV);
-        // Slip-angle sign follows the direction the tyre is rolling. Reversing
-        // changes the lateral force/yaw response even though wheels still face
-        // the vehicle's nose.
-        const rollingDirection = Math.abs(wheelLongSpeed) > 0.75 ? Math.sign(wheelLongSpeed) : 1;
+        // This chassis-local tyre basis already reverses the lateral slip
+        // sign when the car travels backward, producing the correct opposite yaw.
         const slipAngle = Math.atan2(
-          wheelLateralSpeed * rollingDirection,
+          wheelLateralSpeed,
           Math.max(tune.lowSpeedCorneringReference ?? 4.0, Math.abs(wheelLongSpeed)),
         );
         const corneringStiffness = wheel.front
