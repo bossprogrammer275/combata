@@ -488,8 +488,10 @@ try {
     CAR_PHYSICS.lambo.drivetrain === 'rwd'
       && CAR_PHYSICS.cybertruck.drivetrain === 'awd'
       && CAR_PHYSICS.lambo.wheelbase < CAR_PHYSICS.cybertruck.wheelbase
-      && CAR_PHYSICS.lambo.frontCorneringStiffness > CAR_PHYSICS.cybertruck.frontCorneringStiffness
-      && CAR_PHYSICS.cybertruck.mass > CAR_PHYSICS.lambo.mass * 1.8,
+      && CAR_PHYSICS.cybertruck.frontCorneringStiffness > CAR_PHYSICS.lambo.frontCorneringStiffness
+      && CAR_PHYSICS.cybertruck.mass > CAR_PHYSICS.lambo.mass * 1.8
+      && CAR_PHYSICS.cybertruck.steeringAngle > CAR_PHYSICS.lambo.steeringAngle
+      && CAR_PHYSICS.cybertruck.steeringResponse >= 20,
     `sport=${CAR_PHYSICS.lambo.drivetrain}:${CAR_PHYSICS.lambo.wheelbase}m truck=${CAR_PHYSICS.cybertruck.drivetrain}:${CAR_PHYSICS.cybertruck.wheelbase}m`);
   check('handbrake drift keeps rear grip deliberately below normal driving grip',
     CAR_PHYSICS.lambo.handbrakeRearGrip < CAR_PHYSICS.lambo.rearGrip
@@ -825,6 +827,7 @@ try {
   // A normal ~0.5g turn should not unload a diagonal wheel pair or roll the
   // chassis onto one corner. This stays in the developer test harness only.
   const corneringKinds = ['lambo', 'cybertruck', 'bugatti'];
+  const corneringResults = {};
   for (let kindIndex = 0; kindIndex < corneringKinds.length; kindIndex++) {
     const kind = corneringKinds[kindIndex];
     const spec = dynamicVehicleSpecs[kind];
@@ -890,6 +893,7 @@ try {
       if (frame === 0) firstYaw = lastYaw;
     }
     const yawResponse = Math.abs(Math.atan2(Math.sin(lastYaw - firstYaw), Math.cos(lastYaw - firstYaw)));
+    corneringResults[kind] = { yawResponse, minContacts, maxTilt, maxDiagonalLift, diagonalMissFrames };
     check(`${kind} keeps all four tyres supported in a normal corner`, minContacts === 4,
       `minContacts=${minContacts}/4`);
     check(`${kind} avoids diagonal wheel lift and excessive body roll`,
@@ -899,6 +903,11 @@ try {
       `yawChange=${(yawResponse * 180 / Math.PI).toFixed(1)}deg wheelHeightSpread=${maxWheelHeightSpread.toFixed(3)}m`);
     physics.removeVehicleBody(body);
   }
+  const teslaTurn = corneringResults.cybertruck?.yawResponse || 0;
+  const bugattiTurn = corneringResults.bugatti?.yawResponse || 0;
+  check('Tesla steering response is close to the Bugatti under the same test conditions',
+    teslaTurn >= bugattiTurn * 0.88 && teslaTurn <= bugattiTurn * 1.15,
+    `Tesla=${(teslaTurn * 180 / Math.PI).toFixed(1)}deg Bugatti=${(bugattiTurn * 180 / Math.PI).toFixed(1)}deg`);
 
 } catch (e) {
   failures++;
