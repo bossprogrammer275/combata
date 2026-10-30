@@ -315,10 +315,10 @@ try {
   }
 
   check('Lamborghini and Cybertruck have distinct interior eye heights',
-    CAR_PHYSICS.lambo.interiorCamera.height === 1.02
+    CAR_PHYSICS.lambo.interiorCamera.height === 0.98
       && CAR_PHYSICS.cybertruck.interiorCamera.height === 1.42
       && CAR_PHYSICS.cybertruck.interiorCamera.height - CAR_PHYSICS.lambo.interiorCamera.height > 0.35,
-    'Lamborghini=1.02m, Cybertruck=1.42m');
+    'Lamborghini=0.98m, Cybertruck=1.42m');
 
   const dynamicVehicleSpecs = {};
   for (const kind of Object.keys(CAR_MODELS)) {
