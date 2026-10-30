@@ -552,7 +552,8 @@ export class Physics {
     // applies all cornering force at the tyre contact patches and can roll the
     // sprung mass until the inside tyres visibly lift.
     const antiRollStiffness = tune.antiRollStiffness ?? 22000;
-    const antiRollLimit = mass * 9.81 * 0.12;
+    const antiRollLoadTransferLimit = THREE.MathUtils.clamp(tune.antiRollLoadTransferLimit ?? 0.18, 0.05, 0.28);
+    const antiRollLimit = mass * 9.81 * antiRollLoadTransferLimit;
     for (const frontAxle of [true, false]) {
       let left = -1, right = -1;
       for (let i = 0; i < wheelSpecs.length; i++) {
@@ -798,14 +799,18 @@ export class Physics {
     // Spring/damper struts handle heave; this only corrects excessive tilt.
     const chassisUp = new THREE.Vector3(0, 1, 0).applyQuaternion(q).normalize();
     const uprightError = chassisUp.clone().cross(new THREE.Vector3(0, 1, 0));
-    const uprightStrength = tune.uprightStrength ?? 4.0;
-    const uprightDamping = tune.uprightDamping ?? 3.0;
+    const pitchUprightStrength = tune.pitchUprightStrength ?? tune.uprightStrength ?? 4.0;
+    const pitchUprightDamping = tune.pitchUprightDamping ?? tune.uprightDamping ?? 3.0;
+    const rollUprightStrength = tune.rollUprightStrength ?? tune.uprightStrength ?? 4.0;
+    const rollUprightDamping = tune.rollUprightDamping ?? tune.uprightDamping ?? 3.0;
     const inertiaScale = tune.uprightInertiaScale ?? 1.8;
     const torqueScale = mass * inertiaScale * dt;
+    // Pitch remains free to follow ramps; roll gets a firmer chassis damper so
+    // ordinary steering does not unload a diagonal pair of tyres.
     body.applyTorqueImpulse({
-      x: (uprightError.x * uprightStrength - angular.x * uprightDamping) * torqueScale,
+      x: (uprightError.x * pitchUprightStrength - angular.x * pitchUprightDamping) * torqueScale,
       y: 0,
-      z: (uprightError.z * uprightStrength - angular.z * uprightDamping) * torqueScale,
+      z: (uprightError.z * rollUprightStrength - angular.z * rollUprightDamping) * torqueScale,
     }, true);
 
     return {
