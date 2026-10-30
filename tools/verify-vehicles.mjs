@@ -101,6 +101,20 @@ function check(name, cond, detail = '') {
 }
 
 try {
+  const appSource = await fs.promises.readFile(path.join(ROOT, 'js/main.js'), 'utf8');
+  const pageSource = await fs.promises.readFile(path.join(ROOT, 'index.html'), 'utf8');
+  const vehicleSource = await fs.promises.readFile(path.join(ROOT, 'js/vehicles.js'), 'utf8');
+  check('Esc opens the pause menu and Esc from pause resumes the game',
+    appSource.includes("else if (this.state === 'playing') this.pause();")
+      && appSource.includes("if (this.state === 'paused') this.resume();")
+      && appSource.includes("id=\"pause-screen\""));
+  check('pause menu contains all five cockpit camera adjustments',
+    ['forward', 'height', 'side', 'lookPitch', 'lookYaw'].every((key) =>
+      pageSource.includes('data-cockpit-setting="' + key + '"'))
+      && pageSource.includes('id="open-cockpit-settings"'));
+  check('cockpit adjustments persist independently by vehicle type',
+    vehicleSource.includes("sc_cockpit_camera_profiles_v1")
+      && vehicleSource.includes('this._cockpitProfiles[kind]'));
   await waitForServer();
   console.log('[verify] server up on ' + BASE);
 
