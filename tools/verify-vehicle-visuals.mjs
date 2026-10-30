@@ -80,6 +80,12 @@ try{
     check(spec.kind+' camera uses the calibrated profile',Math.abs(interior.cameraHeight-spec.expectedHeight)<1e-6);
     check(spec.kind+' interior FOV reaches its settled profile',Math.abs(interior.fov-spec.expectedFov)<0.35,`fov=${interior.fov.toFixed(2)}°`);
     const insideShot=await capture(page,spec.prefix+'-interior');
+    for(const side of [-0.38,0.38]){
+      const cameraVariant=await page.evaluate(value=>window.__vehicleVisualTest.setCameraSide(value),side);
+      const shot=await capture(page,spec.prefix+'-seat-side-'+(side<0?'minus':'plus'));
+      console.log('SEAT SIDE '+JSON.stringify({side,...cameraVariant,...shot}));
+    }
+    await page.evaluate(()=>window.__vehicleVisualTest.setCameraSide(0));
     if(spec.kind==='cybertruck'){
       for(const preset of [
         {dome:2.5,dashboard:0.45,label:'2_5-0_45'},
