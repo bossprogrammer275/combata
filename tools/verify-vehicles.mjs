@@ -104,7 +104,7 @@ try {
   await waitForServer();
   console.log('[verify] server up on ' + BASE);
 
-  const { loadCarModel, CAR_MODELS, CAR_PHYSICS, VehicleSystem } = await import('../js/vehicles.js');
+  const { loadCarModel, CAR_MODELS, CAR_PHYSICS, VehicleSystem, rigSteeringWheel } = await import('../js/vehicles.js');
   const { Physics } = await import('../js/physics.js');
   const { createPowertrainState, stepVehiclePowertrain } = await import('../js/vehicle-powertrains.js');
   const {
@@ -285,6 +285,40 @@ try {
     assert.ok(CAR_MODELS.bugatti && CAR_MODELS.bugatti.url);
     assert.equal(CAR_MODELS.bugatti.targetLen, 4.9);
   });
+
+  // A hand-assigned, generically named steering mesh must rotate on its
+  // own pivot and must not pull the dashboard with it.
+  {
+    const testScene = new THREE.Group();
+    const dashboard = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.35, 0.08), new THREE.MeshBasicMaterial());
+    dashboard.name = 'DashboardPanel';
+    dashboard.position.set(0, 1.0, 0.5);
+    const steeringMesh = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.018, 8, 24), new THREE.MeshBasicMaterial());
+    steeringMesh.name = 'UnlabelledCabinMesh';
+    steeringMesh.position.set(-0.25, 0.98, 0.42);
+    testScene.add(dashboard, steeringMesh);
+    const manualKey = steeringMesh.name + '[' + testScene.children.indexOf(steeringMesh) + ']';
+    const rig = rigSteeringWheel(testScene, {
+      meshKeys: [manualKey], axis: 'x', maxAngleDeg: 450, sign: 1, response: 10,
+    });
+    testScene.updateMatrixWorld(true);
+    const wheelBefore = steeringMesh.matrixWorld.elements.slice();
+    const dashboardBefore = dashboard.matrixWorld.elements.slice();
+    rig.pivot.rotation.x = 0.18;
+    testScene.updateMatrixWorld(true);
+    const wheelAfter = steeringMesh.matrixWorld.elements.slice();
+    const dashboardAfter = dashboard.matrixWorld.elements.slice();
+    check('manual steering-wheel mesh assignment creates its own pivot',
+      !!rig && wheelBefore.some((value, i) => Math.abs(value - wheelAfter[i]) > 1e-6));
+    check('steering-wheel animation does not rotate the dashboard',
+      dashboardBefore.every((value, i) => Math.abs(value - dashboardAfter[i]) < 1e-6));
+  }
+
+  check('Lamborghini and Cybertruck have distinct interior eye heights',
+    CAR_PHYSICS.lambo.interiorCamera.height === 1.02
+      && CAR_PHYSICS.cybertruck.interiorCamera.height === 1.42
+      && CAR_PHYSICS.cybertruck.interiorCamera.height - CAR_PHYSICS.lambo.interiorCamera.height > 0.35,
+    'Lamborghini=1.02m, Cybertruck=1.42m');
 
   const dynamicVehicleSpecs = {};
   for (const kind of Object.keys(CAR_MODELS)) {
