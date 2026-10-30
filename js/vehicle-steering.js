@@ -16,6 +16,33 @@ export function ackermannSteerAngle(centerAngle, wheelX, wheels = [], wheelbase 
   return Math.sign(angle) * Math.atan(wheelbase / wheelRadius);
 }
 
+export function resolveDriveAxes(pressedKeys) {
+  const has = (code) => !!pressedKeys?.has?.(code);
+  return {
+    forward: Number(has('KeyW') || has('ArrowUp')) - Number(has('KeyS') || has('ArrowDown')),
+    right: Number(has('KeyD') || has('ArrowRight')) - Number(has('KeyA') || has('ArrowLeft')),
+  };
+}
+
+// Follow actual travel direction, not merely the requested reverse input.
+// Hysteresis prevents the camera flipping while speed passes through zero.
+export function updateReverseCameraBlend(current, signedForwardSpeed, dt) {
+  const blend = Math.max(0, Math.min(1, Number(current) || 0));
+  const speed = Number(signedForwardSpeed) || 0;
+  let target = blend;
+  if (speed < -0.8) target = 1;
+  else if (speed > 0.45) target = 0;
+  const step = Math.min(Math.max(Number(dt) || 0, 0), 0.05);
+  return blend + (target - blend) * (1 - Math.exp(-5.5 * step));
+}
+
+export function chaseCameraYaw(vehicleYaw, lookYaw = 0, reverseBlend = 0) {
+  const yaw = Number.isFinite(vehicleYaw) ? vehicleYaw : 0;
+  const look = Number.isFinite(lookYaw) ? lookYaw : 0;
+  const reverse = Math.max(0, Math.min(1, Number(reverseBlend) || 0));
+  return yaw + look + Math.PI * reverse;
+}
+
 export function updateChaseLook(state, input = {}) {
   const dt = Math.min(Math.max(Number(input.dt) || 0, 0), 0.05);
   const mouseDX = Number(input.mouseDX) || 0;
