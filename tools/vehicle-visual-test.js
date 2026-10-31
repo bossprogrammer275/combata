@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { VehicleSystem, CAR_PHYSICS } from '../js/vehicles.js';
+import { VehicleSystem, CAR_PHYSICS, diagnoseCarWheelMeshes } from '../js/vehicles.js';
 
 const canvas=document.getElementById('view');
 const status=document.getElementById('status');
@@ -39,6 +39,54 @@ const system=new VehicleSystem(scene,world,camera,null,null);
 const player={pos:new THREE.Vector3(),yaw:0};
 let current=null;
 const report={vehicles:{},screenshots:[],errors:[]};
+let wheelHelpers=[];
+let wheelMarkerMeshes=[];
+
+function clearWheelDiagnostics(){
+  for(const helper of wheelHelpers)scene.remove(helper);
+  for(const marker of wheelMarkerMeshes)scene.remove(marker);
+  wheelHelpers=[];wheelMarkerMeshes=[];
+}
+
+function showWheelDiagnostics(diagnostics){
+  clearWheelDiagnostics();
+  const byUuid=new Map();
+  current.root.traverse(node=>{if(node.isMesh)byUuid.set(node.uuid,node);});
+  const colors={
+    'front-left':0x26d9ff,
+    'front-right':0x79ff65,
+    'rear-left':0xffd34d,
+    'rear-right':0xff62d5,
+  };
+  for(const wheel of diagnostics.selectedWheels){
+    const color=colors[wheel.quadrant]||0xffffff;
+    for(const uuid of wheel.meshUUIDs||[]){
+      const node=byUuid.get(uuid);
+      if(!node)continue;
+      const box=new THREE.Box3().setFromObject(node);
+      if(box.isEmpty())continue;
+      const helper=new THREE.Box3Helper(box,color);
+      helper.material.depthTest=false;
+      helper.material.transparent=true;
+      helper.material.opacity=0.98;
+      scene.add(helper);wheelHelpers.push(helper);
+    }
+    const marker=new THREE.Mesh(
+      new THREE.SphereGeometry(0.075,12,8),
+      new THREE.MeshBasicMaterial({color,depthTest:false}),
+    );
+    marker.position.fromArray(wheel.center);
+    scene.add(marker);wheelMarkerMeshes.push(marker);
+  }
+  return diagnostics.selectedWheels.map(wheel=>({
+    quadrant:wheel.quadrant,
+    center:wheel.center,
+    size:wheel.size,
+    selectedMesh:wheel.name,
+    attachedMeshCount:wheel.meshCount,
+    attachedMeshNames:wheel.meshNames,
+  }));
+}
 
 function render(){
   scene.updateMatrixWorld(true);
@@ -82,6 +130,8 @@ async function load(kind){
   };
   vehicle.root.traverse(n=>{if(n.isMesh)base.meshCount++;});
   base.cabinMeshes=listCabinMeshes(vehicle.root);
+  base.wheelDiagnostics=diagnoseCarWheelMeshes(vehicle.root,kind);
+  base.wheelDetectionSummary=showWheelDiagnostics(base.wheelDiagnostics);
   base.meshNameSamples=[];vehicle.root.traverse(n=>{if(n.isMesh&&base.meshNameSamples.length<80)base.meshNameSamples.push(n.name||'(unnamed)');});
   report.vehicles[kind]=base;
   system._setInteriorLights(false);
@@ -129,6 +179,38 @@ function setCameraSide(side){
   render();
   return {side:current.interiorCamera.side,cameraPosition:camera.position.toArray(),fov:camera.fov};
 }
+
+function focusWheel(quadrant){
+  if(!current)throw new Error('No current vehicle');
+  const diagnostics=diagnoseCarWheelMeshes(current.root,current.kind);
+  const wheel=diagnostics.selectedWheels.find(item=>item.quadrant===quadrant);
+  if(!wheel)throw new Error('Wheel candidate was not detected: '+quadrant);
+  const center=new THREE.Vector3(...wheel.center);
+  const side=quadrant.endsWith('right')?1:-1;
+  const front=quadrant.startsWith('front')?1:-1;
+  camera.fov=48;camera.updateProjectionMatrix();
+  camera.position.copy(center).add(new THREE.Vector3(side*2.7,0.85,front*0.38));
+  camera.lookAt(center);
+  status.textContent=current.kind.toUpperCase()+' · '+quadrant.toUpperCase()
+    +' · '+wheel.meshCount+' MESHES IN WHEEL RIG · BOUNDS '
+    +wheel.size.map(v=>v.toFixed(2)).join(' × ')+' m';
+  render();
+  return {quadrant,wheel,selectedWheelCount:diagnostics.selectedWheelCount,
+    candidateCount:diagnostics.candidateCount,attachedWheelMeshCount:diagnostics.attachedWheelMeshCount};
+}
+
+function showWheelOverview(){
+  if(!current)throw new Error('No current vehicle');
+  const diagnostics=diagnoseCarWheelMeshes(current.root,current.kind);
+  showWheelDiagnostics(diagnostics);
+  camera.fov=62;camera.updateProjectionMatrix();
+  camera.position.set(-8.5,5.2,-10.5);
+  camera.lookAt(0,0.75,0);
+  status.textContent=current.kind.toUpperCase()+' · DETECTED WHEEL MESHES OUTLINED · '
+    +diagnostics.selectedWheelCount+'/4 WHEELS · '+diagnostics.attachedWheelMeshCount+' MESHES ATTACHED';
+  render();
+  return diagnostics;
+}
 window.__vehicleVisualTest={
   report,
   async load(kind){return await load(kind);},
@@ -136,6 +218,8 @@ window.__vehicleVisualTest={
   exterior(){return setExterior();},
   setCabinLights(dome,dashboard){return setCabinLights(dome,dashboard);},
   setCameraSide(side){return setCameraSide(side);},
+  showWheelOverview(){return showWheelOverview();},
+  focusWheel(quadrant){return focusWheel(quadrant);},
   details(){return {report,headings:Object.keys(CAR_PHYSICS)};},
 };
 window.addEventListener('error',e=>report.errors.push(String(e.message||e.error||'window error')));
