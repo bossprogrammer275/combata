@@ -275,11 +275,11 @@ def auto_place_mixamo_markers(page):
         raise RuntimeError(f"Character is too small, incomplete or side-on (silhouette {cw}x{ch}, aspect {aspect:.2f}).")
     # Front-facing preview: anatomical left is on viewer-right.
     estimates={
-        "chin":(0.50,0.125),
-        "rarm":(0.04,0.405),"larm":(0.96,0.405),
-        "relbow":(0.16,0.315),"lelbow":(0.84,0.315),
+        "chin":(0.50,0.105),
+        "rarm":(0.04,0.392),"larm":(0.96,0.392),
+        "relbow":(0.16,0.300),"lelbow":(0.84,0.300),
         "rknee":(0.37,0.750),"lknee":(0.63,0.750),
-        "groin":(0.50,0.535),
+        "groin":(0.50,0.515),
     }
     symmetry=page.locator('.autorig-options input[name="symmetry"]')
     if symmetry.count()!=1:
