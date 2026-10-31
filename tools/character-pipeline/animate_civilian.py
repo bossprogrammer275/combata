@@ -117,9 +117,11 @@ def wait_upload_complete(page, get_upload_status, confirm_review, timeout=240):
                 print("[Mixamo] Confirming replacement of the current character...")
                 confirm_review(page)
                 page.wait_for_timeout(1500)
-            elif now - last_heartbeat >= 15:
-                print("[Mixamo] Waiting for character replacement to finish...")
-                last_heartbeat = now
+            else:
+                if now - last_heartbeat >= 15:
+                    print("[Mixamo] Waiting for character replacement to finish...")
+                    last_heartbeat = now
+                page.wait_for_timeout(1000)
             continue
 
         if state == "review":
@@ -261,7 +263,25 @@ def main():
         page.wait_for_load_state("networkidle")
         print("[Mixamo] Uploading civilian_001_source.fbx...")
         upload_mod.upload_file(page, str(SOURCE_FBX))
-        wait_upload_complete(page, upload_mod.get_status, upload_mod.confirm_review)
+        try:
+            wait_upload_complete(page, upload_mod.get_status, upload_mod.confirm_review)
+        except Exception as exc:
+            manifest_path = OUT / "manifest.json"
+            try:
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {"id": "civilian_001"}
+                manifest["status"] = "mixamo-upload-failed"
+                manifest["mixamoUploadError"] = str(exc)
+                manifest["mixamoUploadDiagnostics"] = [
+                    name for name in (
+                        "mixamo_upload_debug.html",
+                        "mixamo_upload_debug.png",
+                        "mixamo_upload_debug.txt",
+                    ) if (OUT / name).is_file()
+                ]
+                manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+            except Exception as manifest_exc:
+                print(f"[Mixamo] Could not update failure manifest: {manifest_exc}")
+            raise
 
         base_job = {"queries": ["t pose", "t-pose"], "need": ["pose"], "exclude": []}
         base_clip = search_and_select(page, animations_mod, base_job)
