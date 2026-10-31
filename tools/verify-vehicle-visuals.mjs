@@ -69,6 +69,16 @@ try{
     check(spec.kind+' every selected wheel has actual GLB meshes attached',
       wheelDiagnostics.selectedWheels.every(w=>w.meshCount>0),
       wheelDiagnostics.selectedWheels.map(w=>w.quadrant+':'+w.meshCount).join(', '));
+    if(spec.kind==='cybertruck'){
+      check('Cybertruck applies its larger 0.45m wheel-member grouping radius only to this model',
+        Math.abs(wheelDiagnostics.wheelMemberRadius-0.45)<1e-9
+          && wheelDiagnostics.selectedWheels.every(w=>w.meshCount>=12),
+        'radius='+wheelDiagnostics.wheelMemberRadius+' members='+wheelDiagnostics.selectedWheels.map(w=>w.meshCount).join('/'));
+    }else if(spec.kind==='lambo'){
+      check('Lamborghini keeps the tighter 0.30m wheel-member grouping radius',
+        Math.abs(wheelDiagnostics.wheelMemberRadius-0.30)<1e-9,
+        'radius='+wheelDiagnostics.wheelMemberRadius);
+    }
     console.log('WHEEL DETECTOR '+JSON.stringify({
       kind:spec.kind,
       candidateSizeLimit:wheelDiagnostics.candidateSizeLimit,
