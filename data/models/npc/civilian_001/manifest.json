@@ -63,10 +63,12 @@
   "mixamoSourceModel": "data/models/npc/civilian_001/civilian_001_source.obj",
   "mixamoSourceBundle": "data/models/npc/civilian_001/civilian_001_mixamo_source.zip",
   "mixamoSourceFormat": "OBJ, native MakeHuman Y-up coordinates",
-  "mixamoUploadError": "Mixamo marker overlay did not expose all eight marker elements: Page.wait_for_function: Timeout 30000ms exceeded.",
+  "mixamoUploadError": "Mixamo Auto-Rigger timed out after 360s. Last state: unknown. Last message: . Last API status: not captured.",
   "mixamoUploadDiagnostics": [
-    "mixamo_marker_debug.html",
-    "mixamo_marker_debug.png",
-    "mixamo_marker_dom.json"
+    "mixamo_upload_debug.html",
+    "mixamo_upload_debug.png",
+    "mixamo_upload_debug.txt",
+    "mixamo_markers_manual_start.png",
+    "mixamo_markers_manual_done.png"
   ]
 }
