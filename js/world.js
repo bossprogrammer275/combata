@@ -46,6 +46,7 @@ export class World {
     this.transitPoints = [];  // {x,z,name} fast-travel destinations
     this.roofAccess = [];     // {x,z,y,rx,rz} walkable rooftops
     this.reactiveObjects = []; // {mesh, kind, base, sway, ...}
+    this.npcInteractables = []; // semantic seats, phones, counters and other civilian-use nodes
     this.vehicleSpawns = [];  // {x,z,ry,kind} parked/drivable vehicles
     this._buildingData = [];  // {url,min,max,x,z,doors[],interior} — auto-detected from GLB
     this.bounds = sceneData && sceneData.bounds ? sceneData.bounds : (quality === 'ultra-low' ? 1000 : 2000);
@@ -288,6 +289,74 @@ export class World {
       burning: false, burnT: 0, burnFuse: 0,
       dead: false,
     });
+  }
+
+
+  registerNpcInteractable(mesh, metadata = {}) {
+    if (!mesh || !mesh.getWorldPosition) return null;
+    const existing = this.npcInteractables.find(item => item.mesh === mesh);
+    if (existing) return existing;
+    const kind = String(metadata.kind || "prop").toLowerCase();
+    const position = new THREE.Vector3();
+    mesh.updateWorldMatrix(true, false);
+    mesh.getWorldPosition(position);
+    const record = {
+      mesh,
+      kind,
+      label: metadata.label || kind.replace(/_/g, " ").toUpperCase(),
+      position,
+      useRadius: Number(metadata.useRadius) || 1.2,
+      approachOffset: metadata.approachOffset || null,
+      reservedBy: null,
+      onPlayerInteract: typeof metadata.onPlayerInteract === "function" ? metadata.onPlayerInteract : null,
+    };
+    this.npcInteractables.push(record);
+    return record;
+  }
+
+  _registerAssetNpcInteractables(model) {
+    const registered = [];
+    const classify = (node) => {
+      const meta = node.userData?.npcInteractable;
+      if (meta === false) return null;
+      if (meta && typeof meta === "object" && meta.kind) return meta;
+      if (typeof meta === "string") return { kind: meta };
+      const name = String(node.name || "").toLowerCase().replace(/[\s-]+/g, "_");
+      const match = (pattern, kind) => pattern.test(name) ? { kind } : null;
+      return match(/(^|_)(seat|bench|chair|sofa|stool|couch)(_|$)|^(seat|bench|chair|sofa|stool|couch)/, "seat")
+        || match(/(^|_)(phone|telephone|payphone)(_|$)|^(phone|telephone|payphone)/, "phone")
+        || match(/(^|_)(atm|cash_machine|cashmachine)(_|$)|^(atm|cashmachine)/, "atm")
+        || match(/(^|_)(vending|vending_machine)(_|$)|^(vending)/, "vending")
+        || match(/(^|_)(counter|cashier|shop_counter|vendor_stall)(_|$)|^(counter|cashier)/, "counter");
+    };
+    model.traverse(node => {
+      if (node === model) return;
+      let ancestor = node.parent;
+      while (ancestor && ancestor !== model) {
+        if (registered.includes(ancestor)) return;
+        ancestor = ancestor.parent;
+      }
+      const metadata = classify(node);
+      if (!metadata) return;
+      const record = this.registerNpcInteractable(node, metadata);
+      if (record) registered.push(node);
+    });
+  }
+
+  nearestNpcInteractable(position, radius = 2.5) {
+    let best = null, bestDistance = radius;
+    for (const object of this.npcInteractables) {
+      if (!object.mesh || !object.mesh.visible || !object.mesh.parent) continue;
+      object.mesh.updateWorldMatrix(true, false);
+      object.mesh.getWorldPosition(object.position);
+      const distance = Math.hypot(object.position.x - position.x, object.position.z - position.z);
+      if (distance < bestDistance) {
+        best = object;
+        bestDistance = distance;
+      }
+    }
+    if (!best) return null;
+    return Object.assign(best, { distance: bestDistance });
   }
 
   // Turn all batched geometry into InstancedMeshes (one per material).
@@ -786,6 +855,7 @@ export class World {
       model.position.set(a.x, yOffset, a.z);
       this.group.add(model);
       model.updateMatrixWorld(true);
+      this._registerAssetNpcInteractables(model);
 
       // Enhance all materials for realism
       const envMap = this.scene.environment;
