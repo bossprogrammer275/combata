@@ -220,6 +220,7 @@ function classifyCarMeshes(items, options = {}) {
     if (Math.min(m.s.x, m.s.z) > 0.8 * m.s.y) reasons.push('not-thin-across-axle');
     if (side > (options.wheelCandidateMaxSize ?? 1.15)) reasons.push('candidate-exceeds-vehicle-wheel-size-limit');
     const record = {
+      uuid: m.o.uuid,
       name: m.o.name || '(unnamed mesh)',
       hierarchy: hierarchyName,
       center: m.c.toArray(),
@@ -304,11 +305,13 @@ function classifyCarMeshes(items, options = {}) {
       const info = wheelInfos.find(v => v.center.distanceTo(w.best.c) < 1e-6);
       return {
         quadrant: (w.qz > 0 ? 'front' : 'rear') + '-' + (w.qx > 0 ? 'right' : 'left'),
+        uuid: w.best.o.uuid,
         name: w.best.o.name || '(unnamed mesh)',
         center: w.best.c.toArray(),
         size: w.best.s.toArray(),
         meshCount: info ? info.meshes.length : 0,
         meshNames: info ? info.meshes.map(m => m.name || '(unnamed mesh)') : [],
+        meshUUIDs: info ? info.meshes.map(m => m.uuid) : [],
       };
     }),
     meshes: candidateDiagnostics,
