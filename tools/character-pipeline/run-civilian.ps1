@@ -83,9 +83,14 @@ if (-not $AnimateOnly) {
         throw "MakeHuman generation failed with exit code $LASTEXITCODE."
     }
 } else {
-    $existingSource = Join-Path $outputPath "civilian_001_source.fbx"
-    if (!(Test-Path $existingSource)) {
-        throw "Animate-only mode needs an existing source FBX at $existingSource."
+    $existingProject = Join-Path $outputPath "civilian_001.mhm"
+    if (!(Test-Path $existingProject)) {
+        throw "Animate-only mode needs the saved MakeHuman project at $existingProject."
+    }
+    Write-Host "[1/2] Preparing a correctly oriented Y-up OBJ for Mixamo from the saved project..." -ForegroundColor Cyan
+    & $makeHumanPython $buildScript --export-existing --output $Output
+    if ($LASTEXITCODE -ne 0) {
+        throw "Mixamo OBJ preparation failed with exit code $LASTEXITCODE."
     }
 }
 
