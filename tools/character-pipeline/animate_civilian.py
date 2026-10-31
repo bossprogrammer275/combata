@@ -7,6 +7,8 @@ import re
 import sys
 import time
 import zipfile
+import struct
+import zlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -161,58 +163,148 @@ def save_marker_diagnostics(page, reason):
         print(f"[Mixamo] Could not save marker diagnostics: {exc}")
 
 
-def wait_for_manual_marker_placement(page):
-    """Keep the browser open and detect when the user clicks Mixamo's Next button."""
-    OUT.mkdir(parents=True, exist_ok=True)
+def _paeth(a, b, c):
+    p=a+b-c
+    pa,pb,pc=abs(p-a),abs(p-b),abs(p-c)
+    return a if pa<=pb and pa<=pc else (b if pb<=pc else c)
 
+
+def _png_character_mask(data):
+    """Decode Playwright's 8-bit canvas PNG using stdlib and isolate coloured avatar pixels."""
+    if not data.startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
+        raise RuntimeError("Mixamo canvas screenshot is not a valid PNG.")
+    pos=8; width=height=depth=colour=interlace=0; parts=[]
+    while pos+8<=len(data):
+        size=struct.unpack(">I",data[pos:pos+4])[0]
+        kind,chunk=data[pos+4:pos+8],data[pos+8:pos+8+size]
+        pos+=size+12
+        if kind==b"IHDR":
+            width,height,depth,colour,_,_,interlace=struct.unpack(">IIBBBBB",chunk)
+        elif kind==b"IDAT": parts.append(chunk)
+        elif kind==b"IEND": break
+    channels={0:1,2:3,4:2,6:4}.get(colour)
+    if not width or not height or channels is None or depth!=8 or interlace!=0:
+        raise RuntimeError(f"Unsupported Mixamo PNG ({width}x{height}, depth={depth}, colour={colour}).")
+    raw=zlib.decompress(b"".join(parts)); stride=width*channels; bpp=channels
+    mask=bytearray(width*height); rows=[0]*height; cols=[0]*width
+    prev=bytearray(stride); cursor=0
+    for y in range(height):
+        ft=raw[cursor]; cursor+=1
+        row=bytearray(raw[cursor:cursor+stride]); cursor+=stride
+        if ft==1:
+            for i in range(stride): row[i]=(row[i]+(row[i-bpp] if i>=bpp else 0))&255
+        elif ft==2:
+            for i in range(stride): row[i]=(row[i]+prev[i])&255
+        elif ft==3:
+            for i in range(stride):
+                left=row[i-bpp] if i>=bpp else 0
+                row[i]=(row[i]+(left+prev[i])//2)&255
+        elif ft==4:
+            for i in range(stride):
+                left=row[i-bpp] if i>=bpp else 0
+                up=prev[i]; ul=prev[i-bpp] if i>=bpp else 0
+                row[i]=(row[i]+_paeth(left,up,ul))&255
+        elif ft!=0: raise RuntimeError(f"Unsupported PNG row filter {ft}.")
+        for x in range(width):
+            i=x*bpp
+            if colour==0: r=g=b=row[i]; alpha=255
+            elif colour==2: r,g,b=row[i:i+3]; alpha=255
+            elif colour==4: r=g=b=row[i]; alpha=row[i+1]
+            else: r,g,b,alpha=row[i:i+4]
+            if alpha>=80 and max(r,g,b)>=38 and max(r,g,b)-min(r,g,b)>=18:
+                mask[y*width+x]=1; rows[y]+=1; cols[x]+=1
+        prev=row
+    ay=[i for i,n in enumerate(rows) if n>=3]
+    ax=[i for i,n in enumerate(cols) if n>=3]
+    if len(ax)<10 or len(ay)<10:
+        raise RuntimeError(f"Character segmentation failed ({len(ax)} columns, {len(ay)} rows).")
+    return width,height,mask,(ax[0],ay[0],ax[-1],ay[-1])
+
+
+def _snap_to_character(mask,width,height,x,y,radius):
+    best=None; best_d2=None
+    for py in range(max(0,int(y)-radius),min(height-1,int(y)+radius)+1):
+        base=py*width
+        for px in range(max(0,int(x)-radius),min(width-1,int(x)+radius)+1):
+            if mask[base+px]:
+                d2=(px-x)**2+(py-y)**2
+                if best_d2 is None or d2<best_d2: best,best_d2=(px,py),d2
+    if best is None or best_d2**0.5>radius:
+        raise RuntimeError(f"Estimated landmark ({x:.1f},{y:.1f}) is not on the character silhouette.")
+    return best,best_d2**0.5
+
+
+def _drag_mixamo_marker(page,marker_id,x,y):
+    marker=page.locator(f".autorig-overlay .autorig-marker#{marker_id}")
+    if marker.count()!=1 or not marker.is_visible():
+        raise RuntimeError(f"Mixamo marker '{marker_id}' is missing or hidden.")
+    box=marker.bounding_box()
+    if not box: raise RuntimeError(f"Could not read marker '{marker_id}' position.")
+    sx,sy=box["x"]+box["width"]/2,box["y"]+box["height"]/2
+    page.mouse.move(sx,sy); page.mouse.down()
     try:
-        page.bring_to_front()
-    except Exception:
-        pass
+        page.mouse.move(x,y,steps=16); page.wait_for_timeout(100)
+    finally: page.mouse.up()
+    page.wait_for_timeout(180)
+    after=marker.bounding_box()
+    if not after: raise RuntimeError(f"Marker '{marker_id}' disappeared after drag.")
+    ax,ay=after["x"]+after["width"]/2,after["y"]+after["height"]/2
+    error=((ax-x)**2+(ay-y)**2)**0.5
+    if error>16: raise RuntimeError(f"Marker '{marker_id}' did not move to target (error {error:.1f}px).")
+    return {"marker":marker_id,"target":[round(x,2),round(y,2)],"actual":[round(ax,2),round(ay,2)],"error":round(error,2)}
 
-    try:
-        page.screenshot(path=str(OUT / "mixamo_markers_manual_start.png"), full_page=True)
-    except Exception as exc:
-        print(f"[Mixamo] Could not save starting marker screenshot: {exc}")
 
-    print("")
-    print("=" * 68)
-    print("MANUAL MIXAMO MARKER PLACEMENT REQUIRED")
-    print("=" * 68)
-    print("Place all 8 markers on the model:")
-    print("  Chin, Left Wrist, Right Wrist, Left Elbow, Right Elbow,")
-    print("  Left Knee, Right Knee and Groin.")
-    print("")
-    print("When all markers are correctly placed, CLICK NEXT in the Mixamo browser.")
-    print("The script will detect the click automatically and resume rigging checks.")
-    print("=" * 68)
-
-    overlay = page.locator(".autorig-overlay")
-    started = time.monotonic()
-    last_report = 0
-
-    while True:
-        try:
-            visible = overlay.count() > 0 and overlay.first.is_visible()
-        except Exception:
-            visible = False
-
-        if not visible:
-            # Let the post-marker screen finish mounting before status detection.
-            page.wait_for_timeout(1200)
-            elapsed = int(time.monotonic() - started)
-            print(f"[Mixamo] Detected that Next was clicked ({elapsed}s marker step).")
-            try:
-                page.screenshot(path=str(OUT / "mixamo_markers_manual_done.png"), full_page=True)
-            except Exception as exc:
-                print(f"[Mixamo] Could not save completed marker screenshot: {exc}")
-            return True
-
-        elapsed = int(time.monotonic() - started)
-        if elapsed - last_report >= 15:
-            print(f"[Mixamo] Waiting for you to click Next... {elapsed}s elapsed.")
-            last_report = elapsed
-        page.wait_for_timeout(500)
+def auto_place_mixamo_markers(page):
+    """Estimate eight joints from the live canvas, drag Mixamo markers, and verify."""
+    OUT.mkdir(parents=True,exist_ok=True)
+    overlay=page.locator(".autorig-overlay"); canvas=page.locator(".autorig-viewer canvas")
+    try: page.bring_to_front()
+    except Exception: pass
+    overlay.wait_for(state="visible",timeout=20_000)
+    canvas.wait_for(state="visible",timeout=20_000)
+    page.wait_for_timeout(900)
+    ob,cb=overlay.bounding_box(),canvas.bounding_box()
+    if not ob or not cb: raise RuntimeError("Mixamo overlay or canvas has no measurable bounds.")
+    if abs(ob["x"]-cb["x"])>28 or abs(ob["y"]-cb["y"])>28:
+        raise RuntimeError("Mixamo marker overlay and canvas are not aligned.")
+    canvas_file=OUT/"mixamo_autorig_canvas.png"
+    png=canvas.screenshot(path=str(canvas_file),timeout=20_000)
+    iw,ih,mask,(x0,y0,x1,y1)=_png_character_mask(png)
+    cw,ch=x1-x0,y1-y0; aspect=cw/max(ch,1)
+    if ch<ih*0.62 or cw<iw*0.20 or not 0.30<=aspect<=1.10:
+        raise RuntimeError(f"Character is too small, incomplete or side-on (silhouette {cw}x{ch}, aspect {aspect:.2f}).")
+    # Front-facing preview: anatomical left is on viewer-right.
+    estimates={
+        "chin":(0.50,0.125),
+        "rarm":(0.04,0.405),"larm":(0.96,0.405),
+        "relbow":(0.16,0.315),"lelbow":(0.84,0.315),
+        "rknee":(0.37,0.750),"lknee":(0.63,0.750),
+        "groin":(0.50,0.535),
+    }
+    symmetry=page.locator('.autorig-options input[name="symmetry"]')
+    if symmetry.count()==1 and symmetry.is_checked():
+        symmetry.uncheck(); page.wait_for_timeout(250)
+        if symmetry.is_checked(): raise RuntimeError("Could not disable Mixamo marker symmetry.")
+    radius=max(12,int(ch*0.055))
+    report={"canvas":[iw,ih],"characterBounds":[x0,y0,x1,y1],"placements":[]}
+    for marker_id,(xr,yr) in estimates.items():
+        ex,ey=x0+cw*xr,y0+ch*yr
+        (px,py),snap_d=_snap_to_character(mask,iw,ih,ex,ey,radius)
+        tx=cb["x"]+(px+0.5)*cb["width"]/iw
+        ty=cb["y"]+(py+0.5)*cb["height"]/ih
+        item=_drag_mixamo_marker(page,marker_id,tx,ty)
+        item["pixel"]=[px,py]; item["estimate"]=[round(ex,2),round(ey,2)]
+        item["snapDistance"]=round(snap_d,2); report["placements"].append(item)
+        print(f"[Mixamo] Placed {marker_id} at canvas ({px},{py}); position verified.")
+    if len(report["placements"])!=8: raise RuntimeError(f"Only {len(report['placements'])}/8 markers were verified.")
+    for item in report["placements"]:
+        ax,ay=item["actual"]
+        if not (cb["x"]-2<=ax<=cb["x"]+cb["width"]+2 and cb["y"]-2<=ay<=cb["y"]+cb["height"]+2):
+            raise RuntimeError(f"Marker {item['marker']} ended outside the character canvas.")
+    (OUT/"mixamo_marker_placement.json").write_text(json.dumps(report,indent=2),encoding="utf-8")
+    page.screenshot(path=str(OUT/"mixamo_markers_auto_placed.png"),full_page=True)
+    print("[Mixamo] All eight anatomical markers were placed and verified.")
+    return report
 
 
 def attach_character_status_listener(page):
@@ -463,8 +555,18 @@ def wait_upload_complete(page, get_upload_status, confirm_review, api_status_eve
                 save_upload_diagnostics(page, reason, api_status_events)
                 raise RuntimeError(reason + " See mixamo_upload_debug.png/html in the output folder.")
             marker_submit_attempted = True
+            placement_report = auto_place_mixamo_markers(page)
             api_event_start = len(api_status_events)
-            wait_for_manual_marker_placement(page)
+            next_button = page.locator(".autorig-modal .modal-footer button.btn-primary")
+            if next_button.count() != 1 or not next_button.is_visible() or not next_button.is_enabled():
+                raise RuntimeError("Eight markers were positioned, but Mixamo's Next button is not ready.")
+            next_button.click()
+            print(f"[Mixamo] Submitted {len(placement_report['placements'])}/8 verified landmarks to Auto-Rigger.")
+            page.wait_for_timeout(1200)
+            try:
+                page.screenshot(path=str(OUT/"mixamo_markers_auto_submitted.png"),full_page=True)
+            except Exception:
+                pass
             marker_submit_time = time.time()
             page.wait_for_timeout(1500)
             continue
@@ -624,6 +726,10 @@ def main():
                         "mixamo_upload_debug.png",
                         "mixamo_upload_debug.txt",
                 "mixamo_upload_debug_dom.json",
+                "mixamo_marker_placement.json",
+                "mixamo_autorig_canvas.png",
+                "mixamo_markers_auto_placed.png",
+                "mixamo_markers_auto_submitted.png",
                         "mixamo_markers_placed.png",
                         "mixamo_marker_debug.html",
                         "mixamo_marker_debug.png",
