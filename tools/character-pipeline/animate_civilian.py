@@ -40,18 +40,95 @@ ANIMATIONS = [
 def norm(value):
     return re.sub(r"[^a-z0-9]+", " ", str(value).lower()).strip()
 
-def pick_animation(items, job):
-    candidates = []
-    for item in items:
-        name = norm(item.get("name", ""))
-        if not name or any(term in name for term in job["exclude"]):
+def get_animation_candidates(html, query):
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(html, "html.parser")
+    results = []
+    for card in soup.find_all(class_="product-animation"):
+        image = card.select_one(".product-image img")
+        name_el = card.find("p", class_="text-capitalize")
+        if not image or not name_el:
             continue
-        if not all(term in name for term in job["need"]):
+        match = re.search(r"/motions/(\\d+)/", image.get("src", ""))
+        if not match:
             continue
-        score = sum(20 for term in norm(job["queries"][0]).split() if term in name)
-        candidates.append((score, item))
-    candidates.sort(key=lambda entry: (-entry[0], entry[1]["name"].lower()))
-    return candidates[0][1] if candidates else None
+        metadata = card.find("ul", class_="product-metadata")
+        description = ""
+        if metadata:
+            item = metadata.find("li")
+            if item:
+                description = item.get_text(" ", strip=True).replace("Description:", "").strip()
+        results.append({
+            "id": match.group(1),
+            "name": name_el.get_text(" ", strip=True),
+            "description": description,
+            "query": query,
+        })
+    return results
+
+
+def prompt_animation_selection(page, animations_mod, job):
+    for query in job["queries"]:
+        print(f"[Mixamo] Searching candidates for {job['key']}: {query}")
+        try:
+            animations_mod.search(page, query)
+            candidates = get_animation_candidates(page.content(), query)
+        except Exception as exc:
+            print(f"[Mixamo] Search failed for '{query}': {exc}")
+            continue
+        if not candidates:
+            print(f"[Mixamo] No results returned for '{query}'.")
+            continue
+        print("")
+        print(f"--- {job['key'].upper()} CANDIDATES ({query}) ---")
+        visible = candidates[:20]
+        for index, candidate in enumerate(visible, start=1):
+            description = candidate["description"] or "No description supplied by Mixamo"
+            print(f" {index:>2}. {candidate['name']} — {description}")
+        if len(candidates) > len(visible):
+            print(f" Showing first {len(visible)} of {len(candidates)} results.")
+        while True:
+            answer = input(f"Choose 1-{len(visible)}, N=next search, S=skip, Q=stop: ").strip().lower()
+            if answer in {"n", "next"}:
+                break
+            if answer in {"s", "skip"}:
+                print(f"[Mixamo] Skipped {job['key']} by user.")
+                return None
+            if answer in {"q", "quit", "stop"}:
+                raise KeyboardInterrupt("Animation selection cancelled by user.")
+            if not answer.isdigit() or not (1 <= int(answer) <= len(visible)):
+                print("[Mixamo] Invalid choice. Enter a listed number, N, S or Q.")
+                continue
+            chosen = visible[int(answer) - 1]
+            try:
+                animations_mod.search(page, chosen["query"])
+                ids = {item["id"] for item in get_animation_candidates(page.content(), chosen["query"])}
+                if chosen["id"] not in ids:
+                    print("[Mixamo] Result no longer appears on the page; choose again.")
+                    break
+                animations_mod.select_animation(page, chosen["id"])
+                page.wait_for_timeout(2200)
+                selected = animations_mod.get_selected_animation(page.content(), page) or {}
+                name = selected.get("name") or chosen["name"]
+                description = selected.get("description") or chosen["description"]
+                print(f"[Mixamo] PREVIEW: {name}")
+                if description:
+                    print(f"[Mixamo] Description: {description}")
+                print("Check the animation playing in the browser before approving it.")
+                approval = input("Download this exact animation? [Y]=yes, R=choose again, S=skip: ").strip().lower()
+                if approval in {"", "y", "yes"}:
+                    return {"id": chosen["id"], "name": name, "description": description, "query": chosen["query"]}
+                if approval in {"s", "skip"}:
+                    return None
+                animations_mod.search(page, query)
+            except Exception as exc:
+                print(f"[Mixamo] Could not preview candidate '{chosen['name']}': {exc}")
+                try:
+                    animations_mod.search(page, query)
+                except Exception:
+                    pass
+    print(f"[Mixamo] No approved candidate selected for {job['key']}.")
+    return None
 
 def save_marker_diagnostics(page, reason):
     """Capture the actual marker DOM and screenshot before failing."""
