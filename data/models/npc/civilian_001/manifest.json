@@ -1,0 +1,61 @@
+{
+  "id": "civilian_001",
+  "displayName": "Ilorin Civilian 001",
+  "description": "Nigerian male civilian, age 21, everyday casual streetwear.",
+  "ageTarget": 21.0,
+  "body": {
+    "gender": "male",
+    "weight": 0.54,
+    "muscle": 0.62,
+    "heightMacro": 0.6
+  },
+  "source": "MakeHuman core",
+  "skeleton": "MakeHuman deform export; Mixamo stage pending",
+  "sourceModel": "data/models/npc/civilian_001/civilian_001_source.fbx",
+  "nativeProject": "data/models/npc/civilian_001/civilian_001.mhm",
+  "selectedAssets": {
+    "skin": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/skins\\middleage_african_female\\middleage_african_female.mhmat",
+    "hair": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/hair\\short01\\short01.mhclo",
+    "eyes": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/eyes\\high-poly\\high-poly.mhclo",
+    "eyebrows": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/eyebrows\\eyebrow001\\eyebrow001.mhclo",
+    "eyelashes": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/eyelashes\\eyelashes01\\eyelashes01.mhclo",
+    "teeth": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/teeth\\teeth_base\\teeth_base.mhclo",
+    "outfit": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/clothes\\female_casualsuit01\\female_casualsuit01.mhclo"
+  },
+  "availableAssetCounts": {
+    "skins": 24,
+    "hair": 10,
+    "eyes": 2,
+    "eyebrows": 12,
+    "eyelashes": 4,
+    "teeth": 6,
+    "clothes": 20
+  },
+  "availableClothing": [
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\fedora01\\fedora01.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\fedora_cocked\\fedora_cocked.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\female_casualsuit01\\female_casualsuit01.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\female_casualsuit02\\female_casualsuit02.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\female_elegantsuit01\\female_elegantsuit01.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\female_sportsuit01\\female_sportsuit01.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\male_casualsuit01\\male_casualsuit01.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\male_casualsuit02\\male_casualsuit02.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\male_casualsuit03\\male_casualsuit03.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\male_casualsuit04\\male_casualsuit04.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\male_casualsuit05\\male_casualsuit05.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\male_casualsuit06\\male_casualsuit06.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\male_elegantsuit01\\male_elegantsuit01.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\male_worksuit01\\male_worksuit01.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\shoes01\\shoes01.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\shoes02\\shoes02.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\shoes03\\shoes03.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\shoes04\\shoes04.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\shoes05\\shoes05.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\shoes06\\shoes06.mhclo"
+  ],
+  "copiedTextures": [
+    "textures/middleage_darkskinned_female_diffuse.png"
+  ],
+  "animations": {},
+  "status": "character-generated-awaiting-mixamo"
+}
