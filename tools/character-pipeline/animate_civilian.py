@@ -506,6 +506,17 @@ def main():
     downloads = {}
     errors = []
 
+    # Previous auto-picked clips are not trustworthy. Remove requested stale
+    # files so skipped animations cannot accidentally remain in the new bundle.
+    for job in selected_animations:
+        stale_clip = animation_dir / f"{job['key']}.fbx"
+        if stale_clip.is_file():
+            stale_clip.unlink()
+            print(f"[Mixamo] Removed previous unverified clip: {stale_clip.name}")
+    stale_base = OUT / "civilian_001_rigged.fbx"
+    if stale_base.is_file():
+        stale_base.unlink()
+
     print("[Mixamo] Opening your saved local browser profile...")
     page = browser.start()
     api_status_events = attach_character_status_listener(page)
@@ -539,6 +550,15 @@ def main():
             except Exception as manifest_exc:
                 print(f"[Mixamo] Could not update failure manifest: {manifest_exc}")
             raise
+
+        manifest_path = OUT / "manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {"id": "civilian_001"}
+        manifest["status"] = "animation-generation-in-progress"
+        manifest["animations"] = {}
+        manifest["animationSelections"] = {}
+        manifest["animationErrors"] = []
+        manifest.pop("mixamoUploadError", None)
+        manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
         # Export the actual newly rigged character; do not search for a fake T-pose motion.
         base_path = OUT / "civilian_001_rigged.fbx"
@@ -616,6 +636,9 @@ def main():
                 print(f"  - {error}")
         print(f"[Mixamo] Bundle: {zip_path}")
         return 0 if completed >= 8 and manifest["riggedModel"] else 1
+    except KeyboardInterrupt:
+        print("[Mixamo] Pipeline cancelled from the console.")
+        return 130
     finally:
         browser.stop()
 
