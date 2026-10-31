@@ -1,35 +1,122 @@
+param(
+    [double]$Age = 21,
+    [ValidateSet("male", "female")][string]$Gender = "male",
+    [double]$Weight = 0.54,
+    [double]$Muscle = 0.62,
+    [double]$Height = 0.60,
+    [string]$Skin = "african,dark,brown,black,deep",
+    [string]$Hair = "short,fade,buzz,afro",
+    [string]$Top = "t shirt,tshirt,tee,polo,hoodie,casual shirt,shirt",
+    [string]$Bottom = "jeans,trousers,pants,denim",
+    [string]$Shoes = "sneaker,trainers,shoes,footwear",
+    [string]$Animations = "idle,walk,run,sprint,jump,crouch_idle,crouch_walk,talk,phone,sit_idle,hit_reaction,fall_death,get_up",
+    [ValidateSet(24, 25, 30, 48, 50, 60)][int]$Fps = 30,
+    [string]$Output = "data/models/npc/civilian_001",
+    [switch]$Help,
+    [switch]$NoCommit,
+    [switch]$NoPush
+)
+
 $ErrorActionPreference = "Stop"
+
+if ($Help) {
+    Write-Host "Open World civilian generator"
+    Write-Host ""
+    Write-Host '.\tools\character-pipeline\generate-civilian.bat -Age 21 -Skin "african,dark,brown" -Hair "short,fade" -Top "t shirt,polo" -Bottom "jeans" -Shoes "sneakers" -Animations "idle,walk,run,sprint,jump,crouch_idle,crouch_walk,talk,phone,sit_idle,hit_reaction,fall_death,get_up" -Fps 30'
+    Write-Host ""
+    Write-Host "Options: -Age -Gender -Weight -Muscle -Height -Skin -Hair -Top -Bottom -Shoes -Animations -Fps -Output -NoCommit -NoPush"
+    Write-Host "Animation keys: idle,walk,run,sprint,jump,crouch_idle,crouch_walk,talk,phone,sit_idle,hit_reaction,fall_death,get_up"
+    exit 0
+}
 
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $makeHumanPython = Join-Path $root "tools\makehuman-core\.venv\Scripts\python.exe"
 $mixamoPython = Join-Path $root "tools\mixamo-mcp\.venv\Scripts\python.exe"
 $buildScript = Join-Path $PSScriptRoot "build_civilian.py"
 $mixamoScript = Join-Path $PSScriptRoot "animate_civilian.py"
+$outputPath = [System.IO.Path]::GetFullPath((Join-Path $root $Output))
 
+if (-not $outputPath.StartsWith($root, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "Output must stay inside the combata repository."
+}
 if (!(Test-Path $makeHumanPython)) {
-    throw "MakeHuman Python environment not found: $makeHumanPython. Re-run the MakeHuman uv sync setup."
+    throw "MakeHuman Python environment not found: $makeHumanPython"
 }
 if (!(Test-Path $mixamoPython)) {
-    throw "Mixamo Python environment not found: $mixamoPython. Re-run the Mixamo dependency installation."
+    throw "Mixamo Python environment not found: $mixamoPython"
 }
 
 Write-Host ""
-Write-Host "=== OPEN WORLD: CIVILIAN 001 PIPELINE ===" -ForegroundColor Cyan
-Write-Host "[1/2] Building the Nigerian civilian with MakeHuman..." -ForegroundColor Cyan
-& $makeHumanPython $buildScript
+Write-Host "=== OPEN WORLD: CIVILIAN GENERATION ===" -ForegroundColor Cyan
+Write-Host "Age: $Age | Gender: $Gender | FPS: $Fps" -ForegroundColor Gray
+Write-Host "Body: weight=$Weight muscle=$Muscle height=$Height" -ForegroundColor Gray
+Write-Host "Skin: $Skin | Hair: $Hair" -ForegroundColor Gray
+Write-Host "Top: $Top | Bottom: $Bottom | Shoes: $Shoes" -ForegroundColor Gray
+Write-Host "Animations: $Animations" -ForegroundColor Gray
+Write-Host ""
+
+$buildArgs = @(
+    $buildScript, "--age", "$Age", "--gender", "$Gender",
+    "--weight", "$Weight", "--muscle", "$Muscle", "--height", "$Height",
+    "--skin", "$Skin", "--hair", "$Hair", "--top", "$Top",
+    "--bottom", "$Bottom", "--shoes", "$Shoes", "--output", $Output
+)
+Write-Host "[1/2] Generating civilian with MakeHuman..." -ForegroundColor Cyan
+& $makeHumanPython @buildArgs
 if ($LASTEXITCODE -ne 0) {
     throw "MakeHuman generation failed with exit code $LASTEXITCODE."
 }
 
+$animationArgs = @($mixamoScript, "--animations", $Animations, "--fps", "$Fps", "--output", $Output)
 Write-Host ""
-Write-Host "[2/2] Uploading to Mixamo and downloading the animation set..." -ForegroundColor Cyan
-Write-Host "A Chromium window will open using your saved local profile. If Adobe requests a sign-in, complete it in that window." -ForegroundColor Yellow
-& $mixamoPython $mixamoScript
+Write-Host "[2/2] Rigging civilian and downloading selected animation FBXs..." -ForegroundColor Cyan
+Write-Host "The saved local Mixamo profile will be used. Complete any Adobe prompt in the opened browser." -ForegroundColor Yellow
+& $mixamoPython @animationArgs
 if ($LASTEXITCODE -ne 0) {
-    throw "Mixamo stage failed with exit code $LASTEXITCODE. Read the messages above."
+    throw "Mixamo generation did not complete successfully (exit code $LASTEXITCODE). Assets remain in $outputPath."
+}
+
+if (-not $NoCommit) {
+    $branch = (& git -C $root branch --show-current).Trim()
+    if (-not $branch) { throw "Could not determine the current Git branch." }
+
+    $alreadyStaged = @(& git -C $root diff --cached --name-only)
+    if ($alreadyStaged.Count -gt 0) {
+        throw "The Git index already contains staged changes. Commit or unstage them before auto-commit."
+    }
+
+    $relativeOutput = $Output.Replace("\", "/").TrimStart("/")
+    & git -C $root add -- $relativeOutput
+    if ($LASTEXITCODE -ne 0) { throw "Git could not stage generated assets." }
+
+    $stagedAfterAdd = @(& git -C $root diff --cached --name-only)
+    $unexpected = @($stagedAfterAdd | Where-Object { -not $_.StartsWith($relativeOutput, [System.StringComparison]::OrdinalIgnoreCase) })
+    if ($unexpected.Count -gt 0) {
+        throw "Unexpected staged paths detected: $($unexpected -join ', '). Nothing was committed."
+    }
+
+    & git -C $root diff --cached --quiet
+    if ($LASTEXITCODE -ne 0) {
+        & git -C $root commit -m "assets: generate civilian character and animation set"
+        if ($LASTEXITCODE -ne 0) { throw "Git commit failed." }
+        Write-Host "Generated assets committed." -ForegroundColor Green
+
+        if (-not $NoPush) {
+            & git -C $root push origin $branch
+            if ($LASTEXITCODE -ne 0) {
+                throw "Commit succeeded, but push failed. Run git push origin $branch after resolving the error."
+            }
+            Write-Host "Generated assets pushed to origin/$branch." -ForegroundColor Green
+        }
+    } else {
+        Write-Host "No generated asset changes to commit." -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "Auto-commit disabled by -NoCommit." -ForegroundColor Yellow
 }
 
 Write-Host ""
-Write-Host "PIPELINE FINISHED." -ForegroundColor Green
-Write-Host "Output: data\models\npc\civilian_001\" -ForegroundColor Green
-Write-Host "Review manifest.json and civilian_001_bundle.zip before committing generated assets."
+Write-Host "GENERATION PIPELINE FINISHED." -ForegroundColor Green
+Write-Host "Output: $outputPath" -ForegroundColor Green
+Write-Host "Manifest: $(Join-Path $outputPath 'manifest.json')" -ForegroundColor Green
+Write-Host "Bundle: $(Join-Path $outputPath 'civilian_001_bundle.zip')" -ForegroundColor Green
