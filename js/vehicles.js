@@ -162,6 +162,24 @@ function boxSize(b, out) {
 }
 
 // Classify meshes: ground-blob discs, wheels (+hub hardware), body shell.
+// Exported options let the visual calibration harness measure a model before
+// deciding whether it needs a vehicle-specific size allowance.
+export function getWheelClassificationOptions(kind) {
+  return kind === 'cybertruck'
+    ? { wheelMemberRadius: 0.30, wheelMemberMaxSize: 1.15, wheelMemberHeightTolerance: 1.05 }
+    : {};
+}
+
+function meshHierarchyName(mesh) {
+  const names = [];
+  let node = mesh;
+  while (node) {
+    if (node.name) names.push(node.name);
+    node = node.parent;
+  }
+  return names.reverse().join(' / ') || '(unnamed mesh)';
+}
+
 function classifyCarMeshes(items, options = {}) {
   const all = new THREE.Box3();
   const tmp = new THREE.Vector3();
@@ -185,24 +203,36 @@ function classifyCarMeshes(items, options = {}) {
   // steering wheels, dashboard rings and cabin trim can resemble tyres in a
   // bounding-box test, but they are close to the centreline and must be excluded.
   const cx0 = (all.min.x + all.max.x) / 2, cz0 = (all.min.z + all.max.z) / 2;
+  const candidateDiagnostics = [];
+  const candidateByMesh = new Map();
   const cands = annotated.filter((m) => {
-    if (blobs.has(m.o)) return false;
-    let node = m.o;
-    let hierarchyName = '';
-    while (node) {
-      hierarchyName += ` ${node.name || ''}`;
-      node = node.parent;
-    }
-    if (/(steer|dashboard|cockpit|interior|instrument|seat|pedal|gear.?shift)/i.test(hierarchyName)) return false;
-    if (m.s.y < 0.30 || m.s.y > 1.05) return false;
-    if ((m.c.y - all.min.y) > 0.40 * total.y) return false;
+    const reasons = [];
+    if (blobs.has(m.o)) reasons.push('display-stand');
+    const hierarchyName = meshHierarchyName(m.o);
+    if (/(steer|dashboard|cockpit|interior|instrument|seat|pedal|gear.?shift)/i.test(hierarchyName)) reasons.push('interior-or-steering-hierarchy');
+    if (m.s.y < 0.30) reasons.push('diameter-below-0.30m');
+    if (m.s.y > 1.05) reasons.push('diameter-above-1.05m');
+    if ((m.c.y - all.min.y) > 0.40 * total.y) reasons.push('mounted-too-high');
     const lateralRatio = Math.abs(m.c.x - cx0) / Math.max(0.001, total.x * 0.5);
-    if (lateralRatio < (options.wheelSideRatio ?? 0.52)) return false;
+    if (lateralRatio < (options.wheelSideRatio ?? 0.52)) reasons.push('too-close-to-centreline');
     const side = Math.max(m.s.x, m.s.z);
-    if (Math.abs(m.s.y - side) > 0.38 * m.s.y) return false; // not round
-    if (Math.min(m.s.x, m.s.z) > 0.8 * m.s.y) return false;  // not thin-axled
-    if (side > 1.15) return false;                            // body panel, not a wheel
-    return true;
+    if (Math.abs(m.s.y - side) > 0.38 * m.s.y) reasons.push('not-round-in-side-view');
+    if (Math.min(m.s.x, m.s.z) > 0.8 * m.s.y) reasons.push('not-thin-across-axle');
+    if (side > (options.wheelCandidateMaxSize ?? 1.15)) reasons.push('candidate-exceeds-vehicle-wheel-size-limit');
+    const record = {
+      uuid: m.o.uuid,
+      name: m.o.name || '(unnamed mesh)',
+      hierarchy: hierarchyName,
+      center: m.c.toArray(),
+      size: m.s.toArray(),
+      sideDiameter: side,
+      lateralRatio,
+      candidate: reasons.length === 0,
+      rejectedReasons: reasons,
+    };
+    candidateDiagnostics.push(record);
+    candidateByMesh.set(m.o, record);
+    return reasons.length === 0;
   });
   // One wheel per XZ quadrant around the model center.
   const wheels = [];
@@ -226,7 +256,7 @@ function classifyCarMeshes(items, options = {}) {
   const wheelMemberMaxSize = options.wheelMemberMaxSize ?? 1.15;
   const wheelMemberHeightTolerance = options.wheelMemberHeightTolerance ?? 0.35;
   if (wheels.length === 4) {
-    // Attach hub hardware (rims, bolts, brake discs): small meshes hugging the hub.
+    // Attach hub hardware (rims, bolts, brake discs): meshes hugging the hub.
     for (const w of wheels) {
       const members = annotated.filter((m) =>
         !blobs.has(m.o)
@@ -236,18 +266,100 @@ function classifyCarMeshes(items, options = {}) {
         && m.s.y < wheelMemberMaxSize);
       for (const m of members) wheelMeshes.add(m.o);
       const bs = w.best.s;
-      wheelInfos.push({
+      const quadrant = (w.qz > 0 ? 'front' : 'rear') + '-' + (w.qx > 0 ? 'right' : 'left');
+      const wheelInfo = {
         center: w.best.c.clone(),
         size: bs.clone(),
         axle: bs.x <= bs.z ? 'x' : 'z',
+        quadrant,
         meshes: members.map((m) => m.o),
-      });
+      };
+      wheelInfos.push(wheelInfo);
+      const selected = candidateByMesh.get(w.best.o);
+      if (selected) {
+        selected.selected = true;
+        selected.selectedQuadrant = quadrant;
+      }
+      for (const m of members) {
+        const record = candidateByMesh.get(m.o);
+        if (record) {
+          record.attachedToWheel = quadrant;
+          record.memberDistance = m.c.distanceTo(w.best.c);
+        }
+      }
     }
   }
+  const nearWheelExcludedMap = new Map();
+  if (wheels.length === 4) {
+    for (const mesh of annotated) {
+      if (blobs.has(mesh.o) || wheelMeshes.has(mesh.o)) continue;
+      for (const wheel of wheels) {
+        const distance = mesh.c.distanceTo(wheel.best.c);
+        if (distance > 0.95) continue;
+        const heightDelta = Math.abs(mesh.c.y - wheel.best.c.y);
+        const maxDimension = Math.max(mesh.s.x, mesh.s.y, mesh.s.z);
+        const reasons = [];
+        if (distance >= wheelMemberRadius) reasons.push('outside-wheel-member-radius');
+        if (heightDelta >= wheelMemberHeightTolerance) reasons.push('outside-wheel-member-height-tolerance');
+        if (maxDimension >= wheelMemberMaxSize) reasons.push('mesh-exceeds-wheel-member-size-limit');
+        if (mesh.s.y >= wheelMemberMaxSize) reasons.push('mesh-height-exceeds-wheel-member-size-limit');
+        if (!reasons.length) continue;
+        const quadrant = (wheel.qz > 0 ? 'front' : 'rear') + '-' + (wheel.qx > 0 ? 'right' : 'left');
+        const current = nearWheelExcludedMap.get(mesh.o.uuid);
+        const record = {
+          uuid: mesh.o.uuid,
+          name: mesh.o.name || '(unnamed mesh)',
+          hierarchy: meshHierarchyName(mesh.o),
+          center: mesh.c.toArray(),
+          size: mesh.s.toArray(),
+          nearestWheel: quadrant,
+          distance,
+          heightDelta,
+          maxDimension,
+          rejectedReasons: reasons,
+        };
+        if (!current || distance < current.distance) nearWheelExcludedMap.set(mesh.o.uuid, record);
+      }
+    }
+  }
+  const nearWheelExcludedMeshes = [...nearWheelExcludedMap.values()];
   const body = annotated.filter((m) => !blobs.has(m.o) && !wheelMeshes.has(m.o));
   const bodyBox = new THREE.Box3();
   for (const m of body) { bodyBox.expandByPoint(m.min); bodyBox.expandByPoint(m.max); }
-  return { all, total, blobs, wheelInfos: wheels.length === 4 ? wheelInfos : [], bodyBox, hasBody: body.length > 0 };
+  const wheelDiagnostics = {
+    totalMeshCount: annotated.length,
+    candidateCount: cands.length,
+    selectedWheelCount: wheels.length,
+    attachedWheelMeshCount: wheelMeshes.size,
+    candidateSizeLimit: options.wheelCandidateMaxSize ?? 1.15,
+    wheelMemberMaxSize,
+    wheelMemberRadius,
+    wheelMemberHeightTolerance,
+    nearWheelExcludedMeshes,
+    selectedWheels: wheels.map((w) => {
+      const info = wheelInfos.find(v => v.center.distanceTo(w.best.c) < 1e-6);
+      return {
+        quadrant: (w.qz > 0 ? 'front' : 'rear') + '-' + (w.qx > 0 ? 'right' : 'left'),
+        uuid: w.best.o.uuid,
+        name: w.best.o.name || '(unnamed mesh)',
+        center: w.best.c.toArray(),
+        size: w.best.s.toArray(),
+        meshCount: info ? info.meshes.length : 0,
+        meshNames: info ? info.meshes.map(m => m.name || '(unnamed mesh)') : [],
+        meshUUIDs: info ? info.meshes.map(m => m.uuid) : [],
+      };
+    }),
+    meshes: candidateDiagnostics,
+  };
+  return { all, total, blobs, wheelInfos: wheels.length === 4 ? wheelInfos : [], wheelDiagnostics, bodyBox, hasBody: body.length > 0 };
+}
+
+// Re-run the exact production classifier on a normalized model for Asset Lab
+// and screenshot-based calibration. No alternate detector is used for reports.
+export function diagnoseCarWheelMeshes(scene, kind = 'lambo') {
+  const options = getWheelClassificationOptions(kind);
+  const result = classifyCarMeshes(meshWorldBoxes(scene), options);
+  return JSON.parse(JSON.stringify(result.wheelDiagnostics));
 }
 
 // Wrap each wheel's meshes in steer -> spin pivots anchored at the hub.
@@ -391,9 +503,7 @@ export async function loadCarModel(kind = 'lambo') {
     // The Cybertruck GLB splits tyre sidewalls, tread, rim and hub details into
     // more separate meshes than the sports-car asset. Keep those parts together
     // around each wheel hub so the complete rubber tyre spins with the rim.
-    const wheelClassificationOptions = kind === 'cybertruck'
-      ? { wheelMemberRadius: 0.30, wheelMemberMaxSize: 1.15, wheelMemberHeightTolerance: 1.05 }
-      : {};
+    const wheelClassificationOptions = getWheelClassificationOptions(kind);
     scene.traverse(o => {
       if (o.isMesh) {
         o.castShadow = true;
