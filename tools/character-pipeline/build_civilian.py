@@ -151,6 +151,9 @@ def main() -> int:
             "mixamo_upload_debug.png",
             "mixamo_upload_debug.txt",
             "mixamo_markers_placed.png",
+            "mixamo_marker_debug.html",
+            "mixamo_marker_debug.png",
+            "mixamo_marker_dom.json",
         ):
             stale_path = OUT / stale_name
             if stale_path.is_file():
