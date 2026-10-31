@@ -124,9 +124,9 @@ export class Civilian{
     if(speed>.12)this.yaw+=angleDelta(this.yaw,Math.atan2(this.velocity.x,this.velocity.z))*(1-Math.exp(-P.turnResponse*d));
     else if(player&&pd<C.behaviour.lookAtPlayerDistance)this.face(player.pos);
     this.root.position.copy(this.pos);this.root.rotation.y=this.yaw+Math.PI;
-    const anim=speed>P.runSpeed?"run":speed>.25?(this.fleeT>0?"run":"walk"):"idle";
+    const anim=speed>=P.sprintSpeed*.92?"sprint":speed>P.runSpeed?"run":speed>.25?(this.fleeT>0?"run":"walk"):"idle";
     if(anim!==this.ch.currentAnimation&&!["wave","talk","fall_death"].includes(this.ch.currentAnimation))this.ch.play(anim,{loop:true});
-    if(speed>.1)this.ch.setTimeScale(speed/(anim==="run"?P.runSpeed:P.walkSpeed));
+    if(speed>.1){const reference=anim==="sprint"?P.sprintSpeed:anim==="run"?P.runSpeed:P.walkSpeed;this.ch.setTimeScale(speed/reference);}
     this.ch.update(d);return false;
   }
   dispose(){this.manager.physics?.removeNpcController(this.body);this.body=null;this.ch.dispose();}
