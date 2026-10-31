@@ -119,6 +119,7 @@ jobs:
           node --check js/physics.js
           node --check js/bvh-collision.js
           node --check js/player.js
+          node --check js/character.js
           node --check js/vehicles.js
           node --check js/civilians.js
           node --check js/npc-config.js
