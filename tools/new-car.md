@@ -145,7 +145,8 @@ Do not loosen the detector's rules just to force four results. If a model has un
    - `<vehicle>-report.json`: measured wheel bounds, centres, selected mesh names, attached mesh counts, and detector limits.
 4. Check that each coloured outline follows the tyre tread/sidewall and its rim/hub, not the fender, bumper, underbody or nearby suspension/body panel. Confirm that exactly one wheel is selected in each of the four corners and that every wheel's split meshes stay together.
 5. If any tyre mesh is missing, use the report's candidate size, centre and rejection reason to identify which limit excluded it. Tune `wheelCandidateMaxSize`, `wheelMemberMaxSize`, `wheelMemberRadius` or `wheelMemberHeightTolerance` in `getWheelClassificationOptions(kind)` for that vehicle only. Do **not** raise the global threshold to accommodate a larger Tesla wheel; that can make body panels look like wheels on smaller cars.
-6. Re-run the visual test and inspect the new overview and all four close-ups after every threshold change. Do not accept the vehicle until the screenshots clearly show the four real tyre assemblies and the automated test reports four selected wheels.
+6. Some models split the tread/sidewall into dozens or hundreds of tiny meshes. Do not rely only on 3D distance from the hub: inspect radial distance in the wheel plane and offset along the axle separately. Add a narrowly scoped fragment rule using wheel-plane radius, axle offset and a strict maximum fragment size. This catches circumference segments without admitting larger fender/body panels.
+7. Re-run the visual test and inspect the new overview, all four close-ups and steered front-wheel screenshots. Confirm that the complete tyre circumference turns with the wheel. A stationary outline means the wheel grouping is still incomplete.
 
 Measured reference from the current bundled models:
 
@@ -154,7 +155,7 @@ Measured reference from the current bundled models:
 | Lamborghini | 0.66–0.70 m | 0.30 m |
 | Tesla Cybertruck | 0.90–0.92 m | 0.45 m |
 
-The Cybertruck's normalized selected wheel bounds are approximately **0.444 × 0.923 × 0.900 m**. Its GLB has four matching tyre/rim pieces whose centres sit about **0.393–0.422 m** from the selected hub mesh. A 0.30 m member radius leaves those pieces out of the rotating wheel assembly, so its `getWheelClassificationOptions('cybertruck')` uses **0.45 m**. Keep `wheelMemberMaxSize: 1.15` and `wheelMemberHeightTolerance: 1.05` as separate safeguards; do not raise the generic candidate size or member-size limits for every car. The screenshot report also marks nearby rejected parts in red so fender/body pieces are not added blindly.
+The Cybertruck's normalized selected wheel bounds are approximately **0.444 × 0.923 × 0.900 m**. Its four larger split tyre/rim components sit about **0.393–0.422 m** from each hub and use the model-specific **0.45 m** hub radius. The asset also has **120 small circumference fragments per wheel**. Their centres sit about **0.434–0.473 m** from the wheel centre in the wheel plane, with each fragment smaller than **0.16 m**. Attach these using a wheel-plane radial band (**0.88–1.12×** the measured wheel radius) and an axle-offset tolerance, rather than widening the 3D hub radius. Each Cybertruck wheel should therefore contain at least **132 meshes**: 12 hub/tyre pieces plus 120 tread fragments. The larger rear body/fender meshes stay excluded. Keep `wheelMemberMaxSize: 1.15` and `wheelMemberHeightTolerance: 1.05` as separate safeguards; do not raise generic limits for every vehicle.
 
 The CI workflow uploads these temporary screenshots and reports as a one-day artifact. The local run writes them only to `artifacts/vehicle-visual-test/`; delete that folder when the review is complete.
 
