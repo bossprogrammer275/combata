@@ -1,6 +1,6 @@
 // Player: pointer-lock third-person controller with capsule-vs-AABB collision.
-// Physics/collision live here; the visible body is a procedural `Character` rig
-// (see character.js) driven by getState(). This same state object is what remote
+// Physics/collision live here; the visible civilian_002 FBX rig (see character.js)
+// is driven by getState(). This same state object is what remote
 // multiplayer players will receive later, so the body language stays identical.
 import * as THREE from 'three';
 import { Character } from './character.js';
