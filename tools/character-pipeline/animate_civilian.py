@@ -12,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 MIXAMO_DIR = ROOT / "tools" / "mixamo-mcp"
 OUT = ROOT / "data" / "models" / "npc" / "civilian_001"
-SOURCE_FBX = OUT / "civilian_001_source.fbx"
+SOURCE_BUNDLE = OUT / "civilian_001_mixamo_source.zip"
 
 ANIMATIONS = [
     {"key": "idle", "queries": ["standing idle", "idle"], "need": ["idle"], "exclude": ["crouch", "sitting", "walk", "run"], "inplace": False},
@@ -53,6 +53,79 @@ def pick_animation(items, job):
     candidates.sort(key=lambda entry: (-entry[0], entry[1]["name"].lower()))
     return candidates[0][1] if candidates else None
 
+def place_autorig_markers(page):
+    """Drag Mixamo's eight landmark markers onto the front-facing T-pose."""
+    overlay = page.locator(".autorig-overlay")
+    box = overlay.bounding_box()
+    if not box or box["width"] < 300 or box["height"] < 250:
+        raise RuntimeError("Mixamo marker canvas could not be measured.")
+
+    symmetry = page.locator('input[name="symmetry"]')
+    if symmetry.count():
+        try:
+            if not symmetry.is_checked():
+                page.locator('label:has(input[name="symmetry"])').click()
+                page.wait_for_timeout(300)
+        except Exception as exc:
+            print(f"[Mixamo] Could not enable mirrored marker placement: {exc}")
+
+    # Mixamo's viewer is a front view after the OBJ upload. The points are
+    # normalized to the viewer, not the browser window. Left-side marker IDs
+    # are the character's own left, i.e. the viewer's right.
+    targets = {
+        "chin": (0.50, 0.16),
+        "larm": (0.75, 0.26),
+        "lelbow": (0.64, 0.27),
+        "lknee": (0.55, 0.72),
+        "groin": (0.50, 0.53),
+    }
+
+    for marker_id, (nx, ny) in targets.items():
+        marker = page.locator(f".autorig-overlay #{marker_id}")
+        if marker.count() == 0:
+            raise RuntimeError(f"Mixamo marker #{marker_id} was not found.")
+        marker_box = marker.bounding_box()
+        if not marker_box:
+            raise RuntimeError(f"Could not measure Mixamo marker #{marker_id}.")
+
+        start_x = marker_box["x"] + marker_box["width"] / 2
+        start_y = marker_box["y"] + marker_box["height"] / 2
+        target_x = box["x"] + nx * box["width"]
+        target_y = box["y"] + ny * box["height"]
+
+        page.mouse.move(start_x, start_y)
+        page.mouse.down()
+        page.mouse.move(target_x, target_y, steps=24)
+        page.mouse.up()
+        page.wait_for_timeout(350)
+        print(f"[Mixamo] Placed {marker_id}: ({nx:.2f}, {ny:.2f})")
+
+    screenshot = OUT / "mixamo_markers_placed.png"
+    page.screenshot(path=str(screenshot), full_page=True)
+    print(f"[Mixamo] Marker placement preview saved: {screenshot.name}")
+
+
+def attach_character_status_listener(page):
+    """Capture Mixamo's character status polls so we don't click through a running rig."""
+    events = []
+
+    def on_response(response):
+        try:
+            if response.request.method.upper() != "GET":
+                return
+            url = response.url.lower()
+            if "/api/v1/characters/" not in url or any(part in url for part in ("/assets/", "/autorig")):
+                return
+            payload = response.json()
+            if isinstance(payload, dict) and payload.get("status"):
+                events.append({"time": time.time(), "status": str(payload["status"]).lower()})
+        except Exception:
+            pass
+
+    page.on("response", on_response)
+    return events
+
+
 def save_upload_diagnostics(page, reason):
     """Preserve the exact Mixamo screen when Auto-Rigger does not advance."""
     OUT.mkdir(parents=True, exist_ok=True)
@@ -68,39 +141,62 @@ def save_upload_diagnostics(page, reason):
         print(f"[Mixamo] Could not save upload diagnostics: {exc}")
 
 
-def classify_upload_status(html, get_upload_status):
-    """The upstream MCP labels every .autorig-holder screen as 'review'.
+def classify_upload_status(html, get_upload_status, autorig_started=False, api_status=None):
+    """Distinguish marker placement, active rigging, and a completed rig review."""
+    from bs4 import BeautifulSoup
 
-    Mixamo also uses that container while its server is still processing the
-    uploaded mesh. Do not click Next until that processing message disappears.
-    """
-    status = get_upload_status(html) or {}
-    if status.get("state") == "review":
-        message = norm(status.get("text", ""))
-        processing_phrases = (
-            "processing upload",
-            "your character is processing",
-            "character is processing",
-            "this should take less than half a minute",
-        )
-        if any(phrase in message for phrase in processing_phrases):
-            return {"state": "processing", "text": status.get("text", "")}
-    return status
+    soup = BeautifulSoup(html, "html.parser")
+    if soup.find(class_="autorig-overlay"):
+        return {"state": "markers", "text": "Place markers"}
+    if soup.find(class_="autorig-uploading"):
+        status = get_upload_status(html) or {}
+        return {"state": "processing", "text": status.get("text", "Uploading")}
+
+    info = soup.find(class_="autorig-info")
+    info_text = info.get_text(" ", strip=True) if info else ""
+    message = norm(info_text)
+
+    if any(phrase in message for phrase in (
+        "processing upload", "your character is processing",
+        "auto rigging", "auto-rigging", "rigging in progress",
+        "please wait", "preparing your character",
+    )):
+        return {"state": "processing", "text": info_text}
+
+    if autorig_started and api_status not in ("ready",):
+        # The upstream Mixamo MCP labels every .autorig-holder as 'review'.
+        # After Next, that same container is also used while the server rigs.
+        if soup.find(class_="autorig-holder"):
+            return {"state": "processing", "text": info_text or "Waiting for Mixamo Auto-Rigger"}
+    if soup.find(class_="autorig-holder"):
+        return {"state": "review", "text": info_text}
+    if soup.find(string=re.compile("unable to map your existing skeleton", re.I)):
+        return {"state": "error", "text": "Unable to map your existing skeleton"}
+    return get_upload_status(html) or {}
 
 
-def wait_upload_complete(page, get_upload_status, confirm_review, timeout=240):
+def wait_upload_complete(page, get_upload_status, confirm_review, api_status_events, timeout=360):
     deadline = time.time() + timeout
     started = time.time()
     last_state = None
     last_heartbeat = started
     marker_submit_attempted = False
+    marker_submit_time = None
     review_confirm_attempted = False
     review_confirmed_at = None
     change_confirm_attempted = False
+    api_event_start = len(api_status_events)
 
     while time.time() < deadline:
         html = page.content()
-        status = classify_upload_status(html, get_upload_status)
+        recent_events = api_status_events[api_event_start:]
+        api_status = recent_events[-1]["status"] if recent_events else None
+        autorig_started = marker_submit_attempted
+        status = classify_upload_status(
+            html, get_upload_status,
+            autorig_started=autorig_started,
+            api_status=api_status,
+        )
         state = status.get("state")
         now = time.time()
 
@@ -109,8 +205,15 @@ def wait_upload_complete(page, get_upload_status, confirm_review, timeout=240):
             last_state = state
 
         if state == "processing" and now - last_heartbeat >= 15:
-            print(f"[Mixamo] Still processing ({int(now - started)}s elapsed).")
+            elapsed = int(now - (marker_submit_time or started))
+            print(f"[Mixamo] Still processing ({elapsed}s elapsed).")
             last_heartbeat = now
+
+        if marker_submit_attempted and api_status == "needs_rigging" and marker_submit_time:
+            if now - marker_submit_time > 45:
+                reason = "Mixamo reports that the character still needs rigging. The landmark placements were rejected."
+                save_upload_diagnostics(page, reason)
+                raise RuntimeError(reason + " See mixamo_upload_debug.png/html in the output folder.")
 
         if state == "change_character":
             if not change_confirm_attempted:
@@ -126,27 +229,36 @@ def wait_upload_complete(page, get_upload_status, confirm_review, timeout=240):
             continue
 
         if state == "review":
+            if marker_submit_attempted and api_status != "ready":
+                page.wait_for_timeout(1000)
+                continue
             if not review_confirm_attempted:
                 review_confirm_attempted = True
-                print("[Mixamo] Upload processing finished. Confirming the detected character...")
+                print("[Mixamo] Auto-Rigging completed. Confirming the rigged character...")
                 confirm_review(page)
                 review_confirmed_at = time.time()
                 page.wait_for_timeout(1800)
             elif review_confirmed_at is not None and now - review_confirmed_at < 10:
                 page.wait_for_timeout(1000)
             else:
-                reason = "Mixamo remained on the character review screen 10 seconds after the Next action."
+                if "autorig-modal" not in page.content():
+                    return
+                reason = "Mixamo remained on the rig review screen 10 seconds after confirmation."
                 save_upload_diagnostics(page, reason)
                 raise RuntimeError(reason + " See mixamo_upload_debug.png/html in the output folder.")
             continue
 
         if state == "markers":
             if marker_submit_attempted:
-                reason = "Mixamo kept the marker-placement step open after submitting its default landmark positions."
+                reason = "Mixamo returned to marker placement after the landmarks were submitted."
                 save_upload_diagnostics(page, reason)
                 raise RuntimeError(reason + " See mixamo_upload_debug.png/html in the output folder.")
             marker_submit_attempted = True
-            print("[Mixamo] Submitting Mixamo's automatically positioned body landmarks...")
+            print("[Mixamo] Placing chin, wrists, elbows, knees and groin markers...")
+            place_autorig_markers(page)
+            print("[Mixamo] Submitting the positioned landmarks to Auto-Rigger...")
+            marker_submit_time = time.time()
+            api_event_start = len(api_status_events)
             confirm_review(page)
             page.wait_for_timeout(2500)
             continue
@@ -162,11 +274,18 @@ def wait_upload_complete(page, get_upload_status, confirm_review, timeout=240):
         page.wait_for_timeout(1000)
 
     final_html = page.content()
-    final_status = classify_upload_status(final_html, get_upload_status)
+    recent_events = api_status_events[api_event_start:]
+    api_status = recent_events[-1]["status"] if recent_events else None
+    final_status = classify_upload_status(
+        final_html, get_upload_status,
+        autorig_started=marker_submit_attempted,
+        api_status=api_status,
+    )
     reason = (
         f"Mixamo Auto-Rigger timed out after {timeout}s. "
         f"Last state: {final_status.get('state', 'unknown')}. "
-        f"Last message: {final_status.get('text', '')}"
+        f"Last message: {final_status.get('text', '')}. "
+        f"Last API status: {api_status or 'not captured'}."
     )
     save_upload_diagnostics(page, reason)
     raise TimeoutError(reason)
@@ -210,10 +329,10 @@ def parse_args():
     return parser.parse_args()
 
 def main():
-    global OUT, SOURCE_FBX
+    global OUT, SOURCE_BUNDLE
     args = parse_args()
     OUT = (ROOT / args.output).resolve()
-    SOURCE_FBX = OUT / "civilian_001_source.fbx"
+    SOURCE_BUNDLE = OUT / "civilian_001_mixamo_source.zip"
     requested = {item.strip().lower() for item in args.animations.split(",") if item.strip()}
     aliases = {
         "crouch": {"crouch_idle", "crouch_walk"},
@@ -237,8 +356,8 @@ def main():
         print("ERROR: no animations selected.", file=sys.stderr)
         return 2
 
-    if not SOURCE_FBX.is_file():
-        print(f"ERROR: MakeHuman FBX not found: {SOURCE_FBX}", file=sys.stderr)
+    if not SOURCE_BUNDLE.is_file():
+        print(f"ERROR: Mixamo OBJ package not found: {SOURCE_BUNDLE}", file=sys.stderr)
         return 2
     if not MIXAMO_DIR.is_dir():
         print(f"ERROR: Mixamo MCP directory not found: {MIXAMO_DIR}", file=sys.stderr)
@@ -262,13 +381,14 @@ def main():
 
     print("[Mixamo] Opening your saved local browser profile...")
     page = browser.start()
+    api_status_events = attach_character_status_listener(page)
     try:
         page.goto("https://www.mixamo.com/", wait_until="domcontentloaded")
         page.wait_for_load_state("networkidle")
-        print("[Mixamo] Uploading civilian_001_source.fbx...")
-        upload_mod.upload_file(page, str(SOURCE_FBX))
+        print("[Mixamo] Uploading Y-up OBJ package civilian_001_mixamo_source.zip...")
+        upload_mod.upload_file(page, str(SOURCE_BUNDLE))
         try:
-            wait_upload_complete(page, upload_mod.get_status, upload_mod.confirm_review)
+            wait_upload_complete(page, upload_mod.get_status, upload_mod.confirm_review, api_status_events)
         except Exception as exc:
             manifest_path = OUT / "manifest.json"
             try:
@@ -280,6 +400,7 @@ def main():
                         "mixamo_upload_debug.html",
                         "mixamo_upload_debug.png",
                         "mixamo_upload_debug.txt",
+                        "mixamo_markers_placed.png",
                     ) if (OUT / name).is_file()
                 ]
                 manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
