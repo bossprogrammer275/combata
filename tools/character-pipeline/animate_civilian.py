@@ -53,46 +53,117 @@ def pick_animation(items, job):
     candidates.sort(key=lambda entry: (-entry[0], entry[1]["name"].lower()))
     return candidates[0][1] if candidates else None
 
+def save_upload_diagnostics(page, reason):
+    """Preserve the exact Mixamo screen when Auto-Rigger does not advance."""
+    OUT.mkdir(parents=True, exist_ok=True)
+    html_path = OUT / "mixamo_upload_debug.html"
+    image_path = OUT / "mixamo_upload_debug.png"
+    note_path = OUT / "mixamo_upload_debug.txt"
+    try:
+        html_path.write_text(page.content(), encoding="utf-8")
+        page.screenshot(path=str(image_path), full_page=True)
+        note_path.write_text(reason, encoding="utf-8")
+        print(f"[Mixamo] Upload diagnostics saved: {html_path.name}, {image_path.name}, {note_path.name}")
+    except Exception as exc:
+        print(f"[Mixamo] Could not save upload diagnostics: {exc}")
+
+
+def classify_upload_status(html, get_upload_status):
+    """The upstream MCP labels every .autorig-holder screen as 'review'.
+
+    Mixamo also uses that container while its server is still processing the
+    uploaded mesh. Do not click Next until that processing message disappears.
+    """
+    status = get_upload_status(html) or {}
+    if status.get("state") == "review":
+        message = norm(status.get("text", ""))
+        processing_phrases = (
+            "processing upload",
+            "your character is processing",
+            "character is processing",
+            "this should take less than half a minute",
+        )
+        if any(phrase in message for phrase in processing_phrases):
+            return {"state": "processing", "text": status.get("text", "")}
+    return status
+
+
 def wait_upload_complete(page, get_upload_status, confirm_review, timeout=240):
     deadline = time.time() + timeout
+    started = time.time()
     last_state = None
+    last_heartbeat = started
     marker_submit_attempted = False
+    review_confirm_attempted = False
+    change_confirm_attempted = False
+
     while time.time() < deadline:
         html = page.content()
-        status = get_upload_status(html) or {}
+        status = classify_upload_status(html, get_upload_status)
         state = status.get("state")
+        now = time.time()
+
         if state and state != last_state:
             print(f"[Mixamo] Upload state: {state} {status.get('text', '')}".strip())
             last_state = state
-        if state in ("review", "change_character"):
-            confirm_review(page)
-            page.wait_for_timeout(1800)
+
+        if state == "processing" and now - last_heartbeat >= 15:
+            print(f"[Mixamo] Still processing ({int(now - started)}s elapsed).")
+            last_heartbeat = now
+
+        if state == "change_character":
+            if not change_confirm_attempted:
+                change_confirm_attempted = True
+                print("[Mixamo] Confirming replacement of the current character...")
+                confirm_review(page)
+                page.wait_for_timeout(1500)
+            elif now - last_heartbeat >= 15:
+                print("[Mixamo] Waiting for character replacement to finish...")
+                last_heartbeat = now
             continue
+
+        if state == "review":
+            if not review_confirm_attempted:
+                review_confirm_attempted = True
+                print("[Mixamo] Upload processing finished. Confirming the detected character...")
+                confirm_review(page)
+                page.wait_for_timeout(1800)
+            else:
+                reason = "Mixamo remained on the character review screen after the Next action."
+                save_upload_diagnostics(page, reason)
+                raise RuntimeError(reason + " See mixamo_upload_debug.png/html in the output folder.")
+            continue
+
         if state == "markers":
             if marker_submit_attempted:
-                debug_html = OUT / "mixamo_marker_debug.html"
-                debug_image = OUT / "mixamo_marker_debug.png"
-                try:
-                    debug_html.write_text(page.content(), encoding="utf-8")
-                    page.screenshot(path=str(debug_image), full_page=True)
-                    print(f"[Mixamo] Marker diagnostics saved: {debug_html.name}, {debug_image.name}")
-                except Exception as exc:
-                    print(f"[Mixamo] Could not save marker diagnostics: {exc}")
-                raise RuntimeError(
-                    "Mixamo kept the marker-placement step open after submitting its default landmark positions. "
-                    "The diagnostic HTML/screenshot were saved in the civilian output folder."
-                )
+                reason = "Mixamo kept the marker-placement step open after submitting its default landmark positions."
+                save_upload_diagnostics(page, reason)
+                raise RuntimeError(reason + " See mixamo_upload_debug.png/html in the output folder.")
             marker_submit_attempted = True
             print("[Mixamo] Submitting Mixamo's automatically positioned body landmarks...")
             confirm_review(page)
             page.wait_for_timeout(2500)
             continue
+
         if state == "error":
-            raise RuntimeError(f"Mixamo rejected the character: {status.get('text', 'unknown error')}")
+            reason = f"Mixamo rejected the character: {status.get('text', 'unknown error')}"
+            save_upload_diagnostics(page, reason)
+            raise RuntimeError(reason)
+
         if "autorig-modal" not in html and ("product-nav" in html or "product-animation" in html):
             return
+
         page.wait_for_timeout(1000)
-    raise TimeoutError("Mixamo Auto-Rigger did not finish within 4 minutes.")
+
+    final_html = page.content()
+    final_status = classify_upload_status(final_html, get_upload_status)
+    reason = (
+        f"Mixamo Auto-Rigger timed out after {timeout}s. "
+        f"Last state: {final_status.get('state', 'unknown')}. "
+        f"Last message: {final_status.get('text', '')}"
+    )
+    save_upload_diagnostics(page, reason)
+    raise TimeoutError(reason)
 
 def search_and_select(page, animations_mod, job):
     for query in job["queries"]:
