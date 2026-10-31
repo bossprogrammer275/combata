@@ -3,8 +3,10 @@
 from __future__ import annotations
 import argparse
 import json
+import queue
 import re
 import sys
+import threading
 import time
 import zipfile
 from pathlib import Path
@@ -83,116 +85,94 @@ def save_marker_diagnostics(page, reason):
         print(f"[Mixamo] Could not save marker diagnostics: {exc}")
 
 
-def place_autorig_markers(page):
-    """Wait for Mixamo's live marker DOM, then drag all eight landmarks."""
+def wait_for_manual_marker_placement(page):
+    """Leave Mixamo open while the user places markers, then resume on D/DONE."""
+    OUT.mkdir(parents=True, exist_ok=True)
+
+    try:
+        page.bring_to_front()
+    except Exception:
+        pass
+
+    # Save a starting view so the exact marker screen can be revisited.
+    try:
+        page.screenshot(path=str(OUT / "mixamo_markers_manual_start.png"), full_page=True)
+    except Exception as exc:
+        print(f"[Mixamo] Could not save starting marker screenshot: {exc}")
+
+    print("")
+    print("=" * 68)
+    print("MANUAL MIXAMO MARKER PLACEMENT REQUIRED")
+    print("=" * 68)
+    print("The Mixamo browser is open. Place all 8 markers directly on the model:")
+    print("  Chin, Left Wrist, Right Wrist, Left Elbow, Right Elbow,")
+    print("  Left Knee, Right Knee and Groin.")
+    print("")
+    print("When finished, either:")
+    print("  1. Click NEXT in the Mixamo browser, then return here; OR")
+    print("  2. Return here and type D (or DONE), then press ENTER.")
+    print("The script detects whether you already clicked Next.")
+    print("Type Q and press ENTER to cancel.")
+    print("=" * 68)
+
+    answers = queue.Queue()
+
+    def read_console():
+        while True:
+            try:
+                answer = input("[Open World] Type D when marker placement is done: ")
+            except Exception as exc:
+                answers.put(exc)
+                return
+            answers.put(answer)
+
+    reader = threading.Thread(target=read_console, name="mixamo-marker-console", daemon=True)
+    reader.start()
+    started = time.monotonic()
+    last_report = 0
+
+    while True:
+        try:
+            answer = answers.get(timeout=1)
+        except queue.Empty:
+            elapsed = int(time.monotonic() - started)
+            if elapsed - last_report >= 15:
+                print(f"[Mixamo] Waiting for your marker placement... {elapsed}s elapsed.")
+                last_report = elapsed
+            continue
+
+        if isinstance(answer, BaseException):
+            raise RuntimeError(f"Could not read marker confirmation from console: {answer}")
+
+        command = str(answer).strip().lower()
+        if command in {"d", "done", "yes"}:
+            elapsed = int(time.monotonic() - started)
+            print(f"[Mixamo] Manual marker placement confirmed after {elapsed}s.")
+            break
+        if command in {"q", "quit", "cancel"}:
+            raise RuntimeError("Manual Mixamo marker placement cancelled from console.")
+        print("[Mixamo] Enter D or DONE when all eight markers are placed, or Q to cancel.")
+
+    try:
+        page.screenshot(path=str(OUT / "mixamo_markers_manual_done.png"), full_page=True)
+    except Exception as exc:
+        print(f"[Mixamo] Could not save completed marker screenshot: {exc}")
+
+    # If the user did not already click Next, the automation clicks it now.
     overlay = page.locator(".autorig-overlay")
     try:
-        overlay.wait_for(state="visible", timeout=20000)
-        page.wait_for_function(
-            "() => document.querySelectorAll('.autorig-overlay .autorig-marker').length >= 8",
-            timeout=30000,
-        )
+        if overlay.count() and overlay.first.is_visible():
+            print("[Mixamo] Clicking Next to start Auto-Rigging...")
+            page.locator(".modal-footer button.btn-primary").click()
+            page.wait_for_timeout(1500)
+        else:
+            print("[Mixamo] Next was already clicked in the browser; continuing to rig status polling.")
     except Exception as exc:
-        reason = f"Mixamo marker overlay did not expose all eight marker elements: {exc}"
+        reason = f"Could not submit Mixamo's marker placement: {exc}"
         save_marker_diagnostics(page, reason)
         raise RuntimeError(reason)
 
-    box = overlay.bounding_box()
-    if not box or box["width"] < 300 or box["height"] < 250:
-        reason = "Mixamo marker canvas could not be measured."
-        save_marker_diagnostics(page, reason)
-        raise RuntimeError(reason)
-
-    symmetry = page.locator('input[name="symmetry"]')
-    if symmetry.count():
-        try:
-            if symmetry.is_checked():
-                page.locator('label:has(input[name="symmetry"])').click()
-                page.wait_for_timeout(300)
-        except Exception as exc:
-            print(f"[Mixamo] Could not disable mirrored marker placement: {exc}")
-
-    # Mixamo's viewer is a front view after the OBJ upload. Coordinates are
-    # normalized to the marker canvas, not the browser window. Place both
-    # sides explicitly so the result does not depend on symmetry behaviour.
-    targets = {
-        "chin": (0.50, 0.16),
-        "larm": (0.75, 0.26),
-        "rarm": (0.25, 0.26),
-        "lelbow": (0.64, 0.27),
-        "relbow": (0.36, 0.27),
-        "lknee": (0.55, 0.72),
-        "rknee": (0.45, 0.72),
-        "groin": (0.50, 0.53),
-    }
-
-    for marker_id, (nx, ny) in targets.items():
-        marker = page.locator(f".autorig-overlay .autorig-marker[id='{marker_id}']")
-        if marker.count() == 0:
-            # Mixamo has changed its React markup more than once. Fall back to
-            # the marker ID globally, then to its visible tooltip label.
-            marker = page.locator(f"#{marker_id}")
-        if marker.count() == 0:
-            tooltip_names = {
-                "chin": ("Chin",),
-                "larm": ("Left Wrist", "Left wrist"),
-                "rarm": ("Right Wrist", "Right wrist"),
-                "lelbow": ("Left Elbow", "Left elbow"),
-                "relbow": ("Right Elbow", "Right elbow"),
-                "lknee": ("Left Knee", "Left knee"),
-                "rknee": ("Right Knee", "Right knee"),
-                "groin": ("Groin",),
-            }
-            matching = None
-            for candidate in page.locator(".autorig-overlay .autorig-marker").all():
-                try:
-                    tooltip = candidate.get_attribute("data-cooltip") or ""
-                    if tooltip in tooltip_names.get(marker_id, ()):
-                        matching = candidate
-                        break
-                except Exception:
-                    pass
-            if matching is not None:
-                marker = matching
-
-        if marker.count() == 0:
-            reason = f"Mixamo marker #{marker_id} was not found in the live DOM."
-            save_marker_diagnostics(page, reason)
-            raise RuntimeError(reason)
-        marker_box = marker.bounding_box()
-        if not marker_box:
-            reason = f"Could not measure Mixamo marker #{marker_id}."
-            save_marker_diagnostics(page, reason)
-            raise RuntimeError(reason)
-
-        start_x = marker_box["x"] + marker_box["width"] / 2
-        start_y = marker_box["y"] + marker_box["height"] / 2
-        target_x = box["x"] + nx * box["width"]
-        target_y = box["y"] + ny * box["height"]
-
-        page.mouse.move(start_x, start_y)
-        page.mouse.down()
-        page.mouse.move(target_x, target_y, steps=24)
-        page.mouse.up()
-        page.wait_for_timeout(350)
-
-        placed_box = marker.bounding_box()
-        if not placed_box:
-            raise RuntimeError(f"Could not verify placement of Mixamo marker #{marker_id}.")
-        placed_x = placed_box["x"] + placed_box["width"] / 2
-        placed_y = placed_box["y"] + placed_box["height"] / 2
-        if abs(placed_x - target_x) > 28 or abs(placed_y - target_y) > 28:
-            reason = (
-                f"Mixamo marker #{marker_id} did not reach its target "
-                f"(actual {placed_x:.0f},{placed_y:.0f}; target {target_x:.0f},{target_y:.0f})."
-            )
-            save_marker_diagnostics(page, reason)
-            raise RuntimeError(reason)
-        print(f"[Mixamo] Placed {marker_id}: ({nx:.2f}, {ny:.2f})")
-
-    screenshot = OUT / "mixamo_markers_placed.png"
-    page.screenshot(path=str(screenshot), full_page=True)
-    print(f"[Mixamo] Marker placement preview saved: {screenshot.name}")
+    return True
 
 
 def attach_character_status_listener(page):
@@ -344,13 +324,11 @@ def wait_upload_complete(page, get_upload_status, confirm_review, api_status_eve
                 save_upload_diagnostics(page, reason)
                 raise RuntimeError(reason + " See mixamo_upload_debug.png/html in the output folder.")
             marker_submit_attempted = True
-            print("[Mixamo] Placing chin, wrists, elbows, knees and groin markers...")
-            place_autorig_markers(page)
-            print("[Mixamo] Submitting the positioned landmarks to Auto-Rigger...")
+            wait_for_manual_marker_placement(page)
+            marker_submit_attempted = True
             marker_submit_time = time.time()
             api_event_start = len(api_status_events)
-            confirm_review(page)
-            page.wait_for_timeout(2500)
+            page.wait_for_timeout(1500)
             continue
 
         if state == "error":
