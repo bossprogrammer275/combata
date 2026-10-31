@@ -218,7 +218,7 @@ function showWheelOverview(){
   const diagnostics=diagnoseCarWheelMeshes(current.root,current.kind);
   showWheelDiagnostics(diagnostics);
   camera.fov=62;camera.updateProjectionMatrix();
-  camera.position.set(-8.5,5.2,-10.5);
+  camera.position.set(-6.4,4.1,-7.6);
   camera.lookAt(0,0.75,0);
   status.textContent=current.kind.toUpperCase()+' · WHEEL MESHES OUTLINED · '
     +diagnostics.selectedWheelCount+'/4 WHEELS · '+diagnostics.attachedWheelMeshCount
