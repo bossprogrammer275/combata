@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Upload civilian_001 to Mixamo using the saved local browser profile."""
 from __future__ import annotations
+import argparse
 import json
 import re
 import sys
@@ -84,7 +85,7 @@ def search_and_select(page, animations_mod, job):
             return found
     return None
 
-def download_clip(page, download_mod, animations_mod, output_path, include_skin, inplace):
+def download_clip(page, download_mod, animations_mod, output_path, include_skin, inplace, fps):
     try:
         animations_mod.set_checkbox(page, "mirror", False)
     except Exception:
@@ -96,10 +97,44 @@ def download_clip(page, download_mod, animations_mod, output_path, include_skin,
     download_mod.open_modal(page)
     download_mod.set_format(page, "fbx")
     download_mod.set_skin(page, include_skin)
-    download_mod.set_fps(page, 30)
+    download_mod.set_fps(page, fps)
     return download_mod.confirm(page, str(output_path))
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Rig the civilian and download selected Mixamo animation clips.")
+    parser.add_argument("--animations", default="idle,walk,run,sprint,jump,crouch_idle,crouch_walk,talk,phone,sit_idle,hit_reaction,fall_death,get_up")
+    parser.add_argument("--fps", type=int, default=30, choices=(24, 25, 30, 48, 50, 60))
+    parser.add_argument("--output", default="data/models/npc/civilian_001")
+    return parser.parse_args()
+
 def main():
+    global OUT, SOURCE_FBX
+    args = parse_args()
+    OUT = (ROOT / args.output).resolve()
+    SOURCE_FBX = OUT / "civilian_001_source.fbx"
+    requested = {item.strip().lower() for item in args.animations.split(",") if item.strip()}
+    aliases = {
+        "crouch": {"crouch_idle", "crouch_walk"},
+        "death": {"fall_death"},
+        "fall": {"fall_death"},
+        "getup": {"get_up"},
+        "sit": {"sit_idle"},
+    }
+    for alias, expanded in aliases.items():
+        if alias in requested:
+            requested.remove(alias)
+            requested.update(expanded)
+    available_keys = {job["key"] for job in ANIMATIONS}
+    unknown = requested - available_keys
+    if unknown:
+        print("ERROR: unknown animation keys: " + ", ".join(sorted(unknown)), file=sys.stderr)
+        print("Available keys: " + ", ".join(sorted(available_keys)), file=sys.stderr)
+        return 2
+    selected_animations = [job for job in ANIMATIONS if job["key"] in requested]
+    if not selected_animations:
+        print("ERROR: no animations selected.", file=sys.stderr)
+        return 2
+
     if not SOURCE_FBX.is_file():
         print(f"ERROR: MakeHuman FBX not found: {SOURCE_FBX}", file=sys.stderr)
         return 2
@@ -136,13 +171,13 @@ def main():
         base_clip = search_and_select(page, animations_mod, base_job)
         if base_clip:
             base_path = OUT / "civilian_001_rigged.fbx"
-            download_clip(page, download_mod, animations_mod, base_path, True, False)
-            downloads["riggedModel"] = {"file": base_path.name, "mixamoName": base_clip["name"], "mixamoId": base_clip["id"], "includesSkin": True, "fps": 30}
+            download_clip(page, download_mod, animations_mod, base_path, True, False, args.fps)
+            downloads["riggedModel"] = {"file": base_path.name, "mixamoName": base_clip["name"], "mixamoId": base_clip["id"], "includesSkin": True, "fps": args.fps}
             print("[Mixamo] Downloaded skinned T-pose base model.")
         else:
             print("[Mixamo] No T-pose motion found; idle will provide the skinned base model.")
 
-        for job in ANIMATIONS:
+        for job in selected_animations:
             found = search_and_select(page, animations_mod, job)
             if not found:
                 errors.append(f"{job['key']}: no matching Mixamo animation in current search results")
@@ -154,17 +189,17 @@ def main():
                 target = OUT / "civilian_001_rigged.fbx"
                 has_skin = True
             try:
-                saved = download_clip(page, download_mod, animations_mod, target, has_skin, job["inplace"])
+                saved = download_clip(page, download_mod, animations_mod, target, has_skin, job["inplace"], args.fps)
                 downloads[job["key"]] = {
                     "file": str(Path(saved).relative_to(OUT)).replace("\\", "/"),
                     "mixamoName": found["name"],
                     "mixamoId": found["id"],
-                    "fps": 30,
+                    "fps": args.fps,
                     "inPlace": job["inplace"],
                     "includesSkin": has_skin
                 }
                 if has_skin:
-                    downloads["riggedModel"] = {"file": target.name, "mixamoName": found["name"], "includesSkin": True, "fps": 30}
+                    downloads["riggedModel"] = {"file": target.name, "mixamoName": found["name"], "includesSkin": True, "fps": args.fps}
                 print(f"[Mixamo] Downloaded {job['key']}: {found['name']}")
             except Exception as exc:
                 errors.append(f"{job['key']}: download failed: {exc}")
