@@ -116,7 +116,8 @@ async function loadAnimation(url, key) {
   });
   if (!clip || !clip.tracks.length) throw new Error('Animation file contains no usable tracks: ' + key);
   clip.name = key;
-  if (MODEL.inPlace.includes(key)) stripRootMotion(clip);
+  const manifestKey = key === 'crouchWalk' ? 'crouch_walk' : key;
+  if (MODEL.inPlace.includes(manifestKey)) stripRootMotion(clip);
   clip.optimize();
   return clip;
 }
@@ -156,8 +157,7 @@ async function ensureLoaded() {
       if (result.status === 'fulfilled') _clips[result.value.key] = result.value.clip;
       else failures.push(result.reason?.message || String(result.reason));
     }
-    const required = ['idle', 'walk', 'run', 'sprint', 'crouch', 'crouchWalk', 'jump'];
-    const missing = required.filter(key => !_clips[key]);
+    const missing = Object.keys(ANIM_URLS).filter(key => !_clips[key]);
     if (missing.length) throw new Error('civilian_002 required player clips failed: ' + missing.join(', ') + '; ' + failures.join('; '));
     console.info('[Character] civilian_002 player/enemy rig ready; loaded ' + Object.keys(_clips).length + ' Mixamo clips');
   })();
