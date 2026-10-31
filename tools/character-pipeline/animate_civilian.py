@@ -491,6 +491,9 @@ def main():
                         "mixamo_upload_debug.png",
                         "mixamo_upload_debug.txt",
                         "mixamo_markers_placed.png",
+                        "mixamo_marker_debug.html",
+                        "mixamo_marker_debug.png",
+                        "mixamo_marker_dom.json",
                     ) if (OUT / name).is_file()
                 ]
                 manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
