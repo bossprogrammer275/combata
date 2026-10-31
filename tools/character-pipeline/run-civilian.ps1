@@ -13,12 +13,13 @@ param(
     [string]$Shoes = "sneaker,trainers,shoes,footwear",
     [string]$Animations = "idle,walk,run,sprint,jump,crouch_idle,crouch_walk,talk,phone,sit_idle,sit_down,stand_up,look_around,work_idle,wave,hit_reaction,fear_reaction,flee_run,fall_death,get_up",
     [ValidateSet(24, 25, 30, 48, 50, 60)][int]$Fps = 30,
-    [string]$Output = "data/models/npc/civilian_001",
+    [string]$Output = "",
     [switch]$Help,
     [switch]$BuildOnly,
     [switch]$AnimateOnly,
     [switch]$NoCommit,
-    [switch]$NoPush
+    [switch]$NoPush,
+    [switch]$Overwrite
 )
 
 $ErrorActionPreference = "Stop"
@@ -28,10 +29,18 @@ if ($Help) {
     Write-Host ""
     Write-Host '.\tools\character-pipeline\generate-civilian.bat -Age 21 -Skin "african,dark,brown" -Hair "short,fade" -Top "t shirt,polo" -Bottom "jeans" -Shoes "sneakers" -Animations "idle,walk,run,sprint,jump,crouch_idle,crouch_walk,talk,phone,sit_idle,hit_reaction,fall_death,get_up" -Fps 30'
     Write-Host ""
-    Write-Host "Options: -Id -DisplayName -Age -Gender -Weight -Muscle -Height -Skin -Hair -Top -Bottom -Shoes -Animations -Fps -Output -BuildOnly -AnimateOnly -NoCommit -NoPush"
+    Write-Host "Options: -Id -DisplayName -Age -Gender -Weight -Muscle -Height -Skin -Hair -Top -Bottom -Shoes -Animations -Fps -Output -BuildOnly -AnimateOnly -NoCommit -NoPush -Overwrite"
     Write-Host "Animation keys: idle,walk,run,sprint,jump,crouch_idle,crouch_walk,talk,phone,sit_idle,sit_down,stand_up,look_around,work_idle,wave,hit_reaction,fear_reaction,flee_run,fall_death,get_up"
     exit 0
 }
+
+if ($Id -notmatch "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$") {
+    throw "Id must contain only letters, numbers, underscores or hyphens."
+}
+if ([string]::IsNullOrWhiteSpace($Output)) {
+    $Output = "data/models/npc/$Id"
+}
+$bundleName = "${Id}_bundle.zip"
 
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $makeHumanPython = Join-Path $root "tools\makehuman-core\.venv\Scripts\python.exe"
@@ -43,10 +52,17 @@ if ($BuildOnly -and $AnimateOnly) {
     throw "Choose either -BuildOnly or -AnimateOnly, not both."
 }
 
-if (-not $outputPath.StartsWith($root, [System.StringComparison]::OrdinalIgnoreCase)) {
+$rootPrefix = $root.TrimEnd('\') + '\'
+if (-not ($outputPath.Equals($root, [System.StringComparison]::OrdinalIgnoreCase) -or $outputPath.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase))) {
     throw "Output must stay inside the combata repository."
 }
-$bundlePath = Join-Path $outputPath "civilian_001_bundle.zip"
+if (-not $AnimateOnly -and (Test-Path $outputPath) -and -not $Overwrite) {
+    $existingItems = @(Get-ChildItem -LiteralPath $outputPath -Force -ErrorAction SilentlyContinue)
+    if ($existingItems.Count -gt 0) {
+        throw "Output folder already contains files: $outputPath. Use a new -Id, -AnimateOnly to resume, or -Overwrite to intentionally rebuild this character."
+    }
+}
+$bundlePath = Join-Path $outputPath $bundleName
 if (Test-Path $bundlePath) {
     Remove-Item $bundlePath -Force
 }
@@ -73,7 +89,7 @@ $buildArgs = @(
     "--skin", "$Skin", "--hair", "$Hair", "--top", "$Top",
     "--bottom", "$Bottom", "--shoes", "$Shoes", "--output", $Output
 )
-$animationArgs = @($mixamoScript, "--animations", $Animations, "--fps", "$Fps", "--output", $Output)
+$animationArgs = @($mixamoScript, "--id", $Id, "--animations", $Animations, "--fps", "$Fps", "--output", $Output)
 $mixamoExitCode = 0
 
 if (-not $AnimateOnly) {
@@ -83,12 +99,12 @@ if (-not $AnimateOnly) {
         throw "MakeHuman generation failed with exit code $LASTEXITCODE."
     }
 } else {
-    $existingProject = Join-Path $outputPath "civilian_001.mhm"
+    $existingProject = Join-Path $outputPath "${Id}.mhm"
     if (!(Test-Path $existingProject)) {
         throw "Animate-only mode needs the saved MakeHuman project at $existingProject."
     }
     Write-Host "[1/2] Preparing a correctly oriented Y-up OBJ for Mixamo from the saved project..." -ForegroundColor Cyan
-    & $makeHumanPython $buildScript --export-existing --output $Output
+    & $makeHumanPython $buildScript --export-existing --id $Id --output $Output
     if ($LASTEXITCODE -ne 0) {
         throw "Mixamo OBJ preparation failed with exit code $LASTEXITCODE."
     }
@@ -108,7 +124,7 @@ if (-not $BuildOnly) {
     Write-Host "Build-only mode: skipping Mixamo animation downloads." -ForegroundColor Yellow
 }
 
-$bundlePath = Join-Path $outputPath "civilian_001_bundle.zip"
+$bundlePath = Join-Path $outputPath $bundleName
 if (!(Test-Path $bundlePath)) {
     if (Test-Path $outputPath) {
         Compress-Archive -Path (Join-Path $outputPath "*") -DestinationPath $bundlePath -Force
@@ -137,7 +153,14 @@ if (-not $NoCommit) {
 
     & git -C $root diff --cached --quiet
     if ($LASTEXITCODE -ne 0) {
-        & git -C $root commit -m "assets: generate civilian character and animation set"
+        if ($mixamoExitCode -ne 0) {
+            $commitMessage = "assets: $Id character generation partial (Mixamo failed)"
+        } elseif ($BuildOnly) {
+            $commitMessage = "assets: build $Id character source"
+        } else {
+            $commitMessage = "assets: generate $Id character and animation set"
+        }
+        & git -C $root commit -m $commitMessage
         if ($LASTEXITCODE -ne 0) { throw "Git commit failed." }
         Write-Host "Generated assets committed." -ForegroundColor Green
 
@@ -158,7 +181,7 @@ if (-not $NoCommit) {
 Write-Host ""
 Write-Host "Output: $outputPath"
 Write-Host "Manifest: $(Join-Path $outputPath 'manifest.json')"
-Write-Host "Bundle: $(Join-Path $outputPath 'civilian_001_bundle.zip')"
+Write-Host "Bundle: $(Join-Path $outputPath $bundleName)"
 $generatedCommit = (& git -C $root rev-parse HEAD).Trim()
 Write-Host "Generated asset commit: $generatedCommit" -ForegroundColor Cyan
 if ($mixamoExitCode -ne 0) {
@@ -166,4 +189,8 @@ if ($mixamoExitCode -ne 0) {
     Write-Warning "Check manifest.json and any Mixamo diagnostics before considering this character ready."
     exit 1
 }
-Write-Host "GENERATION PIPELINE COMPLETE." -ForegroundColor Green
+if ($BuildOnly) {
+    Write-Host "CHARACTER SOURCE BUILD COMPLETE (Mixamo intentionally skipped)." -ForegroundColor Green
+} else {
+    Write-Host "GENERATION PIPELINE COMPLETE." -ForegroundColor Green
+}

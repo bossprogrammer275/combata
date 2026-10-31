@@ -12,7 +12,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 MIXAMO_DIR = ROOT / "tools" / "mixamo-mcp"
 OUT = ROOT / "data" / "models" / "npc" / "civilian_001"
-SOURCE_BUNDLE = OUT / "civilian_001_mixamo_source.zip"
+CHARACTER_ID = "civilian_001"
+SOURCE_BUNDLE = OUT / f"{CHARACTER_ID}_mixamo_source.zip"
 
 ANIMATIONS = [
     {"key": "idle", "queries": ["standing idle", "idle"], "need": ["idle"], "exclude": ["crouch", "sitting", "walk", "run"], "inplace": False},
@@ -215,19 +216,48 @@ def wait_for_manual_marker_placement(page):
 
 
 def attach_character_status_listener(page):
-    """Capture Mixamo's character status polls so we don't click through a running rig."""
+    """Capture relevant Mixamo character API responses, including Auto-Rigger errors."""
     events = []
 
     def on_response(response):
         try:
-            if response.request.method.upper() != "GET":
+            url = response.url
+            lowered = url.lower()
+            if "/api/v1/characters/" not in lowered:
                 return
-            url = response.url.lower()
-            if "/api/v1/characters/" not in url or any(part in url for part in ("/assets/", "/autorig")):
+            if any(part in lowered for part in ("/assets/", "/thumbnail", "/preview")):
                 return
-            payload = response.json()
-            if isinstance(payload, dict) and payload.get("status"):
-                events.append({"time": time.time(), "status": str(payload["status"]).lower()})
+
+            event = {
+                "time": time.time(),
+                "method": response.request.method.upper(),
+                "httpStatus": int(response.status),
+                "urlPath": url.split("?", 1)[0][-240:],
+            }
+            try:
+                payload = response.json()
+            except Exception:
+                payload = None
+            if isinstance(payload, dict):
+                for key in ("status", "error", "message", "reason", "code", "detail"):
+                    value = payload.get(key)
+                    if value is not None:
+                        event[key] = str(value)[:600]
+                for key in ("errors", "data"):
+                    value = payload.get(key)
+                    if isinstance(value, (str, int, float, bool)):
+                        event[key] = str(value)[:600]
+                    elif isinstance(value, dict):
+                        compact = {}
+                        for nested_key in ("status", "error", "message", "reason", "code", "detail"):
+                            nested_value = value.get(nested_key)
+                            if nested_value is not None:
+                                compact[nested_key] = str(nested_value)[:300]
+                        if compact:
+                            event[key] = compact
+            events.append(event)
+            if len(events) > 100:
+                del events[:-100]
         except Exception:
             pass
 
@@ -235,17 +265,66 @@ def attach_character_status_listener(page):
     return events
 
 
-def save_upload_diagnostics(page, reason):
-    """Preserve the exact Mixamo screen when Auto-Rigger does not advance."""
+def save_upload_diagnostics(page, reason, api_events=None):
+    """Preserve the Mixamo screen, marker positions, viewer geometry and API responses."""
     OUT.mkdir(parents=True, exist_ok=True)
     html_path = OUT / "mixamo_upload_debug.html"
     image_path = OUT / "mixamo_upload_debug.png"
     note_path = OUT / "mixamo_upload_debug.txt"
+    dom_path = OUT / "mixamo_upload_debug_dom.json"
     try:
         html_path.write_text(page.content(), encoding="utf-8")
         page.screenshot(path=str(image_path), full_page=True)
         note_path.write_text(reason, encoding="utf-8")
-        print(f"[Mixamo] Upload diagnostics saved: {html_path.name}, {image_path.name}, {note_path.name}")
+        try:
+            snapshot = page.evaluate("""() => {
+                const rect = (el) => {
+                    if (!el) return null;
+                    const r = el.getBoundingClientRect();
+                    return {x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom};
+                };
+                const overlay = document.querySelector(".autorig-overlay");
+                const markers = overlay ? Array.from(overlay.querySelectorAll(".autorig-marker")) : [];
+                const views = Array.from(document.querySelectorAll(
+                    "canvas, #editor, .product-preview-holder, .autorig-overlay, .autorig-modal, .autorig-holder"
+                )).map((el) => ({
+                    tag: el.tagName,
+                    id: el.id || "",
+                    className: typeof el.className === "string" ? el.className : "",
+                    rect: rect(el),
+                }));
+                return {
+                    url: location.href,
+                    title: document.title,
+                    viewport: {width: innerWidth, height: innerHeight, devicePixelRatio},
+                    overlay: rect(overlay),
+                    markers: markers.map((el) => ({
+                        id: el.id,
+                        tooltip: el.getAttribute("data-cooltip") || "",
+                        style: el.getAttribute("style") || "",
+                        rect: rect(el),
+                    })),
+                    views,
+                    buttons: Array.from(document.querySelectorAll(".autorig-modal button")).map((el) => ({
+                        text: (el.innerText || "").trim(),
+                        disabled: !!el.disabled,
+                        className: el.className || "",
+                    })),
+                    bodyText: (document.body?.innerText || "").slice(-4000),
+                };
+            }""")
+            dom_path.write_text(json.dumps({
+                "reason": reason,
+                "snapshot": snapshot,
+                "apiEvents": (api_events or [])[-30:],
+            }, indent=2), encoding="utf-8")
+        except Exception as exc:
+            dom_path.write_text(json.dumps({
+                "reason": reason,
+                "domCaptureError": f"{type(exc).__name__}: {exc}",
+                "apiEvents": (api_events or [])[-30:],
+            }, indent=2), encoding="utf-8")
+        print(f"[Mixamo] Upload diagnostics saved: {html_path.name}, {image_path.name}, {note_path.name}, {dom_path.name}")
     except Exception as exc:
         print(f"[Mixamo] Could not save upload diagnostics: {exc}")
 
@@ -314,7 +393,7 @@ def wait_upload_complete(page, get_upload_status, confirm_review, api_status_eve
     while time.time() < deadline:
         html = page.content()
         recent_events = api_status_events[api_event_start:]
-        api_status = recent_events[-1]["status"] if recent_events else None
+        api_status = next((event.get("status") for event in reversed(recent_events) if event.get("status")), None)
         autorig_started = marker_submit_attempted
         status = classify_upload_status(
             html, get_upload_status,
@@ -340,7 +419,7 @@ def wait_upload_complete(page, get_upload_status, confirm_review, api_status_eve
         if marker_submit_attempted and api_status == "needs_rigging" and marker_submit_time:
             if now - marker_submit_time > 45:
                 reason = "Mixamo reports that the character still needs rigging. The landmark placements were rejected."
-                save_upload_diagnostics(page, reason)
+                save_upload_diagnostics(page, reason, api_status_events)
                 raise RuntimeError(reason + " See mixamo_upload_debug.png/html in the output folder.")
 
         if state == "change_character":
@@ -372,26 +451,27 @@ def wait_upload_complete(page, get_upload_status, confirm_review, api_status_eve
                 if "autorig-modal" not in page.content():
                     return
                 reason = "Mixamo remained on the rig review screen 10 seconds after confirmation."
-                save_upload_diagnostics(page, reason)
+                save_upload_diagnostics(page, reason, api_status_events)
                 raise RuntimeError(reason + " See mixamo_upload_debug.png/html in the output folder.")
             continue
 
         if state == "markers":
             if marker_submit_attempted:
-                reason = "Mixamo returned to marker placement after the landmarks were submitted."
-                save_upload_diagnostics(page, reason)
+                recent_events = api_status_events[api_event_start:]
+                api_excerpt = json.dumps(recent_events[-8:], ensure_ascii=False)
+                reason = "Mixamo returned to marker placement after the landmarks were submitted. API responses: " + api_excerpt
+                save_upload_diagnostics(page, reason, api_status_events)
                 raise RuntimeError(reason + " See mixamo_upload_debug.png/html in the output folder.")
             marker_submit_attempted = True
-            wait_for_manual_marker_placement(page)
-            marker_submit_attempted = True
-            marker_submit_time = time.time()
             api_event_start = len(api_status_events)
+            wait_for_manual_marker_placement(page)
+            marker_submit_time = time.time()
             page.wait_for_timeout(1500)
             continue
 
         if state == "error":
             reason = f"Mixamo rejected the character: {status.get('text', 'unknown error')}"
-            save_upload_diagnostics(page, reason)
+            save_upload_diagnostics(page, reason, api_status_events)
             raise RuntimeError(reason)
 
         page.wait_for_timeout(1000)
@@ -410,7 +490,7 @@ def wait_upload_complete(page, get_upload_status, confirm_review, api_status_eve
         f"Last message: {final_status.get('text', '')}. "
         f"Last API status: {api_status or 'not captured'}."
     )
-    save_upload_diagnostics(page, reason)
+    save_upload_diagnostics(page, reason, api_status_events)
     raise TimeoutError(reason)
 
 
@@ -451,15 +531,22 @@ def download_clip(page, download_mod, animations_mod, output_path, include_skin,
 def parse_args():
     parser = argparse.ArgumentParser(description="Rig the civilian and download selected Mixamo animation clips.")
     parser.add_argument("--animations", default="idle,walk,run,sprint,jump,crouch_idle,crouch_walk,talk,phone,sit_idle,sit_down,stand_up,look_around,work_idle,wave,hit_reaction,fear_reaction,flee_run,fall_death,get_up")
+    parser.add_argument("--id", default="civilian_001")
     parser.add_argument("--fps", type=int, default=30, choices=(24, 25, 30, 48, 50, 60))
-    parser.add_argument("--output", default="data/models/npc/civilian_001")
+    parser.add_argument("--output", default=None)
     return parser.parse_args()
 
 def main():
-    global OUT, SOURCE_BUNDLE
+    global OUT, SOURCE_BUNDLE, CHARACTER_ID
     args = parse_args()
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", args.id):
+        print("ERROR: --id must contain only letters, numbers, underscores or hyphens.", file=sys.stderr)
+        return 2
+    CHARACTER_ID = args.id
+    if not args.output:
+        args.output = f"data/models/npc/{CHARACTER_ID}"
     OUT = (ROOT / args.output).resolve()
-    SOURCE_BUNDLE = OUT / "civilian_001_mixamo_source.zip"
+    SOURCE_BUNDLE = OUT / f"{CHARACTER_ID}_mixamo_source.zip"
     requested = {item.strip().lower() for item in args.animations.split(",") if item.strip()}
     aliases = {
         "crouch": {"crouch_idle", "crouch_walk"},
@@ -521,14 +608,14 @@ def main():
     try:
         page.goto("https://www.mixamo.com/", wait_until="domcontentloaded")
         page.wait_for_load_state("networkidle")
-        print("[Mixamo] Uploading Y-up OBJ package civilian_001_mixamo_source.zip...")
+        print(f"[Mixamo] Uploading Y-up OBJ package {SOURCE_BUNDLE.name}...")
         upload_mod.upload_file(page, str(SOURCE_BUNDLE))
         try:
             wait_upload_complete(page, upload_mod.get_status, upload_mod.confirm_review, api_status_events)
         except Exception as exc:
             manifest_path = OUT / "manifest.json"
             try:
-                manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {"id": "civilian_001"}
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {"id": CHARACTER_ID}
                 manifest["status"] = "mixamo-upload-failed"
                 manifest["mixamoUploadError"] = str(exc)
                 manifest["mixamoUploadDiagnostics"] = [
@@ -536,6 +623,7 @@ def main():
                         "mixamo_upload_debug.html",
                         "mixamo_upload_debug.png",
                         "mixamo_upload_debug.txt",
+                "mixamo_upload_debug_dom.json",
                         "mixamo_markers_placed.png",
                         "mixamo_marker_debug.html",
                         "mixamo_marker_debug.png",
@@ -550,7 +638,7 @@ def main():
             raise
 
         manifest_path = OUT / "manifest.json"
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {"id": "civilian_001"}
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {"id": CHARACTER_ID}
         manifest["status"] = "animation-generation-in-progress"
         manifest["animations"] = {}
         manifest["animationSelections"] = {}
@@ -559,7 +647,7 @@ def main():
         manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
         # Export the newly rigged character without selecting any animation.
-        base_path = OUT / "civilian_001_rigged.fbx"
+        base_path = OUT / f"{CHARACTER_ID}_rigged.fbx"
         print("[Mixamo] Downloading the unanimated rigged character with skin...")
         try:
             saved_base = download_clip(
@@ -614,7 +702,7 @@ def main():
 
             # Persist each approved/verified selection immediately so a later
             # interrupted run does not lose the exact animation IDs already used.
-            progress_manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {"id": "civilian_001"}
+            progress_manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {"id": CHARACTER_ID}
             progress_manifest["riggedModel"] = downloads.get("riggedModel", {}).get("file")
             progress_manifest["animations"] = downloads
             progress_manifest["animationSelections"] = selections
@@ -623,7 +711,7 @@ def main():
             manifest_path.write_text(json.dumps(progress_manifest, indent=2), encoding="utf-8")
 
         manifest_path = OUT / "manifest.json"
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {"id": "civilian_001"}
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {"id": CHARACTER_ID}
         manifest["riggedModel"] = downloads.get("riggedModel", {}).get("file")
         manifest["skeleton"] = "Mixamo auto-rig; riggedModel is the canonical skinned FBX"
         manifest["animations"] = downloads
@@ -633,7 +721,7 @@ def main():
         manifest["status"] = "ready-for-game-integration" if completed >= 8 and manifest["riggedModel"] else "partial-animation-set"
         manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
-        zip_path = OUT / "civilian_001_bundle.zip"
+        zip_path = OUT / f"{CHARACTER_ID}_bundle.zip"
         with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for item in sorted(OUT.rglob("*")):
                 if item.is_file() and item != zip_path:

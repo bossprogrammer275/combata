@@ -10,6 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "data" / "models" / "npc" / "civilian_001"
+CHARACTER_ID = "civilian_001"
 
 def norm(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", str(value).lower()).strip()
@@ -86,7 +87,7 @@ def parse_args():
     parser.add_argument("--top", default="t shirt,tshirt,tee,polo,hoodie,casual shirt,shirt")
     parser.add_argument("--bottom", default="jeans,trousers,pants,denim")
     parser.add_argument("--shoes", default="sneaker,trainers,shoes,footwear")
-    parser.add_argument("--output", default="data/models/npc/civilian_001")
+    parser.add_argument("--output", default=None)
     parser.add_argument("--export-existing", action="store_true",
                         help="Export the saved .mhm project as a Y-up OBJ bundle without rebuilding the character.")
     return parser.parse_args()
@@ -97,9 +98,9 @@ def terms(value: str) -> list[str]:
 def export_mixamo_obj(human) -> tuple[Path, Path]:
     """Export a Y-up OBJ and package its MTL/textures for Mixamo Auto-Rigger."""
     OUT.mkdir(parents=True, exist_ok=True)
-    obj_path = OUT / "civilian_001_source.obj"
-    mtl_path = OUT / "civilian_001_source.mtl"
-    bundle_path = OUT / "civilian_001_mixamo_source.zip"
+    obj_path = OUT / f"{CHARACTER_ID}_source.obj"
+    mtl_path = OUT / f"{CHARACTER_ID}_source.mtl"
+    bundle_path = OUT / f"{CHARACTER_ID}_mixamo_source.zip"
 
     # MakeHuman OBJ preserves native Y-up coordinates. The unrigged FBX path
     # declares Z-up without rotating the raw mesh, which made Mixamo display it sideways.
@@ -124,8 +125,13 @@ def export_mixamo_obj(human) -> tuple[Path, Path]:
 
 
 def main() -> int:
-    global OUT
+    global OUT, CHARACTER_ID
     args = parse_args()
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", args.id):
+        raise SystemExit("ERROR: --id must contain only letters, numbers, underscores or hyphens.")
+    CHARACTER_ID = args.id
+    if not args.output:
+        args.output = f"data/models/npc/{CHARACTER_ID}"
     OUT = (ROOT / args.output).resolve()
     try:
         import mhcore
@@ -136,7 +142,7 @@ def main() -> int:
 
     OUT.mkdir(parents=True, exist_ok=True)
     if args.export_existing:
-        native_path = OUT / "civilian_001.mhm"
+        native_path = OUT / f"{CHARACTER_ID}.mhm"
         if not native_path.is_file():
             print(f"ERROR: saved MakeHuman project not found: {native_path}", file=sys.stderr)
             return 2
@@ -180,7 +186,7 @@ def main() -> int:
 
     texture_dir = OUT / "textures"
     texture_dir.mkdir(parents=True, exist_ok=True)
-    print("[MakeHuman] Creating civilian_001...")
+    print(f"[MakeHuman] Creating {CHARACTER_ID}...")
     human = mhcore.new_human()
 
     # MakeHuman maps age 10 to ~0.1875 and age 25 to 0.5.
@@ -276,7 +282,7 @@ def main() -> int:
     else:
         print("[MakeHuman] WARNING: no shoe proxy matched; default footwear retained.")
 
-    native_path = OUT / "civilian_001.mhm"
+    native_path = OUT / f"{CHARACTER_ID}.mhm"
     saved = human.save_mhm(str(native_path))
     obj_path, mixamo_bundle = export_mixamo_obj(human)
 
