@@ -17,12 +17,14 @@ eyes HighPolyEyes 2c12f43b-1303-432c-b7ce-d78346baf2e6
 eyebrows eyebrow001 9c81ec3a-faa5-4c94-9cdb-992300ba3084
 eyelashes Eyelashes01 d533836f-13ad-4836-8b65-051108253cd2
 teeth Teeth_Base 0a5ec82a-0d5f-43ce-a765-8f076f95692d
-clothes female_casualsuit01 a8b0e841-144b-4f03-8b9e-ea8fdce8c863
-skinMaterial C:\Users\Ismail\Desktop\games\combata\tools\makehuman-core\data\skins\middleage_african_female\middleage_african_female.mhmat
+clothes male_casualsuit01 79ced554-1d8a-4c14-a6a8-e1de90b09c32
+clothes shoes01 6e0c552e-e207-44df-8f70-c9bfdeddd8c6
+skinMaterial C:\Users\Ismail\Desktop\games\combata\tools\makehuman-core\data\skins\middleage_african_male\middleage_african_male.mhmat
 material short01 766436e9-63ed-4f6a-afa9-99f3acff70a8 C:\Users\Ismail\Desktop\games\combata\tools\makehuman-core\data\hair\short01\short01.mhmat
 material HighPolyEyes 2c12f43b-1303-432c-b7ce-d78346baf2e6 C:\Users\Ismail\Desktop\games\combata\tools\makehuman-core\data\eyes\materials\brown.mhmat
 material eyebrow001 9c81ec3a-faa5-4c94-9cdb-992300ba3084 C:\Users\Ismail\Desktop\games\combata\tools\makehuman-core\data\eyebrows\eyebrow001\eyebrow001.mhmat
 material Eyelashes01 d533836f-13ad-4836-8b65-051108253cd2 C:\Users\Ismail\Desktop\games\combata\tools\makehuman-core\data\eyelashes\eyelashes01\eyelashes01.mhmat
 material Teeth_Base 0a5ec82a-0d5f-43ce-a765-8f076f95692d C:\Users\Ismail\Desktop\games\combata\tools\makehuman-core\data\teeth\teeth_base\teeth.mhmat
-material female_casualsuit01 a8b0e841-144b-4f03-8b9e-ea8fdce8c863 C:\Users\Ismail\Desktop\games\combata\tools\makehuman-core\data\clothes\female_casualsuit01\female_casualsuit01.mhmat
+material male_casualsuit01 79ced554-1d8a-4c14-a6a8-e1de90b09c32 C:\Users\Ismail\Desktop\games\combata\tools\makehuman-core\data\clothes\male_casualsuit01\male_casualsuit01.mhmat
+material shoes01 6e0c552e-e207-44df-8f70-c9bfdeddd8c6 C:\Users\Ismail\Desktop\games\combata\tools\makehuman-core\data\clothes\shoes01\shoes01.mhmat
 subdivide False

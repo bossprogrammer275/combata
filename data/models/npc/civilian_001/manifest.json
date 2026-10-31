@@ -10,17 +10,18 @@
     "heightMacro": 0.6
   },
   "source": "MakeHuman core",
-  "skeleton": "MakeHuman deform export; Mixamo stage pending",
+  "skeleton": "Unrigged MakeHuman mesh; submitted to Mixamo Auto-Rigger",
   "sourceModel": "data/models/npc/civilian_001/civilian_001_source.fbx",
   "nativeProject": "data/models/npc/civilian_001/civilian_001.mhm",
   "selectedAssets": {
-    "skin": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/skins\\middleage_african_female\\middleage_african_female.mhmat",
+    "skin": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/skins\\middleage_african_male\\middleage_african_male.mhmat",
     "hair": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/hair\\short01\\short01.mhclo",
     "eyes": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/eyes\\high-poly\\high-poly.mhclo",
     "eyebrows": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/eyebrows\\eyebrow001\\eyebrow001.mhclo",
     "eyelashes": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/eyelashes\\eyelashes01\\eyelashes01.mhclo",
     "teeth": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/teeth\\teeth_base\\teeth_base.mhclo",
-    "outfit": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/clothes\\female_casualsuit01\\female_casualsuit01.mhclo"
+    "outfit": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/clothes\\male_casualsuit01\\male_casualsuit01.mhclo",
+    "shoes": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/clothes\\shoes01\\shoes01.mhclo"
   },
   "availableAssetCounts": {
     "skins": 24,
@@ -53,8 +54,9 @@
     "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\shoes05\\shoes05.mhclo",
     "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\shoes06\\shoes06.mhclo"
   ],
+  "wardrobeNote": "The installed MakeHuman asset pack supplies complete casual-suit proxies, not separate T-shirt and jeans pieces.",
   "copiedTextures": [
-    "textures/middleage_darkskinned_female_diffuse.png"
+    "textures/middleage_darkskinned_male_diffuse.png"
   ],
   "animations": {},
   "status": "character-generated-awaiting-mixamo"
