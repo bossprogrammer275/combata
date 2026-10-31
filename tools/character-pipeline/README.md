@@ -12,7 +12,7 @@ Generate only the MakeHuman model:
 
     .\tools\character-pipeline\generate-civilian.bat -BuildOnly
 
-Rerun only the Mixamo animation stage against an existing MakeHuman FBX:
+Rerun only the Mixamo stage from the saved MakeHuman project (the OBJ package is regenerated automatically):
 
     .\tools\character-pipeline\generate-civilian.bat -AnimateOnly
 
@@ -46,7 +46,7 @@ Aliases:
 - death or fall = fall_death
 - getup = get_up
 
-The default run builds an unrigged character mesh (so Mixamo Auto-Rigger can create the skeleton), uploads it through the saved local Mixamo browser profile, submits Mixamo's automatically positioned landmark markers, downloads the selected animation FBXs, writes manifest.json and civilian_001_bundle.zip, then commits and pushes only the generated output directory. Gender-specific skins/outfits are filtered to the selected gender; universal assets such as shoes remain eligible.
+The default run builds the character and exports a native Y-up OBJ with its MTL/textures as civilian_001_mixamo_source.zip. It uploads that package through the saved local Mixamo browser profile, drags the chin, wrist, elbow, knee and groin markers onto the T-pose, submits the landmarks to Auto-Rigger, downloads the selected animation FBXs, writes manifest.json and civilian_001_bundle.zip, then commits and pushes only the generated output directory. The Y-up OBJ avoids the sideways orientation caused by the unrigged MakeHuman FBX export. Gender-specific skins/outfits are filtered to the selected gender; universal assets such as shoes remain eligible.
 
 The installed MakeHuman data pack currently contains complete casual-suit outfits rather than separate T-shirts and jeans, so the generator chooses a matching casual outfit proxy plus a separate shoe proxy. The manifest records this limitation.
 
@@ -56,4 +56,4 @@ Output: data/models/npc/civilian_001/
 
 The Adobe profile remains local in tools/mixamo-mcp/browser_profile/ and is never committed. Do not run main.py or mcp_server.py alongside this generator because they share the browser profile.
 
-If Mixamo's default landmark placement is rejected, the automation saves mixamo_marker_debug.html and mixamo_marker_debug.png in the character output folder and exits with a non-zero code. Failed or missing animation downloads are listed in manifest.json. The existing NPC/player runtime is not changed by this asset-generation pipeline.
+Before submitting the markers, the automation saves mixamo_markers_placed.png. It also polls Mixamo's character status so it does not click through while Auto-Rigger is still working. If marker placement or rigging fails, it saves mixamo_upload_debug.html, mixamo_upload_debug.png and mixamo_upload_debug.txt in the character output folder and exits with a non-zero code. Failed or missing animation downloads are listed in manifest.json. The existing NPC/player runtime is not changed by this asset-generation pipeline.
