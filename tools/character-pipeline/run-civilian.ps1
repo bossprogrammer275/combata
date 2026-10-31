@@ -46,6 +46,10 @@ if ($BuildOnly -and $AnimateOnly) {
 if (-not $outputPath.StartsWith($root, [System.StringComparison]::OrdinalIgnoreCase)) {
     throw "Output must stay inside the combata repository."
 }
+$bundlePath = Join-Path $outputPath "civilian_001_bundle.zip"
+if (Test-Path $bundlePath) {
+    Remove-Item $bundlePath -Force
+}
 if (!(Test-Path $makeHumanPython)) {
     throw "MakeHuman Python environment not found: $makeHumanPython"
 }
