@@ -53,12 +53,55 @@ def pick_animation(items, job):
     candidates.sort(key=lambda entry: (-entry[0], entry[1]["name"].lower()))
     return candidates[0][1] if candidates else None
 
+def save_marker_diagnostics(page, reason):
+    """Capture the actual marker DOM and screenshot before failing."""
+    OUT.mkdir(parents=True, exist_ok=True)
+    try:
+        html_path = OUT / "mixamo_marker_debug.html"
+        image_path = OUT / "mixamo_marker_debug.png"
+        json_path = OUT / "mixamo_marker_dom.json"
+        html_path.write_text(page.content(), encoding="utf-8")
+        page.screenshot(path=str(image_path), full_page=True)
+        nodes = page.evaluate("""() => Array.from(document.querySelectorAll(
+            '.autorig-overlay .autorig-marker, .autorig-overlay [id], #chin, #larm, #rarm, #lelbow, #relbow, #lknee, #rknee, #groin'
+        )).map(el => {
+            const r = el.getBoundingClientRect();
+            return {
+                tag: el.tagName,
+                id: el.id || '',
+                className: typeof el.className === 'string' ? el.className : '',
+                title: el.getAttribute('title') || '',
+                tooltip: el.getAttribute('data-cooltip') || '',
+                rect: {x:r.x,y:r.y,width:r.width,height:r.height},
+                html: el.outerHTML.slice(0, 500)
+            };
+        })""")
+        json_path.write_text(json.dumps({"reason": reason, "nodes": nodes}, indent=2), encoding="utf-8")
+        print(f"[Mixamo] Marker diagnostics saved: {html_path.name}, {image_path.name}, {json_path.name}")
+        print(f"[Mixamo] Marker DOM nodes found: {len(nodes)}")
+    except Exception as exc:
+        print(f"[Mixamo] Could not save marker diagnostics: {exc}")
+
+
 def place_autorig_markers(page):
-    """Drag Mixamo's eight landmark markers onto the front-facing T-pose."""
+    """Wait for Mixamo's live marker DOM, then drag all eight landmarks."""
     overlay = page.locator(".autorig-overlay")
+    try:
+        overlay.wait_for(state="visible", timeout=20000)
+        page.wait_for_function(
+            "() => document.querySelectorAll('.autorig-overlay .autorig-marker').length >= 8",
+            timeout=30000,
+        )
+    except Exception as exc:
+        reason = f"Mixamo marker overlay did not expose all eight marker elements: {exc}"
+        save_marker_diagnostics(page, reason)
+        raise RuntimeError(reason)
+
     box = overlay.bounding_box()
     if not box or box["width"] < 300 or box["height"] < 250:
-        raise RuntimeError("Mixamo marker canvas could not be measured.")
+        reason = "Mixamo marker canvas could not be measured."
+        save_marker_diagnostics(page, reason)
+        raise RuntimeError(reason)
 
     symmetry = page.locator('input[name="symmetry"]')
     if symmetry.count():
@@ -84,12 +127,46 @@ def place_autorig_markers(page):
     }
 
     for marker_id, (nx, ny) in targets.items():
-        marker = page.locator(f".autorig-overlay #{marker_id}")
+        marker = page.locator(f".autorig-overlay .autorig-marker[id='{marker_id}']")
         if marker.count() == 0:
-            raise RuntimeError(f"Mixamo marker #{marker_id} was not found.")
+            # Mixamo has changed its React markup more than once. Fall back to
+            # the marker ID globally, then to its visible tooltip label.
+            marker = page.locator(f"#{marker_id}")
+        if marker.count() == 0:
+            tooltip_names = {
+                "chin": ("Chin",),
+                "larm": ("Left Wrist", "Left wrist"),
+                "rarm": ("Right Wrist", "Right wrist"),
+                "lelbow": ("Left Elbow", "Left elbow"),
+                "relbow": ("Right Elbow", "Right elbow"),
+                "lknee": ("Left Knee", "Left knee"),
+                "rknee": ("Right Knee", "Right knee"),
+                "groin": ("Groin",),
+            }
+            marker = page.locator(".autorig-overlay .autorig-marker").filter(
+                has=page.locator("[data-cooltip]")
+            )
+            matching = None
+            for candidate in page.locator(".autorig-overlay .autorig-marker").all():
+                try:
+                    tooltip = candidate.get_attribute("data-cooltip") or ""
+                    if tooltip in tooltip_names.get(marker_id, ()):
+                        matching = candidate
+                        break
+                except Exception:
+                    pass
+            if matching is not None:
+                marker = matching
+
+        if marker.count() == 0:
+            reason = f"Mixamo marker #{marker_id} was not found in the live DOM."
+            save_marker_diagnostics(page, reason)
+            raise RuntimeError(reason)
         marker_box = marker.bounding_box()
         if not marker_box:
-            raise RuntimeError(f"Could not measure Mixamo marker #{marker_id}.")
+            reason = f"Could not measure Mixamo marker #{marker_id}."
+            save_marker_diagnostics(page, reason)
+            raise RuntimeError(reason)
 
         start_x = marker_box["x"] + marker_box["width"] / 2
         start_y = marker_box["y"] + marker_box["height"] / 2
@@ -108,10 +185,12 @@ def place_autorig_markers(page):
         placed_x = placed_box["x"] + placed_box["width"] / 2
         placed_y = placed_box["y"] + placed_box["height"] / 2
         if abs(placed_x - target_x) > 28 or abs(placed_y - target_y) > 28:
-            raise RuntimeError(
+            reason = (
                 f"Mixamo marker #{marker_id} did not reach its target "
                 f"(actual {placed_x:.0f},{placed_y:.0f}; target {target_x:.0f},{target_y:.0f})."
             )
+            save_marker_diagnostics(page, reason)
+            raise RuntimeError(reason)
         print(f"[Mixamo] Placed {marker_id}: ({nx:.2f}, {ny:.2f})")
 
     screenshot = OUT / "mixamo_markers_placed.png"
