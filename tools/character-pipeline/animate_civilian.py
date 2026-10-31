@@ -95,6 +95,7 @@ def wait_upload_complete(page, get_upload_status, confirm_review, timeout=240):
     last_heartbeat = started
     marker_submit_attempted = False
     review_confirm_attempted = False
+    review_confirmed_at = None
     change_confirm_attempted = False
 
     while time.time() < deadline:
@@ -129,9 +130,12 @@ def wait_upload_complete(page, get_upload_status, confirm_review, timeout=240):
                 review_confirm_attempted = True
                 print("[Mixamo] Upload processing finished. Confirming the detected character...")
                 confirm_review(page)
+                review_confirmed_at = time.time()
                 page.wait_for_timeout(1800)
+            elif review_confirmed_at is not None and now - review_confirmed_at < 10:
+                page.wait_for_timeout(1000)
             else:
-                reason = "Mixamo remained on the character review screen after the Next action."
+                reason = "Mixamo remained on the character review screen 10 seconds after the Next action."
                 save_upload_diagnostics(page, reason)
                 raise RuntimeError(reason + " See mixamo_upload_debug.png/html in the output folder.")
             continue
