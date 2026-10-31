@@ -582,9 +582,9 @@ export class Civilians {
     if (!opening) return false;
     this.currentConversation = npc;
     const choices = [
-      { label: "Ask for directions", onClick: () => this.chooseDialogue(0) },
-      { label: "Ask about the city", onClick: () => this.chooseDialogue(1) },
-      { label: "Goodbye", onClick: () => this.chooseDialogue(2) }
+      { label: "1 · Ask for directions", onClick: () => this.chooseDialogue(0) },
+      { label: "2 · Ask about the city", onClick: () => this.chooseDialogue(1) },
+      { label: "3 · Goodbye", onClick: () => this.chooseDialogue(2) }
     ];
     this.showDialogue(opening, choices);
     return true;
@@ -620,9 +620,9 @@ export class Civilians {
     npc.ch.play("talk", { loop: true });
     this.showDialogue(answer, [
       { label: "Ask something else", onClick: () => this.showDialogue("Anything else you want to know?", [
-        { label: "Directions", onClick: () => this.chooseDialogue(0) },
-        { label: "About the city", onClick: () => this.chooseDialogue(1) },
-        { label: "Goodbye", onClick: () => this.chooseDialogue(2) }
+        { label: "1 · Directions", onClick: () => this.chooseDialogue(0) },
+        { label: "2 · About the city", onClick: () => this.chooseDialogue(1) },
+        { label: "3 · Goodbye", onClick: () => this.chooseDialogue(2) }
       ]) },
       { label: "Goodbye", onClick: () => this.chooseDialogue(2) }
     ]);
