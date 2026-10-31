@@ -282,11 +282,15 @@ def auto_place_mixamo_markers(page):
         "groin":(0.50,0.535),
     }
     symmetry=page.locator('.autorig-options input[name="symmetry"]')
-    if symmetry.count()==1 and symmetry.is_checked():
+    if symmetry.count()!=1:
+        raise RuntimeError("Could not find Mixamo's Use Symmetry checkbox; refusing ambiguous paired-marker placement.")
+    if symmetry.is_checked():
         symmetry.uncheck(); page.wait_for_timeout(250)
         if symmetry.is_checked(): raise RuntimeError("Could not disable Mixamo marker symmetry.")
     radius=max(12,int(ch*0.055))
-    report={"canvas":[iw,ih],"characterBounds":[x0,y0,x1,y1],"placements":[]}
+    report={"status":"placing","canvas":[iw,ih],"characterBounds":[x0,y0,x1,y1],"placements":[]}
+    report_path=OUT/"mixamo_marker_placement.json"
+    report_path.write_text(json.dumps(report,indent=2),encoding="utf-8")
     for marker_id,(xr,yr) in estimates.items():
         ex,ey=x0+cw*xr,y0+ch*yr
         (px,py),snap_d=_snap_to_character(mask,iw,ih,ex,ey,radius)
@@ -295,13 +299,16 @@ def auto_place_mixamo_markers(page):
         item=_drag_mixamo_marker(page,marker_id,tx,ty)
         item["pixel"]=[px,py]; item["estimate"]=[round(ex,2),round(ey,2)]
         item["snapDistance"]=round(snap_d,2); report["placements"].append(item)
+        report["lastCompletedMarker"]=marker_id
+        report_path.write_text(json.dumps(report,indent=2),encoding="utf-8")
         print(f"[Mixamo] Placed {marker_id} at canvas ({px},{py}); position verified.")
     if len(report["placements"])!=8: raise RuntimeError(f"Only {len(report['placements'])}/8 markers were verified.")
     for item in report["placements"]:
         ax,ay=item["actual"]
         if not (cb["x"]-2<=ax<=cb["x"]+cb["width"]+2 and cb["y"]-2<=ay<=cb["y"]+cb["height"]+2):
             raise RuntimeError(f"Marker {item['marker']} ended outside the character canvas.")
-    (OUT/"mixamo_marker_placement.json").write_text(json.dumps(report,indent=2),encoding="utf-8")
+    report["status"]="verified"
+    report_path.write_text(json.dumps(report,indent=2),encoding="utf-8")
     page.screenshot(path=str(OUT/"mixamo_markers_auto_placed.png"),full_page=True)
     print("[Mixamo] All eight anatomical markers were placed and verified.")
     return report
@@ -555,7 +562,13 @@ def wait_upload_complete(page, get_upload_status, confirm_review, api_status_eve
                 save_upload_diagnostics(page, reason, api_status_events)
                 raise RuntimeError(reason + " See mixamo_upload_debug.png/html in the output folder.")
             marker_submit_attempted = True
-            placement_report = auto_place_mixamo_markers(page)
+            try:
+                placement_report = auto_place_mixamo_markers(page)
+            except Exception as exc:
+                reason = f"Automated Mixamo marker placement failed: {type(exc).__name__}: {exc}"
+                save_marker_diagnostics(page, reason)
+                save_upload_diagnostics(page, reason, api_status_events)
+                raise RuntimeError(reason) from exc
             api_event_start = len(api_status_events)
             next_button = page.locator(".autorig-modal .modal-footer button.btn-primary")
             if next_button.count() != 1 or not next_button.is_visible() or not next_button.is_enabled():

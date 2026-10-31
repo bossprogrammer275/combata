@@ -1,0 +1,43 @@
+name: Character pipeline validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tools/character-pipeline/**"
+      - ".github/workflows/character-pipeline-validation.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "tools/character-pipeline/**"
+      - ".github/workflows/character-pipeline-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile character pipeline scripts
+        run: |
+          python -m py_compile tools/character-pipeline/animate_civilian.py
+          python -m py_compile tools/character-pipeline/build_civilian.py
+      - name: Ensure Mixamo marker automation is enabled
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          source = Path("tools/character-pipeline/animate_civilian.py").read_text(encoding="utf-8")
+          assert "def auto_place_mixamo_markers(page):" in source
+          assert "wait_for_manual_marker_placement" not in source
+          assert "MANUAL MIXAMO MARKER PLACEMENT REQUIRED" not in source
+          assert "next_button.click()" in source
+          print("Automatic marker placement is present; manual marker waiting is absent.")
+          PY
