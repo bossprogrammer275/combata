@@ -114,6 +114,15 @@ export class Civilian {
     this.yaw += angleDelta(this.yaw, Math.atan2(dx, dz)) * 0.25;
   }
 
+  isAimedAt(context) {
+    const camera = context.camera;
+    if (!context.aiming || !camera?.getWorldDirection) return false;
+    const direction = new THREE.Vector3();
+    camera.getWorldDirection(direction);
+    const target = this.pos.clone().add(this.headOffset).sub(camera.position).normalize();
+    return direction.dot(target) >= C.behaviour.aimDotThreshold;
+  }
+
   raycastHit(origin, direction, maxDistance) {
     const parts = [
       { p: this.pos.clone().add(this.headOffset), r: 0.21, head: true },
@@ -299,7 +308,7 @@ export class Civilian {
     const player = context.player;
     const playerDistance = player ? this.pos.distanceTo(player.pos) : Infinity;
 
-    if (context.aiming && player && playerDistance < P.aimPanicRadius && this.fleeT <= 0 && this.fearT <= 0) {
+    if (this.isAimedAt(context) && player && playerDistance < P.aimPanicRadius && this.fleeT <= 0 && this.fearT <= 0) {
       this.fearT = 0.55;
       this.state = "fear";
       this.ch.play("crouch_idle", { loop: true });
@@ -405,8 +414,8 @@ export class Civilian {
     }
 
     // Civilians use nearby authored seat/phone/shop objects as routine destinations.
-    if (this.fleeT <= 0 && this.state === "idle" && this.idleT <= 0 && Math.random() < d * 0.12) {
-      const object = this.manager.nearestUsableObject(this.pos, 22);
+    if (this.fleeT <= 0 && this.state === "idle" && this.idleT <= 0 && Math.random() < d * C.behaviour.objectUseChance) {
+      const object = this.manager.nearestUsableObject(this.pos, C.behaviour.objectUseDistance);
       if (object) this.startObjectActivity(object);
     }
     if (this.fleeT <= 0 && this.state === "idle") {
@@ -415,7 +424,7 @@ export class Civilian {
         this.activity = "using";
         this.activityT = 3.5 + Math.random() * 2;
         this.ch.play("phone", { loop: true });
-        this.phoneCooldown = 22 + Math.random() * 24;
+        this.phoneCooldown = C.behaviour.phoneCooldownMin + Math.random() * (C.behaviour.phoneCooldownMax - C.behaviour.phoneCooldownMin);
       }
     }
 
@@ -709,7 +718,7 @@ export class Civilians {
     for (let i = 0; i < active.length; i++) {
       const a = active[i];
       if (a.socialPartner || Math.random() > dt * 0.025) continue;
-      const b = active.slice(i + 1).find(other => !other.socialPartner && a.pos.distanceTo(other.pos) < 2.4);
+      const b = active.slice(i + 1).find(other => !other.socialPartner && a.pos.distanceTo(other.pos) < C.behaviour.socialDistance);
       if (!b) continue;
       a.socialPartner = b;
       b.socialPartner = a;
