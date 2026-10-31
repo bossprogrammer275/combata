@@ -209,7 +209,8 @@ function focusWheel(quadrant){
     +wheel.size.map(v=>v.toFixed(2)).join(' × ')+' m';
   render();
   return {quadrant,wheel,selectedWheelCount:diagnostics.selectedWheelCount,
-    candidateCount:diagnostics.candidateCount,attachedWheelMeshCount:diagnostics.attachedWheelMeshCount};
+    candidateCount:diagnostics.candidateCount,attachedWheelMeshCount:diagnostics.attachedWheelMeshCount,
+    nearbyRejectedMeshes:(diagnostics.nearWheelExcludedMeshes||[]).filter(m=>m.nearestWheel===quadrant)};
 }
 
 function showWheelOverview(){
