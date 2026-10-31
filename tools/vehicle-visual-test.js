@@ -97,6 +97,7 @@ function showWheelDiagnostics(diagnostics){
     size:wheel.size,
     selectedMesh:wheel.name,
     attachedMeshCount:wheel.meshCount,
+    treadFragmentCount:wheel.treadFragmentCount,
     attachedMeshNames:wheel.meshNames,
   }));
 }
@@ -193,6 +194,24 @@ function setCameraSide(side){
   return {side:current.interiorCamera.side,cameraPosition:camera.position.toArray(),fov:camera.fov};
 }
 
+function setWheelSteering(angle){
+  if(!current)throw new Error('No current vehicle');
+  const target=THREE.MathUtils.clamp(Number(angle)||0,-0.8,0.8);
+  clearWheelDiagnostics();
+  for(const wheel of current.wheels){
+    wheel.pivot.rotation.y=wheel.front?target:0;
+  }
+  scene.updateMatrixWorld(true);
+  render();
+  return current.wheels.map(wheel=>({
+    front:wheel.front,
+    angle:wheel.pivot.rotation.y,
+    wheelMeshCount:wheel.meshes.length,
+    spinnerMeshCount:wheel.spinner.children.filter(child=>child.isMesh).length,
+    allMeshesStayAttached:wheel.meshes.every(mesh=>mesh.parent===wheel.spinner),
+  }));
+}
+
 function focusWheel(quadrant){
   if(!current)throw new Error('No current vehicle');
   const diagnostics=diagnoseCarWheelMeshes(current.root,current.kind);
@@ -234,6 +253,7 @@ window.__vehicleVisualTest={
   exterior(){return setExterior();},
   setCabinLights(dome,dashboard){return setCabinLights(dome,dashboard);},
   setCameraSide(side){return setCameraSide(side);},
+  setWheelSteering(angle){return setWheelSteering(angle);},
   showWheelOverview(){return showWheelOverview();},
   focusWheel(quadrant){return focusWheel(quadrant);},
   details(){return {report,headings:Object.keys(CAR_PHYSICS)};},

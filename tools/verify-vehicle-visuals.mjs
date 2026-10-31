@@ -70,10 +70,13 @@ try{
       wheelDiagnostics.selectedWheels.every(w=>w.meshCount>0),
       wheelDiagnostics.selectedWheels.map(w=>w.quadrant+':'+w.meshCount).join(', '));
     if(spec.kind==='cybertruck'){
-      check('Cybertruck applies its larger 0.45m wheel-member grouping radius only to this model',
+      check('Cybertruck captures all 120 segmented tread meshes on every tyre',
         Math.abs(wheelDiagnostics.wheelMemberRadius-0.45)<1e-9
-          && wheelDiagnostics.selectedWheels.every(w=>w.meshCount>=12),
-        'radius='+wheelDiagnostics.wheelMemberRadius+' members='+wheelDiagnostics.selectedWheels.map(w=>w.meshCount).join('/'));
+          && wheelDiagnostics.treadFragmentMeshCount===480
+          && wheelDiagnostics.selectedWheels.every(w=>w.meshCount>=132&&w.treadFragmentCount===120),
+        'radius='+wheelDiagnostics.wheelMemberRadius
+          +' tread='+wheelDiagnostics.treadFragmentMeshCount
+          +' members='+wheelDiagnostics.selectedWheels.map(w=>w.meshCount+' ('+w.treadFragmentCount+' tread)').join('/'));
     }else if(spec.kind==='lambo'){
       check('Lamborghini keeps the tighter 0.30m wheel-member grouping radius',
         Math.abs(wheelDiagnostics.wheelMemberRadius-0.30)<1e-9,
@@ -94,7 +97,24 @@ try{
     for(const quadrant of expectedQuadrants){
       const detail=await page.evaluate(q=>window.__vehicleVisualTest.focusWheel(q),quadrant);
       const shot=await capture(page,spec.prefix+'-wheel-'+quadrant);
-      wheelCloseupShots.push({detail,file:shot});
+      let steeredShot=null;
+      if(spec.kind==='cybertruck'&&quadrant.startsWith('front')){
+        const angle=quadrant==='front-left'?0.48:-0.48;
+        const steering=await page.evaluate(value=>window.__vehicleVisualTest.setWheelSteering(value),angle);
+        const frontWheels=steering.filter(w=>w.front);
+        const rearWheels=steering.filter(w=>!w.front);
+        check('Cybertruck '+quadrant+' keeps the complete tyre attached while steering',
+          steering.length===4
+            && frontWheels.length===2
+            && rearWheels.length===2
+            && frontWheels.every(w=>Math.abs(w.angle-angle)<1e-9)
+            && rearWheels.every(w=>Math.abs(w.angle)<1e-9)
+            && steering.every(w=>w.allMeshesStayAttached&&w.wheelMeshCount===w.spinnerMeshCount),
+          steering.map(w=>({front:w.front,angle:w.angle,meshes:w.wheelMeshCount,spinner:w.spinnerMeshCount,attached:w.allMeshesStayAttached})).map(w=>JSON.stringify(w)).join(' '));
+        steeredShot=await capture(page,spec.prefix+'-wheel-'+quadrant+'-steered');
+        await page.evaluate(()=>window.__vehicleVisualTest.setWheelSteering(0));
+      }
+      wheelCloseupShots.push({detail,file:shot,steeredShot});
     }
     reportWheelSummary.push({kind:spec.kind,wheelOverviewShot,wheelCloseupShots});
     check(spec.kind+' uses its own driver eye height',Math.abs(base.height-spec.expectedHeight)<1e-6,`height=${base.height}m`);
