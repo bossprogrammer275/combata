@@ -74,8 +74,9 @@ try{
       candidateSizeLimit:wheelDiagnostics.candidateSizeLimit,
       wheelMemberMaxSize:wheelDiagnostics.wheelMemberMaxSize,
       selectedWheels:wheelDiagnostics.selectedWheels,
-      rejectedOversize:wheelDiagnostics.meshes.filter(m=>m.rejectedReasons.includes('candidate-exceeds-vehicle-wheel-size-limit')).map(m=>({name:m.name,size:m.size,sideDiameter:m.sideDiameter})),
+      rejectedBySizeOrShape:wheelDiagnostics.meshes.filter(m=>m.rejectedReasons.some(reason=>/size|diameter|round|thin-axled/.test(reason))).map(m=>({name:m.name,size:m.size,sideDiameter:m.sideDiameter,reasons:m.rejectedReasons})),
       candidatesNotAttached:wheelDiagnostics.meshes.filter(m=>m.candidate&&!m.attachedToWheel).map(m=>({name:m.name,size:m.size,center:m.center})),
+      nearbyRejectedWheelParts:wheelDiagnostics.nearWheelExcludedMeshes,
     }));
     await page.evaluate(()=>window.__vehicleVisualTest.showWheelOverview());
     const wheelOverviewShot=await capture(page,spec.prefix+'-wheel-detector-overview');
