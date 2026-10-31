@@ -2,7 +2,7 @@ name: Game physics verification
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/wheel-detector-visual-calibration]
   workflow_dispatch:
 
 permissions:
