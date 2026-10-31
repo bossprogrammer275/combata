@@ -307,9 +307,16 @@ export class World {
       position,
       useRadius: Number(metadata.useRadius) || 1.2,
       approachOffset: metadata.approachOffset || null,
+      approachPosition: position.clone(),
       reservedBy: null,
       onPlayerInteract: typeof metadata.onPlayerInteract === "function" ? metadata.onPlayerInteract : null,
     };
+    if (record.approachOffset) {
+      const offset = record.approachOffset;
+      const local = new THREE.Vector3(Number(offset.x) || 0, Number(offset.y) || 0, Number(offset.z) || 0);
+      mesh.localToWorld(local);
+      record.approachPosition.copy(local);
+    }
     this.npcInteractables.push(record);
     return record;
   }
@@ -321,6 +328,7 @@ export class World {
       if (meta === false) return null;
       if (meta && typeof meta === "object" && meta.kind) return meta;
       if (typeof meta === "string") return { kind: meta };
+      if (meta === true) return { kind: node.userData?.npcInteractionType || "prop", label: node.userData?.npcInteractionLabel };
       const name = String(node.name || "").toLowerCase().replace(/[\s-]+/g, "_");
       const match = (pattern, kind) => pattern.test(name) ? { kind } : null;
       return match(/(^|_)(seat|bench|chair|sofa|stool|couch)(_|$)|^(seat|bench|chair|sofa|stool|couch)/, "seat")
