@@ -173,6 +173,12 @@ export function getWheelClassificationOptions(kind) {
       wheelMemberRadius: 0.45,
       wheelMemberMaxSize: 1.15,
       wheelMemberHeightTolerance: 1.05,
+      // The circumference is also authored as many tiny, separate meshes.
+      // Find these by their radial position in the wheel plane, not 3D hub distance.
+      wheelTreadFragmentMaxSize: 0.16,
+      wheelTreadFragmentMinRadiusRatio: 0.88,
+      wheelTreadFragmentMaxRadiusRatio: 1.12,
+      wheelTreadFragmentAxialPadding: 0.05,
     }
     : {};
 }
@@ -262,15 +268,45 @@ function classifyCarMeshes(items, options = {}) {
   const wheelMemberRadius = options.wheelMemberRadius ?? 0.30;
   const wheelMemberMaxSize = options.wheelMemberMaxSize ?? 1.15;
   const wheelMemberHeightTolerance = options.wheelMemberHeightTolerance ?? 0.35;
+  const wheelTreadFragmentMaxSize = options.wheelTreadFragmentMaxSize ?? 0;
+  const wheelTreadFragmentMinRadiusRatio = options.wheelTreadFragmentMinRadiusRatio ?? 0.88;
+  const wheelTreadFragmentMaxRadiusRatio = options.wheelTreadFragmentMaxRadiusRatio ?? 1.12;
+  const wheelTreadFragmentAxialPadding = options.wheelTreadFragmentAxialPadding ?? 0.05;
   if (wheels.length === 4) {
-    // Attach hub hardware (rims, bolts, brake discs): meshes hugging the hub.
+    // Hub parts are grouped by distance. Split tread segments are different:
+    // they sit around the wheel's outer circumference with an axle offset.
     for (const w of wheels) {
-      const members = annotated.filter((m) =>
-        !blobs.has(m.o)
-        && m.c.distanceTo(w.best.c) < wheelMemberRadius
-        && Math.abs(m.c.y - w.best.c.y) < wheelMemberHeightTolerance
-        && Math.max(m.s.x, m.s.y, m.s.z) < wheelMemberMaxSize
-        && m.s.y < wheelMemberMaxSize);
+      const axleIndex = w.best.s.x <= w.best.s.z ? 0 : 2;
+      const radialAxes = axleIndex === 0 ? [1, 2] : [0, 1];
+      const wheelRadius = Math.max(
+        w.best.s.getComponent(radialAxes[0]),
+        w.best.s.getComponent(radialAxes[1]),
+      ) * 0.5;
+      const axialTolerance = w.best.s.getComponent(axleIndex) * 0.5 + wheelTreadFragmentAxialPadding;
+      const members = annotated.filter((m) => {
+        if (blobs.has(m.o)) return false;
+        const maxDimension = Math.max(m.s.x, m.s.y, m.s.z);
+        const centerDistance = m.c.distanceTo(w.best.c);
+        const hubMember = centerDistance < wheelMemberRadius
+          && Math.abs(m.c.y - w.best.c.y) < wheelMemberHeightTolerance
+          && maxDimension < wheelMemberMaxSize
+          && m.s.y < wheelMemberMaxSize;
+        const radialDistance = Math.hypot(
+          m.c.getComponent(radialAxes[0]) - w.best.c.getComponent(radialAxes[0]),
+          m.c.getComponent(radialAxes[1]) - w.best.c.getComponent(radialAxes[1]),
+        );
+        const axialDistance = Math.abs(
+          m.c.getComponent(axleIndex) - w.best.c.getComponent(axleIndex),
+        );
+        const treadFragment = wheelTreadFragmentMaxSize > 0
+          && maxDimension <= wheelTreadFragmentMaxSize
+          && axialDistance <= axialTolerance
+          && radialDistance >= wheelRadius * wheelTreadFragmentMinRadiusRatio
+          && radialDistance <= wheelRadius * wheelTreadFragmentMaxRadiusRatio;
+        if (!hubMember && !treadFragment) return false;
+        m.wheelMemberType = treadFragment && !hubMember ? 'tread-fragment' : 'hub';
+        return true;
+      });
       for (const m of members) wheelMeshes.add(m.o);
       const bs = w.best.s;
       const quadrant = (w.qz > 0 ? 'front' : 'rear') + '-' + (w.qx > 0 ? 'right' : 'left');
@@ -280,6 +316,7 @@ function classifyCarMeshes(items, options = {}) {
         axle: bs.x <= bs.z ? 'x' : 'z',
         quadrant,
         meshes: members.map((m) => m.o),
+        treadFragmentCount: members.filter((m) => m.wheelMemberType === 'tread-fragment').length,
       };
       wheelInfos.push(wheelInfo);
       const selected = candidateByMesh.get(w.best.o);
@@ -291,6 +328,7 @@ function classifyCarMeshes(items, options = {}) {
         const record = candidateByMesh.get(m.o);
         if (record) {
           record.attachedToWheel = quadrant;
+          record.wheelMemberType = m.wheelMemberType || 'hub';
           record.memberDistance = m.c.distanceTo(w.best.c);
         }
       }
@@ -345,6 +383,11 @@ function classifyCarMeshes(items, options = {}) {
     wheelMemberMaxSize,
     wheelMemberRadius,
     wheelMemberHeightTolerance,
+    wheelTreadFragmentMaxSize,
+    wheelTreadFragmentMinRadiusRatio,
+    wheelTreadFragmentMaxRadiusRatio,
+    wheelTreadFragmentAxialPadding,
+    treadFragmentMeshCount: wheelInfos.reduce((sum, wheel) => sum + wheel.treadFragmentCount, 0),
     nearWheelExcludedMeshes,
     selectedWheels: wheels.map((w) => {
       const info = wheelInfos.find(v => v.center.distanceTo(w.best.c) < 1e-6);
@@ -355,6 +398,7 @@ function classifyCarMeshes(items, options = {}) {
         center: w.best.c.toArray(),
         size: w.best.s.toArray(),
         meshCount: info ? info.meshes.length : 0,
+        treadFragmentCount: info ? info.treadFragmentCount : 0,
         meshNames: info ? info.meshes.map(m => m.name || '(unnamed mesh)') : [],
         meshUUIDs: info ? info.meshes.map(m => m.uuid) : [],
       };
