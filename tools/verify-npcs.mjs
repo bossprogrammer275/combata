@@ -67,6 +67,13 @@ assert.ok(characterRuntime.includes("const blend = 1 - Math.exp"), "animation bl
 assert.ok(characterRuntime.includes("action.setLoop(oneShot ? THREE.LoopOnce : THREE.LoopRepeat"), "jump must be a one-shot clip, not a repeated loop");
 assert.ok(playerRuntime.includes("syncCharacter(dt = 1 / 60)"), "player must pass frame time into animation blending");
 
+assert.ok(characterRuntime.includes("const desired = animated.clone().multiply(offset)"),
+  "weapon pose must be additive over the real Mixamo arm animation");
+assert.ok(characterRuntime.includes("new THREE.Euler(pose.faL || 0, 0, 0)"),
+  "weapon forearm pose must interpret its scalar bend angle correctly");
+assert.ok(characterRuntime.includes("leftShoulder") && characterRuntime.includes("rightShoulder"),
+  "weapon pose must include shoulder articulation");
+
 const main = fs.readFileSync(path.join(root, "js/main.js"), "utf8");
 assert.ok(!main.includes("npc1/Walking.fbx"), "legacy NPC prefetch is still active");
 console.log("NPC verification passed: civilian_002, " + activeKeys.length + " approved clips, authored sidewalk routes and physics/population config.");
