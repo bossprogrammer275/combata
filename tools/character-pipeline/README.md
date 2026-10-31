@@ -8,6 +8,14 @@ Print usage:
 
     .\tools\character-pipeline\generate-civilian.bat -Help
 
+Generate only the MakeHuman model:
+
+    .\tools\character-pipeline\generate-civilian.bat -BuildOnly
+
+Rerun only the Mixamo animation stage against an existing MakeHuman FBX:
+
+    .\tools\character-pipeline\generate-civilian.bat -AnimateOnly
+
 Body values use MakeHuman's 0.0–1.0 range. Skin, hair and clothing options are comma-separated search terms matched against locally installed MakeHuman assets.
 
 Animation keys:
