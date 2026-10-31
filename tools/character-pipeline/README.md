@@ -46,7 +46,9 @@ Aliases:
 - death or fall = fall_death
 - getup = get_up
 
-The default run builds the character, uploads it through the saved local Mixamo browser profile, downloads the selected animation FBXs, writes manifest.json and civilian_001_bundle.zip, then commits and pushes only the generated output directory.
+The default run builds an unrigged character mesh (so Mixamo Auto-Rigger can create the skeleton), uploads it through the saved local Mixamo browser profile, submits Mixamo's automatically positioned landmark markers, downloads the selected animation FBXs, writes manifest.json and civilian_001_bundle.zip, then commits and pushes only the generated output directory. Gender-specific skins/outfits are filtered to the selected gender; universal assets such as shoes remain eligible.
+
+The installed MakeHuman data pack currently contains complete casual-suit outfits rather than separate T-shirts and jeans, so the generator chooses a matching casual outfit proxy plus a separate shoe proxy. The manifest records this limitation.
 
 Use -NoCommit to keep generated results local, or -NoPush to commit without pushing. The script refuses auto-commit if the Git index already contains staged changes. Use -Output to change the output directory while keeping it inside the repository.
 
@@ -54,4 +56,4 @@ Output: data/models/npc/civilian_001/
 
 The Adobe profile remains local in tools/mixamo-mcp/browser_profile/ and is never committed. Do not run main.py or mcp_server.py alongside this generator because they share the browser profile.
 
-If Mixamo requests manual marker placement, the automation stops and reports it. Failed or missing animation downloads are listed in manifest.json. The existing NPC/player runtime is not changed by this asset-generation pipeline.
+If Mixamo's default landmark placement is rejected, the automation saves mixamo_marker_debug.html and mixamo_marker_debug.png in the character output folder and exits with a non-zero code. Failed or missing animation downloads are listed in manifest.json. The existing NPC/player runtime is not changed by this asset-generation pipeline.
