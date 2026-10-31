@@ -229,11 +229,13 @@ export class Character {
     this.buildWeapon(this.weaponType, this.appearance.weaponTint || [0.18, 0.18, 0.20]);
 
     this._weaponBones = [
+      { bone: findBone(clone, ['LeftShoulder', 'mixamorig:LeftShoulder']), key: 'leftShoulder' },
+      { bone: findBone(clone, ['RightShoulder', 'mixamorig:RightShoulder']), key: 'rightShoulder' },
       { bone: findBone(clone, ['LeftArm', 'mixamorig:LeftArm']), key: 'leftUpper' },
       { bone: findBone(clone, ['RightArm', 'mixamorig:RightArm']), key: 'rightUpper' },
       { bone: findBone(clone, ['LeftForeArm', 'mixamorig:LeftForeArm']), key: 'leftFore' },
       { bone: findBone(clone, ['RightForeArm', 'mixamorig:RightForeArm']), key: 'rightFore' },
-    ].filter(entry => entry.bone).map(entry => ({ ...entry, rest: entry.bone.quaternion.clone() }));
+    ].filter(entry => entry.bone);
 
     this._mixer = new THREE.AnimationMixer(clone);
     const aliases = {
@@ -351,16 +353,25 @@ export class Character {
     const selected = WEAPON_POSES[this.weaponType] || WEAPON_POSES.rifle;
     const pose = this._pendingWeaponPose.aiming ? selected.aim : selected.hip;
     if (!pose) return;
-    const targets = {
-      leftUpper: pose.uaL, rightUpper: pose.uaR,
-      leftFore: pose.faL, rightFore: pose.faR,
+    const eulerTargets = {
+      leftShoulder: new THREE.Euler(0, 0, pose.shL || 0),
+      rightShoulder: new THREE.Euler(0, 0, pose.shR || 0),
+      leftUpper: new THREE.Euler(...pose.uaL),
+      rightUpper: new THREE.Euler(...pose.uaR),
+      // Forearm angles are scalar X rotations in WEAPON_POSES, not arrays.
+      leftFore: new THREE.Euler(pose.faL || 0, 0, 0),
+      rightFore: new THREE.Euler(pose.faR || 0, 0, 0),
     };
+    const blend = 1 - Math.exp(-Math.max(0, Math.min(dt, 0.1)) * 16);
     for (const entry of this._weaponBones) {
-      const value = targets[entry.key];
-      if (!value) continue;
-      const delta = new THREE.Quaternion().setFromEuler(new THREE.Euler(value[0], value[1], value[2]));
-      const desired = entry.rest.clone().multiply(delta);
-      entry.bone.quaternion.slerp(desired, 1 - Math.exp(-Math.max(0, Math.min(dt, 0.1)) * 18));
+      const euler = eulerTargets[entry.key];
+      if (!euler) continue;
+      // Layer the held-weapon correction over the current Mixamo pose.
+      // Never replace the animated bone with its static bind-pose quaternion.
+      const animated = entry.bone.quaternion.clone();
+      const offset = new THREE.Quaternion().setFromEuler(euler);
+      const desired = animated.clone().multiply(offset);
+      entry.bone.quaternion.copy(animated).slerp(desired, blend);
     }
   }
 
