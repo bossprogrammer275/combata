@@ -64,7 +64,7 @@ if (-not $AnimateOnly -and (Test-Path $outputPath) -and -not $Overwrite) {
 }
 $bundlePath = Join-Path $outputPath $bundleName
 if (Test-Path $bundlePath) {
-    Remove-Item $bundlePath -Force
+    Write-Host "Existing bundle will be preserved unless you explicitly approve a replacement." -ForegroundColor Yellow
 }
 if (!(Test-Path $makeHumanPython)) {
     throw "MakeHuman Python environment not found: $makeHumanPython"
@@ -129,11 +129,8 @@ if (-not $BuildOnly) {
 }
 
 $bundlePath = Join-Path $outputPath $bundleName
-if (!(Test-Path $bundlePath)) {
-    if (Test-Path $outputPath) {
-        Compress-Archive -Path (Join-Path $outputPath "*") -DestinationPath $bundlePath -Force
-        Write-Host "Created partial asset bundle: $bundlePath" -ForegroundColor Yellow
-    }
+if ($mixamoExitCode -ne 0) {
+    Write-Host "Mixamo did not complete. No partial ZIP will be created automatically; any existing bundle is preserved." -ForegroundColor Yellow
 }
 
 if (-not $NoCommit) {
