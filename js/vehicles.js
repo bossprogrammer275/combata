@@ -289,6 +289,40 @@ function classifyCarMeshes(items, options = {}) {
       }
     }
   }
+  const nearWheelExcludedMap = new Map();
+  if (wheels.length === 4) {
+    for (const mesh of annotated) {
+      if (blobs.has(mesh.o) || wheelMeshes.has(mesh.o)) continue;
+      for (const wheel of wheels) {
+        const distance = mesh.c.distanceTo(wheel.best.c);
+        if (distance > 0.95) continue;
+        const heightDelta = Math.abs(mesh.c.y - wheel.best.c.y);
+        const maxDimension = Math.max(mesh.s.x, mesh.s.y, mesh.s.z);
+        const reasons = [];
+        if (distance >= wheelMemberRadius) reasons.push('outside-wheel-member-radius');
+        if (heightDelta >= wheelMemberHeightTolerance) reasons.push('outside-wheel-member-height-tolerance');
+        if (maxDimension >= wheelMemberMaxSize) reasons.push('mesh-exceeds-wheel-member-size-limit');
+        if (mesh.s.y >= wheelMemberMaxSize) reasons.push('mesh-height-exceeds-wheel-member-size-limit');
+        if (!reasons.length) continue;
+        const quadrant = (wheel.qz > 0 ? 'front' : 'rear') + '-' + (wheel.qx > 0 ? 'right' : 'left');
+        const current = nearWheelExcludedMap.get(mesh.o.uuid);
+        const record = {
+          uuid: mesh.o.uuid,
+          name: mesh.o.name || '(unnamed mesh)',
+          hierarchy: meshHierarchyName(mesh.o),
+          center: mesh.c.toArray(),
+          size: mesh.s.toArray(),
+          nearestWheel: quadrant,
+          distance,
+          heightDelta,
+          maxDimension,
+          rejectedReasons: reasons,
+        };
+        if (!current || distance < current.distance) nearWheelExcludedMap.set(mesh.o.uuid, record);
+      }
+    }
+  }
+  const nearWheelExcludedMeshes = [...nearWheelExcludedMap.values()];
   const body = annotated.filter((m) => !blobs.has(m.o) && !wheelMeshes.has(m.o));
   const bodyBox = new THREE.Box3();
   for (const m of body) { bodyBox.expandByPoint(m.min); bodyBox.expandByPoint(m.max); }
@@ -301,6 +335,7 @@ function classifyCarMeshes(items, options = {}) {
     wheelMemberMaxSize,
     wheelMemberRadius,
     wheelMemberHeightTolerance,
+    nearWheelExcludedMeshes,
     selectedWheels: wheels.map((w) => {
       const info = wheelInfos.find(v => v.center.distanceTo(w.best.c) < 1e-6);
       return {
