@@ -429,20 +429,39 @@ def search_and_select(page, animations_mod, job):
             return found
     return None
 
-def download_clip(page, download_mod, animations_mod, output_path, include_skin, inplace, fps):
-    try:
-        animations_mod.set_checkbox(page, "mirror", False)
-    except Exception:
-        pass
-    try:
-        animations_mod.set_checkbox(page, "inplace", inplace)
-    except Exception as exc:
-        print(f"[Mixamo] Note: In Place setting unavailable: {exc}")
+def verify_fbx_download(path):
+    file_path = Path(path)
+    if not file_path.is_file():
+        raise RuntimeError(f"Download did not create the expected file: {file_path}")
+    size = file_path.stat().st_size
+    if size < 1024:
+        raise RuntimeError(f"Downloaded FBX is suspiciously small ({size} bytes): {file_path}")
+    with file_path.open("rb") as handle:
+        header = handle.read(64)
+    if not (header.startswith(b"Kaydara FBX Binary") or header.lstrip().startswith(b"; FBX")):
+        raise RuntimeError(f"Downloaded file does not have an FBX header ({size} bytes): {file_path}")
+    print(f"[Mixamo] Verified FBX: {file_path.name} ({size:,} bytes)")
+    return str(file_path)
+
+
+def download_clip(page, download_mod, animations_mod, output_path, include_skin, inplace, fps,
+                  configure_animation=True):
+    if configure_animation:
+        try:
+            animations_mod.set_checkbox(page, "mirror", False)
+        except Exception:
+            pass
+        try:
+            animations_mod.set_checkbox(page, "inplace", inplace)
+        except Exception:
+            # Mixamo does not expose In Place on every animation; preserve its default.
+            pass
     download_mod.open_modal(page)
     download_mod.set_format(page, "fbx")
     download_mod.set_skin(page, include_skin)
     download_mod.set_fps(page, fps)
-    return download_mod.confirm(page, str(output_path))
+    saved = download_mod.confirm(page, str(output_path))
+    return verify_fbx_download(saved)
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Rig the civilian and download selected Mixamo animation clips.")
