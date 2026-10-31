@@ -1,0 +1,75 @@
+{
+  "id": "civilian_002",
+  "displayName": "Ilorin Civilian 002",
+  "description": "Nigerian male civilian, age 24, everyday casual streetwear.",
+  "ageTarget": 24,
+  "body": {
+    "gender": "male",
+    "weight": 0.58,
+    "muscle": 0.68,
+    "heightMacro": 0.63
+  },
+  "source": "MakeHuman core",
+  "skeleton": "Unrigged MakeHuman mesh; submitted to Mixamo Auto-Rigger",
+  "sourceModel": "data/models/npc/civilian_002/civilian_001_source.obj",
+  "mixamoSourceModel": "data/models/npc/civilian_002/civilian_001_source.obj",
+  "mixamoSourceBundle": "data/models/npc/civilian_002/civilian_002_mixamo_source.zip",
+  "mixamoSourceFormat": "OBJ, native MakeHuman Y-up coordinates",
+  "nativeProject": "data/models/npc/civilian_002/civilian_002.mhm",
+  "selectedAssets": {
+    "skin": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/skins\\middleage_african_male\\middleage_african_male.mhmat",
+    "hair": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/hair\\short01\\short01.mhclo",
+    "eyes": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/eyes\\high-poly\\high-poly.mhclo",
+    "eyebrows": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/eyebrows\\eyebrow001\\eyebrow001.mhclo",
+    "eyelashes": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/eyelashes\\eyelashes01\\eyelashes01.mhclo",
+    "teeth": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/teeth\\teeth_base\\teeth_base.mhclo",
+    "outfit": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/clothes\\male_casualsuit01\\male_casualsuit01.mhclo",
+    "shoes": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/clothes\\shoes01\\shoes01.mhclo"
+  },
+  "availableAssetCounts": {
+    "skins": 24,
+    "hair": 10,
+    "eyes": 2,
+    "eyebrows": 12,
+    "eyelashes": 4,
+    "teeth": 6,
+    "clothes": 20
+  },
+  "availableClothing": [
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\fedora01\\fedora01.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\fedora_cocked\\fedora_cocked.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\female_casualsuit01\\female_casualsuit01.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\female_casualsuit02\\female_casualsuit02.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\female_elegantsuit01\\female_elegantsuit01.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\female_sportsuit01\\female_sportsuit01.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\male_casualsuit01\\male_casualsuit01.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\male_casualsuit02\\male_casualsuit02.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\male_casualsuit03\\male_casualsuit03.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\male_casualsuit04\\male_casualsuit04.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\male_casualsuit05\\male_casualsuit05.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\male_casualsuit06\\male_casualsuit06.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\male_elegantsuit01\\male_elegantsuit01.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\male_worksuit01\\male_worksuit01.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\shoes01\\shoes01.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\shoes02\\shoes02.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\shoes03\\shoes03.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\shoes04\\shoes04.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\shoes05\\shoes05.mhclo",
+    "C:\\Users\\Ismail\\Desktop\\games\\combata\\tools\\makehuman-core\\data\\clothes\\shoes06\\shoes06.mhclo"
+  ],
+  "wardrobeNote": "The installed MakeHuman asset pack supplies complete casual-suit proxies, not separate T-shirt and jeans pieces.",
+  "copiedTextures": [
+    "textures/middleage_darkskinned_male_diffuse.png"
+  ],
+  "animations": {},
+  "status": "mixamo-upload-failed",
+  "mixamoUploadError": "Mixamo returned to marker placement after the landmarks were submitted. See mixamo_upload_debug.png/html in the output folder.",
+  "mixamoUploadDiagnostics": [
+    "mixamo_upload_debug.html",
+    "mixamo_upload_debug.png",
+    "mixamo_upload_debug.txt",
+    "mixamo_markers_manual_start.png",
+    "mixamo_markers_manual_done.png"
+  ],
+  "recoveryNote": "Moved out of the civilian_001 directory after the generator ID/output bug. OBJ and MTL retain the original MakeHuman export filenames so their internal material reference stays valid."
+}

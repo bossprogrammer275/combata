@@ -4,13 +4,13 @@ camera 0.0 0.0 0.0 0.0 0.0 1.0
 modifier breast/BreastSize 0.500000
 modifier breast/BreastFirmness 0.500000
 modifier macrodetails/Gender 1.000000
-modifier macrodetails/Age 0.479167
+modifier macrodetails/Age 0.416667
 modifier macrodetails/African 0.333333
 modifier macrodetails/Asian 0.333333
 modifier macrodetails/Caucasian 0.333333
-modifier macrodetails-universal/Muscle 0.680000
-modifier macrodetails-universal/Weight 0.580000
-modifier macrodetails-height/Height 0.630000
+modifier macrodetails-universal/Muscle 0.620000
+modifier macrodetails-universal/Weight 0.540000
+modifier macrodetails-height/Height 0.600000
 modifier macrodetails-proportions/BodyProportions 0.500000
 hair short01 766436e9-63ed-4f6a-afa9-99f3acff70a8
 eyes HighPolyEyes 2c12f43b-1303-432c-b7ce-d78346baf2e6

@@ -1,0 +1,1 @@
+Mixamo returned to marker placement after the landmarks were submitted.
