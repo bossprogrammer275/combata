@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Generate civilian_001 using the local headless MakeHuman core."""
 from __future__ import annotations
+import argparse
 import json
 import re
 import sys
@@ -54,7 +55,30 @@ def copy_material_textures(material_path: str, texture_dir: Path) -> list[str]:
         copied.append(str(dst.relative_to(OUT)).replace("\\", "/"))
     return sorted(set(copied))
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Generate the Open World civilian with MakeHuman.")
+    parser.add_argument("--id", default="civilian_001")
+    parser.add_argument("--display-name", default="Ilorin Civilian 001")
+    parser.add_argument("--age", type=float, default=21)
+    parser.add_argument("--gender", choices=("male", "female"), default="male")
+    parser.add_argument("--weight", type=float, default=0.54)
+    parser.add_argument("--muscle", type=float, default=0.62)
+    parser.add_argument("--height", type=float, default=0.60)
+    parser.add_argument("--skin", default="african,dark,brown,black,deep")
+    parser.add_argument("--hair", default="short,fade,buzz,afro")
+    parser.add_argument("--top", default="t shirt,tshirt,tee,polo,hoodie,casual shirt,shirt")
+    parser.add_argument("--bottom", default="jeans,trousers,pants,denim")
+    parser.add_argument("--shoes", default="sneaker,trainers,shoes,footwear")
+    parser.add_argument("--output", default="data/models/npc/civilian_001")
+    return parser.parse_args()
+
+def terms(value: str) -> list[str]:
+    return [item.strip().lower() for item in value.split(",") if item.strip()]
+
 def main() -> int:
+    global OUT
+    args = parse_args()
+    OUT = (ROOT / args.output).resolve()
     try:
         import mhcore
     except Exception as exc:
@@ -68,12 +92,17 @@ def main() -> int:
     print("[MakeHuman] Creating civilian_001...")
     human = mhcore.new_human()
 
-    # A Nigerian male young adult: the MakeHuman age macro is about 25 at 0.5.
-    human.set_gender(1.0)
-    human.set_age(0.42)
-    human.set_weight(0.54)
-    human.set_muscle(0.62)
-    human.set_height(0.60)
+    # MakeHuman maps age 10 to ~0.1875 and age 25 to 0.5.
+    age = max(10.0, min(90.0, args.age))
+    if age <= 25.0:
+        age_macro = 0.1875 + (age - 10.0) * (0.5 - 0.1875) / 15.0
+    else:
+        age_macro = 0.5 + (age - 25.0) * 0.5 / 65.0
+    human.set_gender(1.0 if args.gender == "male" else 0.0)
+    human.set_age(max(0.0, min(1.0, age_macro)))
+    human.set_weight(max(0.0, min(1.0, args.weight)))
+    human.set_muscle(max(0.0, min(1.0, args.muscle)))
+    human.set_height(max(0.0, min(1.0, args.height)))
 
     selected = {}
     available = {}
@@ -84,8 +113,9 @@ def main() -> int:
             available[kind] = []
             print(f"[MakeHuman] Warning: could not list {kind}: {exc}")
 
-    skin = choose(available["skins"], ["african", "dark", "brown", "black", "deep"])
-    if skin is None and available["skins"]:
+    skin_terms = terms(args.skin)
+    skin = choose(available["skins"], skin_terms) if skin_terms else None
+    if skin is None and available["skins"] and skin_terms:
         skin = choose(available["skins"], ["young", "adult"], ["old", "elder", "fantasy"])
     if skin:
         human.set_skin(skin)
@@ -95,7 +125,8 @@ def main() -> int:
         selected["skin"] = None
         print("[MakeHuman] WARNING: no skin materials found; using default material.")
 
-    hair = choose(available["hair"], ["short", "fade", "buzz", "afro"], ["long", "ponytail", "female"])
+    hair_terms = terms(args.hair)
+    hair = choose(available["hair"], hair_terms, ["long", "ponytail", "female"]) if hair_terms else None
     if hair:
         human.equip_hair(hair)
         selected["hair"] = hair
@@ -115,9 +146,9 @@ def main() -> int:
 
     clothes = available["clothes"]
     clothing_roles = {
-        "top": (["t shirt", "tshirt", "tee", "polo", "hoodie", "casual shirt", "shirt"], ["dress", "suit", "uniform", "armor", "bikini"]),
-        "bottom": (["jeans", "trousers", "pants", "denim"], ["dress", "skirt", "shorts"]),
-        "shoes": (["sneaker", "trainers", "shoes", "footwear"], ["heels", "boots"]),
+        "top": (terms(args.top), ["dress", "suit", "uniform", "armor", "bikini"]),
+        "bottom": (terms(args.bottom), ["dress", "skirt", "shorts"]),
+        "shoes": (terms(args.shoes), ["heels", "boots"]),
     }
     used = set()
     for role, (terms, reject) in clothing_roles.items():
@@ -151,11 +182,11 @@ def main() -> int:
         copied_textures.extend(copy_material_textures(selected["skin"], texture_dir))
 
     manifest = {
-        "id": "civilian_001",
-        "displayName": "Ilorin Civilian 001",
-        "description": "Nigerian male civilian, early twenties, everyday casual streetwear.",
-        "ageTarget": 21,
-        "body": {"gender": "male", "weight": 0.54, "muscle": 0.62, "heightMacro": 0.60},
+        "id": args.id,
+        "displayName": args.display_name,
+        "description": f"Nigerian {args.gender} civilian, age {age:g}, everyday casual streetwear.",
+        "ageTarget": age,
+        "body": {"gender": args.gender, "weight": args.weight, "muscle": args.muscle, "heightMacro": args.height},
         "source": "MakeHuman core",
         "skeleton": "MakeHuman deform export; Mixamo stage pending",
         "sourceModel": str(Path(exported).resolve().relative_to(ROOT)).replace("\\", "/"),
