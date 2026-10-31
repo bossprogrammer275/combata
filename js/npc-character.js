@@ -98,6 +98,10 @@ export function preloadNpcBase(modelId = NPC_GLOBAL_CONFIG.modelId) {
   return loadBase(modelId);
 }
 
+export function preloadNpcAnimations(modelId = NPC_GLOBAL_CONFIG.modelId, keys = ["idle", "walk", "run", "sprint", "talk", "wave", "fall_death"]) {
+  return Promise.all(keys.map((key) => loadAnimation(modelId, key)));
+}
+
 export class NpcCharacter {
   constructor(modelId = NPC_GLOBAL_CONFIG.modelId) {
     this.modelId = modelId;
