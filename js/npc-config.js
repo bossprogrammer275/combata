@@ -54,7 +54,12 @@ export const NPC_GLOBAL_CONFIG = Object.freeze({
       "Hope you're enjoying the city."
     ])
   }),
-  behaviour: Object.freeze({ lookAtPlayerDistance: 8, chooseIdleChance: 0.18, routeArrivalDistance: 1.8 })
+  behaviour: Object.freeze({
+    lookAtPlayerDistance: 8, chooseIdleChance: 0.18, routeArrivalDistance: 1.8,
+    aimDotThreshold: 0.82, objectUseDistance: 22, objectUseChance: 0.12,
+    socialDistance: 2.4, socialChancePerSecond: 0.025,
+    phoneCooldownMin: 22, phoneCooldownMax: 46
+  })
 });
 export const NPC_DEFAULT_ROUTES = Object.freeze([
   { road: "Southern Ring Street", sides: [-1, 1] },
