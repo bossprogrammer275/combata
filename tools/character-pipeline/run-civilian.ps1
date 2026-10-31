@@ -9,7 +9,7 @@ param(
     [string]$Top = "t shirt,tshirt,tee,polo,hoodie,casual shirt,shirt",
     [string]$Bottom = "jeans,trousers,pants,denim",
     [string]$Shoes = "sneaker,trainers,shoes,footwear",
-    [string]$Animations = "idle,walk,run,sprint,jump,crouch_idle,crouch_walk,talk,phone,sit_idle,hit_reaction,fall_death,get_up",
+    [string]$Animations = "idle,walk,run,sprint,jump,crouch_idle,crouch_walk,talk,phone,sit_idle,sit_down,stand_up,look_around,work_idle,wave,hit_reaction,fear_reaction,flee_run,fall_death,get_up",
     [ValidateSet(24, 25, 30, 48, 50, 60)][int]$Fps = 30,
     [string]$Output = "data/models/npc/civilian_001",
     [switch]$Help,
@@ -25,7 +25,7 @@ if ($Help) {
     Write-Host '.\tools\character-pipeline\generate-civilian.bat -Age 21 -Skin "african,dark,brown" -Hair "short,fade" -Top "t shirt,polo" -Bottom "jeans" -Shoes "sneakers" -Animations "idle,walk,run,sprint,jump,crouch_idle,crouch_walk,talk,phone,sit_idle,hit_reaction,fall_death,get_up" -Fps 30'
     Write-Host ""
     Write-Host "Options: -Age -Gender -Weight -Muscle -Height -Skin -Hair -Top -Bottom -Shoes -Animations -Fps -Output -NoCommit -NoPush"
-    Write-Host "Animation keys: idle,walk,run,sprint,jump,crouch_idle,crouch_walk,talk,phone,sit_idle,hit_reaction,fall_death,get_up"
+    Write-Host "Animation keys: idle,walk,run,sprint,jump,crouch_idle,crouch_walk,talk,phone,sit_idle,sit_down,stand_up,look_around,work_idle,wave,hit_reaction,fear_reaction,flee_run,fall_death,get_up"
     exit 0
 }
 
@@ -72,8 +72,18 @@ Write-Host ""
 Write-Host "[2/2] Rigging civilian and downloading selected animation FBXs..." -ForegroundColor Cyan
 Write-Host "The saved local Mixamo profile will be used. Complete any Adobe prompt in the opened browser." -ForegroundColor Yellow
 & $mixamoPython @animationArgs
-if ($LASTEXITCODE -ne 0) {
-    throw "Mixamo generation did not complete successfully (exit code $LASTEXITCODE). Assets remain in $outputPath."
+$mixamoExitCode = $LASTEXITCODE
+
+if ($mixamoExitCode -ne 0) {
+    Write-Warning "Mixamo finished with exit code $mixamoExitCode. Keeping and packaging the MakeHuman model plus any animation files already downloaded."
+}
+
+$bundlePath = Join-Path $outputPath "civilian_001_bundle.zip"
+if (!(Test-Path $bundlePath)) {
+    if (Test-Path $outputPath) {
+        Compress-Archive -Path (Join-Path $outputPath "*") -DestinationPath $bundlePath -Force
+        Write-Host "Created partial asset bundle: $bundlePath" -ForegroundColor Yellow
+    }
 }
 
 if (-not $NoCommit) {
@@ -120,3 +130,6 @@ Write-Host "GENERATION PIPELINE FINISHED." -ForegroundColor Green
 Write-Host "Output: $outputPath" -ForegroundColor Green
 Write-Host "Manifest: $(Join-Path $outputPath 'manifest.json')" -ForegroundColor Green
 Write-Host "Bundle: $(Join-Path $outputPath 'civilian_001_bundle.zip')" -ForegroundColor Green
+if ($mixamoExitCode -ne 0) {
+    Write-Warning "The MakeHuman source and partial bundle were saved. Check manifest.json for Mixamo failures before rerunning the animation stage."
+}
