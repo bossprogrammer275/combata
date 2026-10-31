@@ -36,11 +36,26 @@ assert.ok(caps.low <= caps.medium && caps.medium <= caps.high && caps.high <= 8)
 assert.ok(NPC_GLOBAL_CONFIG.physics.radius > 0 && NPC_GLOBAL_CONFIG.physics.height > 1);
 assert.ok(NPC_GLOBAL_CONFIG.physics.mass > 0 && NPC_GLOBAL_CONFIG.physics.walkSpeed > 0);
 
-for (const file of ["js/main.js", "js/civilians.js", "js/npc-character.js", "js/physics.js"]) {
+for (const file of ["js/main.js", "js/character.js", "js/civilians.js", "js/npc-character.js", "js/world.js", "js/physics.js"]) {
   const source = fs.readFileSync(path.join(root, file), "utf8");
   assert.ok(!source.includes("data/models/npc/npc1/"), file + " still references old npc1 assets");
   assert.ok(!source.includes("data/models/npc/civilian_001/"), file + " still references old civilian_001 assets");
 }
+
+const playerCharacter = fs.readFileSync(path.join(root, "js/character.js"), "utf8");
+assert.ok(playerCharacter.includes("MODEL.modelUrl"), "player/enemy character must load the configured civilian_002 rig");
+assert.ok(!playerCharacter.includes("npc1/"), "player/enemy character still references the npc1 model");
+const civilianRuntime = fs.readFileSync(path.join(root, "js/civilians.js"), "utf8");
+for (const key of activeKeys) {
+  assert.ok(civilianRuntime.includes('"' + key + '"'), "civilian behaviour must use approved clip: " + key);
+}
+const worldRuntime = fs.readFileSync(path.join(root, "js/world.js"), "utf8");
+assert.ok(worldRuntime.includes("registerNpcInteractable"), "world must expose semantic interactable registration");
+assert.ok(worldRuntime.includes("nearestNpcInteractable"), "world must expose nearby interactable queries");
+assert.ok(civilianRuntime.includes("startConversation") && civilianRuntime.includes("nearestUsableObject"),
+  "civilian runtime must support player dialogue and world-object use");
+assert.ok(civilianRuntime.includes("updateSocial"), "civilian runtime must support NPC-to-NPC social behaviour");
+
 const main = fs.readFileSync(path.join(root, "js/main.js"), "utf8");
 assert.ok(!main.includes("npc1/Walking.fbx"), "legacy NPC prefetch is still active");
 console.log("NPC verification passed: civilian_002, " + activeKeys.length + " approved clips, authored sidewalk routes and physics/population config.");
