@@ -78,6 +78,19 @@ function showWheelDiagnostics(diagnostics){
     marker.position.fromArray(wheel.center);
     scene.add(marker);wheelMarkerMeshes.push(marker);
   }
+  // Red boxes are tyre-adjacent GLB parts rejected by the current member limits.
+  // They make oversized/split Tesla tyre pieces visible for tuning decisions.
+  for(const rejected of diagnostics.nearWheelExcludedMeshes||[]){
+    const node=byUuid.get(rejected.uuid);
+    if(!node)continue;
+    const box=new THREE.Box3().setFromObject(node);
+    if(box.isEmpty())continue;
+    const helper=new THREE.Box3Helper(box,0xff463f);
+    helper.material.depthTest=false;
+    helper.material.transparent=true;
+    helper.material.opacity=0.95;
+    scene.add(helper);wheelHelpers.push(helper);
+  }
   return diagnostics.selectedWheels.map(wheel=>({
     quadrant:wheel.quadrant,
     center:wheel.center,
@@ -206,8 +219,10 @@ function showWheelOverview(){
   camera.fov=62;camera.updateProjectionMatrix();
   camera.position.set(-8.5,5.2,-10.5);
   camera.lookAt(0,0.75,0);
-  status.textContent=current.kind.toUpperCase()+' · DETECTED WHEEL MESHES OUTLINED · '
-    +diagnostics.selectedWheelCount+'/4 WHEELS · '+diagnostics.attachedWheelMeshCount+' MESHES ATTACHED';
+  status.textContent=current.kind.toUpperCase()+' · WHEEL MESHES OUTLINED · '
+    +diagnostics.selectedWheelCount+'/4 WHEELS · '+diagnostics.attachedWheelMeshCount
+    +' ATTACHED · RED = NEARBY PARTS REJECTED BY CURRENT LIMITS: '
+    +(diagnostics.nearWheelExcludedMeshes||[]).length;
   render();
   return diagnostics;
 }
