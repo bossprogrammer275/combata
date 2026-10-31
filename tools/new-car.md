@@ -147,6 +147,15 @@ Do not loosen the detector's rules just to force four results. If a model has un
 5. If any tyre mesh is missing, use the report's candidate size, centre and rejection reason to identify which limit excluded it. Tune `wheelCandidateMaxSize`, `wheelMemberMaxSize`, `wheelMemberRadius` or `wheelMemberHeightTolerance` in `getWheelClassificationOptions(kind)` for that vehicle only. Do **not** raise the global threshold to accommodate a larger Tesla wheel; that can make body panels look like wheels on smaller cars.
 6. Re-run the visual test and inspect the new overview and all four close-ups after every threshold change. Do not accept the vehicle until the screenshots clearly show the four real tyre assemblies and the automated test reports four selected wheels.
 
+Measured reference from the current bundled models:
+
+| Model | Detected tyre diameter (approx.) | Per-model wheel-member radius |
+|---|---:|---:|
+| Lamborghini | 0.66–0.70 m | 0.30 m |
+| Tesla Cybertruck | 0.90–0.92 m | 0.45 m |
+
+The Cybertruck's normalized selected wheel bounds are approximately **0.444 × 0.923 × 0.900 m**. Its GLB has four matching tyre/rim pieces whose centres sit about **0.393–0.422 m** from the selected hub mesh. A 0.30 m member radius leaves those pieces out of the rotating wheel assembly, so its `getWheelClassificationOptions('cybertruck')` uses **0.45 m**. Keep `wheelMemberMaxSize: 1.15` and `wheelMemberHeightTolerance: 1.05` as separate safeguards; do not raise the generic candidate size or member-size limits for every car. The screenshot report also marks nearby rejected parts in red so fender/body pieces are not added blindly.
+
 The CI workflow uploads these temporary screenshots and reports as a one-day artifact. The local run writes them only to `artifacts/vehicle-visual-test/`; delete that folder when the review is complete.
 
 ## 6. Find and animate the steering wheel
