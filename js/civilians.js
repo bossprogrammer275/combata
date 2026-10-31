@@ -182,7 +182,8 @@ export class Civilian {
 
   startObjectActivity(object) {
     if (!object || object.reservedBy && object.reservedBy !== this) return false;
-    const position = object.position?.clone ? object.position.clone() : null;
+    const sourcePosition = object.approachPosition || object.position;
+    const position = sourcePosition?.clone ? sourcePosition.clone() : null;
     if (!position) return false;
     object.reservedBy = this;
     this.activityObject = object;
@@ -583,7 +584,8 @@ export class Civilians {
       this.closeConversation();
       npc.interactionT = 0;
       npc.interactionPhase = "";
-      npc.ch.play("wave", { loop: false });
+      npc.state = "idle";
+      npc.ch.play("idle", { loop: true });
       return;
     }
     let answer;
@@ -676,6 +678,8 @@ export class Civilians {
     for (const object of objects) {
       if (!object?.mesh?.visible || object.reservedBy || !object.position) continue;
       if (!["seat", "phone", "counter", "vending", "atm"].includes(object.kind)) continue;
+      object.mesh.updateWorldMatrix(true, false);
+      object.mesh.getWorldPosition(object.position);
       const distance = Math.hypot(object.position.x - position.x, object.position.z - position.z);
       if (distance < bestDistance) { best = object; bestDistance = distance; }
     }
