@@ -1,0 +1,208 @@
+{
+  "reason": "Automated Mixamo marker placement failed: RuntimeError: Mixamo canvas screenshot is not a valid PNG.",
+  "snapshot": {
+    "url": "https://www.mixamo.com/#/",
+    "title": "Mixamo",
+    "viewport": {
+      "width": 1422,
+      "height": 1000,
+      "devicePixelRatio": 0.8999999761581421
+    },
+    "overlay": {
+      "x": 241.1111297607422,
+      "y": 147.98611450195312,
+      "width": 690.0000610351562,
+      "height": 500.0000305175781,
+      "right": 931.1111907958984,
+      "bottom": 647.9861450195312
+    },
+    "markers": [],
+    "views": [
+      {
+        "tag": "DIV",
+        "id": "",
+        "className": "product-preview-holder col-sm-6",
+        "rect": {
+          "x": 711.1111450195312,
+          "y": 50.000003814697266,
+          "width": 711.1111450195312,
+          "height": 950.0000610351562,
+          "right": 1422.2222900390625,
+          "bottom": 1000.0000648498535
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "editor",
+        "className": "viewer",
+        "rect": {
+          "x": 711.1111450195312,
+          "y": 100.00000762939453,
+          "width": 474.0625305175781,
+          "height": 850.0000610351562,
+          "right": 1185.1736755371094,
+          "bottom": 950.0000686645508
+        }
+      },
+      {
+        "tag": "CANVAS",
+        "id": "",
+        "className": "",
+        "rect": {
+          "x": 711.1111450195312,
+          "y": 100.00000762939453,
+          "width": 474.045166015625,
+          "height": 850.0000610351562,
+          "right": 1185.1563110351562,
+          "bottom": 950.0000686645508
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "className": "autorig-modal modal-dialog",
+        "rect": {
+          "x": 241.1111297607422,
+          "y": 100.00000762939453,
+          "width": 940.0000610351562,
+          "height": 547.9861450195312,
+          "right": 1181.1111907958984,
+          "bottom": 647.9861526489258
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "className": "autorig-holder",
+        "rect": {
+          "x": 241.1111297607422,
+          "y": 147.98611450195312,
+          "width": 940.0000610351562,
+          "height": 500.0000305175781,
+          "right": 1181.1111907958984,
+          "bottom": 647.9861450195312
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "className": "autorig-overlay",
+        "rect": {
+          "x": 241.1111297607422,
+          "y": 147.98611450195312,
+          "width": 690.0000610351562,
+          "height": 500.0000305175781,
+          "right": 931.1111907958984,
+          "bottom": 647.9861450195312
+        }
+      },
+      {
+        "tag": "CANVAS",
+        "id": "",
+        "className": "",
+        "rect": {
+          "x": 241.1111297607422,
+          "y": 147.98611450195312,
+          "width": 690.0000610351562,
+          "height": 500.0000305175781,
+          "right": 931.1111907958984,
+          "bottom": 647.9861450195312
+        }
+      }
+    ],
+    "buttons": [
+      {
+        "text": "\u00d7",
+        "disabled": false,
+        "className": "close"
+      },
+      {
+        "text": "",
+        "disabled": false,
+        "className": "btn btn-unstyled"
+      },
+      {
+        "text": "",
+        "disabled": false,
+        "className": "btn btn-unstyled"
+      },
+      {
+        "text": "",
+        "disabled": false,
+        "className": "btn btn-unstyled"
+      },
+      {
+        "text": "BACK",
+        "disabled": false,
+        "className": "pull-left btn btn-default"
+      },
+      {
+        "text": "NEXT",
+        "disabled": false,
+        "className": "btn btn-primary"
+      }
+    ],
+    "bodyText": "Characters\nAnimations\nBoss \n24 Per Page\n48 Per page\n96 Per page\n \n\nBody Block\n\nDescription: Blocking Body With Arms\n\nDouble Dagger Stab\n\nDescription: Static Double Dagger Stab With Outward Grip\n\nZombie Stand Up\n\nDescription: Zombie Laying On Back To Standing Up\n\nHip Hop Dancing\n\nDescription: Hip Hop Dancing Bboy Variation One\n\nSlow Jog Backwards\n\nDescription: Jogging Slowly In Reverse Varying Angles Of Twist\n\nReloading\n\nDescription: Gun Reload While Walking\n\nDancing\n\nDescription: Female \"African Noodle\" Dance\n\nHip Hop Dancing\n\nDescription: Female Hip Hop 'Body Wave' Dancing\n\nStrut Walking\n\nDescription: Male Strut Walk\n\nJumping Down\n\nDescription: Male Menacing Jump Down\n\nPunching\n\nDescription: Hook With The Lead Hand\n22\n\nAction Adventure Pack\n\n22 animations\n\nStanding 2H Magic Attack 01\n\nDescription: Two Handed Casting Spell Fowards\n\nCatwalk Idle To Twist R\n\nDescription: Female Idle To Twist Right Idle\n\nStanding Idle 03\n\nDescription: Playing With Magic\n\nCatwalk Walk Forward HighKnees\n\nDescription: Female Walk Forward - Knees High\n\nUnarmed Turn Left 90\n\nDescription: Turning 90 Degrees Left\n\nStart Plank\n\nDescription: Start Plank From Fitness Idle\n\nCenter Block\n\nDescription: High Center Block\n\nTalking On Phone\n\nDescription: Female Standing Talking On Phone\n\nDrop Kick\n\nDescription: Male Kicking With Both Legs\n\nSalute\n\nDescription: Formal Military Salute\n\nGoalkeeper Catch\n\nDescription: Goalkeeper Catching Ball Medium Height\n\nSnatch\n\nDescription: Ending Snatch Workout To Fitness Idle\n\nGoalkeeper Catch\n\nDescription: Goalkeeper Jump Catching Ball High Height\n\nSitup To Idle\n\nDescription: Situp Transition To Fitness Idle\n\nIllegal Elbow Punch\n\nDescription: Illegal Elbow To The Head\n\nSwinging\n\nDescription: Male Two Arm Swing Onto Platform\n\nGolf Pre-Putt\n\nDescription: Putt Pre-Shot Looking Routine\n\nFlying Knee Punch Combo\n\nDescription: Jumping Knee Followed By A Punch\n\nRight Turn W/ Briefcase\n\nDescription: Male Right Turn With Briefcase\n\nOpening Door Inwards\n\nDescription: Male Walking And Opening A Door Inwards\n\nGolf Bad Shot\n\nDescription: Bad Shot Reaction Var 3\n\nClimbing To Top\n\nDescription: Climbing Up A Ladder To Standing\n\nStand To Cover\n\nDescription: Standing Ready To Standing Cover\n\nExcited\n\nDescription: Super Excited\n\nJump\n\nDescription: Jumping In Place\n\nFreehang Climb\n\nDescription: Freehang Climb To Standing\n\nStart Walking\n\nDescription: Walking From Standing\n\nPilot Flips Switches\n\nDescription: Pilot Flips High Switches In A Helicopter\n\nIdle\n\nDescription: Looking Over Both Shoulders\n\nStanding Up\n\nDescription: Sitting To Standing\n\nRifle Aiming Idle\n\nDescription: Rifle Standing Aiming Idle\n\nJogging\n\nDescription: Jogging\n\nBlock With Rifle\n\nDescription: Blocking With Rifle\n\nDismissing Gesture\n\nDescription: Dismissing With Back Hand\n\nFiring Rifle\n\nDescription: Firing A Rifle While Standing\n\nJog In Circle\n\nDescription: Jog In A Circle\n1\n2\n3\n4\n5\n\u2026\n52\nCopyright \u00a9 2026 Adobe Systems Incorporated. All rights reserved.PrivacyTerms of UseCookie preferences\nCIVILIAN_001_MIXAMO_SOURCE\n0\nDOWNLOAD\nAERO UPDATE\nUPLOAD CHARACTER\n FIND ANIMATIONS\n\u00d7\nAUTO-RIGGER\nOrient\n\nFor best results, have your character in T-pose and fingers spread apart. Use arrow buttons to rotate your character and have its front face forward.\n\nBACK\nNEXT"
+  },
+  "apiEvents": [
+    {
+      "time": 1793443449.375961,
+      "method": "GET",
+      "httpStatus": 200,
+      "urlPath": "https://www.mixamo.com/api/v1/characters/primary"
+    },
+    {
+      "time": 1793443449.7893898,
+      "method": "POST",
+      "httpStatus": 200,
+      "urlPath": "https://www.mixamo.com/api/v1/characters/update_primary"
+    },
+    {
+      "time": 1793443508.8921587,
+      "method": "GET",
+      "httpStatus": 202,
+      "urlPath": "https://www.mixamo.com/api/v1/characters/ab28cfa8-cc4a-4baf-9a19-b3a6113025e3/monitor",
+      "status": "processing",
+      "message": "The job has been queued."
+    },
+    {
+      "time": 1793443515.1745718,
+      "method": "GET",
+      "httpStatus": 202,
+      "urlPath": "https://www.mixamo.com/api/v1/characters/ab28cfa8-cc4a-4baf-9a19-b3a6113025e3/monitor",
+      "status": "processing",
+      "message": "The job has been queued."
+    },
+    {
+      "time": 1793443521.5047672,
+      "method": "GET",
+      "httpStatus": 202,
+      "urlPath": "https://www.mixamo.com/api/v1/characters/ab28cfa8-cc4a-4baf-9a19-b3a6113025e3/monitor",
+      "status": "processing",
+      "message": "The job has been queued."
+    },
+    {
+      "time": 1793443527.8920681,
+      "method": "GET",
+      "httpStatus": 202,
+      "urlPath": "https://www.mixamo.com/api/v1/characters/ab28cfa8-cc4a-4baf-9a19-b3a6113025e3/monitor",
+      "status": "processing",
+      "message": "The job has been queued."
+    },
+    {
+      "time": 1793443534.2744942,
+      "method": "GET",
+      "httpStatus": 200,
+      "urlPath": "https://www.mixamo.com/api/v1/characters/ab28cfa8-cc4a-4baf-9a19-b3a6113025e3/monitor",
+      "status": "completed",
+      "message": "The job completed successfully."
+    },
+    {
+      "time": 1793443534.6490781,
+      "method": "GET",
+      "httpStatus": 200,
+      "urlPath": "https://www.mixamo.com/api/v1/characters/ab28cfa8-cc4a-4baf-9a19-b3a6113025e3",
+      "status": "needs_rigging"
+    }
+  ]
+}

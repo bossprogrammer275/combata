@@ -10,9 +10,9 @@
     "heightMacro": 0.63
   },
   "source": "MakeHuman core",
-  "skeleton": "Unrigged MakeHuman mesh; submitted to Mixamo Auto-Rigger",
-  "sourceModel": "data/models/npc/civilian_002/civilian_001_source.obj",
-  "mixamoSourceModel": "data/models/npc/civilian_002/civilian_001_source.obj",
+  "skeleton": "Mixamo auto-rig; riggedModel is the canonical skinned FBX",
+  "sourceModel": "data/models/npc/civilian_002/civilian_002_source.obj",
+  "mixamoSourceModel": "data/models/npc/civilian_002/civilian_002_source.obj",
   "mixamoSourceBundle": "data/models/npc/civilian_002/civilian_002_mixamo_source.zip",
   "mixamoSourceFormat": "OBJ, native MakeHuman Y-up coordinates",
   "nativeProject": "data/models/npc/civilian_002/civilian_002.mhm",
@@ -61,15 +61,249 @@
   "copiedTextures": [
     "textures/middleage_darkskinned_male_diffuse.png"
   ],
-  "animations": {},
-  "status": "mixamo-upload-failed",
-  "mixamoUploadError": "Mixamo returned to marker placement after the landmarks were submitted. See mixamo_upload_debug.png/html in the output folder.",
-  "mixamoUploadDiagnostics": [
-    "mixamo_upload_debug.html",
-    "mixamo_upload_debug.png",
-    "mixamo_upload_debug.txt",
-    "mixamo_markers_manual_start.png",
-    "mixamo_markers_manual_done.png"
+  "animations": {
+    "riggedModel": {
+      "file": "civilian_002_rigged.fbx",
+      "includesSkin": true,
+      "fps": 30,
+      "unanimated": true
+    },
+    "idle": {
+      "file": "animations/idle.fbx",
+      "mixamoName": "Standing Idle",
+      "mixamoDescription": "Standing Idle",
+      "mixamoId": "131220901",
+      "searchQuery": "standing idle",
+      "fps": 30,
+      "inPlaceRequested": false,
+      "includesSkin": false
+    },
+    "walk": {
+      "file": "animations/walk.fbx",
+      "mixamoName": "Walking",
+      "mixamoDescription": "Walking With A Swagger",
+      "mixamoId": "118080901",
+      "searchQuery": "walking",
+      "fps": 30,
+      "inPlaceRequested": true,
+      "includesSkin": false
+    },
+    "run": {
+      "file": "animations/run.fbx",
+      "mixamoName": "Running",
+      "mixamoDescription": "Running With Intention",
+      "mixamoId": "118090901",
+      "searchQuery": "running",
+      "fps": 30,
+      "inPlaceRequested": true,
+      "includesSkin": false
+    },
+    "sprint": {
+      "file": "animations/sprint.fbx",
+      "mixamoName": "Sprint",
+      "mixamoDescription": "Standard Sprint",
+      "mixamoId": "121480902",
+      "searchQuery": "sprinting",
+      "fps": 30,
+      "inPlaceRequested": true,
+      "includesSkin": false
+    },
+    "jump": {
+      "file": "animations/jump.fbx",
+      "mixamoName": "Jumping",
+      "mixamoDescription": "Jumping From Action Idle",
+      "mixamoId": "118110901",
+      "searchQuery": "jump",
+      "fps": 30,
+      "inPlaceRequested": false,
+      "includesSkin": false
+    },
+    "crouch_idle": {
+      "file": "animations/crouch_idle.fbx",
+      "mixamoName": "Crouching Idle",
+      "mixamoDescription": "Low Crouching Idle",
+      "mixamoId": "121520902",
+      "searchQuery": "crouch idle",
+      "fps": 30,
+      "inPlaceRequested": false,
+      "includesSkin": false
+    },
+    "crouch_walk": {
+      "file": "animations/crouch_walk.fbx",
+      "mixamoName": "Crouched Walking",
+      "mixamoDescription": "Crouched Walk",
+      "mixamoId": "101610901",
+      "searchQuery": "crouch walk",
+      "fps": 30,
+      "inPlaceRequested": true,
+      "includesSkin": false
+    },
+    "talk": {
+      "file": "animations/talk.fbx",
+      "mixamoName": "Talking",
+      "mixamoDescription": "Asking A Question With One Hand",
+      "mixamoId": "109800902",
+      "searchQuery": "talking",
+      "fps": 30,
+      "inPlaceRequested": false,
+      "includesSkin": false
+    },
+    "phone": {
+      "file": "animations/phone.fbx",
+      "mixamoName": "Talking On A Cell Phone",
+      "mixamoDescription": "Male Standing While Talking On A Cell Phone",
+      "mixamoId": "119140901",
+      "searchQuery": "phone call",
+      "fps": 30,
+      "inPlaceRequested": false,
+      "includesSkin": false
+    },
+    "sit_idle": {
+      "file": "animations/sit_idle.fbx",
+      "mixamoName": "Sitting Idle",
+      "mixamoDescription": "Sitting With Breathing Idle",
+      "mixamoId": "123380901",
+      "searchQuery": "sitting idle",
+      "fps": 30,
+      "inPlaceRequested": false,
+      "includesSkin": false
+    },
+    "fall_death": {
+      "file": "animations/fall_death.fbx",
+      "mixamoName": "Falling Forward Death",
+      "mixamoDescription": "Dying Falling Forward",
+      "mixamoId": "128170901",
+      "searchQuery": "falling death",
+      "fps": 30,
+      "inPlaceRequested": false,
+      "includesSkin": false
+    },
+    "get_up": {
+      "file": "animations/get_up.fbx",
+      "mixamoName": "Getting Up",
+      "mixamoDescription": "Standing From A Lying Prone",
+      "mixamoId": "126660901",
+      "searchQuery": "getting up",
+      "fps": 30,
+      "inPlaceRequested": false,
+      "includesSkin": false
+    },
+    "wave": {
+      "file": "animations/wave.fbx",
+      "mixamoName": "Waving",
+      "mixamoDescription": "Waving",
+      "mixamoId": "103020901",
+      "searchQuery": "waving",
+      "fps": 30,
+      "inPlaceRequested": false,
+      "includesSkin": false
+    },
+    "sit_down": {
+      "file": "animations/sit_down.fbx",
+      "mixamoName": "Sitting",
+      "mixamoDescription": "Sitting Down Arms Outside Armrests",
+      "mixamoId": "113280901",
+      "searchQuery": "sitting down",
+      "fps": 30,
+      "inPlaceRequested": false,
+      "includesSkin": false
+    }
+  },
+  "status": "ready-for-game-integration",
+  "recoveryNote": "Moved out of the civilian_001 directory after the generator ID/output bug. OBJ and MTL retain the original MakeHuman export filenames so their internal material reference stays valid.",
+  "animationSelections": {
+    "idle": {
+      "id": "131220901",
+      "name": "Standing Idle",
+      "description": "Standing Idle",
+      "query": "standing idle"
+    },
+    "walk": {
+      "id": "118080901",
+      "name": "Walking",
+      "description": "Walking With A Swagger",
+      "query": "walking"
+    },
+    "run": {
+      "id": "118090901",
+      "name": "Running",
+      "description": "Running With Intention",
+      "query": "running"
+    },
+    "sprint": {
+      "id": "121480902",
+      "name": "Sprint",
+      "description": "Standard Sprint",
+      "query": "sprinting"
+    },
+    "jump": {
+      "id": "118110901",
+      "name": "Jumping",
+      "description": "Jumping From Action Idle",
+      "query": "jump"
+    },
+    "crouch_idle": {
+      "id": "121520902",
+      "name": "Crouching Idle",
+      "description": "Low Crouching Idle",
+      "query": "crouch idle"
+    },
+    "crouch_walk": {
+      "id": "101610901",
+      "name": "Crouched Walking",
+      "description": "Crouched Walk",
+      "query": "crouch walk"
+    },
+    "talk": {
+      "id": "109800902",
+      "name": "Talking",
+      "description": "Asking A Question With One Hand",
+      "query": "talking"
+    },
+    "phone": {
+      "id": "119140901",
+      "name": "Talking On A Cell Phone",
+      "description": "Male Standing While Talking On A Cell Phone",
+      "query": "phone call"
+    },
+    "sit_idle": {
+      "id": "123380901",
+      "name": "Sitting Idle",
+      "description": "Sitting With Breathing Idle",
+      "query": "sitting idle"
+    },
+    "fall_death": {
+      "id": "128170901",
+      "name": "Falling Forward Death",
+      "description": "Dying Falling Forward",
+      "query": "falling death"
+    },
+    "get_up": {
+      "id": "126660901",
+      "name": "Getting Up",
+      "description": "Standing From A Lying Prone",
+      "query": "getting up"
+    },
+    "wave": {
+      "id": "103020901",
+      "name": "Waving",
+      "description": "Waving",
+      "query": "waving"
+    },
+    "sit_down": {
+      "id": "113280901",
+      "name": "Sitting",
+      "description": "Sitting Down Arms Outside Armrests",
+      "query": "sitting down"
+    }
+  },
+  "animationErrors": [
+    "hit_reaction: no animation approved by user",
+    "look_around: no animation approved by user",
+    "work_idle: no animation approved by user",
+    "stand_up: no animation approved by user",
+    "fear_reaction: no animation approved by user",
+    "flee_run: no animation approved by user"
   ],
-  "recoveryNote": "Moved out of the civilian_001 directory after the generator ID/output bug. OBJ and MTL retain the original MakeHuman export filenames so their internal material reference stays valid."
+  "riggedModel": "civilian_002_rigged.fbx"
 }
