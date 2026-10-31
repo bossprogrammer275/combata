@@ -56,11 +56,13 @@ async function loadBase(modelId) {
       model.traverse((node) => {
         if (!node.isMesh) return;
         node.castShadow = true;
-        node.receiveShadow = true;
+        node.receiveShadow = false;
         node.frustumCulled = false;
         const materials = Array.isArray(node.material) ? node.material : [node.material];
         for (const material of materials) {
-          if (material?.map) material.map.colorSpace = THREE.SRGBColorSpace;
+          if (material?.map) { material.map.colorSpace = THREE.SRGBColorSpace; material.map.needsUpdate = true; material.color?.setHex(0xffffff); }
+          if (material?.emissiveMap) material.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+          if (material?.emissive) { material.emissive.setRGB(0.012, 0.010, 0.008); material.emissiveIntensity = 0.12; }
           if (material) material.needsUpdate = true;
         }
       });
@@ -98,7 +100,7 @@ export function preloadNpcBase(modelId = NPC_GLOBAL_CONFIG.modelId) {
   return loadBase(modelId);
 }
 
-export function preloadNpcAnimations(modelId = NPC_GLOBAL_CONFIG.modelId, keys = ["idle", "walk", "run", "sprint", "talk", "wave", "fall_death"]) {
+export function preloadNpcAnimations(modelId = NPC_GLOBAL_CONFIG.modelId, keys = Object.keys(NPC_MODELS[modelId]?.animations || {})) {
   return Promise.all(keys.map((key) => loadAnimation(modelId, key)));
 }
 
