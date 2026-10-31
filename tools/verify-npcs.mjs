@@ -56,6 +56,17 @@ assert.ok(civilianRuntime.includes("startConversation") && civilianRuntime.inclu
   "civilian runtime must support player dialogue and world-object use");
 assert.ok(civilianRuntime.includes("updateSocial"), "civilian runtime must support NPC-to-NPC social behaviour");
 
+
+const playerRuntime = fs.readFileSync(path.join(root, "js/player.js"), "utf8");
+const characterRuntime = fs.readFileSync(path.join(root, "js/character.js"), "utf8");
+assert.ok(playerRuntime.includes("modelYawOffset: 0"), "player must use civilian_002's local forward axis");
+assert.ok(characterRuntime.includes("modelYawOffset: Math.PI"), "enemy default yaw offset must remain explicit");
+assert.ok(characterRuntime.includes("key === 'idle' ? 1 : 0"), "civilian_002 standing idle must be the initial player pose");
+assert.ok(characterRuntime.includes("speed >= this.appearance.runThreshold"), "normal player movement must select the real run clip at run speed");
+assert.ok(characterRuntime.includes("const blend = 1 - Math.exp"), "animation blending must be frame-rate independent");
+assert.ok(characterRuntime.includes("action.setLoop(oneShot ? THREE.LoopOnce : THREE.LoopRepeat"), "jump must be a one-shot clip, not a repeated loop");
+assert.ok(playerRuntime.includes("syncCharacter(dt = 1 / 60)"), "player must pass frame time into animation blending");
+
 const main = fs.readFileSync(path.join(root, "js/main.js"), "utf8");
 assert.ok(!main.includes("npc1/Walking.fbx"), "legacy NPC prefetch is still active");
 console.log("NPC verification passed: civilian_002, " + activeKeys.length + " approved clips, authored sidewalk routes and physics/population config.");
