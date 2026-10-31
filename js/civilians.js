@@ -97,6 +97,8 @@ export class Civilian {
     if (!this.alive || this.fleeT > 0) return null;
     this._releaseObject();
     this.manager.endSocial(this);
+    this.activity = "";
+    this.activityT = 0;
     this.interactionT = C.interaction.duration;
     this.interactionPhase = "wave";
     this.interactionLine = C.interaction.lines[(Math.random() * C.interaction.lines.length) | 0];
@@ -278,7 +280,8 @@ export class Civilian {
     } else if (this.activity === "social" && this.activityT <= 0) {
       this.manager.endSocial(this);
     }
-    if (player) this.face(player.pos);
+    if (this.activity === "social" && this.socialPartner) this.face(this.socialPartner.pos);
+    else if (player) this.face(player.pos);
     this.root.position.copy(this.pos);
     this.root.rotation.y = this.yaw + Math.PI;
     this.ch.update(dt);
@@ -317,7 +320,9 @@ export class Civilian {
     }
 
     if ((context.gunshot && playerDistance < P.gunshotPanicRadius) && this.fleeT <= 0) this.fleeFrom(player.pos, P.gunshotPanicRadius);
-    if (this.avoidVehicles() && this.fleeT <= 0) this.fleeFrom(this.vehicleSource || player?.pos || this.pos, P.vehiclePanicDistance + 5);
+    this.desired.set(0, 0, 0);
+    const vehiclePanic = this.avoidVehicles();
+    if (vehiclePanic && this.fleeT <= 0) this.fleeFrom(this.vehicleSource || player?.pos || this.pos, P.vehiclePanicDistance + 5);
     if (this.interactionT > 0 && this.fleeT <= 0 && player) {
       this.interactionT -= d;
       this.face(player.pos);
@@ -355,7 +360,6 @@ export class Civilian {
 
     if (this._updateActivity(d, player)) return false;
 
-    this.desired.set(0, 0, 0);
     const onFire = (this.world.reactiveObjects || []).find(o =>
       o.burning && o.mesh?.position && this.pos.distanceTo(o.mesh.position) < P.explosionPanicRadius
     );
@@ -428,8 +432,8 @@ export class Civilian {
     this.root.rotation.y = this.yaw + Math.PI;
 
     const animation = this.jumpT > 0 ? "jump"
-      : this.fleeT > 0 ? (this.ch.currentAnimation === "crouch_walk" && moved.collided ? "crouch_walk" : "run")
-        : moved.speed > 0.25 ? (this.state === "walk" ? "walk" : "run") : "idle";
+      : this.fleeT > 0 ? (moved.speed >= P.sprintSpeed * 0.92 ? "sprint" : (this.ch.currentAnimation === "crouch_walk" && moved.collided ? "crouch_walk" : "run"))
+        : moved.speed > 0.25 ? (this.state === "walk" ? "walk" : (moved.speed > P.runSpeed ? "run" : "walk")) : "idle";
     this.jumpT = Math.max(0, this.jumpT - d);
     if (animation !== this.ch.currentAnimation && !["wave", "talk", "fall_death", "phone", "sit_down", "sit_idle", "get_up"].includes(this.ch.currentAnimation)) {
       this.ch.play(animation, { loop: animation !== "jump" });
