@@ -198,7 +198,7 @@ export class Civilian {
     this.activityObject = object;
     this.activityTarget = position;
     this.activity = "approach";
-    this.activityT = 12;
+    this.activityT = Math.min(35, Math.max(12, Math.hypot(position.x - this.pos.x, position.z - this.pos.z) / P.walkSpeed + 4));
     this.state = "walk";
     return true;
   }
@@ -248,7 +248,11 @@ export class Civilian {
       const distance = delta.length();
       if (distance < 0.65) {
         this.velocity.set(0, 0, 0);
-        this.pos.copy(this.activityTarget);
+        const settle = this.activityObject?.sitPosition || this.activityTarget;
+        const settleDelta = settle.clone().sub(this.pos);
+        const snapped = this.body ? this.manager.physics.moveNpcController(this.body, settleDelta.x, settleDelta.y, settleDelta.z) : null;
+        if (snapped?.position) this.pos.copy(snapped.position);
+        else if (!this.world.colliderAt(settle.x, settle.z, P.radius)) this.pos.copy(settle);
         this.root.position.copy(this.pos);
         this.face(this.activityObject?.position || this.activityTarget);
         const kind = this.activityObject?.kind;
@@ -686,7 +690,7 @@ export class Civilians {
     let best = null, bestDistance = maxDistance;
     for (const object of objects) {
       if (!object?.mesh?.visible || object.reservedBy || !object.position) continue;
-      if (!["seat", "phone", "counter", "vending", "atm"].includes(object.kind)) continue;
+      if (!["seat", "phone", "counter", "vending", "atm", "workstation", "shop", "door", "shelter", "prop"].includes(object.kind)) continue;
       object.mesh.updateWorldMatrix(true, false);
       object.mesh.getWorldPosition(object.position);
       const distance = Math.hypot(object.position.x - position.x, object.position.z - position.z);
