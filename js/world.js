@@ -308,6 +308,7 @@ export class World {
       useRadius: Number(metadata.useRadius) || 1.2,
       approachOffset: metadata.approachOffset || null,
       approachPosition: position.clone(),
+      sitPosition: position.clone(),
       reservedBy: null,
       onPlayerInteract: typeof metadata.onPlayerInteract === "function" ? metadata.onPlayerInteract : null,
     };
@@ -316,6 +317,14 @@ export class World {
       const local = new THREE.Vector3(Number(offset.x) || 0, Number(offset.y) || 0, Number(offset.z) || 0);
       mesh.localToWorld(local);
       record.approachPosition.copy(local);
+    }
+    if (metadata.sitOffset) {
+      const offset = metadata.sitOffset;
+      const local = new THREE.Vector3(Number(offset.x) || 0, Number(offset.y) || 0, Number(offset.z) || 0);
+      mesh.localToWorld(local);
+      record.sitPosition.copy(local);
+    } else {
+      record.sitPosition.copy(record.approachPosition);
     }
     this.npcInteractables.push(record);
     return record;
@@ -335,7 +344,10 @@ export class World {
         || match(/(^|_)(phone|telephone|payphone)(_|$)|^(phone|telephone|payphone)/, "phone")
         || match(/(^|_)(atm|cash_machine|cashmachine)(_|$)|^(atm|cashmachine)/, "atm")
         || match(/(^|_)(vending|vending_machine)(_|$)|^(vending)/, "vending")
-        || match(/(^|_)(counter|cashier|shop_counter|vendor_stall)(_|$)|^(counter|cashier)/, "counter");
+        || match(/(^|_)(counter|cashier|shop_counter|vendor_stall)(_|$)|^(counter|cashier)/, "counter")
+        || match(/(^|_)(workstation|work_bench|workbench)(_|$)|^(workstation|workbench)/, "workstation")
+        || match(/(^|_)(shop|storefront|kiosk)(_|$)|^(shop|kiosk)/, "shop")
+        || match(/(^|_)(shelter|bus_stop)(_|$)|^(shelter|bus_stop)/, "shelter");
     };
     model.traverse(node => {
       if (node === model) return;
