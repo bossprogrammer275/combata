@@ -205,7 +205,7 @@ def save_marker_diagnostics(page, reason):
         })""")
         json_path.write_text(json.dumps({"reason": reason, "nodes": nodes}, indent=2), encoding="utf-8")
         print(f"[Mixamo] Marker diagnostics saved: {html_path.name}, {image_path.name}, {json_path.name}")
-        print(f"[Mixamo] Marker DOM nodes found: {len(nodes)}")
+        print(f"[Mixamo] Marker diagnostics saved. Top-level DOM count ({len(nodes)}) is informational only and does not block manual rigging.")
     except Exception as exc:
         print(f"[Mixamo] Could not save marker diagnostics: {exc}")
 
