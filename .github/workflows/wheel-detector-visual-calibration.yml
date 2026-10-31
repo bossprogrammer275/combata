@@ -1,0 +1,45 @@
+name: Wheel detector visual calibration
+
+on:
+  push:
+    branches: [feature/wheel-detector-visual-calibration]
+
+permissions:
+  contents: read
+
+jobs:
+  wheel-calibration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@10 --activate
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Syntax-check detector and visual tools
+        run: |
+          node --check js/vehicles.js
+          node --check tools/vehicle-visual-test.js
+          node --check tools/verify-vehicle-visuals.mjs
+      - name: Install isolated Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run screenshot-based vehicle wheel calibration
+        run: node tools/verify-vehicle-visuals.mjs
+      - name: Upload wheel screenshots and detector reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-detector-calibration-${{ github.run_id }}
+          path: artifacts/vehicle-visual-test/
+          if-no-files-found: warn
+          retention-days: 1
+      - name: Verify vehicle physics and collision safety
+        run: |
+          node tools/verify-vehicles.mjs
+          node tools/verify-collisions.mjs
