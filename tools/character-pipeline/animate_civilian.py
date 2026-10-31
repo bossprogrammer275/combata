@@ -555,49 +555,65 @@ def main():
                 print(f"[Mixamo] Could not update failure manifest: {manifest_exc}")
             raise
 
-        base_job = {"queries": ["t pose", "t-pose"], "need": ["pose"], "exclude": []}
-        base_clip = search_and_select(page, animations_mod, base_job)
-        if base_clip:
-            base_path = OUT / "civilian_001_rigged.fbx"
-            download_clip(page, download_mod, animations_mod, base_path, True, False, args.fps)
-            downloads["riggedModel"] = {"file": base_path.name, "mixamoName": base_clip["name"], "mixamoId": base_clip["id"], "includesSkin": True, "fps": args.fps}
-            print("[Mixamo] Downloaded skinned T-pose base model.")
-        else:
-            print("[Mixamo] No T-pose motion found; idle will provide the skinned base model.")
+        # Export the actual newly rigged character; do not search for a fake T-pose motion.
+        base_path = OUT / "civilian_001_rigged.fbx"
+        print("[Mixamo] Downloading the rigged character in its rest pose...")
+        try:
+            saved_base = download_clip(
+                page, download_mod, animations_mod, base_path, True, False, args.fps,
+                configure_animation=False,
+            )
+            downloads["riggedModel"] = {
+                "file": Path(saved_base).name,
+                "includesSkin": True,
+                "fps": args.fps,
+                "restPose": True,
+            }
+            print("[Mixamo] Rigged character model downloaded and verified.")
+        except Exception as exc:
+            errors.append(f"riggedModel: base character download failed: {exc}")
+            print(f"[Mixamo] FATAL: could not download the rigged character: {exc}")
+            raise
 
+        selections = {}
         for job in selected_animations:
-            found = search_and_select(page, animations_mod, job)
+            found = prompt_animation_selection(page, animations_mod, job)
             if not found:
-                errors.append(f"{job['key']}: no matching Mixamo animation in current search results")
-                print(f"[Mixamo] WARNING: no match for {job['key']}")
+                errors.append(f"{job['key']}: no animation approved by user")
                 continue
             target = animation_dir / f"{job['key']}.fbx"
-            has_skin = False
-            if job["key"] == "idle" and "riggedModel" not in downloads:
-                target = OUT / "civilian_001_rigged.fbx"
-                has_skin = True
             try:
-                saved = download_clip(page, download_mod, animations_mod, target, has_skin, job["inplace"], args.fps)
+                saved = download_clip(
+                    page, download_mod, animations_mod, target, False,
+                    job["inplace"], args.fps, configure_animation=True,
+                )
+                relative_file = str(Path(saved).relative_to(OUT)).replace("\\", "/")
                 downloads[job["key"]] = {
-                    "file": str(Path(saved).relative_to(OUT)).replace("\\", "/"),
+                    "file": relative_file,
                     "mixamoName": found["name"],
+                    "mixamoDescription": found["description"],
                     "mixamoId": found["id"],
+                    "searchQuery": found["query"],
                     "fps": args.fps,
-                    "inPlace": job["inplace"],
-                    "includesSkin": has_skin
+                    "inPlaceRequested": job["inplace"],
+                    "includesSkin": False,
                 }
-                if has_skin:
-                    downloads["riggedModel"] = {"file": target.name, "mixamoName": found["name"], "includesSkin": True, "fps": args.fps}
-                print(f"[Mixamo] Downloaded {job['key']}: {found['name']}")
+                selections[job["key"]] = {
+                    "id": found["id"],
+                    "name": found["name"],
+                    "description": found["description"],
+                    "query": found["query"],
+                }
+                print(f"[Mixamo] Downloaded and verified {job['key']}: {found['name']}")
             except Exception as exc:
                 errors.append(f"{job['key']}: download failed: {exc}")
                 print(f"[Mixamo] ERROR {job['key']}: {exc}")
-
         manifest_path = OUT / "manifest.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {"id": "civilian_001"}
         manifest["riggedModel"] = downloads.get("riggedModel", {}).get("file")
         manifest["skeleton"] = "Mixamo auto-rig; riggedModel is the canonical skinned FBX"
         manifest["animations"] = downloads
+        manifest["animationSelections"] = selections
         manifest["animationErrors"] = errors
         completed = len([key for key in downloads if key != "riggedModel"])
         manifest["status"] = "ready-for-game-integration" if completed >= 8 and manifest["riggedModel"] else "partial-animation-set"
