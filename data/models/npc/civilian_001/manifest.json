@@ -1,17 +1,20 @@
 {
-  "id": "civilian_001",
-  "displayName": "Ilorin Civilian 001",
-  "description": "Nigerian male civilian, age 21, everyday casual streetwear.",
-  "ageTarget": 21.0,
+  "id": "civilian_002",
+  "displayName": "Ilorin Civilian 002",
+  "description": "Nigerian male civilian, age 24, everyday casual streetwear.",
+  "ageTarget": 24.0,
   "body": {
     "gender": "male",
-    "weight": 0.54,
-    "muscle": 0.62,
-    "heightMacro": 0.6
+    "weight": 0.58,
+    "muscle": 0.68,
+    "heightMacro": 0.63
   },
   "source": "MakeHuman core",
   "skeleton": "Unrigged MakeHuman mesh; submitted to Mixamo Auto-Rigger",
   "sourceModel": "data/models/npc/civilian_001/civilian_001_source.obj",
+  "mixamoSourceModel": "data/models/npc/civilian_001/civilian_001_source.obj",
+  "mixamoSourceBundle": "data/models/npc/civilian_001/civilian_001_mixamo_source.zip",
+  "mixamoSourceFormat": "OBJ, native MakeHuman Y-up coordinates",
   "nativeProject": "data/models/npc/civilian_001/civilian_001.mhm",
   "selectedAssets": {
     "skin": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/skins\\middleage_african_male\\middleage_african_male.mhmat",
@@ -60,10 +63,7 @@
   ],
   "animations": {},
   "status": "mixamo-upload-failed",
-  "mixamoSourceModel": "data/models/npc/civilian_001/civilian_001_source.obj",
-  "mixamoSourceBundle": "data/models/npc/civilian_001/civilian_001_mixamo_source.zip",
-  "mixamoSourceFormat": "OBJ, native MakeHuman Y-up coordinates",
-  "mixamoUploadError": "Mixamo Auto-Rigger timed out after 360s. Last state: unknown. Last message: . Last API status: not captured.",
+  "mixamoUploadError": "Mixamo returned to marker placement after the landmarks were submitted. See mixamo_upload_debug.png/html in the output folder.",
   "mixamoUploadDiagnostics": [
     "mixamo_upload_debug.html",
     "mixamo_upload_debug.png",

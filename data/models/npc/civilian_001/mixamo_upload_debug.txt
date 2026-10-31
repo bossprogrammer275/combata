@@ -1,1 +1,1 @@
-Mixamo Auto-Rigger timed out after 360s. Last state: unknown. Last message: . Last API status: not captured.
+Mixamo returned to marker placement after the landmarks were submitted.
