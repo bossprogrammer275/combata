@@ -1,6 +1,6 @@
 param(
-    [string]$Id = "civilian_001",
-    [string]$DisplayName = "Ilorin Civilian 001",
+    [string]$Id = "civilian_003",
+    [string]$DisplayName = "Ilorin Civilian 003",
     [double]$Age = 21,
     [ValidateSet("male", "female")][string]$Gender = "male",
     [double]$Weight = 0.54,
