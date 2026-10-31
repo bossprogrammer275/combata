@@ -49,7 +49,7 @@ def get_animation_candidates(html, query):
         name_el = card.find("p", class_="text-capitalize")
         if not image or not name_el:
             continue
-        match = re.search(r"/motions/(\\d+)/", image.get("src", ""))
+        match = re.search(r"/motions/(\d+)/", image.get("src", ""))
         if not match:
             continue
         metadata = card.find("ul", class_="product-metadata")
@@ -413,21 +413,6 @@ def wait_upload_complete(page, get_upload_status, confirm_review, api_status_eve
     save_upload_diagnostics(page, reason)
     raise TimeoutError(reason)
 
-def search_and_select(page, animations_mod, job):
-    for query in job["queries"]:
-        print(f"[Mixamo] Searching: {query}")
-        try:
-            animations_mod.search(page, query)
-            items = animations_mod.get_animation_list(page.content())["items"]
-        except Exception as exc:
-            print(f"[Mixamo] Search failed for '{query}': {exc}")
-            continue
-        found = pick_animation(items, job)
-        if found:
-            animations_mod.select_animation(page, found["id"])
-            page.wait_for_timeout(2200)
-            return found
-    return None
 
 def verify_fbx_download(path):
     file_path = Path(path)
