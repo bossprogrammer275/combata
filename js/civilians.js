@@ -1,5 +1,5 @@
 import * as THREE from "./lib/three.module.js";
-import { NpcCharacter, preloadNpcBase } from "./npc-character.js";
+import { NpcCharacter, preloadNpcBase, preloadNpcAnimations } from "./npc-character.js";
 import { NPC_GLOBAL_CONFIG as C, NPC_DEFAULT_ROUTES } from "./npc-config.js";
 const P=C.physics, POP=C.population;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -140,7 +140,9 @@ export class Civilians{
     this.ready=this.initialize().catch(error=>{this.loadError=error;console.error("[NPC] civilian_002 failed; legacy fallback disabled.",error);this.setUi("",false);return this;});
   }
   async initialize(){
-    await preloadNpcBase(C.modelId);this.buildRoutes();this.createUi();this.populateInitial();
+    await preloadNpcBase(C.modelId);
+    await preloadNpcAnimations(C.modelId);
+    this.buildRoutes();this.createUi();this.populateInitial();
     console.info("[NPC] civilian_002 population ready: "+this.list.length);return this;
   }
   buildRoutes(){
