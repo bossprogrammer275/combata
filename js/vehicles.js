@@ -166,7 +166,14 @@ function boxSize(b, out) {
 // deciding whether it needs a vehicle-specific size allowance.
 export function getWheelClassificationOptions(kind) {
   return kind === 'cybertruck'
-    ? { wheelMemberRadius: 0.30, wheelMemberMaxSize: 1.15, wheelMemberHeightTolerance: 1.05 }
+    ? {
+      // Cybertruck wheels are ~0.92m tall and their split outer tyre pieces sit
+      // up to ~0.42m from the selected hub mesh. Group those pieces with the rim.
+      // Keep this allowance per vehicle; the smaller sports-car radius stays 0.30m.
+      wheelMemberRadius: 0.45,
+      wheelMemberMaxSize: 1.15,
+      wheelMemberHeightTolerance: 1.05,
+    }
     : {};
 }
 
@@ -295,9 +302,12 @@ function classifyCarMeshes(items, options = {}) {
       if (blobs.has(mesh.o) || wheelMeshes.has(mesh.o)) continue;
       for (const wheel of wheels) {
         const distance = mesh.c.distanceTo(wheel.best.c);
-        if (distance > 0.95) continue;
+        if (distance > wheelMemberRadius + 0.12) continue;
         const heightDelta = Math.abs(mesh.c.y - wheel.best.c.y);
         const maxDimension = Math.max(mesh.s.x, mesh.s.y, mesh.s.z);
+        // Ignore tiny bolts/material fragments; keep only meaningful nearby parts
+        // that could change the tyre/rim assembly boundary.
+        if (maxDimension < 0.18) continue;
         const reasons = [];
         if (distance >= wheelMemberRadius) reasons.push('outside-wheel-member-radius');
         if (heightDelta >= wheelMemberHeightTolerance) reasons.push('outside-wheel-member-height-tolerance');
