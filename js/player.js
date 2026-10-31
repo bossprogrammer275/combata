@@ -61,6 +61,8 @@ export class Player {
       skin: [0.82, 0.62, 0.48], pants: [0.20, 0.22, 0.30], shirt: this.clothesPalette[0],
       boots: [0.14, 0.12, 0.10], vest: [0.28, 0.32, 0.22], cap: [0.20, 0.22, 0.26],
       showCap: false, pack: true, helmet: false, weaponTint: [0.18, 0.18, 0.20],
+      // civilian_002 faces local -Z, unlike the old npc1 avatar.
+      modelYawOffset: 0,
     };
     this.char = new Character(this.appearance);
     this.phase = 0;          // walk-cycle phase, advanced by movement
@@ -102,8 +104,8 @@ export class Player {
   }
 
   // copy physics transform + pose onto the visible rig — FBX-only, no procedural fallback
-  syncCharacter() {
-    this.char.setState(this.getState());
+  syncCharacter(dt = 1 / 60) {
+    this.char.setState(this.getState(), dt);
   }
 
   // swap clothing/headgear appearance and rebuild the visible rig in place,
@@ -179,12 +181,12 @@ export class Player {
   }
 
   // feed skydive info to the visible rig (arms up in free-fall, relaxed under canopy)
-  _skydiveState() {
+  _skydiveState(dt = 1 / 60) {
     const s = this.getState();
     s.skydive = this.skydive ? 1 : 0;
     s.canopy = this.canopy;
     s.moveX = this._moveX || 0; s.moveZ = this._moveZ || 0;
-    this.char.setState(s);
+    this.char.setState(s, dt);
   }
 
   update(dt, input) {
@@ -208,8 +210,8 @@ export class Player {
         this.camera.position.copy(camPos);
         this.camera.lookAt(this.pos.x + fwdX * 3, headY + fwdY * 3, this.pos.z + fwdZ * 3);
       }
-      this.syncCharacter();
-      this._skydiveState();
+      this.syncCharacter(dt);
+      this._skydiveState(dt);
       if (this.char.update) this.char.update(dt);
       return;
     }
@@ -223,7 +225,7 @@ export class Player {
       const camPos = origin.clone().add(new THREE.Vector3(0, 1.5, boom));
       this.camera.position.lerp(camPos, Math.min(1, dt * 6));
       this.camera.lookAt(this.pos.x, headY + 0.3, this.pos.z);
-      this.syncCharacter();
+      this.syncCharacter(dt);
       if (this.char.update) this.char.update(dt);
       return;
     }
@@ -415,7 +417,7 @@ export class Player {
     this._aimYaw = aimOff;
 
     // push the pose onto the visible rig
-    this.syncCharacter();
+    this.syncCharacter(dt);
     if (this.char.update) this.char.update(dt);
 
     if (this.firstPerson) {
