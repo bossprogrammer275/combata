@@ -1,0 +1,1 @@
+Mixamo kept the marker-placement step open after submitting its default landmark positions.

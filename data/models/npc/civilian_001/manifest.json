@@ -59,5 +59,11 @@
     "textures/middleage_darkskinned_male_diffuse.png"
   ],
   "animations": {},
-  "status": "character-generated-awaiting-mixamo"
+  "status": "mixamo-upload-failed",
+  "mixamoUploadError": "Mixamo kept the marker-placement step open after submitting its default landmark positions. See mixamo_upload_debug.png/html in the output folder.",
+  "mixamoUploadDiagnostics": [
+    "mixamo_upload_debug.html",
+    "mixamo_upload_debug.png",
+    "mixamo_upload_debug.txt"
+  ]
 }
