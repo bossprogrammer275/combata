@@ -117,17 +117,18 @@ def wait_for_manual_marker_placement(page):
 
     answers = queue.Queue()
 
-    def read_console():
-        while True:
+    def start_console_reader():
+        def read_console_once():
             try:
-                answer = input("[Open World] Type D when marker placement is done: ")
+                answers.put(input("[Open World] Type D when marker placement is done: "))
             except Exception as exc:
                 answers.put(exc)
-                return
-            answers.put(answer)
 
-    reader = threading.Thread(target=read_console, name="mixamo-marker-console", daemon=True)
-    reader.start()
+        reader = threading.Thread(target=read_console_once, name="mixamo-marker-console", daemon=True)
+        reader.start()
+        return reader
+
+    reader = start_console_reader()
     started = time.monotonic()
     last_report = 0
 
@@ -152,6 +153,7 @@ def wait_for_manual_marker_placement(page):
         if command in {"q", "quit", "cancel"}:
             raise RuntimeError("Manual Mixamo marker placement cancelled from console.")
         print("[Mixamo] Enter D or DONE when all eight markers are placed, or Q to cancel.")
+        reader = start_console_reader()
 
     try:
         page.screenshot(path=str(OUT / "mixamo_markers_manual_done.png"), full_page=True)
