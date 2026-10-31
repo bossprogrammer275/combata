@@ -69,6 +69,7 @@ $buildArgs = @(
     "--skin", "$Skin", "--hair", "$Hair", "--top", "$Top",
     "--bottom", "$Bottom", "--shoes", "$Shoes", "--output", $Output
 )
+$animationArgs = @($mixamoScript, "--animations", $Animations, "--fps", "$Fps", "--output", $Output)
 $mixamoExitCode = 0
 
 if (-not $AnimateOnly) {
