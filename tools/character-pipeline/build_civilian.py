@@ -101,11 +101,9 @@ def export_mixamo_obj(human) -> tuple[Path, Path]:
     mtl_path = OUT / "civilian_001_source.mtl"
     bundle_path = OUT / "civilian_001_mixamo_source.zip"
 
-    # The MakeHuman OBJ exporter preserves its native Y-up coordinates.
-    # Its unrigged FBX path declares Z-up but does not rotate the raw mesh,
-    # which made the uploaded character appear laid on its side in Mixamo.
+    # MakeHuman OBJ preserves native Y-up coordinates. The unrigged FBX path
+    # declares Z-up without rotating the raw mesh, which made Mixamo display it sideways.
     exported = human.export(str(obj_path), format="obj", rig="none", feet_on_ground=True)
-
     required = [Path(exported), mtl_path]
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
@@ -126,7 +124,6 @@ def export_mixamo_obj(human) -> tuple[Path, Path]:
 
 
 def main() -> int:
-def main() -> int:
     global OUT
     args = parse_args()
     OUT = (ROOT / args.output).resolve()
@@ -140,6 +137,124 @@ def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     if args.export_existing:
         native_path = OUT / "civilian_001.mhm"
+        if not native_path.is_file():
+            print(f"ERROR: saved MakeHuman project not found: {native_path}", file=sys.stderr)
+            return 2
+        print(f"[MakeHuman] Loading saved project: {native_path.name}")
+        human = mhcore.new_human()
+        human.load_mhm(str(native_path))
+        obj_path, bundle_path = export_mixamo_obj(human)
+        manifest_path = OUT / "manifest.json"
+        if manifest_path.is_file():
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["sourceModel"] = str(obj_path.relative_to(ROOT)).replace("\\", "/")
+            manifest["mixamoSourceModel"] = str(obj_path.relative_to(ROOT)).replace("\\", "/")
+            manifest["mixamoSourceBundle"] = str(bundle_path.relative_to(ROOT)).replace("\\", "/")
+            manifest["mixamoSourceFormat"] = "OBJ, native MakeHuman Y-up coordinates"
+            manifest["status"] = "character-generated-awaiting-mixamo"
+            manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        print("[MakeHuman] EXISTING CHARACTER EXPORTED FOR MIXAMO")
+        return 0
+
+    texture_dir = OUT / "textures"
+    texture_dir.mkdir(parents=True, exist_ok=True)
+    print("[MakeHuman] Creating civilian_001...")
+    human = mhcore.new_human()
+
+    # MakeHuman maps age 10 to ~0.1875 and age 25 to 0.5.
+    age = max(10.0, min(90.0, args.age))
+    if age <= 25.0:
+        age_macro = 0.1875 + (age - 10.0) * (0.5 - 0.1875) / 15.0
+    else:
+        age_macro = 0.5 + (age - 25.0) * 0.5 / 65.0
+    human.set_gender(1.0 if args.gender == "male" else 0.0)
+    human.set_age(max(0.0, min(1.0, age_macro)))
+    human.set_weight(max(0.0, min(1.0, args.weight)))
+    human.set_muscle(max(0.0, min(1.0, args.muscle)))
+    human.set_height(max(0.0, min(1.0, args.height)))
+
+    selected = {}
+    available = {}
+    for kind in ("skins", "hair", "eyes", "eyebrows", "eyelashes", "teeth", "clothes"):
+        try:
+            available[kind] = list(human.list_available(kind))
+        except Exception as exc:
+            available[kind] = []
+            print(f"[MakeHuman] Warning: could not list {kind}: {exc}")
+
+    skin_terms = terms(args.skin)
+    gender_skins = gender_candidates(available["skins"], args.gender)
+    skin = choose(gender_skins, skin_terms + [args.gender]) if skin_terms else None
+    if skin is None and gender_skins:
+        skin = choose(gender_skins, ["african", args.gender], ["old", "elder", "fantasy"])
+    if skin:
+        human.set_skin(skin)
+        selected["skin"] = skin
+        print(f"[MakeHuman] Skin: {Path(skin).name}")
+    else:
+        selected["skin"] = None
+        print("[MakeHuman] WARNING: no skin materials found; using default material.")
+
+    hair_terms = terms(args.hair)
+    hair = choose(available["hair"], hair_terms, ["long", "ponytail", "female"]) if hair_terms else None
+    if hair:
+        human.equip_hair(hair)
+        selected["hair"] = hair
+        print(f"[MakeHuman] Hair: {Path(hair).name}")
+    else:
+        selected["hair"] = None
+        print("[MakeHuman] WARNING: no short-hair asset matched; default hair retained.")
+
+    for kind, method in (("eyes", "equip_eyes"), ("eyebrows", "equip_eyebrows"),
+                         ("eyelashes", "equip_eyelashes"), ("teeth", "equip_teeth")):
+        if available[kind]:
+            try:
+                getattr(human, method)(available[kind][0])
+                selected[kind] = available[kind][0]
+            except Exception as exc:
+                print(f"[MakeHuman] Warning: {kind} not equipped: {exc}")
+
+    clothes = available["clothes"]
+    gender_clothes = gender_candidates(clothes, args.gender)
+    shoe_assets = [
+        path for path in gender_clothes
+        if any(term in norm(Path(path).name) for term in ("shoe", "sneaker", "trainer", "footwear"))
+    ]
+    shoes = choose(shoe_assets, terms(args.shoes) + ["shoe", "shoes"]) if shoe_assets else None
+
+    # This MakeHuman install provides complete casual-suit proxies rather than
+    # separate T-shirt and jeans pieces. Equip one gender-matched outfit plus
+    # a separate neutral shoe proxy; never substitute a female outfit.
+    outfit_assets = [path for path in gender_clothes if path not in shoe_assets]
+    outfit = choose(
+        outfit_assets,
+        terms(args.top) + terms(args.bottom) + ["casual", args.gender],
+        ["dress", "bikini", "armor", "fantasy", "uniform"]
+    )
+    if outfit is None and outfit_assets:
+        outfit = choose(outfit_assets, [args.gender], ["dress", "bikini", "armor", "fantasy", "uniform"])
+
+    if outfit:
+        try:
+            human.equip_clothes(outfit)
+            selected["outfit"] = outfit
+            print(f"[MakeHuman] Outfit: {Path(outfit).name}")
+        except Exception as exc:
+            print(f"[MakeHuman] WARNING: outfit could not be equipped: {exc}")
+    else:
+        print(f"[MakeHuman] WARNING: no {args.gender}-compatible outfit found.")
+
+    if shoes:
+        try:
+            human.equip_clothes(shoes)
+            selected["shoes"] = shoes
+            print(f"[MakeHuman] Shoes: {Path(shoes).name}")
+        except Exception as exc:
+            print(f"[MakeHuman] Warning: shoes could not be equipped: {exc}")
+    else:
+        print("[MakeHuman] WARNING: no shoe proxy matched; default footwear retained.")
+
+    native_path = OUT / "civilian_001.mhm"
     saved = human.save_mhm(str(native_path))
     obj_path, mixamo_bundle = export_mixamo_obj(human)
 
