@@ -513,9 +513,7 @@ def main():
         if stale_clip.is_file():
             stale_clip.unlink()
             print(f"[Mixamo] Removed previous unverified clip: {stale_clip.name}")
-    stale_base = OUT / "civilian_001_rigged.fbx"
-    if stale_base.is_file():
-        stale_base.unlink()
+    # Keep the previous rigged base until a replacement FBX is downloaded and verified.
 
     print("[Mixamo] Opening your saved local browser profile...")
     page = browser.start()
