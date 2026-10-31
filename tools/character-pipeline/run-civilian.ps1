@@ -1,4 +1,6 @@
 param(
+    [string]$Id = "civilian_001",
+    [string]$DisplayName = "Ilorin Civilian 001",
     [double]$Age = 21,
     [ValidateSet("male", "female")][string]$Gender = "male",
     [double]$Weight = 0.54,
@@ -13,6 +15,8 @@ param(
     [ValidateSet(24, 25, 30, 48, 50, 60)][int]$Fps = 30,
     [string]$Output = "data/models/npc/civilian_001",
     [switch]$Help,
+    [switch]$BuildOnly,
+    [switch]$AnimateOnly,
     [switch]$NoCommit,
     [switch]$NoPush
 )
@@ -24,7 +28,7 @@ if ($Help) {
     Write-Host ""
     Write-Host '.\tools\character-pipeline\generate-civilian.bat -Age 21 -Skin "african,dark,brown" -Hair "short,fade" -Top "t shirt,polo" -Bottom "jeans" -Shoes "sneakers" -Animations "idle,walk,run,sprint,jump,crouch_idle,crouch_walk,talk,phone,sit_idle,hit_reaction,fall_death,get_up" -Fps 30'
     Write-Host ""
-    Write-Host "Options: -Age -Gender -Weight -Muscle -Height -Skin -Hair -Top -Bottom -Shoes -Animations -Fps -Output -NoCommit -NoPush"
+    Write-Host "Options: -Id -DisplayName -Age -Gender -Weight -Muscle -Height -Skin -Hair -Top -Bottom -Shoes -Animations -Fps -Output -BuildOnly -AnimateOnly -NoCommit -NoPush"
     Write-Host "Animation keys: idle,walk,run,sprint,jump,crouch_idle,crouch_walk,talk,phone,sit_idle,sit_down,stand_up,look_around,work_idle,wave,hit_reaction,fear_reaction,flee_run,fall_death,get_up"
     exit 0
 }
@@ -35,6 +39,9 @@ $mixamoPython = Join-Path $root "tools\mixamo-mcp\.venv\Scripts\python.exe"
 $buildScript = Join-Path $PSScriptRoot "build_civilian.py"
 $mixamoScript = Join-Path $PSScriptRoot "animate_civilian.py"
 $outputPath = [System.IO.Path]::GetFullPath((Join-Path $root $Output))
+if ($BuildOnly -and $AnimateOnly) {
+    throw "Choose either -BuildOnly or -AnimateOnly, not both."
+}
 
 if (-not $outputPath.StartsWith($root, [System.StringComparison]::OrdinalIgnoreCase)) {
     throw "Output must stay inside the combata repository."
@@ -56,26 +63,39 @@ Write-Host "Animations: $Animations" -ForegroundColor Gray
 Write-Host ""
 
 $buildArgs = @(
-    $buildScript, "--age", "$Age", "--gender", "$Gender",
+    $buildScript, "--id", $Id, "--display-name", $DisplayName,
+    "--age", "$Age", "--gender", "$Gender",
     "--weight", "$Weight", "--muscle", "$Muscle", "--height", "$Height",
     "--skin", "$Skin", "--hair", "$Hair", "--top", "$Top",
     "--bottom", "$Bottom", "--shoes", "$Shoes", "--output", $Output
 )
-Write-Host "[1/2] Generating civilian with MakeHuman..." -ForegroundColor Cyan
-& $makeHumanPython @buildArgs
-if ($LASTEXITCODE -ne 0) {
-    throw "MakeHuman generation failed with exit code $LASTEXITCODE."
+$mixamoExitCode = 0
+
+if (-not $AnimateOnly) {
+    Write-Host "[1/2] Generating civilian with MakeHuman..." -ForegroundColor Cyan
+    & $makeHumanPython @buildArgs
+    if ($LASTEXITCODE -ne 0) {
+        throw "MakeHuman generation failed with exit code $LASTEXITCODE."
+    }
+} else {
+    $existingSource = Join-Path $outputPath "civilian_001_source.fbx"
+    if (!(Test-Path $existingSource)) {
+        throw "Animate-only mode needs an existing source FBX at $existingSource."
+    }
 }
 
-$animationArgs = @($mixamoScript, "--animations", $Animations, "--fps", "$Fps", "--output", $Output)
-Write-Host ""
-Write-Host "[2/2] Rigging civilian and downloading selected animation FBXs..." -ForegroundColor Cyan
-Write-Host "The saved local Mixamo profile will be used. Complete any Adobe prompt in the opened browser." -ForegroundColor Yellow
-& $mixamoPython @animationArgs
-$mixamoExitCode = $LASTEXITCODE
+if (-not $BuildOnly) {
+    Write-Host ""
+    Write-Host "[2/2] Rigging civilian and downloading selected animation FBXs..." -ForegroundColor Cyan
+    Write-Host "The saved local Mixamo profile will be used. Complete any Adobe prompt in the opened browser." -ForegroundColor Yellow
+    & $mixamoPython @animationArgs
+    $mixamoExitCode = $LASTEXITCODE
 
-if ($mixamoExitCode -ne 0) {
-    Write-Warning "Mixamo finished with exit code $mixamoExitCode. Keeping and packaging the MakeHuman model plus any animation files already downloaded."
+    if ($mixamoExitCode -ne 0) {
+        Write-Warning "Mixamo finished with exit code $mixamoExitCode. Keeping and packaging the MakeHuman model plus any animation files already downloaded."
+    }
+} else {
+    Write-Host "Build-only mode: skipping Mixamo animation downloads." -ForegroundColor Yellow
 }
 
 $bundlePath = Join-Path $outputPath "civilian_001_bundle.zip"
@@ -130,6 +150,8 @@ Write-Host "GENERATION PIPELINE FINISHED." -ForegroundColor Green
 Write-Host "Output: $outputPath" -ForegroundColor Green
 Write-Host "Manifest: $(Join-Path $outputPath 'manifest.json')" -ForegroundColor Green
 Write-Host "Bundle: $(Join-Path $outputPath 'civilian_001_bundle.zip')" -ForegroundColor Green
+$generatedCommit = (& git -C $root rev-parse HEAD).Trim()
+Write-Host "Generated asset commit: $generatedCommit" -ForegroundColor Cyan
 if ($mixamoExitCode -ne 0) {
     Write-Warning "The MakeHuman source and partial bundle were saved. Check manifest.json for Mixamo failures before rerunning the animation stage."
 }
