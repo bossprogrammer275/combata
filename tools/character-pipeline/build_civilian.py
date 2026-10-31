@@ -39,7 +39,8 @@ def gender_candidates(paths: list[str], gender: str) -> list[str]:
             matching.append(raw)
         else:
             neutral.append(raw)
-    return matching or neutral or [raw for raw in paths if opposite not in set(norm(Path(raw).as_posix()).split())]
+    # Keep gender-matched assets AND universal assets such as shoes.
+    return matching + neutral
 
 def copy_material_textures(material_path: str, texture_dir: Path) -> list[str]:
     import shutil
