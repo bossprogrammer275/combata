@@ -110,19 +110,6 @@ class Game {
         const urls = data.glbAssets.map(a => a.url).filter(u => u && (u.endsWith('.glb') || u.endsWith('.gltf')));
         if (urls.length) prefetch(urls);
       }
-      // Also prefetch NPC FBX animations in background
-      const fbxUrls = [
-        './data/models/npc/npc1/Walking.fbx',
-        './data/models/npc/npc1/Running.fbx',
-        './data/models/npc/npc1/Idle.fbx',
-        './data/models/npc/npc1/Rifle Aiming Idle.fbx',
-        './data/models/npc/npc1/Walking AIM.fbx',
-        './data/models/npc/npc1/Jump.fbx',
-        './data/models/npc/npc1/Climbing.fbx',
-        './data/models/npc/npc1/Ascending Stairs.fbx',
-        './data/models/npc/npc1/Idle Crouching.fbx',
-      ];
-      prefetch(fbxUrls);
       return data;
     }).catch(() => null);
     requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -174,9 +161,16 @@ class Game {
     this.vehicles = new VehicleSystem(this.scene, this.world, this.camera, this.audio, this.physics);
     this.vehicles.buildFromWorld();
     this.vehicles.setPlayerRef(this.player);
-    const civCount = quality === 'high' ? 8 : (quality === 'medium' ? 5 : 2);
-    this.civilians = new Civilians(this.scene, this.world, civCount, this.world.spawnPoints);
+    setLoad(0.74, 'LOADING CIVILIAN 002…');
+    this.civilians = new Civilians(this.scene, this.world, {
+      quality,
+      physics: this.physics,
+      vehicles: this.vehicles,
+      player: this.player,
+      hud: this.hud,
+    });
     this.civilians.onCasualty = (civ) => this.civilianDown(civ);
+    await this.civilians.ready;
     this.tools = new Tools(this);
     this.godMode = false;
     this._hostileCap = 1;
@@ -465,7 +459,7 @@ class Game {
     this.maxHp = 100;
     this.killChain = { count: 0, timer: 0 };
     this.enemyMgr.clearAll();
-    if (this.civilians) this.civilians.seed(14, this.world.spawnPoints);
+    if (this.civilians) this.civilians.resetPopulation();
     this.weapons.equip(0, true);
     const d0 = this.weapons.defs[0], d1 = this.weapons.defs[1], d2 = this.weapons.defs[2];
     for (const d of [d0, d1, d2]) if (d.state) { d.state.mag = d.mag; d.state.reserve = 240; }
@@ -666,6 +660,8 @@ class Game {
             if (this.vehicles && this.vehicles.driver) {
               this.vehicles.exit(this.player);
               this.audio.stopEngine();
+            } else if (this.civilians && this.player.onGround && !this.player.skydive && this.civilians.tryInteract(this.player)) {
+              // Civilian interaction takes priority over nearby vehicle/tool interaction.
             } else if (this.vehicles && this.player.onGround && !this.player.skydive) {
               const preferred = this.vehicles.preferredVehicle;
               const preferredDistance = preferred && this.vehicles.vehicles.includes(preferred)
@@ -1158,7 +1154,19 @@ class Game {
     } else {
       this.enemyMgr.update(dt, this.player, (dmg, from) => this.damagePlayer(dmg, from), this);
     }
-    this.civilians && this.civilians.update(dt);
+    if (this.civilians) {
+      const shots = this.stats.shotsFired || 0;
+      const playerFired = shots > (this._lastCivilianShotCount || 0);
+      this._lastCivilianShotCount = shots;
+      if (playerFired) this.civilians.fleeFrom(this.player.pos, 25);
+      this.civilians.update(dt, {
+        player: this.player,
+        vehicles: this.vehicles,
+        aiming: this.weapons.adsT > 0.45,
+        camera: this.camera,
+        gunshot: playerFired,
+      });
+    }
     this.tools.update(dt);
     this.input.jump = false;
 

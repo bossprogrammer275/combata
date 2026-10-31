@@ -121,6 +121,9 @@ jobs:
           node --check js/player.js
           node --check js/vehicles.js
           node --check js/civilians.js
+          node --check js/npc-config.js
+          node --check js/npc-character.js
+          node --check tools/verify-npcs.mjs
           node --check js/main.js
           node --check js/textures.js
           node --check tools/process-glbs.js
@@ -129,3 +132,5 @@ jobs:
         run: node tools/verify-collisions.mjs
       - name: Verify vehicle models and Rapier basics
         run: node tools/verify-vehicles.mjs
+      - name: Verify civilian model integration
+        run: node tools/verify-npcs.mjs

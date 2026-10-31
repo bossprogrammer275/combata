@@ -20,6 +20,7 @@ export class Physics {
     this._playerController = null;
     this._vehicleBodies = new Map();
     this._staticBatchBodies = [];
+    this._npcControllers = new Set();
   }
 
   static async init() {
@@ -266,6 +267,69 @@ export class Physics {
 
   isPlayerOnGround() {
     return this._playerController ? this._playerController.computedGrounded() : true;
+  }
+
+  // ===== NPC CHARACTER CONTROLLERS =====
+
+  createNpcController(x, y, z, options = {}) {
+    if (!this.world || !RAPIER) return null;
+    const radius = Math.max(0.16, Number(options.radius) || 0.32);
+    const height = Math.max(radius * 2 + 0.1, Number(options.height) || 1.74);
+    const halfHeight = Math.max(0.05, height * 0.5 - radius);
+    const body = this.world.createRigidBody(
+      RAPIER.RigidBodyDesc.kinematicPositionBased()
+        .setTranslation(x, y, z)
+        .enabledRotations(false, false, false)
+        .setCanSleep(false),
+    );
+    const collider = this.world.createCollider(
+      RAPIER.ColliderDesc.capsule(halfHeight, radius)
+        .setTranslation(0, height * 0.5, 0)
+        .setFriction(0)
+        .setRestitution(0),
+      body,
+    );
+    const controller = this.world.createCharacterController(0.02);
+    controller.enableAutostep(Math.max(0.05, Number(options.stepHeight) || 0.28), 0.35, true);
+    controller.enableSnapToGround(0.32);
+    controller.setApplyImpulsesToDynamicBodies(false);
+    const entry = { body, collider, controller, radius, height, alive: true };
+    this._npcControllers.add(entry);
+    return entry;
+  }
+
+  moveNpcController(entry, dx, dy, dz) {
+    if (!entry?.alive || !entry.body || !entry.controller || !entry.collider) return null;
+    const current = entry.body.translation();
+    entry.controller.computeColliderMovement(entry.collider, {
+      x: Number.isFinite(dx) ? dx : 0,
+      y: Number.isFinite(dy) ? dy : 0,
+      z: Number.isFinite(dz) ? dz : 0,
+    });
+    const movement = entry.controller.computedMovement();
+    const next = {
+      x: current.x + movement.x,
+      y: current.y + movement.y,
+      z: current.z + movement.z,
+    };
+    entry.body.setNextKinematicTranslation(next);
+    return {
+      position: new THREE.Vector3(next.x, next.y, next.z),
+      movement: new THREE.Vector3(movement.x, movement.y, movement.z),
+      grounded: entry.controller.computedGrounded(),
+    };
+  }
+
+  removeNpcController(entry) {
+    if (!entry || !entry.alive) return;
+    entry.alive = false;
+    if (this.world && entry.body) {
+      try { this.world.removeRigidBody(entry.body); } catch {}
+    }
+    if (this.world && entry.controller && this.world.removeCharacterController) {
+      try { this.world.removeCharacterController(entry.controller); } catch {}
+    }
+    this._npcControllers.delete(entry);
   }
 
   // ===== VEHICLE =====

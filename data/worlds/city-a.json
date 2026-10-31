@@ -1903,5 +1903,63 @@
       ],
       "purpose": "elevated traction and stacked-road surface selection"
     }
+  ],
+  "pedestrianRoutes": [
+    {
+      "road": "Southern Ring Street",
+      "sides": [
+        -1,
+        1
+      ]
+    },
+    {
+      "road": "Civic and Market Avenue",
+      "sides": [
+        -1,
+        1
+      ]
+    },
+    {
+      "road": "GRA Central Boulevard",
+      "sides": [
+        -1,
+        1
+      ]
+    },
+    {
+      "road": "Ahmadu Bello Way",
+      "sides": [
+        -1,
+        1
+      ]
+    },
+    {
+      "road": "West GRA Avenue",
+      "sides": [
+        -1,
+        1
+      ]
+    },
+    {
+      "road": "Innovation District Avenue",
+      "sides": [
+        -1,
+        1
+      ]
+    },
+    {
+      "road": "East Business Avenue",
+      "sides": [
+        -1,
+        1
+      ]
+    },
+    {
+      "road": "North Business Link",
+      "sides": [
+        -1,
+        1
+      ]
+    }
   ]
 }
