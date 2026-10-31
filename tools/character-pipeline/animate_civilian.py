@@ -63,20 +63,23 @@ def place_autorig_markers(page):
     symmetry = page.locator('input[name="symmetry"]')
     if symmetry.count():
         try:
-            if not symmetry.is_checked():
+            if symmetry.is_checked():
                 page.locator('label:has(input[name="symmetry"])').click()
                 page.wait_for_timeout(300)
         except Exception as exc:
-            print(f"[Mixamo] Could not enable mirrored marker placement: {exc}")
+            print(f"[Mixamo] Could not disable mirrored marker placement: {exc}")
 
-    # Mixamo's viewer is a front view after the OBJ upload. The points are
-    # normalized to the viewer, not the browser window. Left-side marker IDs
-    # are the character's own left, i.e. the viewer's right.
+    # Mixamo's viewer is a front view after the OBJ upload. Coordinates are
+    # normalized to the marker canvas, not the browser window. Place both
+    # sides explicitly so the result does not depend on symmetry behaviour.
     targets = {
         "chin": (0.50, 0.16),
         "larm": (0.75, 0.26),
+        "rarm": (0.25, 0.26),
         "lelbow": (0.64, 0.27),
+        "relbow": (0.36, 0.27),
         "lknee": (0.55, 0.72),
+        "rknee": (0.45, 0.72),
         "groin": (0.50, 0.53),
     }
 
@@ -98,6 +101,17 @@ def place_autorig_markers(page):
         page.mouse.move(target_x, target_y, steps=24)
         page.mouse.up()
         page.wait_for_timeout(350)
+
+        placed_box = marker.bounding_box()
+        if not placed_box:
+            raise RuntimeError(f"Could not verify placement of Mixamo marker #{marker_id}.")
+        placed_x = placed_box["x"] + placed_box["width"] / 2
+        placed_y = placed_box["y"] + placed_box["height"] / 2
+        if abs(placed_x - target_x) > 28 or abs(placed_y - target_y) > 28:
+            raise RuntimeError(
+                f"Mixamo marker #{marker_id} did not reach its target "
+                f"(actual {placed_x:.0f},{placed_y:.0f}; target {target_x:.0f},{target_y:.0f})."
+            )
         print(f"[Mixamo] Placed {marker_id}: ({nx:.2f}, {ny:.2f})")
 
     screenshot = OUT / "mixamo_markers_placed.png"
