@@ -151,12 +151,14 @@ if (-not $NoCommit) {
 }
 
 Write-Host ""
-Write-Host "GENERATION PIPELINE FINISHED." -ForegroundColor Green
-Write-Host "Output: $outputPath" -ForegroundColor Green
-Write-Host "Manifest: $(Join-Path $outputPath 'manifest.json')" -ForegroundColor Green
-Write-Host "Bundle: $(Join-Path $outputPath 'civilian_001_bundle.zip')" -ForegroundColor Green
+Write-Host "Output: $outputPath"
+Write-Host "Manifest: $(Join-Path $outputPath 'manifest.json')"
+Write-Host "Bundle: $(Join-Path $outputPath 'civilian_001_bundle.zip')"
 $generatedCommit = (& git -C $root rev-parse HEAD).Trim()
 Write-Host "Generated asset commit: $generatedCommit" -ForegroundColor Cyan
 if ($mixamoExitCode -ne 0) {
-    Write-Warning "The MakeHuman source and partial bundle were saved. Check manifest.json for Mixamo failures before rerunning the animation stage."
+    Write-Host "PARTIAL GENERATION: the MakeHuman mesh and partial bundle were saved, but Mixamo did not complete." -ForegroundColor Yellow
+    Write-Warning "Check manifest.json and any Mixamo diagnostics before considering this character ready."
+    exit 1
 }
+Write-Host "GENERATION PIPELINE COMPLETE." -ForegroundColor Green
