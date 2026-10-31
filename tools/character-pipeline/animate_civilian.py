@@ -143,9 +143,6 @@ def place_autorig_markers(page):
                 "rknee": ("Right Knee", "Right knee"),
                 "groin": ("Groin",),
             }
-            marker = page.locator(".autorig-overlay .autorig-marker").filter(
-                has=page.locator("[data-cooltip]")
-            )
             matching = None
             for candidate in page.locator(".autorig-overlay .autorig-marker").all():
                 try:
