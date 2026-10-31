@@ -26,6 +26,21 @@ def choose(paths: list[str], terms: list[str], reject: list[str] | None = None) 
     ranked.sort(key=lambda item: (-item[0], norm(Path(item[1]).name)))
     return ranked[0][1] if ranked else None
 
+def gender_candidates(paths: list[str], gender: str) -> list[str]:
+    """Prefer matching gender-specific assets and never cross-select the opposite gender."""
+    opposite = "female" if gender == "male" else "male"
+    matching = []
+    neutral = []
+    for raw in paths:
+        tokens = set(norm(Path(raw).as_posix()).split())
+        if opposite in tokens:
+            continue
+        if gender in tokens:
+            matching.append(raw)
+        else:
+            neutral.append(raw)
+    return matching or neutral or [raw for raw in paths if opposite not in set(norm(Path(raw).as_posix()).split())]
+
 def copy_material_textures(material_path: str, texture_dir: Path) -> list[str]:
     import shutil
     source = Path(material_path)
@@ -114,9 +129,10 @@ def main() -> int:
             print(f"[MakeHuman] Warning: could not list {kind}: {exc}")
 
     skin_terms = terms(args.skin)
-    skin = choose(available["skins"], skin_terms) if skin_terms else None
-    if skin is None and available["skins"] and skin_terms:
-        skin = choose(available["skins"], ["young", "adult"], ["old", "elder", "fantasy"])
+    gender_skins = gender_candidates(available["skins"], args.gender)
+    skin = choose(gender_skins, skin_terms + [args.gender]) if skin_terms else None
+    if skin is None and gender_skins:
+        skin = choose(gender_skins, ["african", args.gender], ["old", "elder", "fantasy"])
     if skin:
         human.set_skin(skin)
         selected["skin"] = skin
@@ -145,37 +161,51 @@ def main() -> int:
                 print(f"[MakeHuman] Warning: {kind} not equipped: {exc}")
 
     clothes = available["clothes"]
-    clothing_roles = {
-        "top": (terms(args.top), ["dress", "suit", "uniform", "armor", "bikini"]),
-        "bottom": (terms(args.bottom), ["dress", "skirt", "shorts"]),
-        "shoes": (terms(args.shoes), ["heels", "boots"]),
-    }
-    used = set()
-    for role, (role_terms, reject) in clothing_roles.items():
-        match = choose([p for p in clothes if p not in used], role_terms, reject)
-        if match:
-            try:
-                human.equip_clothes(match)
-                used.add(match)
-                selected[role] = match
-                print(f"[MakeHuman] {role}: {Path(match).name}")
-            except Exception as exc:
-                print(f"[MakeHuman] Warning: {role} clothing failed: {exc}")
-    if not used and clothes:
-        casual = choose(clothes, ["casual", "everyday", "street", "male"], ["dress", "bikini", "armor", "fantasy"])
-        fallback = casual or sorted(clothes, key=lambda p: norm(Path(p).name))[0]
+    gender_clothes = gender_candidates(clothes, args.gender)
+    shoe_assets = [
+        path for path in gender_clothes
+        if any(term in norm(Path(path).name) for term in ("shoe", "sneaker", "trainer", "footwear"))
+    ]
+    shoes = choose(shoe_assets, terms(args.shoes) + ["shoe", "shoes"]) if shoe_assets else None
+
+    # This MakeHuman install provides complete casual-suit proxies rather than
+    # separate T-shirt and jeans pieces. Equip one gender-matched outfit plus
+    # a separate neutral shoe proxy; never substitute a female outfit.
+    outfit_assets = [path for path in gender_clothes if path not in shoe_assets]
+    outfit = choose(
+        outfit_assets,
+        terms(args.top) + terms(args.bottom) + ["casual", args.gender],
+        ["dress", "bikini", "armor", "fantasy", "uniform"]
+    )
+    if outfit is None and outfit_assets:
+        outfit = choose(outfit_assets, [args.gender], ["dress", "bikini", "armor", "fantasy", "uniform"])
+
+    if outfit:
         try:
-            human.equip_clothes(fallback)
-            used.add(fallback)
-            selected["outfit"] = fallback
-            print(f"[MakeHuman] Outfit fallback: {Path(fallback).name}")
+            human.equip_clothes(outfit)
+            selected["outfit"] = outfit
+            print(f"[MakeHuman] Outfit: {Path(outfit).name}")
         except Exception as exc:
-            print(f"[MakeHuman] WARNING: no clothing could be equipped: {exc}")
+            print(f"[MakeHuman] WARNING: outfit could not be equipped: {exc}")
+    else:
+        print(f"[MakeHuman] WARNING: no {args.gender}-compatible outfit found.")
+
+    if shoes:
+        try:
+            human.equip_clothes(shoes)
+            selected["shoes"] = shoes
+            print(f"[MakeHuman] Shoes: {Path(shoes).name}")
+        except Exception as exc:
+            print(f"[MakeHuman] Warning: shoes could not be equipped: {exc}")
+    else:
+        print("[MakeHuman] WARNING: no shoe proxy matched; default footwear retained.")
 
     native_path = OUT / "civilian_001.mhm"
     fbx_path = OUT / "civilian_001_source.fbx"
     saved = human.save_mhm(str(native_path))
-    exported = human.export(str(fbx_path), format="fbx", rig="deform", feet_on_ground=True)
+    # Mixamo Auto-Rigger expects a clean mesh without an incompatible pre-bound armature.
+    # It creates the game skeleton itself during the upload stage.
+    exported = human.export(str(fbx_path), format="fbx", rig="none", feet_on_ground=True)
 
     copied_textures = []
     if selected.get("skin"):
@@ -188,12 +218,13 @@ def main() -> int:
         "ageTarget": age,
         "body": {"gender": args.gender, "weight": args.weight, "muscle": args.muscle, "heightMacro": args.height},
         "source": "MakeHuman core",
-        "skeleton": "MakeHuman deform export; Mixamo stage pending",
+        "skeleton": "Unrigged MakeHuman mesh; submitted to Mixamo Auto-Rigger",
         "sourceModel": str(Path(exported).resolve().relative_to(ROOT)).replace("\\", "/"),
         "nativeProject": str(Path(saved).resolve().relative_to(ROOT)).replace("\\", "/"),
         "selectedAssets": selected,
         "availableAssetCounts": {key: len(value) for key, value in available.items()},
         "availableClothing": [str(Path(p)) for p in clothes],
+        "wardrobeNote": "The installed MakeHuman asset pack supplies complete casual-suit proxies, not separate T-shirt and jeans pieces.",
         "copiedTextures": copied_textures,
         "animations": {},
         "status": "character-generated-awaiting-mixamo"
