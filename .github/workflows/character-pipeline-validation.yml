@@ -30,14 +30,17 @@ jobs:
         run: |
           python -m py_compile tools/character-pipeline/animate_civilian.py
           python -m py_compile tools/character-pipeline/build_civilian.py
-      - name: Ensure Mixamo marker automation is enabled
+      - name: Ensure manual rigging and console-picked animation downloads are enabled
         run: |
           python - <<'PY'
           from pathlib import Path
           source = Path("tools/character-pipeline/animate_civilian.py").read_text(encoding="utf-8")
-          assert "def auto_place_mixamo_markers(page):" in source
-          assert "wait_for_manual_marker_placement" not in source
-          assert "MANUAL MIXAMO MARKER PLACEMENT REQUIRED" not in source
-          assert "next_button.click()" in source
-          print("Automatic marker placement is present; manual marker waiting is absent.")
+          assert "def wait_for_manual_marker_placement(page" in source
+          assert "MANUAL MIXAMO RIGGING REQUIRED" in source
+          assert "auto_place_mixamo_markers" not in source
+          assert "_png_character_mask" not in source
+          assert "def prompt_animation_selection(page, animations_mod, job)" in source
+          assert "Choose 1-" in source
+          assert "download_mod.confirm(page, str(output_path))" in source
+          print("Manual Mixamo rigging, console animation selection and explicit output-path downloads are enabled.")
           PY
