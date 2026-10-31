@@ -481,7 +481,7 @@ export class Civilians {
   async initialize() {
     await preloadNpcBase(C.modelId);
     // Load every real clip from civilian_002's manifest, not only locomotion.
-    await preloadNpcAnimations(C.modelId, Object.keys(C.model.animations || {}));
+    await preloadNpcAnimations(C.modelId);
     this.buildRoutes();
     this.createUi();
     this.populateInitial();
@@ -560,9 +560,9 @@ export class Civilians {
 
   startConversation(npc) {
     if (!npc || !npc.alive) return false;
-    this.currentConversation = npc;
     const opening = npc.greet(this.player);
     if (!opening) return false;
+    this.currentConversation = npc;
     const choices = [
       { label: "Ask for directions", onClick: () => this.chooseDialogue(0) },
       { label: "Ask about the city", onClick: () => this.chooseDialogue(1) },
