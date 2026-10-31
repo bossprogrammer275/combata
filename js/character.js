@@ -22,7 +22,6 @@ const ANIM_URLS = {
   sitDown: MODEL.animations.sit_down,
 };
 const CROUCH_DROP = 0.30;
-const BLEND = 0.18;
 const loader = new FBXLoader();
 let _baseGroup = null;
 let _clips = {};
@@ -184,7 +183,7 @@ export const WEAPON_POSES = {
 
 export class Character {
   constructor(appearance = {}) {
-    this.appearance = Object.assign({ weaponType: 'rifle', weaponTint: [0.18, 0.18, 0.20] }, appearance);
+    this.appearance = Object.assign({ weaponType: 'rifle', weaponTint: [0.18, 0.18, 0.20], modelYawOffset: Math.PI, runThreshold: 0.48 }, appearance);
     this.root = new THREE.Group();
     this.root.name = 'Character_civilian_002';
     this.weaponType = this.appearance.weaponType || 'rifle';
@@ -244,14 +243,17 @@ export class Character {
     for (const [key, clip] of Object.entries(_clips)) {
       const action = this._mixer.clipAction(clip, clone);
       action.enabled = true;
-      action.setEffectiveWeight(0);
+      const oneShot = key === 'jump';
+      action.setLoop(oneShot ? THREE.LoopOnce : THREE.LoopRepeat, oneShot ? 1 : Infinity);
+      action.clampWhenFinished = oneShot;
+      action.reset();
+      action.setEffectiveWeight(key === 'idle' ? 1 : 0);
       action.play();
       const actionName = aliases[key] || key;
       this._actions[actionName] = action;
     }
     // Traversal/ladder/stair clips are not part of this character's approved set.
     // Their gameplay state uses the civilian_002 walk/run cycle instead.
-    if (this._actions.idle) this._actions.idle.setEffectiveWeight(1);
     this._isBuilt = true;
     if (this._pendingState) {
       const state = this._pendingState;
@@ -283,20 +285,22 @@ export class Character {
     this.root.visible = !this._firstPerson;
   }
 
-  setState(state) {
+  setState(state, dt = 1 / 60) {
+    const yaw = Number.isFinite(state.yaw) ? state.yaw : 0;
+    const yawOffset = Number.isFinite(this.appearance.modelYawOffset) ? this.appearance.modelYawOffset : Math.PI;
     if (!this._isBuilt) {
       this._pendingState = Object.assign({}, state);
-      this.root.position.set(state.x, state.y, state.z);
-      this.root.rotation.y = state.yaw + Math.PI;
+      this.root.position.set(state.x || 0, state.y || 0, state.z || 0);
+      this.root.rotation.y = yaw + yawOffset;
       return;
     }
     this.root.position.set(state.x, state.y, state.z);
-    this.root.rotation.y = state.yaw + Math.PI;
+    this.root.rotation.y = yaw + yawOffset;
     if (this._firstPerson) this.root.visible = false;
-    this.applyPose(state);
+    this.applyPose(state, dt);
   }
 
-  applyPose(state = {}) {
+  applyPose(state = {}, dt = 1 / 60) {
     if (!this._mixer || !this._model) return;
     const moving = Math.hypot(state.moveX || 0, state.moveZ || 0) > 0.05 || (state.speed || 0) > 0.15;
     const sprinting = state.sprint > 0.5;
@@ -313,29 +317,36 @@ export class Character {
     else if (state.climbing > 0.5 || state.stairClimb > 0.5) weights.walk = moving ? 1 : 0;
     else if (moving && crouching) weights.crouchWalk = 1;
     else if (moving && sprinting) weights.sprint = 1;
+    else if (moving && speed >= this.appearance.runThreshold) weights.run = 1;
     else if (moving) weights.walk = 1;
     else if (crouching) weights.crouch = 1;
     else weights.idle = 1;
 
     // Aiming is an additive arm pose over the civilian_002 locomotion clip.
     this._pendingWeaponPose = { aiming, moving };
+    const blend = 1 - Math.exp(-Math.max(0, Math.min(dt, 0.1)) * 17);
     for (const [name, action] of Object.entries(this._actions)) {
       const target = weights[name] || 0;
-      if (justJumped && name === 'jump') action.time = 0;
       const current = action.getEffectiveWeight();
-      action.setEffectiveWeight(current + (target - current) * BLEND);
+      if (target > 0 && current < 0.002) {
+        action.reset();
+        action.enabled = true;
+        action.play();
+      }
+      if (justJumped && name === 'jump') action.reset();
+      action.setEffectiveWeight(current + (target - current) * blend);
       if (target > 0) action.setEffectiveTimeScale(
-        name === 'sprint' ? THREE.MathUtils.clamp(speed * 2.1, 1.0, 1.35)
-          : name === 'run' ? THREE.MathUtils.clamp(speed * 1.7, 0.8, 1.25)
-            : name === 'walk' || name === 'crouchWalk' ? THREE.MathUtils.clamp(speed * 2.2, 0.75, 1.2) : 1
+        name === 'sprint' ? THREE.MathUtils.clamp(speed * 2.1, 0.92, 1.32)
+          : name === 'run' ? THREE.MathUtils.clamp(speed * 2.0, 0.82, 1.28)
+            : name === 'walk' || name === 'crouchWalk' ? THREE.MathUtils.clamp(speed * 2.2, 0.68, 1.2) : 1
       );
     }
     const targetCrouchY = crouching ? -CROUCH_DROP : 0;
-    this._crouchY += (targetCrouchY - this._crouchY) * 0.18;
+    this._crouchY += (targetCrouchY - this._crouchY) * blend;
     this._model.position.y = this._crouchY;
   }
 
-  applyWeaponPose() {
+  applyWeaponPose(dt = 1 / 60) {
     if (!this._weaponBones?.length) return;
     const selected = WEAPON_POSES[this.weaponType] || WEAPON_POSES.rifle;
     const pose = this._pendingWeaponPose.aiming ? selected.aim : selected.hip;
@@ -349,13 +360,13 @@ export class Character {
       if (!value) continue;
       const delta = new THREE.Quaternion().setFromEuler(new THREE.Euler(value[0], value[1], value[2]));
       const desired = entry.rest.clone().multiply(delta);
-      entry.bone.quaternion.slerp(desired, 0.18);
+      entry.bone.quaternion.slerp(desired, 1 - Math.exp(-Math.max(0, Math.min(dt, 0.1)) * 18));
     }
   }
 
   update(dt) {
     if (this._mixer) this._mixer.update(dt);
-    this.applyWeaponPose();
+    this.applyWeaponPose(dt);
   }
 
   setRestPose() {}
