@@ -11,7 +11,7 @@
   },
   "source": "MakeHuman core",
   "skeleton": "Unrigged MakeHuman mesh; submitted to Mixamo Auto-Rigger",
-  "sourceModel": "data/models/npc/civilian_001/civilian_001_source.fbx",
+  "sourceModel": "data/models/npc/civilian_001/civilian_001_source.obj",
   "nativeProject": "data/models/npc/civilian_001/civilian_001.mhm",
   "selectedAssets": {
     "skin": "C:/Users/Ismail/Desktop/games/combata/tools/makehuman-core/data/skins\\middleage_african_male\\middleage_african_male.mhmat",
@@ -60,10 +60,9 @@
   ],
   "animations": {},
   "status": "mixamo-upload-failed",
-  "mixamoUploadError": "Mixamo kept the marker-placement step open after submitting its default landmark positions. See mixamo_upload_debug.png/html in the output folder.",
-  "mixamoUploadDiagnostics": [
-    "mixamo_upload_debug.html",
-    "mixamo_upload_debug.png",
-    "mixamo_upload_debug.txt"
-  ]
+  "mixamoSourceModel": "data/models/npc/civilian_001/civilian_001_source.obj",
+  "mixamoSourceBundle": "data/models/npc/civilian_001/civilian_001_mixamo_source.zip",
+  "mixamoSourceFormat": "OBJ, native MakeHuman Y-up coordinates",
+  "mixamoUploadError": "Mixamo marker #chin was not found.",
+  "mixamoUploadDiagnostics": []
 }
