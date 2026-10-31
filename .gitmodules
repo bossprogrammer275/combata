@@ -1,0 +1,6 @@
+[submodule "tools/makehuman-core"]
+	path = tools/makehuman-core
+	url = https://github.com/vidya-hub/makehuman-core.git
+[submodule "tools/mixamo-mcp"]
+	path = tools/mixamo-mcp
+	url = https://github.com/V1xel/mixamo-mcp.git

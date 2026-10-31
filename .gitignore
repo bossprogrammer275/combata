@@ -1,1 +1,6 @@
 node_modules
+tools/makehuman-core/.venv/
+tools/mixamo-mcp/.venv/
+tools/mixamo-mcp/browser_profile/
+tools/mixamo-mcp/page_dump.html
+tools/**/__pycache__/
