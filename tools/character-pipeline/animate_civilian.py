@@ -560,9 +560,9 @@ def main():
         manifest.pop("mixamoUploadError", None)
         manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
-        # Export the actual newly rigged character; do not search for a fake T-pose motion.
+        # Export the newly rigged character without selecting any animation.
         base_path = OUT / "civilian_001_rigged.fbx"
-        print("[Mixamo] Downloading the rigged character in its rest pose...")
+        print("[Mixamo] Downloading the unanimated rigged character with skin...")
         try:
             saved_base = download_clip(
                 page, download_mod, animations_mod, base_path, True, False, args.fps,
@@ -572,9 +572,9 @@ def main():
                 "file": Path(saved_base).name,
                 "includesSkin": True,
                 "fps": args.fps,
-                "restPose": True,
+                "unanimated": True,
             }
-            print("[Mixamo] Rigged character model downloaded and verified.")
+            print("[Mixamo] Unanimated rigged character downloaded and verified.")
         except Exception as exc:
             errors.append(f"riggedModel: base character download failed: {exc}")
             print(f"[Mixamo] FATAL: could not download the rigged character: {exc}")
@@ -613,6 +613,17 @@ def main():
             except Exception as exc:
                 errors.append(f"{job['key']}: download failed: {exc}")
                 print(f"[Mixamo] ERROR {job['key']}: {exc}")
+
+            # Persist each approved/verified selection immediately so a later
+            # interrupted run does not lose the exact animation IDs already used.
+            progress_manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {"id": "civilian_001"}
+            progress_manifest["riggedModel"] = downloads.get("riggedModel", {}).get("file")
+            progress_manifest["animations"] = downloads
+            progress_manifest["animationSelections"] = selections
+            progress_manifest["animationErrors"] = errors
+            progress_manifest["status"] = "animation-generation-in-progress"
+            manifest_path.write_text(json.dumps(progress_manifest, indent=2), encoding="utf-8")
+
         manifest_path = OUT / "manifest.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {"id": "civilian_001"}
         manifest["riggedModel"] = downloads.get("riggedModel", {}).get("file")
