@@ -144,6 +144,18 @@ def main() -> int:
         human = mhcore.new_human()
         human.load_mhm(str(native_path))
         obj_path, bundle_path = export_mixamo_obj(human)
+        # Remove diagnostics and state from a previous failed attempt; this
+        # run will write fresh files if Mixamo fails again.
+        for stale_name in (
+            "mixamo_upload_debug.html",
+            "mixamo_upload_debug.png",
+            "mixamo_upload_debug.txt",
+            "mixamo_markers_placed.png",
+        ):
+            stale_path = OUT / stale_name
+            if stale_path.is_file():
+                stale_path.unlink()
+
         manifest_path = OUT / "manifest.json"
         if manifest_path.is_file():
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -151,6 +163,11 @@ def main() -> int:
             manifest["mixamoSourceModel"] = str(obj_path.relative_to(ROOT)).replace("\\", "/")
             manifest["mixamoSourceBundle"] = str(bundle_path.relative_to(ROOT)).replace("\\", "/")
             manifest["mixamoSourceFormat"] = "OBJ, native MakeHuman Y-up coordinates"
+            manifest["animations"] = {}
+            manifest.pop("riggedModel", None)
+            manifest.pop("animationErrors", None)
+            manifest.pop("mixamoUploadError", None)
+            manifest.pop("mixamoUploadDiagnostics", None)
             manifest["status"] = "character-generated-awaiting-mixamo"
             manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         print("[MakeHuman] EXISTING CHARACTER EXPORTED FOR MIXAMO")
