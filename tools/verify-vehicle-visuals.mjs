@@ -18,6 +18,7 @@ const server=spawn(process.execPath,['server.js'],{
 let browser=null;
 let failures=0;
 const errors=[];
+const reportWheelSummary=[];
 function check(name,condition,detail=''){
   if(condition)console.log(`PASS ${name}${detail?' · '+detail:''}`);
   else{failures++;console.error(`FAIL ${name}${detail?' · '+detail:''}`);}
@@ -59,6 +60,43 @@ try{
     const base=await page.evaluate(async kind=>await window.__vehicleVisualTest.load(kind),spec.kind);
     check(spec.kind+' loads through the actual VehicleSystem',base.meshCount>0,'meshes='+base.meshCount);
     check(spec.kind+' has four road-wheel rigs',base.wheelCount===4,'wheels='+base.wheelCount);
+    const wheelDiagnostics=base.wheelDiagnostics;
+    const expectedQuadrants=['front-left','front-right','rear-left','rear-right'];
+    check(spec.kind+' detector selects one wheel in each corner',
+      wheelDiagnostics.selectedWheelCount===4
+      && expectedQuadrants.every(q=>wheelDiagnostics.selectedWheels.some(w=>w.quadrant===q)),
+      'candidates='+wheelDiagnostics.candidateCount+' attached meshes='+wheelDiagnostics.attachedWheelMeshCount);
+    check(spec.kind+' every selected wheel has actual GLB meshes attached',
+      wheelDiagnostics.selectedWheels.every(w=>w.meshCount>0),
+      wheelDiagnostics.selectedWheels.map(w=>w.quadrant+':'+w.meshCount).join(', '));
+    if(spec.kind==='cybertruck'){
+      check('Cybertruck applies its larger 0.45m wheel-member grouping radius only to this model',
+        Math.abs(wheelDiagnostics.wheelMemberRadius-0.45)<1e-9
+          && wheelDiagnostics.selectedWheels.every(w=>w.meshCount>=12),
+        'radius='+wheelDiagnostics.wheelMemberRadius+' members='+wheelDiagnostics.selectedWheels.map(w=>w.meshCount).join('/'));
+    }else if(spec.kind==='lambo'){
+      check('Lamborghini keeps the tighter 0.30m wheel-member grouping radius',
+        Math.abs(wheelDiagnostics.wheelMemberRadius-0.30)<1e-9,
+        'radius='+wheelDiagnostics.wheelMemberRadius);
+    }
+    console.log('WHEEL DETECTOR '+JSON.stringify({
+      kind:spec.kind,
+      candidateSizeLimit:wheelDiagnostics.candidateSizeLimit,
+      wheelMemberMaxSize:wheelDiagnostics.wheelMemberMaxSize,
+      selectedWheels:wheelDiagnostics.selectedWheels,
+      rejectedBySizeOrShape:wheelDiagnostics.meshes.filter(m=>m.rejectedReasons.some(reason=>/size|diameter|round|thin-axled/.test(reason))).map(m=>({name:m.name,size:m.size,sideDiameter:m.sideDiameter,reasons:m.rejectedReasons})),
+      candidatesNotAttached:wheelDiagnostics.meshes.filter(m=>m.candidate&&!m.attachedToWheel).map(m=>({name:m.name,size:m.size,center:m.center})),
+      nearbyRejectedWheelParts:wheelDiagnostics.nearWheelExcludedMeshes,
+    }));
+    await page.evaluate(()=>window.__vehicleVisualTest.showWheelOverview());
+    const wheelOverviewShot=await capture(page,spec.prefix+'-wheel-detector-overview');
+    const wheelCloseupShots=[];
+    for(const quadrant of expectedQuadrants){
+      const detail=await page.evaluate(q=>window.__vehicleVisualTest.focusWheel(q),quadrant);
+      const shot=await capture(page,spec.prefix+'-wheel-'+quadrant);
+      wheelCloseupShots.push({detail,file:shot});
+    }
+    reportWheelSummary.push({kind:spec.kind,wheelOverviewShot,wheelCloseupShots});
     check(spec.kind+' uses its own driver eye height',Math.abs(base.height-spec.expectedHeight)<1e-6,`height=${base.height}m`);
     check(spec.kind+' camera eye point stays below the roofline',
       base.rootDimensions.y-base.height>0.12,
@@ -100,7 +138,8 @@ try{
     }
     const report=await page.evaluate(()=>window.__vehicleVisualTest.details());
     await fs.writeFile(path.join(OUT,spec.prefix+'-report.json'),JSON.stringify({
-      base,exterior,interior,cabinModelDetails:report.report.vehicles[spec.kind],
+      base,exterior,interior,wheelDiagnostics, wheelOverviewShot,wheelCloseupShots,
+      cabinModelDetails:report.report.vehicles[spec.kind],
     },null,2));
     console.log('SCREENSHOTS '+JSON.stringify([outsideShot,insideShot]));
   }
@@ -114,6 +153,7 @@ try{
     status:failures===0?'passed':'failed',
     failures,
     screenshots:['lamborghini-exterior.png','lamborghini-interior.png','cybertruck-exterior.png','cybertruck-interior.png'],
+    wheelScreenshots:reportWheelSummary,
     browserErrors:[...errors,...browserErrors],
   },null,2));
 }catch(error){
