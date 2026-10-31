@@ -2,7 +2,7 @@
 
 Run this from the combata repository root:
 
-    .\tools\character-pipeline\generate-civilian.bat -Age 21 -Gender male -Weight 0.54 -Muscle 0.62 -Height 0.60 -Skin "african,dark,brown,black" -Hair "short,fade,buzz" -Top "t shirt,polo,tee" -Bottom "jeans,denim" -Shoes "sneakers,trainers" -Animations "idle,walk,run,sprint,jump,crouch_idle,crouch_walk,talk,phone,sit_idle,hit_reaction,fall_death,get_up" -Fps 30
+    .\tools\character-pipeline\generate-civilian.bat -Age 21 -Gender male -Weight 0.54 -Muscle 0.62 -Height 0.60 -Skin "african,dark,brown,black" -Hair "short,fade,buzz" -Top "t shirt,polo,tee" -Bottom "jeans,denim" -Shoes "sneakers,trainers" -Animations "idle,walk,run,sprint,jump,crouch_idle,crouch_walk,talk,phone,sit_idle,sit_down,stand_up,look_around,work_idle,wave,hit_reaction,fear_reaction,flee_run,fall_death,get_up" -Fps 30
 
 Print usage:
 
@@ -24,6 +24,13 @@ Animation keys:
 - hit_reaction
 - fall_death
 - get_up
+- look_around
+- work_idle
+- wave
+- sit_down
+- stand_up
+- fear_reaction
+- flee_run
 
 Aliases:
 - crouch = crouch_idle + crouch_walk
