@@ -619,6 +619,18 @@ class Game {
         return;
       }
       if (e.repeat) return;
+      if (this.state === 'playing' && this.civilians?.currentConversation) {
+        if (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3') {
+          e.preventDefault();
+          this.civilians.chooseDialogue(Number(e.code.slice(-1)) - 1);
+          return;
+        }
+        if (e.code === 'Escape') {
+          e.preventDefault();
+          this.civilians.closeConversation();
+          return;
+        }
+      }
       switch (e.code) {
         case 'ShiftLeft': case 'ShiftRight': I.sprint = true; break;
         case 'KeyC': case 'ControlLeft': I.crouch = true; e.preventDefault(); break;
