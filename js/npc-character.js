@@ -82,6 +82,12 @@ async function loadAnimation(modelId, key) {
       const clip = group.animations?.[0];
       if (!clip || !clip.tracks?.length) throw new Error("Mixamo FBX has no tracks: " + key);
       clip.name = key;
+      if (NPC_MODELS[modelId].inPlace.includes(key)) {
+        for (let i = clip.tracks.length - 1; i >= 0; i--) {
+          const track = clip.tracks[i];
+          if (track.name.toLowerCase().includes("hips") && track.name.endsWith(".position")) clip.tracks.splice(i, 1);
+        }
+      }
       clip.optimize();
       group.traverse((node) => {
         if (node.geometry) node.geometry.dispose();
