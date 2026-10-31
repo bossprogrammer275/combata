@@ -478,7 +478,7 @@ def wait_upload_complete(page, get_upload_status, confirm_review, api_status_eve
 
     final_html = page.content()
     recent_events = api_status_events[api_event_start:]
-    api_status = recent_events[-1]["status"] if recent_events else None
+    api_status = next((event.get("status") for event in reversed(recent_events) if event.get("status")), None)
     final_status = classify_upload_status(
         final_html, get_upload_status,
         autorig_started=marker_submit_attempted,
