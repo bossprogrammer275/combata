@@ -127,6 +127,28 @@ Check all four detected wheel pivots:
 
 Do not loosen the detector's rules just to force four results. If a model has unusual wheel naming or split geometry, correct the asset hierarchy or add a vehicle-specific classification rule and verify it against the real model.
 
+### Mandatory wheel-detector screenshot calibration
+
+**Do this for every incoming vehicle before accepting its four wheel pivots.** Do not use another car's wheel dimensions as a universal threshold. The Tesla Cybertruck's tyre/wheel assembly is larger and split across more GLB meshes than the sports-car asset, so its mesh-member grouping has to be evaluated against its own screenshots and measurements.
+
+1. Register the new model in `CAR_MODELS` and add its vehicle key to the `configs` array in `tools/verify-vehicle-visuals.mjs` with its own target camera height and screenshot prefix.
+2. Install Chromium once, then run the same real-model visual test used in CI:
+
+   ```bash
+   pnpm exec playwright install chromium
+   node tools/verify-vehicle-visuals.mjs
+   ```
+
+3. Open the generated wheel screenshots under `artifacts/vehicle-visual-test/`. For every vehicle, the test captures:
+   - `<vehicle>-wheel-detector-overview.png`: all four detected wheel groups outlined on the actual car.
+   - `<vehicle>-wheel-front-left.png`, `-front-right.png`, `-rear-left.png`, and `-rear-right.png`: a close-up of each detected corner.
+   - `<vehicle>-report.json`: measured wheel bounds, centres, selected mesh names, attached mesh counts, and detector limits.
+4. Check that each coloured outline follows the tyre tread/sidewall and its rim/hub, not the fender, bumper, underbody or nearby suspension/body panel. Confirm that exactly one wheel is selected in each of the four corners and that every wheel's split meshes stay together.
+5. If any tyre mesh is missing, use the report's candidate size, centre and rejection reason to identify which limit excluded it. Tune `wheelCandidateMaxSize`, `wheelMemberMaxSize`, `wheelMemberRadius` or `wheelMemberHeightTolerance` in `getWheelClassificationOptions(kind)` for that vehicle only. Do **not** raise the global threshold to accommodate a larger Tesla wheel; that can make body panels look like wheels on smaller cars.
+6. Re-run the visual test and inspect the new overview and all four close-ups after every threshold change. Do not accept the vehicle until the screenshots clearly show the four real tyre assemblies and the automated test reports four selected wheels.
+
+The CI workflow uploads these temporary screenshots and reports as a one-day artifact. The local run writes them only to `artifacts/vehicle-visual-test/`; delete that folder when the review is complete.
+
 ## 6. Find and animate the steering wheel
 
 The steering wheel is **not** one of the four road wheels. It must have a separate pivot and must never be placed inside a tyre spinner.
