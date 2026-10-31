@@ -151,8 +151,8 @@ def main() -> int:
         "shoes": (terms(args.shoes), ["heels", "boots"]),
     }
     used = set()
-    for role, (terms, reject) in clothing_roles.items():
-        match = choose([p for p in clothes if p not in used], terms, reject)
+    for role, (role_terms, reject) in clothing_roles.items():
+        match = choose([p for p in clothes if p not in used], role_terms, reject)
         if match:
             try:
                 human.equip_clothes(match)
