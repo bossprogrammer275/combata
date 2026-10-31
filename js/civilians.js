@@ -85,6 +85,7 @@ export class Civilian {
     if (this.fleeT <= 0) this.fleeFromPos = source.clone();
     this._releaseObject();
     this.interactionT = 0;
+    if (this.manager.currentConversation === this) this.manager.closeConversation();
     this.manager.endSocial(this);
     this.fleeT = Math.max(this.fleeT, P.fleeSeconds);
     this.fearT = 0;
@@ -314,6 +315,10 @@ export class Civilian {
 
     if (this.isAimedAt(context) && player && playerDistance < P.aimPanicRadius && this.fleeT <= 0 && this.fearT <= 0) {
       this.fearT = 0.55;
+      this._releaseObject();
+      this.manager.endSocial(this);
+      this.interactionT = 0;
+      if (this.manager.currentConversation === this) this.manager.closeConversation();
       this.state = "fear";
       this.ch.play("crouch_idle", { loop: true });
     }
