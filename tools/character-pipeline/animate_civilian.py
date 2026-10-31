@@ -210,24 +210,13 @@ def save_marker_diagnostics(page, reason):
         print(f"[Mixamo] Could not save marker diagnostics: {exc}")
 
 
-def wait_for_manual_marker_placement(page, timeout=900):
-    """Wait for the user to place all eight Mixamo landmarks and click Next."""
+def wait_for_manual_marker_placement(page):
+    """Wait for explicit console confirmation after the user manually submits Mixamo landmarks."""
     OUT.mkdir(parents=True, exist_ok=True)
     try:
         page.bring_to_front()
     except Exception:
         pass
-
-    overlay = page.locator(".autorig-overlay")
-    modal = page.locator(".autorig-modal")
-    overlay.wait_for(state="visible", timeout=30_000)
-
-    marker_count = overlay.locator(".autorig-marker").count()
-    if marker_count != 8:
-        reason = f"Expected 8 Mixamo landmarks, but found {marker_count}."
-        save_marker_diagnostics(page, reason)
-        raise RuntimeError(reason)
-
     try:
         page.screenshot(path=str(OUT / "mixamo_markers_manual_start.png"), full_page=True)
     except Exception as exc:
@@ -235,9 +224,9 @@ def wait_for_manual_marker_placement(page, timeout=900):
 
     print("")
     print("=" * 72)
-    print("MANUAL MIXAMO RIGGING REQUIRED")
+    print("MANUAL MIXAMO RIGGING - YOU CONTROL THE BROWSER")
     print("=" * 72)
-    print("The character is uploaded. Place these 8 markers directly on the model:")
+    print("Place all 8 landmarks directly on the character:")
     print("  1. Chin")
     print("  2. Left wrist")
     print("  3. Right wrist")
@@ -247,122 +236,46 @@ def wait_for_manual_marker_placement(page, timeout=900):
     print("  7. Right knee")
     print("  8. Groin")
     print("")
-    print("You control the browser for this step.")
-    print("When all markers are correctly positioned, click NEXT in Mixamo.")
-    print("If Mixamo says a marker is missing, reposition it and click NEXT again.")
-    print("After Mixamo accepts the markers, this console will resume automatically.")
+    print("Then click NEXT yourself inside the Mixamo browser.")
+    print("Wait until Mixamo visibly starts Auto-Rigging / Processing.")
+    print("ONLY THEN return here and type Y to confirm you completed both actions.")
+    print("N = I am still working in the browser. Q = cancel the pipeline.")
     print("=" * 72)
-    print(f"[Mixamo] Found all {marker_count} marker controls. Waiting for your Next click...")
 
-    started = time.monotonic()
-    last_report = started
-    warned_missing = False
-
-    while time.monotonic() - started < timeout:
-        if modal.count() == 0 or not modal.is_visible():
-            reason = "The Mixamo Auto-Rigger window was closed before marker submission."
-            save_marker_diagnostics(page, reason)
-            raise RuntimeError(reason)
-
-        try:
-            overlay_visible = overlay.count() == 1 and overlay.is_visible()
-        except Exception:
-            overlay_visible = False
-
-        if not overlay_visible:
-            # Mixamo hides/removes the landmark overlay only after Next is accepted.
-            page.wait_for_timeout(1200)
-            if modal.count() == 0 or not modal.is_visible():
-                reason = "The Mixamo Auto-Rigger closed immediately after marker placement."
-                save_marker_diagnostics(page, reason)
-                raise RuntimeError(reason)
+    while True:
+        answer = input("[CONFIRM MANUAL MARKERS + NEXT CLICK] Y/N/Q: ").strip().lower()
+        if answer in {"y", "yes"}:
             try:
                 page.screenshot(path=str(OUT / "mixamo_markers_manual_done.png"), full_page=True)
             except Exception as exc:
-                print(f"[Mixamo] Could not save submitted-marker screenshot: {exc}")
-            elapsed = int(time.monotonic() - started)
-            print(f"[Mixamo] Detected your Next submission after {elapsed}s. Waiting for rigging status...")
+                print(f"[Mixamo] Could not save confirmed marker screenshot: {exc}")
+            print("[Mixamo] Manual marker submission confirmed. The script did not click any browser button.")
             return True
-
-        try:
-            body_text = norm(page.locator("body").inner_text(timeout=1500))
-        except Exception:
-            body_text = ""
-
-        if not warned_missing and (
-            "please place all markers on the character" in body_text
-            or "place all markers on the character" in body_text
-        ):
-            warned_missing = True
-            print("[Mixamo] Mixamo says one or more markers are missing. Adjust them in the browser and click Next again.")
-        elif warned_missing and not (
-            "please place all markers on the character" in body_text
-            or "place all markers on the character" in body_text
-        ):
-            warned_missing = False
-            print("[Mixamo] Marker validation message cleared. You can submit again when ready.")
-
-        now = time.monotonic()
-        if now - last_report >= 15:
-            elapsed = int(now - started)
-            print(f"[Mixamo] Still waiting for your Mixamo Next click... {elapsed}s elapsed.")
-            last_report = now
-        page.wait_for_timeout(500)
-
-    reason = f"Timed out after {timeout}s waiting for manual Mixamo marker placement and Next."
-    save_marker_diagnostics(page, reason)
-    save_upload_diagnostics(page, reason)
-    raise TimeoutError(reason)
+        if answer in {"n", "no", ""}:
+            print("[Mixamo] No action taken. Finish in the browser and confirm Y only after clicking Next.")
+            continue
+        if answer in {"q", "quit", "stop"}:
+            raise KeyboardInterrupt("Cancelled at manual Mixamo marker confirmation.")
+        print("Enter Y only after placing all 8 markers AND clicking Next. N keeps this prompt open; Q cancels.")
 
 
-def attach_character_status_listener(page):
-    """Capture relevant Mixamo character API responses, including Auto-Rigger errors."""
-    events = []
-
-    def on_response(response):
-        try:
-            url = response.url
-            lowered = url.lower()
-            if "/api/v1/characters/" not in lowered:
-                return
-            if any(part in lowered for part in ("/assets/", "/thumbnail", "/preview")):
-                return
-
-            event = {
-                "time": time.time(),
-                "method": response.request.method.upper(),
-                "httpStatus": int(response.status),
-                "urlPath": url.split("?", 1)[0][-240:],
-            }
-            try:
-                payload = response.json()
-            except Exception:
-                payload = None
-            if isinstance(payload, dict):
-                for key in ("status", "error", "message", "reason", "code", "detail"):
-                    value = payload.get(key)
-                    if value is not None:
-                        event[key] = str(value)[:600]
-                for key in ("errors", "data"):
-                    value = payload.get(key)
-                    if isinstance(value, (str, int, float, bool)):
-                        event[key] = str(value)[:600]
-                    elif isinstance(value, dict):
-                        compact = {}
-                        for nested_key in ("status", "error", "message", "reason", "code", "detail"):
-                            nested_value = value.get(nested_key)
-                            if nested_value is not None:
-                                compact[nested_key] = str(nested_value)[:300]
-                        if compact:
-                            event[key] = compact
-            events.append(event)
-            if len(events) > 100:
-                del events[:-100]
-        except Exception:
-            pass
-
-    page.on("response", on_response)
-    return events
+def confirm_console_action(action, details=""):
+    """Require a deliberate Y before the script performs a consequential Mixamo action."""
+    print("")
+    print("=" * 68)
+    print(f"CONFIRM ACTION: {action}")
+    if details:
+        print(details)
+    print("Nothing will happen until you type Y.")
+    print("=" * 68)
+    while True:
+        answer = input("[Y] Confirm and continue  [Q] Cancel pipeline: ").strip().lower()
+        if answer in {"y", "yes"}:
+            print(f"[Mixamo] Confirmed by user: {action}")
+            return True
+        if answer in {"q", "quit", "stop"}:
+            raise KeyboardInterrupt(f"Cancelled before action: {action}")
+        print("No action taken. Enter Y to confirm or Q to cancel.")
 
 
 def save_upload_diagnostics(page, reason, api_events=None):
@@ -429,42 +342,34 @@ def save_upload_diagnostics(page, reason, api_events=None):
         print(f"[Mixamo] Could not save upload diagnostics: {exc}")
 
 
-def classify_upload_status(html, get_upload_status, autorig_started=False, api_status=None, page=None):
-    """Distinguish upload, marker placement, and the actual Mixamo animation workspace."""
+def classify_upload_status(html, get_upload_status, autorig_started=False, page=None):
+    """Classify Mixamo's visible upload, marker, review, and animation-workspace screens."""
     from bs4 import BeautifulSoup
 
     soup = BeautifulSoup(html, "html.parser")
-
     marker_overlay = soup.find(class_="autorig-overlay")
-    marker_overlay_visible = bool(marker_overlay)
+    marker_visible = bool(marker_overlay)
     if marker_overlay:
-        marker_style = (marker_overlay.get("style") or "").replace(" ", "").lower()
-        marker_classes = set(marker_overlay.get("class", []))
-        marker_overlay_visible = (
+        classes = set(marker_overlay.get("class", []))
+        style = (marker_overlay.get("style") or "").replace(" ", "").lower()
+        marker_visible = (
             not marker_overlay.has_attr("hidden")
-            and "display:none" not in marker_style
-            and "visibility:hidden" not in marker_style
-            and "hidden" not in marker_classes
+            and "hidden" not in classes
+            and "display:none" not in style
+            and "visibility:hidden" not in style
         )
-    if page is not None:
+    if page is not None and marker_overlay:
         try:
-            marker_overlay_visible = (
-                page.locator(".autorig-overlay").count() > 0
-                and page.locator(".autorig-overlay").first.is_visible()
-            )
+            marker_visible = page.locator(".autorig-overlay").first.is_visible()
         except Exception:
             pass
-    if marker_overlay_visible:
+    if marker_visible:
         return {"state": "markers", "text": "Place markers"}
 
     if soup.find(class_="autorig-uploading"):
-        status = get_upload_status(html) or {}
-        return {"state": "processing", "text": status.get("text", "Uploading")}
+        upload_status = get_upload_status(html) or {}
+        return {"state": "processing", "text": upload_status.get("text", "Uploading")}
 
-    # Do not search the raw HTML string for 'autorig-modal': Mixamo's bundled
-    # JavaScript contains that literal even when the modal is no longer open.
-    # Inspect the parsed DOM instead. The latest failure screenshot showed the
-    # real editor, character preview, and Download button already available.
     animation_workspace = (
         soup.find(class_="product-preview-holder") is not None
         and soup.find(id="editor") is not None
@@ -476,7 +381,6 @@ def classify_upload_status(html, get_upload_status, autorig_started=False, api_s
     info = soup.find(class_="autorig-info")
     info_text = info.get_text(" ", strip=True) if info else ""
     message = norm(info_text)
-
     if any(phrase in message for phrase in (
         "processing upload", "your character is processing",
         "auto rigging", "auto-rigging", "rigging in progress",
@@ -484,20 +388,14 @@ def classify_upload_status(html, get_upload_status, autorig_started=False, api_s
     )):
         return {"state": "processing", "text": info_text}
 
-    if autorig_started and api_status not in ("ready",):
-        if soup.find(class_="autorig-holder"):
-            return {"state": "processing", "text": info_text or "Waiting for Mixamo Auto-Rigger"}
-
     if soup.find(class_="autorig-holder"):
-        return {"state": "review", "text": info_text}
-
+        return {"state": "review", "text": info_text or "Auto-Rigger review"}
     if soup.find(string=re.compile("unable to map your existing skeleton", re.I)):
         return {"state": "error", "text": "Unable to map your existing skeleton"}
-
     return get_upload_status(html) or {}
 
 
-def wait_upload_complete(page, get_upload_status, confirm_review, api_status_events, timeout=360):
+def wait_upload_complete(page, get_upload_status, confirm_review, timeout=600):
     deadline = time.time() + timeout
     started = time.time()
     last_state = None
@@ -507,17 +405,13 @@ def wait_upload_complete(page, get_upload_status, confirm_review, api_status_eve
     review_confirm_attempted = False
     review_confirmed_at = None
     change_confirm_attempted = False
-    api_event_start = len(api_status_events)
 
     while time.time() < deadline:
         html = page.content()
-        recent_events = api_status_events[api_event_start:]
-        api_status = next((event.get("status") for event in reversed(recent_events) if event.get("status")), None)
-        autorig_started = marker_submit_attempted
         status = classify_upload_status(
-            html, get_upload_status,
-            autorig_started=autorig_started,
-            api_status=api_status,
+            html,
+            get_upload_status,
+            autorig_started=marker_submit_attempted,
             page=page,
         )
         state = status.get("state")
@@ -528,91 +422,86 @@ def wait_upload_complete(page, get_upload_status, confirm_review, api_status_eve
             last_state = state
 
         if state == "ready":
-            print("[Mixamo] Character is rigged. Animation workspace and Download controls are ready.")
+            print("[Mixamo] Mixamo reports the character is in the animation workspace.")
+            print("[Mixamo] The next download requires your explicit console approval.")
             return
 
         if state == "processing" and now - last_heartbeat >= 15:
             elapsed = int(now - (marker_submit_time or started))
-            print(f"[Mixamo] Still processing ({elapsed}s elapsed).")
+            print(f"[Mixamo] Mixamo is processing ({elapsed}s elapsed). No action will be taken automatically.")
             last_heartbeat = now
-
-        if marker_submit_attempted and api_status == "needs_rigging" and marker_submit_time:
-            if now - marker_submit_time > 45:
-                reason = "Mixamo reports that the character still needs rigging. The landmark placements were rejected."
-                save_upload_diagnostics(page, reason, api_status_events)
-                raise RuntimeError(reason + " See mixamo_upload_debug.png/html in the output folder.")
 
         if state == "change_character":
             if not change_confirm_attempted:
-                change_confirm_attempted = True
-                print("[Mixamo] Confirming replacement of the current character...")
+                confirm_console_action(
+                    "replace the character currently open in Mixamo",
+                    "Mixamo says the previous character will not be saved. Confirm only if that is intended."
+                )
+                print("[Mixamo] Sending the user-approved replacement click.")
                 confirm_review(page)
-                page.wait_for_timeout(1500)
+                change_confirm_attempted = True
+                page.wait_for_timeout(1200)
             else:
-                if now - last_heartbeat >= 15:
-                    print("[Mixamo] Waiting for character replacement to finish...")
-                    last_heartbeat = now
                 page.wait_for_timeout(1000)
             continue
 
         if state == "review":
-            if marker_submit_attempted and api_status != "ready":
-                page.wait_for_timeout(1000)
-                continue
             if not review_confirm_attempted:
-                review_confirm_attempted = True
-                print("[Mixamo] Auto-Rigging completed. Confirming the rigged character...")
+                confirm_console_action(
+                    "accept the rig generated by Mixamo",
+                    "Inspect the rig in the browser first. Y authorizes the script to click Mixamo's review/Next button."
+                )
+                print("[Mixamo] Sending the user-approved rig-review click.")
                 confirm_review(page)
+                review_confirm_attempted = True
                 review_confirmed_at = time.time()
                 page.wait_for_timeout(1800)
-            elif review_confirmed_at is not None and now - review_confirmed_at < 10:
-                page.wait_for_timeout(1000)
-            else:
+            elif review_confirmed_at is not None and now - review_confirmed_at > 12:
                 if "autorig-modal" not in page.content():
-                    return
-                reason = "Mixamo remained on the rig review screen 10 seconds after confirmation."
-                save_upload_diagnostics(page, reason, api_status_events)
-                raise RuntimeError(reason + " See mixamo_upload_debug.png/html in the output folder.")
+                    page.wait_for_timeout(800)
+                    continue
+                reason = "Mixamo remained on the rig review screen after the user-approved confirmation."
+                save_upload_diagnostics(page, reason)
+                raise RuntimeError(reason + " Check mixamo_upload_debug.png/html.")
+            else:
+                page.wait_for_timeout(1000)
             continue
 
         if state == "markers":
             if marker_submit_attempted:
-                recent_events = api_status_events[api_event_start:]
-                api_excerpt = json.dumps(recent_events[-8:], ensure_ascii=False)
-                reason = "Mixamo returned to marker placement after your submission. API responses: " + api_excerpt
+                reason = "Mixamo is still showing marker placement after your previous confirmation. It may have rejected one or more marker positions."
                 save_marker_diagnostics(page, reason)
-                save_upload_diagnostics(page, reason, api_status_events)
-                raise RuntimeError(reason + " See mixamo_upload_debug.png/html in the output folder.")
-            marker_submit_attempted = True
-            api_event_start = len(api_status_events)
+                save_upload_diagnostics(page, reason)
+                print("")
+                print("[Mixamo] Mixamo is still on the marker screen. The script has not clicked anything.")
+                print("[Mixamo] Correct any marker warning, click Next yourself, then confirm again here.")
+                marker_submit_attempted = False
+                marker_submit_time = None
             wait_for_manual_marker_placement(page)
+            marker_submit_attempted = True
             marker_submit_time = time.time()
-            page.wait_for_timeout(1500)
+            last_state = None
             continue
 
         if state == "error":
             reason = f"Mixamo rejected the character: {status.get('text', 'unknown error')}"
-            save_upload_diagnostics(page, reason, api_status_events)
+            save_upload_diagnostics(page, reason)
             raise RuntimeError(reason)
 
         page.wait_for_timeout(1000)
 
-    final_html = page.content()
-    recent_events = api_status_events[api_event_start:]
-    api_status = next((event.get("status") for event in reversed(recent_events) if event.get("status")), None)
     final_status = classify_upload_status(
-        final_html, get_upload_status,
+        page.content(),
+        get_upload_status,
         autorig_started=marker_submit_attempted,
-        api_status=api_status,
         page=page,
     )
     reason = (
         f"Mixamo Auto-Rigger timed out after {timeout}s. "
         f"Last state: {final_status.get('state', 'unknown')}. "
-        f"Last message: {final_status.get('text', '')}. "
-        f"Last API status: {api_status or 'not captured'}."
+        f"Last message: {final_status.get('text', '')}."
     )
-    save_upload_diagnostics(page, reason, api_status_events)
+    save_upload_diagnostics(page, reason)
     raise TimeoutError(reason)
 
 
@@ -645,6 +534,8 @@ def download_clip(page, download_mod, animations_mod, output_path, include_skin,
             pass
     output_path = Path(output_path).resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    if output_path.exists():
+        confirm_console_action("overwrite an existing FBX file", f"Existing file: {output_path}")
     print(f"[Mixamo] Download format: FBX | FPS: {fps} | Include skin: {'yes' if include_skin else 'no'}")
     print(f"[Mixamo] Saving browser download directly to: {output_path}")
     download_mod.open_modal(page)
@@ -722,25 +613,19 @@ def main():
     downloads = {}
     errors = []
 
-    # Previous auto-picked clips are not trustworthy. Remove requested stale
-    # files so skipped animations cannot accidentally remain in the new bundle.
-    for job in selected_animations:
-        stale_clip = animation_dir / f"{job['key']}.fbx"
-        if stale_clip.is_file():
-            stale_clip.unlink()
-            print(f"[Mixamo] Removed previous unverified clip: {stale_clip.name}")
-    # Keep the previous rigged base until a replacement FBX is downloaded and verified.
+    # Never delete existing character or animation files automatically.
+    print("[Mixamo] Existing FBX files will be kept unless you explicitly approve an overwrite.")
 
     print("[Mixamo] Opening your saved local browser profile...")
     page = browser.start()
-    api_status_events = attach_character_status_listener(page)
+    # No browser response listener is registered; the console owns all approvals.
     try:
         page.goto("https://www.mixamo.com/", wait_until="domcontentloaded")
         page.wait_for_load_state("networkidle")
         print(f"[Mixamo] Uploading Y-up OBJ package {SOURCE_BUNDLE.name}...")
         upload_mod.upload_file(page, str(SOURCE_BUNDLE))
         try:
-            wait_upload_complete(page, upload_mod.get_status, upload_mod.confirm_review, api_status_events)
+            wait_upload_complete(page, upload_mod.get_status, upload_mod.confirm_review)
         except Exception as exc:
             manifest_path = OUT / "manifest.json"
             try:
@@ -782,6 +667,10 @@ def main():
 
         # Export the newly rigged character without selecting any animation.
         base_path = OUT / f"{CHARACTER_ID}_rigged.fbx"
+        confirm_console_action(
+            "download the unanimated rigged base character",
+            f"Mixamo will export the skinned rigged model to: {base_path}"
+        )
         print("[Mixamo] Downloading the unanimated rigged character with skin...")
         try:
             saved_base = download_clip(
@@ -856,6 +745,10 @@ def main():
         manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
         zip_path = OUT / f"{CHARACTER_ID}_bundle.zip"
+        confirm_console_action(
+            "create/update the character asset bundle",
+            f"Bundle destination: {zip_path}"
+        )
         with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for item in sorted(OUT.rglob("*")):
                 if item.is_file() and item != zip_path:

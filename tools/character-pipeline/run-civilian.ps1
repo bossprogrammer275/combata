@@ -114,8 +114,10 @@ if (-not $BuildOnly) {
     Write-Host ""
     Write-Host "[2/2] Rigging civilian and downloading selected animation FBXs..." -ForegroundColor Cyan
     Write-Host "The saved Mixamo profile will open. Place all 8 rigging markers and click Next in the browser." -ForegroundColor Yellow
-    Write-Host "After rigging, choose animation results and approve downloads in this PowerShell console." -ForegroundColor Yellow
-    Write-Host "The script will save each approved FBX into the character's animations folder." -ForegroundColor Yellow
+    Write-Host "Place all 8 markers and click Next yourself; then confirm Y in this console." -ForegroundColor Yellow
+    Write-Host "Confirm Y again before accepting a rig or downloading the base model." -ForegroundColor Yellow
+    Write-Host "Choose each animation in this console; press D to approve its FBX download." -ForegroundColor Yellow
+    Write-Host "No response listener or automatic marker / Next click is used." -ForegroundColor Yellow
     & $mixamoPython @animationArgs
     $mixamoExitCode = $LASTEXITCODE
 
