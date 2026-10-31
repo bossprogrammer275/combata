@@ -56,6 +56,7 @@ def pick_animation(items, job):
 def wait_upload_complete(page, get_upload_status, confirm_review, timeout=240):
     deadline = time.time() + timeout
     last_state = None
+    marker_submit_attempted = False
     while time.time() < deadline:
         html = page.content()
         status = get_upload_status(html) or {}
@@ -68,7 +69,24 @@ def wait_upload_complete(page, get_upload_status, confirm_review, timeout=240):
             page.wait_for_timeout(1800)
             continue
         if state == "markers":
-            raise RuntimeError("Mixamo requires marker placement. This MCP does not automate marker placement; the browser is left open for inspection.")
+            if marker_submit_attempted:
+                debug_html = OUT / "mixamo_marker_debug.html"
+                debug_image = OUT / "mixamo_marker_debug.png"
+                try:
+                    debug_html.write_text(page.content(), encoding="utf-8")
+                    page.screenshot(path=str(debug_image), full_page=True)
+                    print(f"[Mixamo] Marker diagnostics saved: {debug_html.name}, {debug_image.name}")
+                except Exception as exc:
+                    print(f"[Mixamo] Could not save marker diagnostics: {exc}")
+                raise RuntimeError(
+                    "Mixamo kept the marker-placement step open after submitting its default landmark positions. "
+                    "The diagnostic HTML/screenshot were saved in the civilian output folder."
+                )
+            marker_submit_attempted = True
+            print("[Mixamo] Submitting Mixamo's automatically positioned body landmarks...")
+            confirm_review(page)
+            page.wait_for_timeout(2500)
+            continue
         if state == "error":
             raise RuntimeError(f"Mixamo rejected the character: {status.get('text', 'unknown error')}")
         if "autorig-modal" not in html and ("product-nav" in html or "product-animation" in html):
