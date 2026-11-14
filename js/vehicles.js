@@ -12,103 +12,157 @@ import {
   getCockpitLookAngles, resolveCockpitCameraProfile,
 } from './vehicle-cockpit.js';
 
+export const VEHICLE_COORDINATES = Object.freeze({
+  up: '+Y',
+  forward: '+Z',
+  left: '+X',
+  right: '-X',
+});
+
 export const CAR_MODELS = {
-  // nose: -1 = model nose faces local -Z (three.js forward convention),
-  //        +1 = nose faces local +Z (compensated with a PI yaw offset).
-  lambo:  { url: './data/models/cars/CAR Model by Ignition Labs - 5zUWP5UsLg-.glb', targetLen: 4.7, color: 0xda2828, nose: 1 },
+  // The source GLBs use +Y up and +Z forward. The runtime applies the
+  // renderer's one-time nose correction at the vehicle root.
+  lambo: { url: './data/models/cars/CAR Model by Ignition Labs - 5zUWP5UsLg-.glb', targetLen: 4.7, color: 0xda2828, nose: 1 },
   cybertruck: { url: './data/models/cars/tesla_cybertruk_low_poly/scene.gltf', targetLen: 5.7, color: 0x888888, nose: 1 },
-  // Temporary Bugatti preset: the repo does not yet contain a dedicated Bugatti GLB.
-  // Keep the existing bundled sports-car GLB so spawning works offline; replace this URL when the Bugatti asset is added.
-  bugatti: { url: './data/models/cars/CAR Model by Ignition Labs - 5zUWP5UsLg-.glb', targetLen: 4.9, color: 0x1767e8, nose: 1 },
 };
 
-// Handling is deliberately different per chassis. Values are tuned for a fun,
-// responsive open-world game rather than pretending every vehicle weighs and
-// turns like the same generic car. Speeds/accelerations are m/s and m/s².
+// Physical values are tuning baselines, not claims of laboratory measurement.
+// Wheel hardpoints and tyre radii are measured from the imported GLB and checked
+// against each profile before a vehicle is allowed into the world.
 export const CAR_PHYSICS = {
-  // Rear-drive mid-engine sports car: short wheelbase, sharp steering,
-  // strong brakes and firm, quick suspension. The rear axle remains the
-  // traction limit, so throttle can still induce power oversteer.
   lambo: {
-    mass: 1480, drivetrain: 'rwd', wheelbase: 2.70,
-    powertrain: { type: 'dct', gearRatios: [3.13, 2.59, 1.81, 1.32, 1.02, 0.84, 0.68], finalDrive: 3.45, wheelRadius: 0.34, idleRpm: 900, redline: 8500, upshiftRpm: 8100, downshiftRpm: 2700, shiftTime: 0.15, peakTorqueNm: 600, maxAcceleration: 13.8, torqueCurve: [[900, 390], [2000, 470], [3500, 540], [5000, 600], [6500, 590], [7800, 555], [8500, 500]] },
-    // Eye point is measured up from tyre/road ground. The low supercar cabin
-    // must not reuse the taller pickup camera profile.
+    mass: 1620,
+    drivetrain: 'rwd',
+    wheelbase: 2.62,
+    trackFront: 1.668,
+    trackRear: 1.620,
+    wheelRadiusFront: 0.3275,
+    wheelRadiusRear: 0.3455,
+    weightFront: 0.42,
+    centerOfMassHeight: 0.46,
+    inertiaScale: 0.85,
+    brakeBias: 0.62,
+    powertrain: {
+      type: 'dct',
+      gearRatios: [3.15, 2.18, 1.58, 1.20, 0.97, 0.82, 0.69],
+      finalDrive: 4.20,
+      wheelRadius: 0.34,
+      idleRpm: 900,
+      redline: 8500,
+      upshiftRpm: 8000,
+      downshiftRpm: 2600,
+      shiftTime: 0.08,
+      peakTorqueNm: 600,
+      drivetrainEfficiency: 0.90,
+      maxAcceleration: 13.8,
+      torqueCurve: [[900, 220], [2000, 330], [3000, 420], [4000, 500], [5000, 560], [6500, 600], [7500, 590], [8000, 561], [8500, 500]],
+    },
     interiorCamera: { height: 0.98, forward: 0.16, side: 0, lookAhead: 18, pitch: 0, fov: 82 },
     steeringWheel: { axis: 'x', maxAngleDeg: 450, sign: 1, response: 11 },
-    engineAcceleration: 11.8, reverseAcceleration: 5.4, brakeAcceleration: 16.0,
-    maxSpeed: 64, maxReverseSpeed: 13.0, speedometerMaxKmh: 230,
-    aeroDragArea: 0.90, rollingResistance: 0.013,
-    speedSteeringFalloff: 0.0105, minSteeringScale: 0.30, steeringResponse: 15.0,
-    antiRollStiffness: 25000, downforceCoefficient: 0.38, maxDownforceG: 0.22,
-    frontDriveBias: 0.35,
-    driveGripUsageLimit: 0.88, brakingGripUsageLimit: 0.96, handbrakeGripUsageLimit: 0.78,
-    steeringAngle: 0.54, handbrakeSteerAngle: 0.58,
-    frontGrip: 8.4, rearGrip: 9.5, handbrakeRearGrip: 0.48,
-    frontCorneringStiffness: 72000, rearCorneringStiffness: 79000,
-    tireFriction: 1.42, handbrakeRearFriction: 0.38,
-    suspensionRestLength: 0.20, suspensionTravel: 0.16,
-    springRate: 34000, springDamping: 5000,
-    springDampingRelaxation: 3700, suspensionResponse: 32,
-    uprightStrength: 3.8, uprightDamping: 4.3, uprightInertiaScale: 1.8,
+    engineAcceleration: 11.8,
+    reverseAcceleration: 5.4,
+    brakeAcceleration: 16.0,
+    maxSpeed: 90.3,
+    maxReverseSpeed: 13.0,
+    speedometerMaxKmh: 325,
+    aeroDragArea: 0.78,
+    rollingResistance: 0.015,
+    speedSteeringFalloff: 0.0105,
+    minSteeringScale: 0.30,
+    steeringResponse: 15.0,
+    antiRollStiffness: 30000,
+    downforceCoefficient: 0.38,
+    maxDownforceG: 0.22,
+    driveGripUsageLimit: 0.88,
+    brakingGripUsageLimit: 0.96,
+    handbrakeGripUsageLimit: 0.78,
+    steeringAngle: 0.56,
+    handbrakeSteerAngle: 0.56,
+    frontGrip: 8.4,
+    rearGrip: 9.5,
+    handbrakeRearGrip: 0.48,
+    frontCorneringStiffness: 72000,
+    rearCorneringStiffness: 79000,
+    tireFriction: 1.25,
+    handbrakeRearFriction: 0.38,
+    suspensionRestLength: 0.16,
+    suspensionTravel: 0.08,
+    springRateFront: 53700,
+    springRateRear: 89800,
+    suspensionDampingRatio: 0.35,
+    springDamping: 5000,
+    springDampingRelaxation: 3700,
+    suspensionResponse: 32,
+    uprightStrength: 3.8,
+    uprightDamping: 4.3,
     angularDamping: 0.82,
   },
-  // Cybertruck AWD: retain its real pickup-scale mass and long wheelbase, but
-  // give the electric drivetrain and steering the quick response expected from
-  // a performance EV. Stronger tyres and roll control keep normal turns planted.
   cybertruck: {
-    mass: 3009, drivetrain: 'awd', wheelbase: 3.635,
-    powertrain: { type: 'ev', maxMotorTorque: 1500, peakPowerKw: 450, finalDrive: 9.0, wheelRadius: 0.43, maxAcceleration: 11.5, regenDeceleration: 1.15, torqueCurve: [[0, 1500], [4500, 1500], [9000, 1120], [14000, 650], [18000, 0]] },
-    // Taller cabin: a higher eye point is intentional and verified separately.
+    mass: 3150,
+    drivetrain: 'awd',
+    wheelbase: 3.635,
+    trackFront: 1.74,
+    trackRear: 1.74,
+    wheelRadiusFront: 0.419,
+    wheelRadiusRear: 0.419,
+    weightFront: 0.505,
+    centerOfMassHeight: 0.75,
+    inertiaScale: 0.85,
+    brakeBias: 0.60,
+    powertrain: {
+      type: 'ev',
+      maxMotorTorque: 1000,
+      peakPowerKw: 447,
+      finalDrive: 10.0,
+      wheelRadius: 0.419,
+      maxAcceleration: 11.5,
+      regenDeceleration: 1.15,
+      drivetrainEfficiency: 0.92,
+      torqueCurve: [[0, 1000], [4500, 1000], [9000, 800], [14000, 580], [18000, 0]],
+    },
     interiorCamera: { height: 1.42, forward: 0.30, side: 0, lookAhead: 20, pitch: 0, fov: 82 },
     steeringWheel: { axis: 'x', maxAngleDeg: 450, sign: 1, response: 9 },
-    engineAcceleration: 12.8, reverseAcceleration: 5.8, brakeAcceleration: 15.5,
-    maxSpeed: 180 / 3.6, maxReverseSpeed: 13.0, speedometerMaxKmh: 180,
-    aeroDragArea: 1.15, rollingResistance: 0.014,
-    speedSteeringFalloff: 0.0075, minSteeringScale: 0.50, steeringResponse: 28.0,
-    antiRollStiffness: 42000, antiRollLoadTransferLimit: 0.22,
-    downforceCoefficient: 0.30, maxDownforceG: 0.25,
+    engineAcceleration: 12.8,
+    reverseAcceleration: 5.8,
+    brakeAcceleration: 15.5,
+    maxSpeed: 50,
+    maxReverseSpeed: 13.0,
+    speedometerMaxKmh: 180,
+    aeroDragArea: 1.22,
+    rollingResistance: 0.020,
+    speedSteeringFalloff: 0.0075,
+    minSteeringScale: 0.50,
+    steeringResponse: 20.0,
+    antiRollStiffness: 60000,
+    antiRollLoadTransferLimit: 0.22,
+    downforceCoefficient: 0,
+    maxDownforceG: 0,
     frontDriveBias: 0.50,
-    // Rear axle stays aligned; only the front axle steers.
-    // Keep drive acceleration available while reserving a useful tyre grip
-    // margin for cornering, instead of spending nearly the whole friction circle
-    // on the electric motor under combined throttle and steering.
-    driveGripUsageLimit: 0.80, brakingGripUsageLimit: 0.97, handbrakeGripUsageLimit: 0.76,
-    steeringAngle: 0.75, handbrakeSteerAngle: 0.72,
-    frontGrip: 9.2, rearGrip: 9.8, handbrakeRearGrip: 0.62,
-    frontCorneringStiffness: 92000, rearCorneringStiffness: 99000,
-    tireFriction: 1.60, handbrakeRearFriction: 0.46,
-    suspensionRestLength: 0.23, suspensionTravel: 0.18,
-    springRate: 56000, springDamping: 8200,
-    springDampingRelaxation: 6500, suspensionResponse: 32,
-    uprightStrength: 4.8, uprightDamping: 5.6, uprightInertiaScale: 2.0,
-    rollUprightStrength: 9.0, rollUprightDamping: 8.5,
+    driveGripUsageLimit: 0.80,
+    brakingGripUsageLimit: 0.97,
+    handbrakeGripUsageLimit: 0.76,
+    steeringAngle: 0.55,
+    handbrakeSteerAngle: 0.55,
+    frontGrip: 9.2,
+    rearGrip: 9.8,
+    handbrakeRearGrip: 0.62,
+    frontCorneringStiffness: 92000,
+    rearCorneringStiffness: 99000,
+    tireFriction: 1.0,
+    handbrakeRearFriction: 0.46,
+    suspensionRestLength: 0.30,
+    suspensionTravel: 0.14,
+    springRateFront: 53000,
+    springRateRear: 52000,
+    suspensionDampingRatio: 0.40,
+    springDamping: 8200,
+    springDampingRelaxation: 6500,
+    suspensionResponse: 32,
+    uprightStrength: 4.8,
+    uprightDamping: 5.6,
+    rollUprightStrength: 9.0,
+    rollUprightDamping: 8.5,
     angularDamping: 1.0,
-  },
-  // Bugatti Chiron-style 380 km/h AWD road-hypercar preset. Mass and
-  // wheelbase use the Chiron's published baseline; grip and downforce are
-  // gameplay tuning. The dedicated Bugatti GLB has not been added yet.
-  bugatti: {
-    mass: 1995, drivetrain: 'awd', wheelbase: 2.711,
-    powertrain: { type: 'dct', gearRatios: [2.92, 1.89, 1.42, 1.09, 0.88, 0.73, 0.62], finalDrive: 3.25, wheelRadius: 0.36, idleRpm: 850, redline: 7000, upshiftRpm: 6750, downshiftRpm: 2300, shiftTime: 0.11, peakTorqueNm: 1600, maxAcceleration: 15.8, torqueCurve: [[850, 1100], [1500, 1450], [2500, 1600], [4000, 1550], [5500, 1450], [7000, 1200]] },
-    interiorCamera: { height: 1.04, forward: 0.20, side: 0, lookAhead: 20, pitch: 0, fov: 82 },
-    steeringWheel: { axis: 'x', maxAngleDeg: 450, sign: 1, response: 10 },
-    engineAcceleration: 14.5, reverseAcceleration: 5.8, brakeAcceleration: 15.0,
-    maxSpeed: 380 / 3.6, maxReverseSpeed: 12, speedometerMaxKmh: 380,
-    aeroDragArea: 1.22, rollingResistance: 0.012,
-    speedSteeringFalloff: 0.009, minSteeringScale: 0.35, steeringResponse: 20.0,
-    antiRollStiffness: 36000, downforceCoefficient: 1.15, maxDownforceG: 0.85,
-    frontDriveBias: 0.44,
-    driveGripUsageLimit: 0.82, brakingGripUsageLimit: 0.97, handbrakeGripUsageLimit: 0.74,
-    steeringAngle: 0.60, handbrakeSteerAngle: 0.62,
-    frontGrip: 10.5, rearGrip: 11.1, handbrakeRearGrip: 0.42,
-    frontCorneringStiffness: 120000, rearCorneringStiffness: 128000,
-    tireFriction: 1.70, handbrakeRearFriction: 0.34,
-    suspensionRestLength: 0.19, suspensionTravel: 0.15,
-    springRate: 42000, springDamping: 5500,
-    springDampingRelaxation: 4100, suspensionResponse: 36,
-    uprightStrength: 4.0, uprightDamping: 4.6, uprightInertiaScale: 1.8,
-    angularDamping: 0.88,
   },
 };
 
@@ -194,6 +248,7 @@ function meshHierarchyName(mesh) {
 }
 
 function classifyCarMeshes(items, options = {}) {
+  const modelNose = Number.isFinite(options.nose) ? (Math.sign(options.nose) || -1) : -1;
   const all = new THREE.Box3();
   const tmp = new THREE.Vector3();
   for (const m of items) all.expandByPoint(m.min), all.expandByPoint(m.max);
@@ -309,7 +364,7 @@ function classifyCarMeshes(items, options = {}) {
       });
       for (const m of members) wheelMeshes.add(m.o);
       const bs = w.best.s;
-      const quadrant = (w.qz > 0 ? 'front' : 'rear') + '-' + (w.qx > 0 ? 'right' : 'left');
+      const quadrant = (w.qz * modelNose > 0 ? 'front' : 'rear') + '-' + (w.qx > 0 ? 'left' : 'right');
       const wheelInfo = {
         center: w.best.c.clone(),
         size: bs.clone(),
@@ -352,7 +407,7 @@ function classifyCarMeshes(items, options = {}) {
         if (maxDimension >= wheelMemberMaxSize) reasons.push('mesh-exceeds-wheel-member-size-limit');
         if (mesh.s.y >= wheelMemberMaxSize) reasons.push('mesh-height-exceeds-wheel-member-size-limit');
         if (!reasons.length) continue;
-        const quadrant = (wheel.qz > 0 ? 'front' : 'rear') + '-' + (wheel.qx > 0 ? 'right' : 'left');
+        const quadrant = (wheel.qz * modelNose > 0 ? 'front' : 'rear') + '-' + (wheel.qx > 0 ? 'left' : 'right');
         const current = nearWheelExcludedMap.get(mesh.o.uuid);
         const record = {
           uuid: mesh.o.uuid,
@@ -392,7 +447,7 @@ function classifyCarMeshes(items, options = {}) {
     selectedWheels: wheels.map((w) => {
       const info = wheelInfos.find(v => v.center.distanceTo(w.best.c) < 1e-6);
       return {
-        quadrant: (w.qz > 0 ? 'front' : 'rear') + '-' + (w.qx > 0 ? 'right' : 'left'),
+        quadrant: (w.qz * modelNose > 0 ? 'front' : 'rear') + '-' + (w.qx > 0 ? 'left' : 'right'),
         uuid: w.best.o.uuid,
         name: w.best.o.name || '(unnamed mesh)',
         center: w.best.c.toArray(),
@@ -411,7 +466,7 @@ function classifyCarMeshes(items, options = {}) {
 // Re-run the exact production classifier on a normalized model for Asset Lab
 // and screenshot-based calibration. No alternate detector is used for reports.
 export function diagnoseCarWheelMeshes(scene, kind = 'lambo') {
-  const options = getWheelClassificationOptions(kind);
+  const options = { ...getWheelClassificationOptions(kind), nose: CAR_MODELS[kind]?.nose ?? -1 };
   const result = classifyCarMeshes(meshWorldBoxes(scene), options);
   return JSON.parse(JSON.stringify(result.wheelDiagnostics));
 }
@@ -548,7 +603,8 @@ function rigWheels(scene, wheelInfos, toLocal) {
 
 export async function loadCarModel(kind = 'lambo') {
   if (_modelCache[kind]) return _modelCache[kind];
-  const def = CAR_MODELS[kind] || CAR_MODELS.lambo;
+  const def = CAR_MODELS[kind];
+  if (!def) throw new Error('Unknown vehicle model: ' + kind);
   try {
     const gltf = await new Promise((res, rej) => loader.load(def.url, res, undefined, rej));
     const scene = gltf.scene;
@@ -557,7 +613,7 @@ export async function loadCarModel(kind = 'lambo') {
     // The Cybertruck GLB splits tyre sidewalls, tread, rim and hub details into
     // more separate meshes than the sports-car asset. Keep those parts together
     // around each wheel hub so the complete rubber tyre spins with the rim.
-    const wheelClassificationOptions = getWheelClassificationOptions(kind);
+    const wheelClassificationOptions = { ...getWheelClassificationOptions(kind), nose: def.nose ?? -1 };
     scene.traverse(o => {
       if (o.isMesh) {
         o.castShadow = true;
@@ -596,6 +652,35 @@ export async function loadCarModel(kind = 'lambo') {
     // ROOT space (== world coords here, root identity): the clone keeps the
     // base position/scale, so they translate with the vehicle root directly.
     cls = classifyCarMeshes(meshWorldBoxes(scene), wheelClassificationOptions);
+    const requiredQuadrants = ['front-left', 'front-right', 'rear-left', 'rear-right'];
+    const wheelByCorner = new Map(cls.wheelInfos.map(wheel => [wheel.quadrant, wheel]));
+    if (cls.wheelInfos.length !== 4 || requiredQuadrants.some(corner => !wheelByCorner.has(corner))) {
+      throw new Error(`[${kind}] expected one actual wheel assembly in each corner; found ${[...wheelByCorner.keys()].join(', ')}`);
+    }
+    const average = values => values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
+    const measuredWheelbase = Math.abs(
+      average([wheelByCorner.get('front-left').center.z, wheelByCorner.get('front-right').center.z])
+      - average([wheelByCorner.get('rear-left').center.z, wheelByCorner.get('rear-right').center.z]),
+    );
+    const measuredFrontTrack = Math.abs(wheelByCorner.get('front-left').center.x - wheelByCorner.get('front-right').center.x);
+    const measuredRearTrack = Math.abs(wheelByCorner.get('rear-left').center.x - wheelByCorner.get('rear-right').center.x);
+    const profile = CAR_PHYSICS[kind];
+    const within = (actual, expected, tolerance) =>
+      Math.abs(actual - expected) / Math.max(0.001, expected) <= tolerance;
+    if (!within(measuredWheelbase, profile.wheelbase, 0.15)
+      || !within(measuredFrontTrack, profile.trackFront, 0.15)
+      || !within(measuredRearTrack, profile.trackRear, 0.15)) {
+      throw new Error(`[${kind}] GLB/profile wheel-layout mismatch: wheelbase=${measuredWheelbase.toFixed(3)}m, tracks=${measuredFrontTrack.toFixed(3)}/${measuredRearTrack.toFixed(3)}m`);
+    }
+    const wheelCenterX = average(cls.wheelInfos.map(wheel => wheel.center.x));
+    if (Math.abs(wheelCenterX) > 0.10) {
+      throw new Error(`[${kind}] wheel layout is not centred laterally (mean X=${wheelCenterX.toFixed(3)}m)`);
+    }
+    const wheelCalibration = {
+      wheelbase: measuredWheelbase,
+      frontTrack: measuredFrontTrack,
+      rearTrack: measuredRearTrack,
+    };
     const s = scene.scale.x; // uniform
     const toLocal = (v) => v.clone().sub(scene.position).divideScalar(s);
 
@@ -657,25 +742,15 @@ export async function loadCarModel(kind = 'lambo') {
     scene.userData.half = { x: fsize.x / 2, z: fsize.z / 2 };
     scene.userData.yawOffset = yawOffset;
     scene.userData.nose = nose;
+    scene.userData.wheelCalibration = wheelCalibration;
 
     _modelCache[kind] = scene;
     console.log(`[Vehicle] Loaded car model: ${kind} (body ${fsize.x.toFixed(2)}x${fsize.y.toFixed(2)}x${fsize.z.toFixed(2)}m, ${colBoxes.length} collision boxes, ${rigs.length} wheels)`);
     return scene;
   } catch (e) {
-    console.warn(`[Vehicle] Load failed for ${kind}, using fallback:`, e);
-    const mat = new THREE.MeshStandardMaterial({ color: def.color, roughness: 0.3, metalness: 0.7 });
-    const body = new THREE.Mesh(new THREE.BoxGeometry(2.1, 1.2, def.targetLen), mat);
-    body.position.y = 0.6;
-    body.castShadow = true;
-    const group = new THREE.Group();
-    group.add(body);
-    group.userData.colBoxes = [{ min: new THREE.Vector3(-1.05, 0, -def.targetLen / 2), max: new THREE.Vector3(1.05, 1.2, def.targetLen / 2) }];
-    group.userData.bodyBox = { min: new THREE.Vector3(-1.05, 0, -def.targetLen / 2), max: new THREE.Vector3(1.05, 1.2, def.targetLen / 2) };
-    group.userData.half = { x: 1.05, z: def.targetLen / 2 };
-    group.userData.yawOffset = 0;
-    group.userData.nose = -1;
-    _modelCache[kind] = group;
-    return group;
+    console.error(`[Vehicle] Refusing to load ${kind}; no placeholder vehicle will be substituted.`, e);
+    delete _modelCache[kind];
+    throw e;
   }
 }
 
@@ -702,6 +777,8 @@ export class VehicleSystem {
     this._speedometerCtx = null;
     this.interiorView = false;
     this._cockpitProfiles = {};
+    this.physicsDebugEnabled = false;
+    this._physicsDebugObjects = new Map();
     try {
       if (typeof localStorage !== 'undefined') {
         const saved = JSON.parse(localStorage.getItem('sc_cockpit_camera_profiles_v1') || '{}');
@@ -907,11 +984,14 @@ export class VehicleSystem {
     v.parkedCol = this.world.addCollider(b.x, b.y, b.z, b.w, b.h, b.d);
   }
 
-  syncDynamicVehicle(v, dt = 1 / 60) {
+  syncDynamicVehicle(v, dt = 1 / 60, alpha = 1) {
     if (!v?.physicsDynamic || !v.rapierBody) return;
-    const t = v.rapierBody.translation();
-    const rotation = v.rapierBody.rotation();
-    const q = new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
+    const interpolated = this.physics?.getInterpolatedVehiclePose?.(v.rapierBody, alpha);
+    const t = interpolated?.position || v.rapierBody.translation();
+    const rotation = interpolated?.quaternion || v.rapierBody.rotation();
+    const q = rotation.isQuaternion
+      ? rotation
+      : new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
     const bodyYaw = new THREE.Euler().setFromQuaternion(q, 'YXZ').y;
     // The rigid body is centered at the chassis COM, while the visible GLB root
     // is at the wheel-ground origin. Rotate that offset with the full quaternion
@@ -932,6 +1012,7 @@ export class VehicleSystem {
     v.root.position.copy(v.pos);
     v.root.quaternion.copy(q);
     const wheelStates = v.rapierBody._openWorldWheelStates || [];
+    if (this.physicsDebugEnabled) this._updatePhysicsDebugVehicle(v, wheelStates);
     const blend = 1 - Math.exp(-18 * Math.min(Math.max(dt, 0), 0.05));
     for (let i = 0; i < v.wheels.length; i++) {
       const wheel = v.wheels[i];
@@ -971,15 +1052,92 @@ export class VehicleSystem {
     }
   }
 
-  syncDynamicBodies(dt = 1 / 60) {
-    // Vehicle forces were applied before each solver step. Copy the completed
-    // physics pose into the visible chassis and wheel rigs after all substeps.
-    for (const v of this.vehicles) this.syncDynamicVehicle(v, dt);
+  togglePhysicsDebug(force = null) {
+    this.physicsDebugEnabled = force === null ? !this.physicsDebugEnabled : !!force;
+    if (!this.physicsDebugEnabled) {
+      for (const [vehicle, helpers] of this._physicsDebugObjects) {
+        vehicle.root.remove(helpers.collider);
+        vehicle.root.remove(helpers.rays);
+        helpers.collider.geometry.dispose();
+        helpers.collider.material.dispose();
+        helpers.rays.geometry.dispose();
+        helpers.rays.material.dispose();
+      }
+      this._physicsDebugObjects.clear();
+      return false;
+    }
+    for (const vehicle of this.vehicles) {
+      this._ensurePhysicsDebugVehicle(vehicle);
+      this._updatePhysicsDebugVehicle(vehicle, vehicle.rapierBody?._openWorldWheelStates || []);
+    }
+    return true;
+  }
+
+  _ensurePhysicsDebugVehicle(vehicle) {
+    if (!this.physicsDebugEnabled || this._physicsDebugObjects.has(vehicle)) return;
+    const box = vehicle.physicsBox;
+    const size = new THREE.Vector3().subVectors(box.max, box.min);
+    const center = new THREE.Vector3().addVectors(box.min, box.max).multiplyScalar(0.5);
+    const collider = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(size.x, size.y, size.z)),
+      new THREE.LineBasicMaterial({ color: 0xffc44d, depthTest: false }),
+    );
+    collider.position.copy(center);
+    collider.renderOrder = 1000;
+    vehicle.root.add(collider);
+
+    const geometry = new THREE.BufferGeometry();
+    const positions = new THREE.BufferAttribute(new Float32Array(24), 3);
+    positions.setUsage(THREE.DynamicDrawUsage);
+    geometry.setAttribute('position', positions);
+    geometry.setDrawRange(0, 8);
+    const rays = new THREE.LineSegments(
+      geometry,
+      new THREE.LineBasicMaterial({ color: 0x32e6a1, depthTest: false }),
+    );
+    rays.renderOrder = 1001;
+    vehicle.root.add(rays);
+    this._physicsDebugObjects.set(vehicle, { collider, rays, positions });
+  }
+
+  _updatePhysicsDebugVehicle(vehicle, wheelStates = []) {
+    this._ensurePhysicsDebugVehicle(vehicle);
+    const helpers = this._physicsDebugObjects.get(vehicle);
+    if (!helpers) return;
+    vehicle.root.updateMatrixWorld(true);
+    const data = helpers.positions;
+    for (let i = 0; i < 4; i++) {
+      const state = wheelStates[i];
+      const hardpoint = state?.hardpoint;
+      const end = state?.contact && state.point
+        ? state.point
+        : hardpoint
+          ? { x: hardpoint.x, y: hardpoint.y - (state.radius || 0.32)
+              - (vehicle.physicsProfile?.suspensionRestLength ?? 0.22)
+              - (vehicle.physicsProfile?.suspensionTravel ?? 0.18), z: hardpoint.z }
+          : null;
+      const a = hardpoint
+        ? vehicle.root.worldToLocal(new THREE.Vector3(hardpoint.x, hardpoint.y, hardpoint.z))
+        : new THREE.Vector3();
+      const b = end
+        ? vehicle.root.worldToLocal(new THREE.Vector3(end.x, end.y, end.z))
+        : new THREE.Vector3();
+      data.setXYZ(i * 2, a.x, a.y, a.z);
+      data.setXYZ(i * 2 + 1, b.x, b.y, b.z);
+    }
+    data.needsUpdate = true;
+    helpers.rays.geometry.computeBoundingSphere();
+  }
+
+  syncDynamicBodies(dt = 1 / 60, alpha = 1) {
+    for (const v of this.vehicles) this.syncDynamicVehicle(v, dt, alpha);
   }
 
   async spawn(def) {
     try {
       const kind = def.kind || 'lambo';
+      const physicsProfile = CAR_PHYSICS[kind];
+      if (!CAR_MODELS[kind] || !physicsProfile) throw new Error('Vehicle model/physics profile is not registered: ' + kind);
       const root = new THREE.Group();
       const base = await loadCarModel(kind);
       // The clone keeps the normalized base transform (recenter offset/scale);
@@ -987,10 +1145,9 @@ export class VehicleSystem {
       const clone = base.clone(true);
       root.add(clone);
       const colBoxes = base.userData.colBoxes || [];
-      const bodyBox = base.userData.bodyBox || {
-        min: new THREE.Vector3(-1.05, 0, -2.35), max: new THREE.Vector3(1.05, 1.2, 2.35),
-      };
-      const half = base.userData.half || { x: 1.05, z: 2.35 };
+      if (!colBoxes.length || !base.userData.bodyBox) throw new Error('Vehicle asset has no valid fitted chassis collision geometry: ' + kind);
+      const bodyBox = base.userData.bodyBox;
+      const half = base.userData.half;
       const yawOffset = base.userData.yawOffset || 0;
       // Re-resolve the wheel rigs and measure their true positions/radii in
       // normalized model-root space. These are used by the raycast suspension.
@@ -1059,7 +1216,8 @@ export class VehicleSystem {
       root.rotation.y = yaw + yawOffset;
       this.scene.add(root);
 
-      const suspensionReady = wheels.length >= 4 && wheels.every(w =>
+      if (wheels.length !== 4) throw new Error(`[${kind}] exactly four wheel rigs are required; found ${wheels.length}`);
+      const suspensionReady = wheels.length === 4 && wheels.every(w =>
         Number.isFinite(w.center.x) && Number.isFinite(w.center.y) && Number.isFinite(w.center.z)
         && w.radius >= 0.18 && w.center.y > bodyBox.min.y + 0.015
       );
@@ -1094,14 +1252,38 @@ export class VehicleSystem {
         x: w.center.x, y: w.center.y, z: w.center.z,
         radius: w.radius, front: w.front,
       }));
-      const physicsProfile = { ...(CAR_PHYSICS[kind] || CAR_PHYSICS.lambo) };
+      const frontWheels = physicsWheels.filter(wheel => wheel.front);
+      const rearWheels = physicsWheels.filter(wheel => !wheel.front);
+      const average = values => values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
+      const measuredWheelbase = Math.abs(average(frontWheels.map(wheel => wheel.z)) - average(rearWheels.map(wheel => wheel.z)));
+      const measuredFrontTrack = Math.abs(frontWheels.find(wheel => wheel.x > 0).x - frontWheels.find(wheel => wheel.x < 0).x);
+      const measuredRearTrack = Math.abs(rearWheels.find(wheel => wheel.x > 0).x - rearWheels.find(wheel => wheel.x < 0).x);
+      const measuredFrontRadius = average(frontWheels.map(wheel => wheel.radius));
+      const measuredRearRadius = average(rearWheels.map(wheel => wheel.radius));
+      const within = (actual, expected, tolerance) => Math.abs(actual - expected) / Math.max(0.001, expected) <= tolerance;
+      if (frontWheels.length !== 2 || rearWheels.length !== 2
+        || !within(measuredWheelbase, physicsProfile.wheelbase, 0.15)
+        || !within(measuredFrontTrack, physicsProfile.trackFront, 0.15)
+        || !within(measuredRearTrack, physicsProfile.trackRear, 0.15)
+        || !within(measuredFrontRadius, physicsProfile.wheelRadiusFront, 0.20)
+        || !within(measuredRearRadius, physicsProfile.wheelRadiusRear, 0.20)) {
+        throw new Error(`[${kind}] GLB/physics mismatch: wheelbase=${measuredWheelbase.toFixed(3)}m, tracks=${measuredFrontTrack.toFixed(3)}/${measuredRearTrack.toFixed(3)}m, radii=${measuredFrontRadius.toFixed(3)}/${measuredRearRadius.toFixed(3)}m`);
+      }
+      const wheelCalibration = {
+        wheelbase: measuredWheelbase,
+        frontTrack: measuredFrontTrack,
+        rearTrack: measuredRearTrack,
+        frontRadius: measuredFrontRadius,
+        rearRadius: measuredRearRadius,
+      };
+      const physicsProfile = { ...CAR_PHYSICS[kind] };
       const baseInteriorCamera = base.userData.assetOverride?.interiorCamera
         || physicsProfile.interiorCamera
         || { height: Math.max(0.85, (bodyBox.max.y - bodyBox.min.y) * 0.62), forward: 0.18, side: 0, lookAhead: 18, pitch: 0, fov: 82 };
       const interiorCamera = resolveCockpitCameraProfile(baseInteriorCamera, this._cockpitProfiles[kind]);
       const v = {
         def, root, rapierBody: null, physicsDynamic: false, suspensionReady,
-        physicsCenterY, physicsBox, physicsWheels, physicsProfile,
+        physicsCenterY, physicsBox, physicsWheels, physicsProfile, wheelCalibration,
         kind, wheels, steeringWheel, colBoxes, bodyBox, half,
         yawOffset, parkedCol: null,
         baseInteriorCamera: { ...baseInteriorCamera },
@@ -1126,6 +1308,11 @@ export class VehicleSystem {
             def.x, def.elevation || 0, def.z, yaw + yawOffset, [physicsBox],
             {
               dynamic: true, centerY: physicsCenterY, mass: v.mass,
+              centerOfMass: {
+                x: 0,
+                y: physicsProfile.centerOfMassHeight - physicsCenterY,
+                z: physicsProfile.wheelbase * (physicsProfile.weightFront - 0.5),
+              },
               yawOffset, tuning: physicsProfile, angularDamping: physicsProfile.angularDamping,
             },
           );
@@ -1136,6 +1323,7 @@ export class VehicleSystem {
       }
 
       this.vehicles.push(v);
+      if (this.physicsDebugEnabled) this._ensurePhysicsDebugVehicle(v);
       this._addParkedCollider(v);
       console.log('[Vehicle] Spawned car (' + kind + ') at', def.x, def.z, '- boxes:', colBoxes.length, 'wheels:', wheels.length);
       return v;
@@ -1278,11 +1466,13 @@ export class VehicleSystem {
     if (!v) return;
 
     const throttle = input.forward || 0;
-    const rawSteerInput = input.right || 0;
+    const rawSteerValue = THREE.MathUtils.clamp(input.right || 0, -1, 1);
+    const rawSteerInput = Math.abs(rawSteerValue) < 0.02 ? 0 : rawSteerValue;
     const handbrake = !!input.jump;
     const tuning = v.physicsProfile || CAR_PHYSICS[v.kind] || CAR_PHYSICS.lambo;
     const steeringBlend = 1 - Math.exp(-(tuning.steeringResponse || 10) * Math.min(Math.max(dt, 0), 0.05));
     v.steerInput = (v.steerInput || 0) + (rawSteerInput - (v.steerInput || 0)) * steeringBlend;
+    if (Math.abs(v.steerInput) < 0.02) v.steerInput = 0;
     const steerInput = v.steerInput;
     let curSpd = 0;
     if (v.physicsDynamic && this.physics && v.rapierBody) {
