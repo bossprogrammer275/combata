@@ -3,6 +3,16 @@ import * as THREE from 'three';
 
 // Texture cache — avoids regenerating canvas textures across World rebuilds.
 const _texCache = new Map();
+let _textureAnisotropy = 4;
+
+export function configureTextureAnisotropy(value = 4) {
+  _textureAnisotropy = Math.max(1, Math.min(16, Number(value) || 1));
+  for (const texture of _texCache.values()) {
+    texture.anisotropy = _textureAnisotropy;
+    texture.needsUpdate = true;
+  }
+  return _textureAnisotropy;
+}
 
 function canvas(size) { const c = document.createElement('canvas'); c.width = c.height = size; return c; }
 
@@ -31,7 +41,7 @@ function tex(c, repeat = 1, srgb = true, key = null) {
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.repeat.set(repeat, repeat);
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 4;
+  t.anisotropy = _textureAnisotropy;
   if (key) _texCache.set(key, t);
   return t;
 }
@@ -969,6 +979,7 @@ export function makeSkyTexture() {
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   t.mapping = THREE.EquirectangularReflectionMapping;
+  t.anisotropy = _textureAnisotropy;
   return t;
 }
 
