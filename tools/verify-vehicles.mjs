@@ -974,9 +974,7 @@ try {
           .applyQuaternion(q).setY(0).normalize();
         const velocity = body.linvel();
         const speed = velocity.x * forward.x + velocity.z * forward.z;
-        const throttle = steer === 0
-          ? THREE.MathUtils.clamp((targetSpeed - speed) * 0.30, 0, 1)
-          : THREE.MathUtils.clamp((targetSpeed - speed) * 0.30, 0, 1);
+        const throttle = THREE.MathUtils.clamp((targetSpeed - speed) * 0.30, 0, 1);
         motion = physics.applyVehicleControls(body, {
           throttle,
           steer,
