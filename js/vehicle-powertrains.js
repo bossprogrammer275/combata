@@ -18,7 +18,8 @@ function stepElectric(state,spec,tune,throttle,speed,dt) {
   const radius=Math.max(.2,spec.wheelRadius||.43), finalDrive=spec.finalDrive||9;
   const rpm=Math.abs(speed)/radius*finalDrive*60/(Math.PI*2);
   const torque=sampleCurve(spec.torqueCurve,rpm,spec.maxMotorTorque||1400);
-  const force=Math.min(torque*finalDrive/radius,(spec.peakPowerKw||420)*1000/Math.max(3,Math.abs(speed)));
+  const efficiency=clamp(spec.drivetrainEfficiency??0.92,0.5,1);
+  const force=Math.min(torque*finalDrive*efficiency/radius,(spec.peakPowerKw||420)*1000/Math.max(3,Math.abs(speed)));
   const accel=clamp(force/Math.max(600,tune.mass||1500),0,spec.maxAcceleration||11.5);
   state.motorRpm+=(rpm-state.motorRpm)*(1-Math.exp(-10*dt));
   state.rpm=state.motorRpm;state.gear=1;state.shiftTimer=0;state.throttle=throttle;state.engineLoad=Math.abs(throttle);
