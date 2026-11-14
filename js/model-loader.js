@@ -40,8 +40,10 @@ async function ensureDecoders() {
 const HAS_BROWSER_WORKERS = typeof Worker !== 'undefined'
   && typeof navigator !== 'undefined'
   && typeof window !== 'undefined';
+const DEVICE_MEMORY_GB = HAS_BROWSER_WORKERS ? (Number(navigator.deviceMemory) || 4) : 0;
+const WORKER_LIMIT = DEVICE_MEMORY_GB <= 4 ? 2 : DEVICE_MEMORY_GB <= 8 ? 4 : 6;
 const WORKER_COUNT = HAS_BROWSER_WORKERS
-  ? Math.min(navigator.hardwareConcurrency || 4, 6)
+  ? Math.min(navigator.hardwareConcurrency || 4, WORKER_LIMIT)
   : 0;
 let _workers = [];
 let _workerId = 0;
