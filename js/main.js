@@ -639,7 +639,7 @@ class Game {
         case 'KeyX': if (this.state === 'playing' && !this.player.skydive && !(this.vehicles && this.vehicles.driver)) this.input.throwGrenade = true; break;
         case 'KeyF': if (this.state === 'playing' && this.nearLoot) this.lootPickup(); else I.climb = true; e.preventDefault(); break;
         case 'KeyZ': if (this.state === 'playing') I.climb = true; e.preventDefault(); break;
-        case 'F8':
+        case 'F9':
           if (this.state === 'playing' && this.vehicles) {
             const enabled = this.vehicles.togglePhysicsDebug();
             this.hud.toast(enabled ? 'VEHICLE PHYSICS DEBUG ON' : 'VEHICLE PHYSICS DEBUG OFF');
