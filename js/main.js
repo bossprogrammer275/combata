@@ -1565,7 +1565,24 @@ class Game {
 
   applyQuality(requested) {
     const q = this.resolveGraphicsQuality(requested);
-    const profile = GRAPHICS_PROFILES[q];
+    const baseProfile = GRAPHICS_PROFILES[q];
+    const memoryLimited = (this._graphicsCapabilities?.deviceMemory || 0) > 0
+      && this._graphicsCapabilities.deviceMemory <= 4;
+    const legacyGpu = !!this._graphicsCapabilities?.legacyGpu;
+    const constrainedHigh = q === 'high' && (legacyGpu || memoryLimited);
+    const profile = constrainedHigh
+      ? {
+          ...baseProfile,
+          minScale: 0.50,
+          maxScale: 0.85,
+          startScale: 0.72,
+          maxDpr: 1.0,
+          targetMs: 33.3,
+          shadowSize: 1024,
+          shadowExtent: 160,
+          anisotropy: 4,
+        }
+      : baseProfile;
     this.graphicsQuality = q;
     this.graphicsProfile = profile;
     this.profile.data.settings.quality = q;
@@ -1627,10 +1644,12 @@ class Game {
     this._applyRenderSize();
     window.__graphics = {
       quality: q,
+      performanceProfile: constrainedHigh ? 'legacy-gpu-balanced-high' : q,
       capabilities: this._graphicsCapabilities,
       renderScale: this.renderScale,
       frameTimeMs: this._frameTimeEMA,
       rendererInfo: this.renderer.info,
+      postProcessing: this.composer ? 'GTAO + restrained bloom + SMAA' : 'direct renderer',
     };
   }
 }
