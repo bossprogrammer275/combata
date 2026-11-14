@@ -41,7 +41,7 @@ Cabin illumination is deliberately subtle. It can lift dark materials but cannot
 
 ## Vehicle coordinate convention
 
-All imported vehicle models use **+Y up, +Z forward and +X left**. The right side is -X. The player controls continue to use D/Right for a right turn. The model's nose-axis correction is applied once at the vehicle root; wheel classification, tyre rigs, physics hardpoints and cockpit placement must use the same measured model-local geometry.
+Vehicle-local coordinates are **+Y up, +Z forward and +X left**. The right side is -X. This is the vehicle asset convention; general city/environment assets retain the world-model convention documented below. The player controls continue to use D/Right for a right turn. The model's nose-axis correction is applied once at the vehicle root; wheel classification, tyre rigs, physics hardpoints and cockpit placement must use the same measured model-local geometry.
 
 Each registered vehicle has one model entry and one physics profile. The GLB supplies its wheel positions and tyre radii; the profile supplies mass, weight distribution, centre of mass, inertia scale, suspension, braking, grip and powertrain tuning. The loader checks the four-corner layout against those values and refuses mismatched or incomplete models. It does not replace broken assets with a placeholder box car.
 
