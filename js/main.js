@@ -144,7 +144,10 @@ class Game {
     }
     this._sceneFetch = null;
     setLoad(0.45, 'TERRAIN & STRUCTURES…');
-    this.world = new World(this.scene, quality, sceneData, { maxAnisotropy: this._graphicsCapabilities?.maxAnisotropy || 4 });
+    this.world = new World(this.scene, quality, sceneData, {
+      maxAnisotropy: this._graphicsCapabilities?.maxAnisotropy || 4,
+      deviceMemory: this._graphicsCapabilities?.deviceMemory || 4,
+    });
     await this.world.assetsReady;
     this.fx = new Effects(this.scene, quality);
 
