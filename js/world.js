@@ -31,7 +31,7 @@ function bezier2(p0, p1, c, t) {
 }
 
 export class World {
-  constructor(scene, quality = 'high', sceneData = null) {
+  constructor(scene, quality = 'high', sceneData = null, renderCapabilities = {}) {
     this.scene = scene;
     this.sceneData = sceneData;
     this.mapId = sceneData ? (sceneData.id || 'authored') : 'desert';
@@ -51,6 +51,9 @@ export class World {
     this._buildingData = [];  // {url,min,max,x,z,doors[],interior} — auto-detected from GLB
     this.bounds = sceneData && sceneData.bounds ? sceneData.bounds : (quality === 'ultra-low' ? 1000 : 2000);
     this._quality = quality;
+    const requestedAnisotropy = quality === 'ultra' ? 16 : quality === 'high' ? 8 : quality === 'medium' ? 4 : quality === 'low' ? 2 : 1;
+    this._maxAnisotropy = Math.min(requestedAnisotropy, Number(renderCapabilities.maxAnisotropy) || 4);
+    TEX.configureTextureAnisotropy(this._maxAnisotropy);
     this.group = new THREE.Group();
     scene.add(this.group);
     this._boxBatch = [];     // {x,y,z,w,h,d,ry,mat,shadow} — static boxes to batch
@@ -81,6 +84,26 @@ export class World {
       this.grid = this.bvhWorld;
     }
     this._finishSpawnPoints();
+  }
+
+  setTextureAnisotropy(value) {
+    this._maxAnisotropy = Math.max(1, Math.min(16, Number(value) || 1));
+    TEX.configureTextureAnisotropy(this._maxAnisotropy);
+    this.group.traverse(object => {
+      if (!object.isMesh) return;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      for (const material of materials) {
+        if (!material) continue;
+        for (const key of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'bumpMap', 'alphaMap']) {
+          const texture = material[key];
+          if (texture) {
+            texture.anisotropy = this._maxAnisotropy;
+            texture.needsUpdate = true;
+          }
+        }
+      }
+    });
+    return this._maxAnisotropy;
   }
 
   // ===== MATERIALS =====
@@ -608,7 +631,7 @@ export class World {
     // Atmosphere handles the sky dome; just set env map for PBR reflections
     const sky = TEX.makeSkyTexture();
     this.scene.environment = sky;
-    this.scene.environmentIntensity = 0.45;
+    this.scene.environmentIntensity = this._quality === 'ultra' ? 0.68 : this._quality === 'high' ? 0.55 : 0.45;
     // Don't set background — atmosphere sky dome renders over it
   }
 
@@ -725,8 +748,11 @@ export class World {
       console.log(`[World] Prefetching ${glbUrls.length} model binaries in background`);
     }
 
-    // Load assets in parallel batches of 4
-    const CONCURRENT = 8;
+    // Keep binary decode concurrency within the selected memory budget.
+    const CONCURRENT = this._quality === 'ultra' ? 8
+      : this._quality === 'high' ? 6
+      : this._quality === 'medium' ? 4
+      : this._quality === 'low' ? 2 : 1;
     for (let i = 0; i < assets.length; i += CONCURRENT) {
       const batch = assets.slice(i, i + CONCURRENT);
       await Promise.allSettled(batch.map(a => this._loadGLBAsset(a)));
@@ -887,10 +913,21 @@ export class World {
         o.castShadow = shouldCastShadow;
         o.receiveShadow = true;
         const mat = o.material;
+        const anisotropy = this._maxAnisotropy || 4;
+        const applyAnisotropy = material => {
+          if (!material) return;
+          for (const key of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'bumpMap', 'alphaMap']) {
+            if (material[key]) {
+              material[key].anisotropy = anisotropy;
+              material[key].needsUpdate = true;
+            }
+          }
+        };
         if (mat && mat.isMeshStandardMaterial) {
           if (mat.roughness > 0.9) mat.roughness = Math.min(mat.roughness, 0.92);
           if (mat.metalness < 0.01 && mat.roughness < 0.5) mat.metalness = 0.05;
-          if (envMap && !mat.envMap) { mat.envMap = envMap; mat.envMapIntensity = 0.35; }
+          if (envMap && !mat.envMap) { mat.envMap = envMap; mat.envMapIntensity = this._quality === 'ultra' ? 0.55 : 0.35; }
+          applyAnisotropy(mat);
           mat.needsUpdate = true;
         } else if (mat && mat.isMeshPhongMaterial) {
           const std = new THREE.MeshStandardMaterial({
@@ -898,7 +935,8 @@ export class World {
             roughness: 0.7,
             metalness: 0.05,
           });
-          if (envMap) { std.envMap = envMap; std.envMapIntensity = 0.35; }
+          if (envMap) { std.envMap = envMap; std.envMapIntensity = this._quality === 'ultra' ? 0.55 : 0.35; }
+          applyAnisotropy(std);
           std.needsUpdate = true;
           o.material = std;
         }
