@@ -12,7 +12,7 @@ Procedural JavaScript mesh generators are deprecated. All buildings, props, envi
 - **Rendering**: Three.js PBR (`MeshStandardMaterial` / `MeshPhysicalMaterial`) with automatic environment map reflections and dynamic time-of-day atmospheric lighting.
 - **Raycasting & LOS**: `three-mesh-bvh` provides mesh-accurate BVH acceleration for weapon hitscans, bullet penetration, camera occlusion avoidance, and line-of-sight checks.
 - **Movement Colliders**: Solid AABBs are indexed for player, civilian and vehicle movement; climbable fences are both physical obstacles and interaction targets.
-- **Physics**: Rapier 3D (WASM) handles the player's character controller, static-world collision and dynamic vehicle chassis. Cars use mass-bearing rigid bodies, CCD, ground raycasts at the four GLB wheel pivots, spring/damper suspension impulses, wheel-contact throttle/braking and per-wheel lateral tyre forces. Chassis pitch and roll are dynamic, with a tuned recovery assist. The model is still simplified: wheels are suspension/force points rather than separate rigid bodies, and full gearboxes, differentials and engine torque curves are not implemented.
+- **Physics**: Rapier 3D (WASM) handles the player's character controller, static-world collision and dynamic vehicle chassis. Vehicle bodies use profile-defined mass, centre of mass and inertia, zero-density chassis colliders, CCD, and a fixed 120 Hz solver with render interpolation. Each GLB supplies the four measured wheel hardpoints and tyre radii; raycast suspension, axle-specific springs/dampers, anti-roll transfer, tyre forces, brake bias and per-wheel contact loads drive the chassis. The simulation remains a practical open-world approximation: tyres are suspension/force points rather than independent rigid bodies.
 - **Vehicle handling**: each car has its own mass, drivetrain, acceleration, braking, top speed, steering angle, tyre grip, handbrake grip, suspension and stability tune. The GLB's forward-axis correction is kept separate from the actual travel heading so imported cars accelerate in the direction their nose points.
 - **Collision selection**: valid GLB `col_*` proxies first; dedicated tree/lamp and explicit per-world `collisionSize`/`collisionH` overrides next; otherwise the runtime uses the sibling `*_col.json` manifest, then purpose-built fallbacks (including split building walls with doorway openings).
 - **Road collision**: road, sidewalk and curb strips keep oriented footprints. Their large world-space AABBs are only broad-phase bounds; player movement, nearby-object checks and raycasts test the real rotated strip so empty corners do not become invisible walls.
@@ -26,8 +26,8 @@ These are gameplay tuning values, not claims about exact real-world performance.
 
 | Profile | Mass | Drive | Acceleration tune | Speed cap | Handling focus |
 |---|---:|---|---:|---:|---|
-| Lambo | 1,480 kg | Rear-wheel drive | 12.5 m/s² | 64 m/s (about 230 km/h) | Fast response, stronger rear grip, loose handbrake |
-| Cybertruck | 3,009 kg | All-wheel drive | EV motor torque map | 50 m/s (180 km/h) | Heavy EV, single-speed reduction, regenerative lift-off braking |
+| Lambo-class sports car | 1,620 kg | Rear-wheel drive | 13.8 m/s² | 90.3 m/s (about 325 km/h) | Rear-biased weight distribution, DCT and controlled oversteer |
+| Cybertruck | 3,150 kg | All-wheel drive | EV motor torque map | 50 m/s (180 km/h) | Heavy EV, single-speed reduction and regenerative lift-off braking |
 
 Controls in the current game: **W/Up** throttle, **S/Down** brake/reverse, **A/D** or **Left/Right** steering, **Space** handbrake, and **E** to enter or exit.
 
@@ -35,9 +35,17 @@ Controls in the current game: **W/Up** throttle, **S/Down** brake/reverse, **A/D
 
 Use [`tools/new-car.md`](./tools/new-car.md) for the required incoming-car checklist. The Asset Lab at `/tools/asset-lab.html` can load a new model from `/data/models/cars/`, tune its per-car interior camera, assign and preview a separate steering-wheel pivot, and save per-asset overrides. A 450° steering-wheel value is lock-to-lock (±225° from centre), not a 450° rotation each way.
 
-Driver camera heights are vehicle-specific and measured from tyre/road ground: Lamborghini 0.98 m, Cybertruck 1.42 m, and the temporary Bugatti profile 1.04 m. Do not reuse one interior camera height across different vehicle classes. Press **Esc** in-game to open the pause menu, then choose **Cockpit Adjustments** for per-vehicle viewpoint position and resting look-angle controls. Adjustments persist locally for each vehicle type.
+Driver camera heights are vehicle-specific and measured from tyre/road ground: Lamborghini 0.98 m and Cybertruck 1.42 m. Do not reuse one interior camera height across different vehicle classes. Press **Esc** in-game to open the pause menu, then choose **Cockpit Adjustments** for per-vehicle viewpoint position and resting look-angle controls. Adjustments persist locally for each vehicle type.
 
 Cabin illumination is deliberately subtle. It can lift dark materials but cannot replace missing dashboard, steering-wheel, seat or console geometry in a GLB.
+
+## Vehicle coordinate convention
+
+All imported vehicle models use **+Y up, +Z forward and +X left**. The right side is -X. The player controls continue to use D/Right for a right turn. The model's nose-axis correction is applied once at the vehicle root; wheel classification, tyre rigs, physics hardpoints and cockpit placement must use the same measured model-local geometry.
+
+Each registered vehicle has one model entry and one physics profile. The GLB supplies its wheel positions and tyre radii; the profile supplies mass, weight distribution, centre of mass, inertia scale, suspension, braking, grip and powertrain tuning. The loader checks the four-corner layout against those values and refuses mismatched or incomplete models. It does not replace broken assets with a placeholder box car.
+
+The physics debug overlay is available in-game with **F8**. It draws the fitted chassis collision box and the four live suspension rays.
 
 ## 2. GLB Model Authoring Specifications
 
@@ -197,7 +205,7 @@ Open your browser to:
 
 ### Collision verification
 
-Run the vehicle/physics smoke test and syntax checks:
+Run the vehicle/physics smoke test (including the 60-second straight-line and mirrored-turn symmetry tests) and syntax checks:
 ```bash
 node tools/verify-vehicles.mjs
 node --check js/world.js
