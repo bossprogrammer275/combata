@@ -665,7 +665,7 @@ class Game {
           if (this.state === 'playing' && this.vehicles && this.vehicles.driver) this.vehicles.toggleInteriorView();
           else if (this.state === 'playing') this.toggleView();
           break;
-        case 'F6': window.open('./tools/asset-lab.html', 'strike-command-asset-lab'); break;
+        case 'F6': window.open('./tools/asset-lab.html', 'open-world-asset-lab'); break;
         case 'KeyQ': if (this.state === 'playing' && !this.player.skydive && !(this.vehicles && this.vehicles.driver)) this.weapons.swap(1); break;
         case 'KeyE':
           if (this.state === 'playing') {
@@ -1270,7 +1270,7 @@ class Game {
     this._capTimer += dt;
     if (this._capTimer > 3.2) {
       this._capTimer = 0; this._capIdx = (this._capIdx + 1) % 4;
-      const caps = ['ONE CITY · CRAFTED BY HAND', 'NO GRIDS · NO GENERATION · PLACED BY HAND', 'EVERY CORNER TELLS A STORY', 'STRIKE COMMAND'];
+      const caps = ['ONE CITY · CRAFTED BY HAND', 'NO GRIDS · NO GENERATION · PLACED BY HAND', 'EVERY CORNER TELLS A STORY', 'OPEN WORLD'];
       if (I.cap) { I.cap.style.opacity = 0; setTimeout(() => { if (I.cap) { I.cap.textContent = caps[this._capIdx]; I.cap.style.opacity = 1; } }, 400); }
     }
     I.tickCount = (I.tickCount || 0) + 1;
