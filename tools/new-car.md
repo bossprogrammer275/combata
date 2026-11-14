@@ -1,4 +1,4 @@
-# Adding a New Vehicle to STRIKE COMMAND
+# Adding a New Vehicle to OPEN WORLD
 
 This is the required checklist for every incoming car. Do not copy another vehicle's tuning blindly: measure and calibrate the model, then give it its own profile.
 
@@ -12,7 +12,7 @@ data/models/cars/<vehicle-folder>/
 
 Prefer a self-contained GLB. For a GLTF with external buffers or textures, keep the folder structure intact and check every referenced file is included.
 
-The model should use metres where possible, have its wheels touching the ground, and have a clear front direction. STRIKE COMMAND normalises the vehicle's longest horizontal body dimension using `targetLen`, so do not try to fix an incorrect length using non-uniform scale.
+The model should use metres where possible, have its wheels touching the ground, and have a clear front direction. OPEN WORLD normalises the vehicle's longest horizontal body dimension using `targetLen`, so do not try to fix an incorrect length using non-uniform scale.
 
 ## 2. Register the model and its physics profile
 
@@ -81,13 +81,12 @@ Use the **Load car** field to paste a model path, for example:
 
 The interior camera's `height` is the driver's eye height measured up from the vehicle's ground/tyre contact level. It is not the roof height and must not be shared between cars with different ride heights and cabin proportions. Asset Lab fits the preview vehicle to the **Target body length** field before showing Cabin view, so adjust that length first; then tune eye height and seat offsets in the fitted model space.
 
-Current calibrated starting points:
+Current calibrated starting points for the two registered vehicle assets:
 
 | Vehicle | Interior camera height |
 |---|---:|
 | Lamborghini | 0.98 m |
 | Tesla Cybertruck | 1.42 m |
-| Bugatti profile | 1.04 m |
 
 The Lamborghini is a low sports-car cabin. The Cybertruck has a taller pickup cabin, so its camera is deliberately 0.40 m higher than the Lamborghini. Keep these values separate.
 
@@ -109,7 +108,7 @@ The in-game position sliders move the virtual driver viewpoint. They do not defo
 
 A camera and a light cannot create a missing interior. The GLB itself needs real cabin geometry if the driver is expected to see a detailed steering wheel, dashboard, display, seats, centre console, pedals, door cards and windscreen framing.
 
-STRIKE COMMAND uses two restrained, warm/cool fill lights only while the interior camera is active. They are intentionally low intensity. Do not increase them to compensate for missing cabin meshes: that just makes the interior look white and washed out.
+OPEN WORLD uses two restrained, warm/cool fill lights only while the interior camera is active. They are intentionally low intensity. Do not increase them to compensate for missing cabin meshes: that just makes the interior look white and washed out.
 
 Inspect the actual cabin in Asset Lab. If the model has no usable interior, source or author an interior mesh and integrate it with the body model before tuning the light.
 
