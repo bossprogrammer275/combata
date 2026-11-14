@@ -716,12 +716,13 @@ try {
 
   let lastMotion = null;
   for (let i = 0; i < 90; i++) {
-    lastMotion = physics.applyVehicleControls(rb, {
-      throttle: 1, steer: 0.8, handbrake: false, dt: 1 / 60,
-      wheels, tuning: CAR_PHYSICS.lambo,
-      surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
+    physics.step(1 / 60, h => {
+      lastMotion = physics.applyVehicleControls(rb, {
+        throttle: 1, steer: 0.8, handbrake: false, dt: h,
+        wheels, tuning: CAR_PHYSICS.lambo,
+        surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
+      });
     });
-    physics.step(1 / 60);
   }
   check('raycast suspension detects grounded wheel contact', (lastMotion?.wheelContacts || 0) >= 3,
     `contacts=${lastMotion?.wheelContacts ?? 0}`);
@@ -774,12 +775,13 @@ try {
   highSpeedTurn.setLinvel({ x: 0, y: 0, z: -27 }, true);
   let highSpeedTurnMotion = null;
   for (let i = 0; i < 150; i++) {
-    highSpeedTurnMotion = physics.applyVehicleControls(highSpeedTurn, {
-      throttle: 0, steer: 1, handbrake: false, dt: 1 / 60,
-      wheels, tuning: CAR_PHYSICS.lambo,
-      surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
+    physics.step(1 / 60, h => {
+      highSpeedTurnMotion = physics.applyVehicleControls(highSpeedTurn, {
+        throttle: 0, steer: 1, handbrake: false, dt: h,
+        wheels, tuning: CAR_PHYSICS.lambo,
+        surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
+      });
     });
-    physics.step(1 / 60);
   }
   const turnPose = highSpeedTurn.translation();
   const turnRot = highSpeedTurn.rotation();
@@ -801,11 +803,12 @@ try {
   for (let i = 0; i < 3; i++) physics.step(1 / 60);
   let rampMotion = null;
   for (let i = 0; i < 90; i++) {
-    rampMotion = physics.applyVehicleControls(rampCar, {
-      throttle: 1, steer: 0, handbrake: false, dt: 1 / 60,
-      wheels, tuning: CAR_PHYSICS.lambo,
+    physics.step(1 / 60, h => {
+      rampMotion = physics.applyVehicleControls(rampCar, {
+        throttle: 1, steer: 0, handbrake: false, dt: h,
+        wheels, tuning: CAR_PHYSICS.lambo,
+      });
     });
-    physics.step(1 / 60);
   }
   const rampCarPosition = rampCar.translation();
   check('vehicle has wheel contacts on the slope',
@@ -830,11 +833,12 @@ try {
     physics.step(1 / 60);
     let truckMotion = null;
     for (let i = 0; i < 90; i++) {
-      truckMotion = physics.applyVehicleControls(truck, {
-        throttle: 1, steer: 0.35, handbrake: false, dt: 1 / 60,
-        wheels: truckSpec.wheels, tuning: CAR_PHYSICS.cybertruck,
+      physics.step(1 / 60, h => {
+        truckMotion = physics.applyVehicleControls(truck, {
+          throttle: 1, steer: 0.35, handbrake: false, dt: h,
+          wheels: truckSpec.wheels, tuning: CAR_PHYSICS.cybertruck,
+        });
       });
-      physics.step(1 / 60);
     }
     const truckPosition = truck.translation();
     const truckGrounded = (truckMotion?.wheelContacts || 0) >= 3;
@@ -865,11 +869,12 @@ try {
     physics.step(1 / 60);
     let recoveryMotion = null;
     for (let i = 0; i < 120; i++) {
-      recoveryMotion = physics.applyVehicleControls(sunkTruck, {
-        throttle: 0, steer: 0, handbrake: false, dt: 1 / 60,
-        wheels: truckSpec.wheels, tuning: CAR_PHYSICS.cybertruck,
+      physics.step(1 / 60, h => {
+        recoveryMotion = physics.applyVehicleControls(sunkTruck, {
+          throttle: 0, steer: 0, handbrake: false, dt: h,
+          wheels: truckSpec.wheels, tuning: CAR_PHYSICS.cybertruck,
+        });
       });
-      physics.step(1 / 60);
     }
     const sunkPose = sunkTruck.translation();
     const recoveredRootY = sunkPose.y - truckSpec.centerY;
@@ -892,19 +897,23 @@ try {
   physics.step(1 / 60);
   let supportWarmup = null;
   for (let i = 0; i < 8; i++) {
-    supportWarmup = physics.applyVehicleControls(supportBody, {
-      throttle: 0, steer: 0, handbrake: false, dt: 1 / 60,
-      wheels, tuning: CAR_PHYSICS.lambo,
-      surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
+    physics.step(1 / 60, h => {
+      supportWarmup = physics.applyVehicleControls(supportBody, {
+        throttle: 0, steer: 0, handbrake: false, dt: h,
+        wheels, tuning: CAR_PHYSICS.lambo,
+        surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
+      });
     });
-    physics.step(1 / 60);
   }
   const originalCast = physics.world.castRayAndGetNormal;
   physics.world.castRayAndGetNormal = function (...args) { return null; };
-  const gapMotion = physics.applyVehicleControls(supportBody, {
-    throttle: 0, steer: 0, handbrake: false, dt: 1 / 60,
-    wheels, tuning: CAR_PHYSICS.lambo,
-    surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
+  let gapMotion = null;
+  physics.step(1 / 60, h => {
+    gapMotion = physics.applyVehicleControls(supportBody, {
+      throttle: 0, steer: 0, handbrake: false, dt: h,
+      wheels, tuning: CAR_PHYSICS.lambo,
+      surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
+    });
   });
   physics.world.castRayAndGetNormal = originalCast;
   check('one-frame suspension ray miss does not drop every wheel at a road seam',
@@ -1046,12 +1055,13 @@ try {
   physics.step(1 / 60);
   let reverseMotion = null;
   for (let i = 0; i < 90; i++) {
-    reverseMotion = physics.applyVehicleControls(reverseBody, {
-      throttle: -1, steer: 0.7, handbrake: false, dt: 1 / 60,
-      wheels, tuning: CAR_PHYSICS.lambo,
-      surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
+    physics.step(1 / 60, h => {
+      reverseMotion = physics.applyVehicleControls(reverseBody, {
+        throttle: -1, steer: 0.7, handbrake: false, dt: h,
+        wheels, tuning: CAR_PHYSICS.lambo,
+        surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
+      });
     });
-    physics.step(1 / 60);
   }
   const reversePose = reverseBody.translation();
   const reverseRot = reverseBody.rotation();
@@ -1077,12 +1087,13 @@ try {
   driftBody.setLinvel({ x: 0, y: 0, z: -16 }, true);
   let driftMotion = null;
   for (let i = 0; i < 50; i++) {
-    driftMotion = physics.applyVehicleControls(driftBody, {
-      throttle: 0.2, steer: 0.8, handbrake: true, dt: 1 / 60,
-      wheels, tuning: CAR_PHYSICS.lambo,
-      surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
+    physics.step(1 / 60, h => {
+      driftMotion = physics.applyVehicleControls(driftBody, {
+        throttle: 0.2, steer: 0.8, handbrake: true, dt: h,
+        wheels, tuning: CAR_PHYSICS.lambo,
+        surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
+      });
     });
-    physics.step(1 / 60);
   }
   check('handbrake drift lets the rear slide while front steering stays active',
     Math.abs(driftMotion?.lateralSpeed ?? 0) > 0.15 && (driftMotion?.wheelContacts ?? 0) >= 3,
@@ -1099,12 +1110,13 @@ try {
   physics.step(1 / 60);
   let truckMotion = null;
   for (let i = 0; i < 90; i++) {
-    truckMotion = physics.applyVehicleControls(truckBody, {
-      throttle: 1, steer: 0.8, handbrake: false, dt: 1 / 60,
-      wheels: acceleratingTruckSpec.wheels, tuning: CAR_PHYSICS.cybertruck,
-      surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
+    physics.step(1 / 60, h => {
+      truckMotion = physics.applyVehicleControls(truckBody, {
+        throttle: 1, steer: 0.8, handbrake: false, dt: h,
+        wheels: acceleratingTruckSpec.wheels, tuning: CAR_PHYSICS.cybertruck,
+        surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
+      });
     });
-    physics.step(1 / 60);
   }
   const truckRot = truckBody.rotation();
   const truckYaw = new THREE.Euler().setFromQuaternion(
