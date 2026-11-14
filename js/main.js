@@ -22,6 +22,14 @@ import { prefetch } from './model-loader.js';
 const currentScene = new URLSearchParams(location.search).get('scene') || 'city-a.json';
 const SCENE_URL = './data/worlds/' + currentScene;
 
+const GRAPHICS_PROFILES = Object.freeze({
+  'ultra-low': { minScale: 0.50, maxScale: 0.50, startScale: 0.50, maxDpr: 1.0, targetMs: 33.3, shadows: false, shadowSize: 0, shadowExtent: 140, far: 200, toneMapping: 'none', anisotropy: 1, adaptive: false },
+  low:         { minScale: 0.55, maxScale: 0.65, startScale: 0.65, maxDpr: 1.0, targetMs: 33.3, shadows: false, shadowSize: 0, shadowExtent: 140, far: 250, toneMapping: 'none', anisotropy: 2, adaptive: true },
+  medium:      { minScale: 0.65, maxScale: 1.00, startScale: 0.85, maxDpr: 1.0, targetMs: 25.0, shadows: true,  shadowSize: 1024, shadowExtent: 190, far: 300, toneMapping: 'aces', anisotropy: 4, adaptive: true },
+  high:        { minScale: 0.60, maxScale: 1.00, startScale: 0.90, maxDpr: 1.25, targetMs: 20.0, shadows: true,  shadowSize: 2048, shadowExtent: 220, far: 400, toneMapping: 'aces', anisotropy: 8, adaptive: true },
+  ultra:       { minScale: 0.60, maxScale: 1.00, startScale: 1.00, maxDpr: 1.50, targetMs: 16.7, shadows: true,  shadowSize: 4096, shadowExtent: 180, far: 500, toneMapping: 'aces', anisotropy: 16, adaptive: true },
+});
+
 class Game {
   constructor() {
     this.state = 'boot';
@@ -46,6 +54,11 @@ class Game {
     };
 
     this.setupRenderer();
+    this.graphicsQuality = 'high';
+    this.graphicsProfile = GRAPHICS_PROFILES.high;
+    this._frameTimeEMA = 1000 / 30;
+    this._resolutionSampleTime = 0;
+    this._graphicsCapabilities = this.detectGraphicsCapabilities();
     this.hud = new HUD();
     this.audio = new GameAudio(this.profile.data.settings.quality);
     this.achievements = new AchievementSystem(this.profile, this.audio);
@@ -119,6 +132,9 @@ class Game {
   }
 
   async initGame(quality, setLoad) {
+    quality = this.resolveGraphicsQuality(quality);
+    this.profile.data.settings.quality = quality;
+    this.profile.save();
     setLoad(0.25, 'LOADING CITY DATA…');
     let sceneData = null;
     try {
@@ -572,7 +588,7 @@ class Game {
     });
     $('sens').oninput = (e) => { this.player.sensitivity = parseFloat(e.target.value); this.profile.data.settings.sens = parseFloat(e.target.value); this.profile.save(); };
     $('vol').oninput = (e) => { this.audio.setVolume(parseFloat(e.target.value)); this.profile.data.settings.vol = parseFloat(e.target.value); this.profile.save(); };
-    $('quality').onchange = (e) => { this.applyQuality(e.target.value); this.profile.data.settings.quality = e.target.value; this.profile.save(); };
+    $('quality').onchange = (e) => { this.applyQuality(e.target.value); };
     const mapSel = $('map-select');
     if (mapSel) {
       mapSel.value = currentScene;
@@ -988,6 +1004,7 @@ class Game {
       this.fx.getShakeOffset(this.shakeOffset);
       this.camera.position.add(this.shakeOffset);
     }
+    this._updateDynamicResolution(dt);
     this.renderer.render(this.scene, this.camera);
     this.tools.renderPip();
   }
@@ -1340,10 +1357,99 @@ class Game {
     }
   }
 
+  detectGraphicsCapabilities() {
+    const gl = this.renderer.getContext();
+    let rendererName = '';
+    try {
+      const debug = gl.getExtension('WEBGL_debug_renderer_info');
+      rendererName = debug
+        ? String(gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) || '')
+        : String(gl.getParameter(gl.RENDERER) || '');
+    } catch {}
+    const deviceMemory = Number(navigator.deviceMemory) || 0;
+    const maxTextureSize = this.renderer.capabilities?.maxTextureSize || 0;
+    const maxRenderbufferSize = Number(gl.getParameter(gl.MAX_RENDERBUFFER_SIZE)) || 0;
+    const legacyGpu = /Intel.*HD Graphics 5\d\d|HD Graphics 520|SwiftShader|llvmpipe|Mali-4|Adreno 3\d\d/i.test(rendererName);
+    const modernGpu = /GeForce|RTX|GTX 1[0-9]{3}|Radeon (RX|Pro)|AMD Radeon.*(6|7|8|9)[0-9]{3}|Arc A|Apple M[1-9]/i.test(rendererName);
+    const webgl2 = !!this.renderer.capabilities?.isWebGL2;
+    const ultra = webgl2
+      && maxTextureSize >= 8192
+      && maxRenderbufferSize >= 8192
+      && !legacyGpu
+      && (deviceMemory >= 8 || modernGpu);
+    const capabilities = {
+      webgl2,
+      renderer: rendererName || 'Unknown GPU',
+      deviceMemory,
+      maxTextureSize,
+      maxRenderbufferSize,
+      maxAnisotropy: this.renderer.capabilities?.getMaxAnisotropy?.() || 1,
+      legacyGpu,
+      ultra,
+    };
+    console.info('[Graphics] Capabilities', capabilities);
+    return capabilities;
+  }
+
+  resolveGraphicsQuality(requested) {
+    const quality = GRAPHICS_PROFILES[requested] ? requested : 'high';
+    if (quality === 'ultra' && !this._graphicsCapabilities?.ultra) {
+      console.warn('[Graphics] Ultra is unavailable on this GPU; using High.');
+      return 'high';
+    }
+    return quality;
+  }
+
+  _applyRenderSize() {
+    if (!this.renderer || !this.graphicsProfile) return;
+    const profile = this.graphicsProfile;
+    const dpr = Math.min(window.devicePixelRatio || 1, profile.maxDpr);
+    const scale = THREE.MathUtils.clamp(
+      this.renderScale || profile.startScale,
+      profile.minScale,
+      profile.maxScale,
+    );
+    this.renderer.setPixelRatio(dpr);
+    this.renderer.setSize(
+      Math.max(1, Math.round(innerWidth * scale)),
+      Math.max(1, Math.round(innerHeight * scale)),
+      false,
+    );
+    this.renderer.domElement.style.width = '100%';
+    this.renderer.domElement.style.height = '100%';
+    if (this.camera) {
+      this.camera.aspect = innerWidth / Math.max(1, innerHeight);
+      this.camera.updateProjectionMatrix();
+    }
+  }
+
+  _updateDynamicResolution(dt) {
+    const profile = this.graphicsProfile;
+    if (!profile?.adaptive || this.state === 'boot') return;
+    const frameMs = Math.min(Math.max(Number(dt) || 0, 0), 0.1) * 1000;
+    this._frameTimeEMA += (frameMs - this._frameTimeEMA) * 0.08;
+    this._resolutionSampleTime += dt;
+    if (this._resolutionSampleTime < 1.0) return;
+    this._resolutionSampleTime = 0;
+
+    const slow = this._frameTimeEMA > profile.targetMs * 1.12;
+    const fast = this._frameTimeEMA < profile.targetMs * 0.78;
+    let nextScale = this.renderScale;
+    if (slow) nextScale -= 0.05;
+    else if (fast) nextScale += 0.025;
+    nextScale = THREE.MathUtils.clamp(nextScale, profile.minScale, profile.maxScale);
+    if (Math.abs(nextScale - this.renderScale) >= 0.02) {
+      this.renderScale = nextScale;
+      this._applyRenderSize();
+    }
+  }
+
   setupRenderer() {
     this.renderScale = 1;
     this.renderer = new THREE.WebGLRenderer({
-      antialias: false,
+      // MSAA removes the hard, aliased silhouettes of the old renderer.
+      // Adaptive resolution is used to control its cost on weaker GPUs.
+      antialias: true,
       powerPreference: 'high-performance',
       depth: true,
       stencil: false,
@@ -1354,10 +1460,12 @@ class Game {
     this.renderer.setSize(innerWidth, innerHeight, false);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.2;
+    this.renderer.toneMappingExposure = 1.08;
     this.renderer.domElement.className = 'game';
+    this.renderer.domElement.style.width = '100%';
+    this.renderer.domElement.style.height = '100%';
     this.renderer.domElement.addEventListener('webglcontextlost', (event) => {
       event.preventDefault();
       console.warn('[Renderer] WebGL context lost; waiting for browser restoration.');
@@ -1369,58 +1477,74 @@ class Game {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, .05, 400);
     this.scene.add(this.camera);
-    addEventListener('resize', () => {
-      const q = this.profile?.data?.settings?.quality || 'medium';
-      const scale = q === 'ultra-low' ? 0.5 : q === 'low' ? 0.65 : 1;
-      const dpr = Math.min(devicePixelRatio || 1, q === 'ultra-low' || q === 'low' ? 1 : 1.25);
-      this.renderer.setPixelRatio(dpr);
-      this.renderer.setSize(Math.max(1, Math.round(innerWidth * scale)), Math.max(1, Math.round(innerHeight * scale)), false);
-      this.renderer.domElement.style.width = '100%';
-      this.renderer.domElement.style.height = '100%';
-      this.camera.aspect = innerWidth / Math.max(1, innerHeight);
-      this.camera.updateProjectionMatrix();
-    });
+    addEventListener('resize', () => this._applyRenderSize());
   }
 
-  applyQuality(q) {
-    this.profile.data.settings.quality = q; this.profile.save();
-    this.renderScale = q === 'ultra-low' ? 0.5 : q === 'low' ? 0.65 : 1;
-    const qSel = document.getElementById('quality'); if (qSel) qSel.value = q;
-    if (q === 'ultra-low') {
-      this.renderer.setPixelRatio(1);
-      this.renderer.setSize(Math.round(innerWidth * 0.5), Math.round(innerHeight * 0.5), false);
-      this.renderer.domElement.style.width = innerWidth + 'px';
-      this.renderer.domElement.style.height = innerHeight + 'px';
-      this.renderer.toneMapping = THREE.NoToneMapping;
-      if (this.world) { this.world.sun.castShadow = false; }
-      this.camera.far = 200; this.camera.updateProjectionMatrix();
-    } else if (q === 'low') {
-      this.renderer.setPixelRatio(1);
-      this.renderer.setSize(Math.round(innerWidth * 0.65), Math.round(innerHeight * 0.65), false);
-      this.renderer.domElement.style.width = innerWidth + 'px';
-      this.renderer.domElement.style.height = innerHeight + 'px';
-      this.renderer.toneMapping = THREE.NoToneMapping;
-      if (this.world) { this.world.sun.castShadow = false; }
-      this.camera.far = 250; this.camera.updateProjectionMatrix();
-    } else if (q === 'medium') {
-      this.renderer.setSize(innerWidth, innerHeight, true);
-      this.renderer.setPixelRatio(1.0);
-      this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      if (this.world) { this.world.sun.castShadow = true; this.world.sun.shadow.mapSize.setScalar(1024); this.world.sun.shadow.map?.dispose(); this.world.sun.shadow.map = null; }
-      this.camera.far = 300; this.camera.updateProjectionMatrix();
-    } else {
-      this.renderer.setSize(innerWidth, innerHeight, true);
-      this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
-      this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      if (this.world) { this.world.sun.castShadow = true; this.world.sun.shadow.mapSize.setScalar(2048); this.world.sun.shadow.map?.dispose(); this.world.sun.shadow.map = null; }
-      this.camera.far = 400; this.camera.updateProjectionMatrix();
+  applyQuality(requested) {
+    const q = this.resolveGraphicsQuality(requested);
+    const profile = GRAPHICS_PROFILES[q];
+    this.graphicsQuality = q;
+    this.graphicsProfile = profile;
+    this.profile.data.settings.quality = q;
+    this.profile.save();
+
+    this.renderScale = profile.startScale;
+    this._frameTimeEMA = profile.targetMs;
+    this._resolutionSampleTime = 0;
+    const selector = document.getElementById('quality');
+    if (selector) {
+      selector.value = q;
+      const ultraOption = selector.querySelector('option[value="ultra"]');
+      if (ultraOption) {
+        ultraOption.disabled = !this._graphicsCapabilities?.ultra;
+        ultraOption.textContent = this._graphicsCapabilities?.ultra ? 'Ultra' : 'Ultra (unsupported on this device)';
+      }
     }
-    if (!this.renderer.capabilities || !this.renderer.capabilities.isWebGL2) {
-      this.renderer.setPixelRatio(1);
-      this.renderer.setSize(Math.round(innerWidth * 0.5), Math.round(innerHeight * 0.5), false);
-      this.renderer.domElement.style.width = innerWidth + 'px';
-      this.renderer.domElement.style.height = innerHeight + 'px';
+
+    this.renderer.toneMapping = profile.toneMapping === 'none'
+      ? THREE.NoToneMapping
+      : THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = q === 'ultra' ? 1.0 : q === 'high' ? 1.05 : 1.08;
+    this.renderer.shadowMap.enabled = profile.shadows;
+    this.renderer.shadowMap.type = q === 'ultra' || q === 'high'
+      ? THREE.PCFSoftShadowMap
+      : THREE.PCFShadowMap;
+
+    if (this.world?.sun) {
+      this.world.sun.castShadow = profile.shadows;
+      if (profile.shadows) {
+        this.world.sun.shadow.mapSize.setScalar(profile.shadowSize);
+        Object.assign(this.world.sun.shadow.camera, {
+          left: -profile.shadowExtent,
+          right: profile.shadowExtent,
+          top: profile.shadowExtent,
+          bottom: -profile.shadowExtent,
+          near: 10,
+          far: profile.far + 100,
+        });
+        this.world.sun.shadow.camera.updateProjectionMatrix();
+      }
+      this.world.sun.shadow.map?.dispose();
+      this.world.sun.shadow.map = null;
     }
+    if (this.world?.scene?.environment) {
+      this.world.scene.environmentIntensity = q === 'ultra' ? 0.68 : q === 'high' ? 0.55 : 0.45;
+    }
+    if (this.world) this.world._quality = q;
+    this.camera.far = profile.far;
+    this.camera.updateProjectionMatrix();
+
+    // Raise texture filtering only within the GPU's supported anisotropy limit.
+    const anisotropy = Math.min(profile.anisotropy, this._graphicsCapabilities?.maxAnisotropy || 1);
+    this._textureAnisotropy = anisotropy;
+    this._applyRenderSize();
+    window.__graphics = {
+      quality: q,
+      capabilities: this._graphicsCapabilities,
+      renderScale: this.renderScale,
+      frameTimeMs: this._frameTimeEMA,
+      rendererInfo: this.renderer.info,
+    };
   }
 }
 
