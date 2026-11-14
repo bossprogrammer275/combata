@@ -554,7 +554,6 @@ export class Physics {
     const travel = tune.suspensionTravel ?? 0.18;
     const springRateBase = tune.springRate ?? 32000;
     const springDampingBase = tune.springDamping ?? 3400;
-    const springDampingRelaxationBase = tune.springDampingRelaxation ?? springDampingBase * 0.78;
     const dampingRatio = Number(tune.suspensionDampingRatio);
     const suspensionResponse = tune.suspensionResponse ?? 28;
     const wheelStates = [];
@@ -576,7 +575,7 @@ export class Physics {
         : (tune.springDampingRear ?? calculatedDamping * 0.8);
       const reboundDamping = wheel.front
         ? (tune.springDampingRelaxationFront ?? calculatedDamping * 1.2)
-        : (tune.springDampingRelaxationRear ?? springDampingRelaxationBase);
+        : (tune.springDampingRelaxationRear ?? calculatedDamping * 1.2);
       const lx = wheel.x || 0;
       const lz = wheel.z || 0;
       const localHardpointY = (wheel.y || 0) - bodyCenterY + restLength;
