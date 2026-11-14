@@ -197,6 +197,7 @@ class Game {
     setLoad(0.85, 'FINALIZING…');
     this.hud.setQuality(quality);
     this.applyQuality(quality);
+    await this.setupPostProcessing();
     this.renderer.setAnimationLoop(() => this.tick());
     setLoad(1, 'READY');
     setTimeout(() => {
@@ -1010,14 +1011,14 @@ class Game {
     const dt = Math.min(this.clock.getDelta(), .05);
     if (this.state === 'playing') this.tickPlaying(dt);
     else if (this.state === 'menu') this.tickMenu(dt);
-    else if (this.state === 'intro') { this.tickIntro(dt); this.renderer.render(this.scene, this.camera); return; }
+    else if (this.state === 'intro') { this.tickIntro(dt); this.renderFrame(dt); return; }
     this.fx.update(dt);
     if (this.state === 'playing' && this.fx.shake > 0) {
       this.fx.getShakeOffset(this.shakeOffset);
       this.camera.position.add(this.shakeOffset);
     }
     this._updateDynamicResolution(dt);
-    this.renderer.render(this.scene, this.camera);
+    this.renderFrame(dt);
     this.tools.renderPip();
   }
 
@@ -1423,17 +1424,82 @@ class Game {
       profile.maxScale,
     );
     this.renderer.setPixelRatio(dpr);
-    this.renderer.setSize(
-      Math.max(1, Math.round(innerWidth * scale)),
-      Math.max(1, Math.round(innerHeight * scale)),
-      false,
-    );
+    const renderWidth = Math.max(1, Math.round(innerWidth * scale));
+    const renderHeight = Math.max(1, Math.round(innerHeight * scale));
+    this.renderer.setSize(renderWidth, renderHeight, false);
+    if (this.composer) {
+      this.composer.setPixelRatio(dpr);
+      this.composer.setSize(renderWidth, renderHeight);
+    }
     this.renderer.domElement.style.width = '100%';
     this.renderer.domElement.style.height = '100%';
     if (this.camera) {
       this.camera.aspect = innerWidth / Math.max(1, innerHeight);
       this.camera.updateProjectionMatrix();
     }
+  }
+
+  async setupPostProcessing() {
+    if (this.graphicsQuality !== 'ultra' || !this._graphicsCapabilities?.ultra) return false;
+    try {
+      const [
+        { EffectComposer },
+        { RenderPass },
+        { GTAOPass },
+        { UnrealBloomPass },
+        { OutputPass },
+        { SMAAPass },
+      ] = await Promise.all([
+        import('three/addons/postprocessing/EffectComposer.js'),
+        import('three/addons/postprocessing/RenderPass.js'),
+        import('three/addons/postprocessing/GTAOPass.js'),
+        import('three/addons/postprocessing/UnrealBloomPass.js'),
+        import('three/addons/postprocessing/OutputPass.js'),
+        import('three/addons/postprocessing/SMAAPass.js'),
+      ]);
+
+      const width = Math.max(1, Math.round(innerWidth * this.renderScale));
+      const height = Math.max(1, Math.round(innerHeight * this.renderScale));
+      const dpr = Math.min(window.devicePixelRatio || 1, this.graphicsProfile.maxDpr);
+      const composer = new EffectComposer(this.renderer);
+      composer.setPixelRatio(dpr);
+      composer.setSize(width, height);
+      composer.addPass(new RenderPass(this.scene, this.camera));
+
+      const gtao = new GTAOPass(this.scene, this.camera, width, height);
+      gtao.output = GTAOPass.OUTPUT.Denoise;
+      gtao.blendIntensity = 0.78;
+      composer.addPass(gtao);
+
+      // Keep bloom subtle: it should lift emissive lights, not wash out the city.
+      composer.addPass(new UnrealBloomPass(
+        new THREE.Vector2(width, height),
+        0.12,
+        0.32,
+        0.92,
+      ));
+      composer.addPass(new SMAAPass(width * dpr, height * dpr));
+      composer.addPass(new OutputPass());
+
+      this.composer = composer;
+      this.gtaoPass = gtao;
+      this._applyRenderSize();
+      console.info('[Graphics] Ultra post-processing enabled: GTAO, bloom and SMAA.');
+      if (window.__graphics) window.__graphics.postProcessing = 'GTAO + restrained bloom + SMAA';
+      return true;
+    } catch (error) {
+      this.composer?.dispose?.();
+      this.composer = null;
+      this.gtaoPass = null;
+      console.warn('[Graphics] Ultra post-processing unavailable; using direct renderer.', error);
+      if (window.__graphics) window.__graphics.postProcessing = 'unavailable; direct renderer fallback';
+      return false;
+    }
+  }
+
+  renderFrame(dt = 0) {
+    if (this.composer) this.composer.render(Math.min(Math.max(Number(dt) || 0, 0), 0.1));
+    else this.renderer.render(this.scene, this.camera);
   }
 
   _updateDynamicResolution(dt) {
