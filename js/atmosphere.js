@@ -220,7 +220,9 @@ export class Atmosphere {
 
   _buildSkyDome() {
     if (this.quality === 'ultra-low') return;
-    const geo = new THREE.SphereGeometry(4000, 32, 20);
+    const geo = this.quality === 'ultra'
+      ? new THREE.SphereGeometry(4000, 48, 28)
+      : new THREE.SphereGeometry(4000, 32, 20);
     const mat = new THREE.ShaderMaterial({
       vertexShader: skyVertex,
       fragmentShader: skyFragment,
@@ -249,8 +251,9 @@ export class Atmosphere {
     this.sun.position.set(200, 180, 80);
     this.sun.castShadow = this.quality !== 'low' && this.quality !== 'ultra-low';
     if (this.sun.castShadow) {
-      this.sun.shadow.mapSize.setScalar(this.quality === 'high' ? 2048 : 1024);
-      const S = this.quality === 'high' ? 220 : 140;
+      const shadowSize = this.quality === 'ultra' ? 4096 : this.quality === 'high' ? 2048 : 1024;
+      this.sun.shadow.mapSize.setScalar(shadowSize);
+      const S = this.quality === 'ultra' ? 180 : this.quality === 'high' ? 220 : 140;
       Object.assign(this.sun.shadow.camera, { left: -S, right: S, top: S, bottom: -S, near: 10, far: 500 });
       this.sun.shadow.bias = -0.0008;
       this.sun.shadow.normalBias = 0.02;
