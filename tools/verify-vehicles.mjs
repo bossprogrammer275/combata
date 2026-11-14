@@ -118,7 +118,7 @@ try {
   await waitForServer();
   console.log('[verify] server up on ' + BASE);
 
-  const { loadCarModel, CAR_MODELS, CAR_PHYSICS, VehicleSystem, rigSteeringWheel } = await import('../js/vehicles.js');
+  const { loadCarModel, CAR_MODELS, CAR_PHYSICS, VEHICLE_COORDINATES, VehicleSystem, rigSteeringWheel } = await import('../js/vehicles.js');
   const { Physics } = await import('../js/physics.js');
   const { createPowertrainState, stepVehiclePowertrain } = await import('../js/vehicle-powertrains.js');
   const {
@@ -256,18 +256,18 @@ try {
   };
   let hotkeySpawn = null;
   const spawnPlayer = { pos: { x: 5, y: 0, z: 225 }, yaw: 0 };
-  const bugattiSpawn = await hotkeySpawnHarness.spawnNearPlayer('bugatti', spawnPlayer);
-  check('hotkey-spawned car is within E interaction range and uses sampled ground',
-    bugattiSpawn?.kind === 'bugatti'
+  const sportsSpawn = await hotkeySpawnHarness.spawnNearPlayer('lambo', spawnPlayer);
+  check('sports car spawn is within E interaction range and uses sampled ground',
+    sportsSpawn?.kind === 'lambo'
       && hotkeySpawn?.elevation === 0.06
-      && hotkeySpawnHarness.surfaceDistance(bugattiSpawn, spawnPlayer.pos.x, spawnPlayer.pos.z) < 4.5,
-    `kind=${bugattiSpawn?.kind} distance=${bugattiSpawn ? hotkeySpawnHarness.surfaceDistance(bugattiSpawn, spawnPlayer.pos.x, spawnPlayer.pos.z).toFixed(1) : 'none'} y=${hotkeySpawn?.elevation}`);
+      && hotkeySpawnHarness.surfaceDistance(sportsSpawn, spawnPlayer.pos.x, spawnPlayer.pos.z) < 4.5,
+    `kind=${sportsSpawn?.kind} distance=${sportsSpawn ? hotkeySpawnHarness.surfaceDistance(sportsSpawn, spawnPlayer.pos.x, spawnPlayer.pos.z).toFixed(1) : 'none'} y=${hotkeySpawn?.elevation}`);
   const teslaSpawn = await hotkeySpawnHarness.spawnNearPlayer('cybertruck', spawnPlayer);
   check('Tesla spawn stays in reach and avoids the previous vehicle',
     teslaSpawn?.kind === 'cybertruck'
       && hotkeySpawnHarness.surfaceDistance(teslaSpawn, spawnPlayer.pos.x, spawnPlayer.pos.z) < 4.5
-      && Math.hypot(teslaSpawn.pos.x - bugattiSpawn.pos.x, teslaSpawn.pos.z - bugattiSpawn.pos.z) >= 5.2,
-    `kind=${teslaSpawn?.kind} separation=${teslaSpawn ? Math.hypot(teslaSpawn.pos.x - bugattiSpawn.pos.x, teslaSpawn.pos.z - bugattiSpawn.pos.z).toFixed(1) : 'none'}`);
+      && Math.hypot(teslaSpawn.pos.x - sportsSpawn.pos.x, teslaSpawn.pos.z - sportsSpawn.pos.z) >= 5.2,
+    `kind=${teslaSpawn?.kind} separation=${teslaSpawn ? Math.hypot(teslaSpawn.pos.x - sportsSpawn.pos.x, teslaSpawn.pos.z - sportsSpawn.pos.z).toFixed(1) : 'none'}`);
   check('newly spawned vehicle is made the preferred E-entry target',
     hotkeySpawnHarness.preferredVehicle === teslaSpawn);
 
@@ -297,31 +297,30 @@ try {
     assert.ok(CAR_PHYSICS.lambo.maxSpeed > CAR_PHYSICS.cybertruck.maxSpeed);
     assert.equal(CAR_PHYSICS.lambo.drivetrain, 'rwd');
     assert.equal(CAR_PHYSICS.cybertruck.drivetrain, 'awd');
-    assert.ok(CAR_PHYSICS.cybertruck.springRate > CAR_PHYSICS.lambo.springRate);
+    assert.ok(CAR_PHYSICS.lambo.springRateRear > CAR_PHYSICS.lambo.springRateFront);
+    assert.ok(CAR_PHYSICS.cybertruck.springRateFront > 0 && CAR_PHYSICS.cybertruck.springRateRear > 0);
     assert.equal(CAR_PHYSICS.cybertruck.speedometerMaxKmh, 180);
     assert.equal(CAR_PHYSICS.cybertruck.powertrain.type, 'ev');
     assert.equal(CAR_PHYSICS.lambo.powertrain.type, 'dct');
-    assert.equal(CAR_PHYSICS.bugatti.powertrain.type, 'dct');
     assert.equal(CAR_PHYSICS.lambo.interiorCamera.height, 0.98,
-      'Lamborghini eye point is the lower, sports-car cabin height');
+      'Lamborghini eye point is the lower sports-car cabin height');
     assert.equal(CAR_PHYSICS.cybertruck.interiorCamera.height, 1.42,
       'Cybertruck eye point is higher for its pickup cabin');
     assert.ok(CAR_PHYSICS.cybertruck.interiorCamera.height
       - CAR_PHYSICS.lambo.interiorCamera.height > 0.35,
       'vehicle interior cameras must not share one generic height');
-    assert.equal(CAR_PHYSICS.cybertruck.mass, 3009);
+    assert.equal(CAR_PHYSICS.lambo.mass, 1620);
+    assert.equal(CAR_PHYSICS.cybertruck.mass, 3150);
+    assert.equal(CAR_PHYSICS.lambo.speedometerMaxKmh, 325);
     assert.ok(Math.abs(CAR_PHYSICS.cybertruck.maxSpeed - 50) < 1e-8);
-    assert.equal(CAR_PHYSICS.lambo.speedometerMaxKmh, 230);
-    assert.equal(CAR_PHYSICS.bugatti.speedometerMaxKmh, 380);
-    assert.equal(CAR_PHYSICS.bugatti.mass, 1995);
-    assert.ok(Math.abs(CAR_PHYSICS.bugatti.wheelbase - 2.711) < 1e-6);
-    assert.ok(Math.abs(CAR_PHYSICS.bugatti.maxSpeed - 380 / 3.6) < 1e-8);
-    assert.ok(CAR_PHYSICS.bugatti.maxDownforceG < 1.0);
-    assert.ok(CAR_PHYSICS.bugatti.maxSpeed > CAR_PHYSICS.lambo.maxSpeed);
-    assert.ok(CAR_PHYSICS.cybertruck.maxSpeed < CAR_PHYSICS.lambo.maxSpeed);
-    assert.ok(CAR_PHYSICS.bugatti.maxSpeed > CAR_PHYSICS.lambo.maxSpeed);
-    assert.ok(CAR_MODELS.bugatti && CAR_MODELS.bugatti.url);
-    assert.equal(CAR_MODELS.bugatti.targetLen, 4.9);
+    assert.ok(Math.abs(CAR_PHYSICS.lambo.centerOfMassHeight - 0.46) < 1e-8);
+    assert.ok(Math.abs(CAR_PHYSICS.cybertruck.centerOfMassHeight - 0.75) < 1e-8);
+    assert.equal(CAR_MODELS.bugatti, undefined);
+    assert.equal(CAR_PHYSICS.bugatti, undefined);
+    assert.equal(Object.keys(CAR_MODELS).sort().join(','), 'cybertruck,lambo');
+    assert.equal(VEHICLE_COORDINATES.up, '+Y');
+    assert.equal(VEHICLE_COORDINATES.forward, '+Z');
+    assert.equal(VEHICLE_COORDINATES.left, '+X');
   });
 
   // A hand-assigned, generically named steering mesh must rotate on its
@@ -561,11 +560,16 @@ try {
   physics.addGroundPlane();
   const substepDurations = [];
   const substepCount = physics.step(1 / 30, (h) => substepDurations.push(h));
-  check('Rapier splits a slow frame into four small physics substeps',
+  check('Rapier advances a 30 FPS frame in four exact 1/120s substeps',
     substepCount === 4 && substepDurations.length === 4
-      && substepDurations.every(h => h <= 1 / 120 + 1e-8)
-      && Math.abs(substepDurations.reduce((sum, h) => sum + h, 0) - 1 / 30) < 1e-8,
-    `steps=${substepCount} maxDt=${Math.max(...substepDurations).toFixed(5)}`);
+      && substepDurations.every(h => Math.abs(h - 1 / 120) < 1e-10),
+    `steps=${substepCount} fixedDt=${Math.max(...substepDurations).toFixed(5)}`);
+  const fractionalFirst = physics.step(1 / 240);
+  const fractionalAlpha = physics.getInterpolationAlpha();
+  const fractionalSecond = physics.step(1 / 240);
+  check('fixed-step accumulator preserves fractional render time',
+    fractionalFirst === 0 && Math.abs(fractionalAlpha - 0.5) < 1e-6 && fractionalSecond === 1,
+    `first=${fractionalFirst} alpha=${fractionalAlpha.toFixed(2)} second=${fractionalSecond}`);
   physics.createPlayerBody(0, 3, 0);
   // Rapier refreshes broadphase/query state during its first world step.
   physics.step(1 / 60);
@@ -682,6 +686,18 @@ try {
     mass: CAR_PHYSICS.lambo.mass, yawOffset: vehicleYawOffset, tuning: CAR_PHYSICS.lambo,
   });
   check('vehicle chassis is dynamic', !!rb?._openWorldDynamic);
+  const expectedLamboCom = {
+    x: 0,
+    y: CAR_PHYSICS.lambo.centerOfMassHeight - dynamicVehicleSpec.centerY,
+    z: CAR_PHYSICS.lambo.wheelbase * (CAR_PHYSICS.lambo.weightFront - 0.5),
+  };
+  const actualLamboCom = rb.localCom();
+  check('Rapier mass and local centre of mass match the vehicle profile',
+    Math.abs(rb.mass() - CAR_PHYSICS.lambo.mass) < 1
+      && Math.abs(actualLamboCom.x - expectedLamboCom.x) < 1e-3
+      && Math.abs(actualLamboCom.y - expectedLamboCom.y) < 1e-3
+      && Math.abs(actualLamboCom.z - expectedLamboCom.z) < 1e-3,
+    `mass=${rb.mass().toFixed(1)}kg COM=(${actualLamboCom.x.toFixed(3)},${actualLamboCom.y.toFixed(3)},${actualLamboCom.z.toFixed(3)})`);
   check('vehicle remembers imported model yaw correction', rb._openWorldYawOffset === vehicleYawOffset);
   const wheels = dynamicVehicleSpec.wheels;
   physics.step(1 / 60);
@@ -919,6 +935,103 @@ try {
     steadyMaxY - steadyMinY < 0.06 && steadyMaxTilt < 0.12 && steadyMinContacts >= 3,
     `verticalRange=${(steadyMaxY - steadyMinY).toFixed(4)}m maxTilt=${(steadyMaxTilt * 180 / Math.PI).toFixed(2)}deg minContacts=${steadyMinContacts}`);
 
+
+  // Flat-ground symmetry lab. This isolates vehicle physics from road meshes,
+  // bridge transitions and world collision geometry.
+  const mean = values => values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
+  const runSymmetryScenario = (kind, startX, steer, seconds, targetSpeed) => {
+    const spec = dynamicVehicleSpecs[kind];
+    const tune = CAR_PHYSICS[kind];
+    const body = physics.createVehicleBody(startX, 0, 0, vehicleYawOffset, [spec.physicsBox], {
+      dynamic: true,
+      centerY: spec.centerY,
+      mass: tune.mass,
+      centerOfMass: {
+        x: 0,
+        y: tune.centerOfMassHeight - spec.centerY,
+        z: tune.wheelbase * (tune.weightFront - 0.5),
+      },
+      yawOffset: vehicleYawOffset,
+      tuning: tune,
+      angularDamping: tune.angularDamping,
+    });
+    const fixedDt = 1 / 120;
+    const totalSteps = Math.round(seconds / fixedDt);
+    const rollSamples = [], yawSamples = [], compressionSamples = [];
+    let minContacts = 4;
+    for (let step = 0; step < totalSteps; step++) {
+      let motion = null;
+      physics.step(fixedDt, h => {
+        const rotation = body.rotation();
+        const q = new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
+        const forward = new THREE.Vector3(0, 0, -Math.cos(vehicleYawOffset))
+          .applyQuaternion(q).setY(0).normalize();
+        const velocity = body.linvel();
+        const speed = velocity.x * forward.x + velocity.z * forward.z;
+        const throttle = steer === 0
+          ? THREE.MathUtils.clamp((targetSpeed - speed) * 0.30, 0, 1)
+          : THREE.MathUtils.clamp((targetSpeed - speed) * 0.30, 0, 1);
+        motion = physics.applyVehicleControls(body, {
+          throttle,
+          steer,
+          handbrake: false,
+          dt: h,
+          wheels: spec.wheels,
+          tuning: tune,
+          surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
+        });
+      });
+      minContacts = Math.min(minContacts, motion?.wheelContacts ?? 0);
+      if (step >= totalSteps - 120) {
+        const rotation = body.rotation();
+        const q = new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
+        const localLeft = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+        const roll = Math.asin(THREE.MathUtils.clamp(localLeft.y, -1, 1));
+        const angular = body.angvel();
+        const states = body._openWorldWheelStates || [];
+        const left = mean(spec.wheels.map((wheel, index) => wheel.x > 0 ? (states[index]?.compression || 0) : null).filter(Number.isFinite));
+        const right = mean(spec.wheels.map((wheel, index) => wheel.x < 0 ? (states[index]?.compression || 0) : null).filter(Number.isFinite));
+        rollSamples.push(roll);
+        yawSamples.push(angular.y);
+        compressionSamples.push(left - right);
+      }
+    }
+    const result = {
+      roll: mean(rollSamples),
+      yawRate: mean(yawSamples),
+      compressionDifference: mean(compressionSamples),
+      xDrift: Math.abs(body.translation().x - startX),
+      minContacts,
+    };
+    physics.removeVehicleBody(body);
+    return result;
+  };
+
+  for (const [kind, startX] of [['lambo', 620], ['cybertruck', 760]]) {
+    const tune = CAR_PHYSICS[kind];
+    const straight = runSymmetryScenario(kind, startX, 0, 60, tune.maxSpeed * 0.95);
+    check(`${kind} stays level on a 60-second flat-ground high-speed run`,
+      Math.abs(straight.roll) < 0.00524
+        && Math.abs(straight.compressionDifference) < 0.003
+        && Math.abs(straight.yawRate) < 0.004
+        && straight.xDrift < 0.35
+        && straight.minContacts === 4,
+      `roll=${(straight.roll * 180 / Math.PI).toFixed(3)}deg L-R=${(straight.compressionDifference * 1000).toFixed(2)}mm yawRate=${straight.yawRate.toFixed(4)}rad/s drift=${straight.xDrift.toFixed(3)}m contacts=${straight.minContacts}`);
+
+    const rightTurn = runSymmetryScenario(kind, startX + 45, 0.20, 20, 30);
+    const leftTurn = runSymmetryScenario(kind, startX + 90, -0.20, 20, 30);
+    const rollTolerance = Math.max(0.025, Math.max(Math.abs(rightTurn.roll), Math.abs(leftTurn.roll)) * 0.08);
+    const yawTolerance = Math.max(0.003, Math.max(Math.abs(rightTurn.yawRate), Math.abs(leftTurn.yawRate)) * 0.08);
+    const compressionTolerance = Math.max(0.004, Math.max(Math.abs(rightTurn.compressionDifference), Math.abs(leftTurn.compressionDifference)) * 0.08);
+    check(`${kind} mirrored turns produce symmetric roll, yaw and suspension`,
+      Math.abs(rightTurn.roll + leftTurn.roll) < rollTolerance
+        && Math.abs(rightTurn.yawRate + leftTurn.yawRate) < yawTolerance
+        && Math.abs(rightTurn.compressionDifference + leftTurn.compressionDifference) < compressionTolerance
+        && rightTurn.minContacts >= 3
+        && leftTurn.minContacts >= 3,
+      `roll R/L=${(rightTurn.roll * 180 / Math.PI).toFixed(2)}/${(leftTurn.roll * 180 / Math.PI).toFixed(2)}deg yaw R/L=${rightTurn.yawRate.toFixed(3)}/${leftTurn.yawRate.toFixed(3)} L-R=${(rightTurn.compressionDifference * 1000).toFixed(1)}/${(leftTurn.compressionDifference * 1000).toFixed(1)}mm`);
+  }
+
   const reverseBody = physics.createVehicleBody(40, 0, 0, vehicleYawOffset, [dynamicVehicleSpec.physicsBox], {
     dynamic: true, centerY: dynamicVehicleSpec.centerY,
     mass: CAR_PHYSICS.lambo.mass, yawOffset: vehicleYawOffset,
@@ -1043,7 +1156,7 @@ try {
     return result;
   };
 
-  for (const [kind, x] of [['cybertruck', -180], ['bugatti', -100]]) {
+  for (const [kind, x] of [['cybertruck', -180], ['lambo', -100]]) {
     const straight = handlingPass(kind, x, { throttle: 1, steer: 0, frames: 100 });
     const acceleratingTurn = handlingPass(kind, x + 45, { throttle: 1, steer: 0.72, frames: 100 });
     const coastingTurn = handlingPass(kind, x + 90, { startSpeed: 15, throttle: 0, steer: 0.85, frames: 90 });
@@ -1064,7 +1177,7 @@ try {
   // Isolated cornering lab: drive each real GLB on a clean Rapier ground plane.
   // A normal ~0.5g turn should not unload a diagonal wheel pair or roll the
   // chassis onto one corner. This stays in the developer test harness only.
-  const corneringKinds = ['lambo', 'cybertruck', 'bugatti'];
+  const corneringKinds = ['lambo', 'cybertruck'];
   const corneringResults = {};
   for (let kindIndex = 0; kindIndex < corneringKinds.length; kindIndex++) {
     const kind = corneringKinds[kindIndex];
@@ -1141,11 +1254,11 @@ try {
       `yawChange=${(yawResponse * 180 / Math.PI).toFixed(1)}deg wheelHeightSpread=${maxWheelHeightSpread.toFixed(3)}m`);
     physics.removeVehicleBody(body);
   }
+  const sportsCarTurn = corneringResults.lambo?.yawResponse || 0;
   const teslaTurn = corneringResults.cybertruck?.yawResponse || 0;
-  const bugattiTurn = corneringResults.bugatti?.yawResponse || 0;
-  check('Tesla steering response is close to the Bugatti under the same test conditions',
-    teslaTurn >= bugattiTurn * 0.88 && teslaTurn <= bugattiTurn * 1.30,
-    `Tesla=${(teslaTurn * 180 / Math.PI).toFixed(1)}deg Bugatti=${(bugattiTurn * 180 / Math.PI).toFixed(1)}deg`);
+  check('both actual vehicle models retain steering response under the same test conditions',
+    sportsCarTurn > 0.08 && teslaTurn > 0.08,
+    `sports car=${(sportsCarTurn * 180 / Math.PI).toFixed(1)}deg Tesla=${(teslaTurn * 180 / Math.PI).toFixed(1)}deg`);
 
 } catch (e) {
   failures++;
