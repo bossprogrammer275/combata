@@ -4,6 +4,7 @@ import { GLTFLoader } from './lib/GLTFLoader.js';
 import { prefetch } from './model-loader.js';
 import { loadAssetOverrides, applyAssetOverrides } from './asset-overrides.js';
 import {
+  VEHICLE_COORDINATES,
   ackermannSteerAngle, updateChaseLook, updateReverseCameraBlend, chaseCameraYaw,
   getBridgeAwareChaseHeights,
 } from './vehicle-steering.js';
@@ -12,12 +13,7 @@ import {
   getCockpitLookAngles, resolveCockpitCameraProfile,
 } from './vehicle-cockpit.js';
 
-export const VEHICLE_COORDINATES = Object.freeze({
-  up: '+Y',
-  forward: '+Z',
-  left: '+X',
-  right: '-X',
-});
+export { VEHICLE_COORDINATES };
 
 export const CAR_MODELS = {
   // The source GLBs use +Y up and +Z forward. The runtime applies the
@@ -1134,11 +1130,12 @@ export class VehicleSystem {
   }
 
   async spawn(def) {
+    let root = null;
     try {
       const kind = def.kind || 'lambo';
       const physicsProfile = CAR_PHYSICS[kind];
       if (!CAR_MODELS[kind] || !physicsProfile) throw new Error('Vehicle model/physics profile is not registered: ' + kind);
-      const root = new THREE.Group();
+      root = new THREE.Group();
       const base = await loadCarModel(kind);
       // The clone keeps the normalized base transform (recenter offset/scale);
       // userData boxes are in root space and translate with the root directly.
@@ -1214,7 +1211,6 @@ export class VehicleSystem {
       const yaw = def.ry || 0;
       root.position.set(def.x, def.elevation || 0, def.z);
       root.rotation.y = yaw + yawOffset;
-      this.scene.add(root);
 
       if (wheels.length !== 4) throw new Error(`[${kind}] exactly four wheel rigs are required; found ${wheels.length}`);
       const suspensionReady = wheels.length === 4 && wheels.every(w =>
@@ -1322,12 +1318,14 @@ export class VehicleSystem {
         } catch (e) { console.warn('[Vehicle] Dynamic Rapier body failed; using AABB fallback:', e); }
       }
 
+      this.scene.add(root);
       this.vehicles.push(v);
       if (this.physicsDebugEnabled) this._ensurePhysicsDebugVehicle(v);
       this._addParkedCollider(v);
       console.log('[Vehicle] Spawned car (' + kind + ') at', def.x, def.z, '- boxes:', colBoxes.length, 'wheels:', wheels.length);
       return v;
     } catch (e) {
+      root?.removeFromParent();
       console.error('[Vehicle] Spawn failed:', e);
       return null;
     }
