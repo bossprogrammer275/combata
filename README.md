@@ -195,7 +195,7 @@ This utility analyses mesh triangles and outputs `your_model_col.json` beside th
 
 ## Graphics profiles
 
-The renderer exposes **Ultra**, **High**, **Medium**, **Low** and **Ultra Low**. Ultra is enabled only for a WebGL2 device with large texture/renderbuffer limits and a recognised modern GPU; the renderer falls back to High when those checks are not met. High and Ultra use MSAA, ACES tone mapping, soft directional shadows and PBR environment reflections. Ultra raises shadow resolution and anisotropic texture filtering. Dynamic render resolution reduces the internal render size when frame time exceeds the selected target and restores detail gradually when there is GPU headroom.
+The renderer exposes **Ultra**, **High**, **Medium**, **Low** and **Ultra Low**. Ultra is enabled only for a WebGL2 device with large texture/renderbuffer limits and a recognised modern GPU; the renderer falls back to High when those checks are not met. High uses multisampled rendering, ACES tone mapping, soft directional shadows and PBR environment reflections. Ultra uses a post-processing chain with GTAO contact shading, restrained bloom, SMAA edge smoothing, higher-resolution shadows and stronger anisotropic texture filtering. Dynamic render resolution reduces the internal render size when frame time exceeds the selected target and restores detail gradually when there is GPU headroom.
 
 Changing the graphics tier reloads the world so its atmosphere, materials, texture filtering and asset-loading budget are rebuilt together. GLB decode concurrency and background prefetch worker count are capped on devices reporting 4 GB or less.
 
