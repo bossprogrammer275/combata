@@ -53,6 +53,7 @@ export class World {
     this._quality = quality;
     const requestedAnisotropy = quality === 'ultra' ? 16 : quality === 'high' ? 8 : quality === 'medium' ? 4 : quality === 'low' ? 2 : 1;
     this._maxAnisotropy = Math.min(requestedAnisotropy, Number(renderCapabilities.maxAnisotropy) || 4);
+    this._deviceMemoryGB = Math.max(1, Number(renderCapabilities.deviceMemory) || 4);
     TEX.configureTextureAnisotropy(this._maxAnisotropy);
     this.group = new THREE.Group();
     scene.add(this.group);
@@ -748,11 +749,15 @@ export class World {
       console.log(`[World] Prefetching ${glbUrls.length} model binaries in background`);
     }
 
-    // Keep binary decode concurrency within the selected memory budget.
-    const CONCURRENT = this._quality === 'ultra' ? 8
+    // Keep binary decode concurrency within both the selected tier and the
+    // browser's reported memory budget. GLTF decompression spikes CPU/RAM.
+    const qualityConcurrency = this._quality === 'ultra' ? 8
       : this._quality === 'high' ? 6
       : this._quality === 'medium' ? 4
       : this._quality === 'low' ? 2 : 1;
+    const memoryConcurrency = this._deviceMemoryGB <= 4 ? 2
+      : this._deviceMemoryGB <= 8 ? 4 : 8;
+    const CONCURRENT = Math.min(qualityConcurrency, memoryConcurrency);
     for (let i = 0; i < assets.length; i += CONCURRENT) {
       const batch = assets.slice(i, i + CONCURRENT);
       await Promise.allSettled(batch.map(a => this._loadGLBAsset(a)));
