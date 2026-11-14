@@ -654,6 +654,14 @@ try {
     return Math.min(...specs.map((w, i) => root.y
       + new THREE.Vector3(w.x, w.y + (states[i]?.offset || 0) - w.radius, w.z).applyQuaternion(q).y));
   };
+  const vehicleCenterOfMass = (kind, centerY) => {
+    const profile = CAR_PHYSICS[kind];
+    return {
+      x: 0,
+      y: profile.centerOfMassHeight - centerY,
+      z: profile.wheelbase * (profile.weightFront - 0.5),
+    };
+  };
   const dynamicVehicleSpec = dynamicVehicleSpecs.lambo || Object.values(dynamicVehicleSpecs)[0];
   check('sports car and Cybertruck use separate drivetrain and chassis tuning',
     CAR_PHYSICS.lambo.drivetrain === 'rwd'
@@ -684,11 +692,7 @@ try {
   const rb = physics.createVehicleBody(10, 0, 20, vehicleYawOffset, [dynamicVehicleSpec.physicsBox], {
     dynamic: true, centerY: dynamicVehicleSpec.centerY,
     mass: CAR_PHYSICS.lambo.mass,
-    centerOfMass: {
-      x: 0,
-      y: CAR_PHYSICS.lambo.centerOfMassHeight - dynamicVehicleSpec.centerY,
-      z: CAR_PHYSICS.lambo.wheelbase * (CAR_PHYSICS.lambo.weightFront - 0.5),
-    },
+    centerOfMass: vehicleCenterOfMass('lambo', dynamicVehicleSpec.centerY),
     yawOffset: vehicleYawOffset, tuning: CAR_PHYSICS.lambo,
   });
   check('vehicle chassis is dynamic', !!rb?._openWorldDynamic);
@@ -767,7 +771,7 @@ try {
 
   const highSpeedTurn = physics.createVehicleBody(80, 0, 0, vehicleYawOffset, [dynamicVehicleSpec.physicsBox], {
     dynamic: true, centerY: dynamicVehicleSpec.centerY,
-    mass: CAR_PHYSICS.lambo.mass, yawOffset: vehicleYawOffset,
+    mass: CAR_PHYSICS.lambo.mass, centerOfMass: vehicleCenterOfMass('lambo', dynamicVehicleSpec.centerY), yawOffset: vehicleYawOffset,
     tuning: CAR_PHYSICS.lambo, angularDamping: CAR_PHYSICS.lambo.angularDamping,
   });
   physics.step(1 / 60);
@@ -797,7 +801,7 @@ try {
   // throttle, wheel-ray contact, and rising ground height together.
   const rampCar = physics.createVehicleBody(40, 0.26, -9, 0, [dynamicVehicleSpec.physicsBox], {
     dynamic: true, centerY: dynamicVehicleSpec.centerY,
-    mass: CAR_PHYSICS.lambo.mass, yawOffset: vehicleYawOffset,
+    mass: CAR_PHYSICS.lambo.mass, centerOfMass: vehicleCenterOfMass('lambo', dynamicVehicleSpec.centerY), yawOffset: vehicleYawOffset,
     tuning: CAR_PHYSICS.lambo, angularDamping: CAR_PHYSICS.lambo.angularDamping,
   });
   for (let i = 0; i < 3; i++) physics.step(1 / 60);
@@ -889,7 +893,7 @@ try {
   }
   const supportBody = physics.createVehicleBody(110, 0, 0, vehicleYawOffset, [dynamicVehicleSpec.physicsBox], {
     dynamic: true, centerY: dynamicVehicleSpec.centerY,
-    mass: CAR_PHYSICS.lambo.mass, yawOffset: vehicleYawOffset,
+    mass: CAR_PHYSICS.lambo.mass, centerOfMass: vehicleCenterOfMass('lambo', dynamicVehicleSpec.centerY), yawOffset: vehicleYawOffset,
     tuning: CAR_PHYSICS.lambo, angularDamping: CAR_PHYSICS.lambo.angularDamping,
   });
   physics.step(1 / 60);
@@ -923,7 +927,7 @@ try {
 
   const steadyBody = physics.createVehicleBody(165, 0, 18, vehicleYawOffset, [dynamicVehicleSpec.physicsBox], {
     dynamic: true, centerY: dynamicVehicleSpec.centerY,
-    mass: CAR_PHYSICS.lambo.mass, yawOffset: vehicleYawOffset,
+    mass: CAR_PHYSICS.lambo.mass, centerOfMass: vehicleCenterOfMass('lambo', dynamicVehicleSpec.centerY), yawOffset: vehicleYawOffset,
     tuning: CAR_PHYSICS.lambo, angularDamping: CAR_PHYSICS.lambo.angularDamping,
   });
   let steadyMotion = null;
@@ -1047,7 +1051,7 @@ try {
 
   const reverseBody = physics.createVehicleBody(40, 0, 0, vehicleYawOffset, [dynamicVehicleSpec.physicsBox], {
     dynamic: true, centerY: dynamicVehicleSpec.centerY,
-    mass: CAR_PHYSICS.lambo.mass, yawOffset: vehicleYawOffset,
+    mass: CAR_PHYSICS.lambo.mass, centerOfMass: vehicleCenterOfMass('lambo', dynamicVehicleSpec.centerY), yawOffset: vehicleYawOffset,
     tuning: CAR_PHYSICS.lambo, angularDamping: CAR_PHYSICS.lambo.angularDamping,
   });
   physics.step(1 / 60);
@@ -1078,7 +1082,7 @@ try {
 
   const driftBody = physics.createVehicleBody(70, 0, -10, vehicleYawOffset, [dynamicVehicleSpec.physicsBox], {
     dynamic: true, centerY: dynamicVehicleSpec.centerY,
-    mass: CAR_PHYSICS.lambo.mass, yawOffset: vehicleYawOffset,
+    mass: CAR_PHYSICS.lambo.mass, centerOfMass: vehicleCenterOfMass('lambo', dynamicVehicleSpec.centerY), yawOffset: vehicleYawOffset,
     tuning: CAR_PHYSICS.lambo, angularDamping: CAR_PHYSICS.lambo.angularDamping,
   });
   physics.step(1 / 60);
@@ -1102,7 +1106,9 @@ try {
   const acceleratingTruckSpec = dynamicVehicleSpecs.cybertruck;
   const truckBody = physics.createVehicleBody(-40, 0, 0, vehicleYawOffset, [acceleratingTruckSpec.physicsBox], {
     dynamic: true, centerY: acceleratingTruckSpec.centerY,
-    mass: CAR_PHYSICS.cybertruck.mass, yawOffset: vehicleYawOffset,
+    mass: CAR_PHYSICS.cybertruck.mass,
+    centerOfMass: vehicleCenterOfMass('cybertruck', acceleratingTruckSpec.centerY),
+    yawOffset: vehicleYawOffset,
     tuning: CAR_PHYSICS.cybertruck, angularDamping: CAR_PHYSICS.cybertruck.angularDamping,
   });
   physics.step(1 / 60);
@@ -1134,7 +1140,7 @@ try {
     const tune = CAR_PHYSICS[kind];
     const body = physics.createVehicleBody(x, 0, -90, vehicleYawOffset, [spec.physicsBox], {
       dynamic: true, centerY: spec.centerY,
-      mass: tune.mass, yawOffset: vehicleYawOffset, tuning: tune,
+      mass: tune.mass, centerOfMass: vehicleCenterOfMass(kind, spec.centerY), yawOffset: vehicleYawOffset, tuning: tune,
       angularDamping: tune.angularDamping,
     });
     for (let i = 0; i < 110; i++) {
@@ -1207,7 +1213,7 @@ try {
     const startZ = 240;
     const body = physics.createVehicleBody(startX, 0, startZ, vehicleYawOffset, [spec.physicsBox], {
       dynamic: true, centerY: spec.centerY,
-      mass: tune.mass, yawOffset: vehicleYawOffset,
+      mass: tune.mass, centerOfMass: vehicleCenterOfMass(kind, spec.centerY), yawOffset: vehicleYawOffset,
       tuning: tune, angularDamping: tune.angularDamping,
     });
     physics.step(1 / 60);
