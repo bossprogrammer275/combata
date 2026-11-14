@@ -144,7 +144,7 @@ class Game {
     }
     this._sceneFetch = null;
     setLoad(0.45, 'TERRAIN & STRUCTURES…');
-    this.world = new World(this.scene, quality, sceneData);
+    this.world = new World(this.scene, quality, sceneData, { maxAnisotropy: this._graphicsCapabilities?.maxAnisotropy || 4 });
     await this.world.assetsReady;
     this.fx = new Effects(this.scene, quality);
 
@@ -1530,13 +1530,17 @@ class Game {
     if (this.world?.scene?.environment) {
       this.world.scene.environmentIntensity = q === 'ultra' ? 0.68 : q === 'high' ? 0.55 : 0.45;
     }
-    if (this.world) this.world._quality = q;
+    if (this.world) {
+      this.world._quality = q;
+      if (this.world.atmosphere) this.world.atmosphere.quality = q;
+    }
     this.camera.far = profile.far;
     this.camera.updateProjectionMatrix();
 
     // Raise texture filtering only within the GPU's supported anisotropy limit.
     const anisotropy = Math.min(profile.anisotropy, this._graphicsCapabilities?.maxAnisotropy || 1);
     this._textureAnisotropy = anisotropy;
+    this.world?.setTextureAnisotropy?.(anisotropy);
     this._applyRenderSize();
     window.__graphics = {
       quality: q,
