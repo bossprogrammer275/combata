@@ -6,6 +6,20 @@ import { createPowertrainState, stepVehiclePowertrain } from './vehicle-powertra
 
 let RAPIER = null; // Rapier WASM module (high-level API)
 
+const FIXED_STEP = 1 / 120;
+const MAX_FRAME_STEP = 0.1;
+const MAX_SUBSTEPS = 12;
+
+function captureVehiclePose(body, target = {}) {
+  const translation = body.translation();
+  const rotation = body.rotation();
+  target.position ||= new THREE.Vector3();
+  target.quaternion ||= new THREE.Quaternion();
+  target.position.set(translation.x, translation.y, translation.z);
+  target.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+  return target;
+}
+
 export class Physics {
   constructor() {
     this.world = null;
@@ -21,6 +35,8 @@ export class Physics {
     this._vehicleBodies = new Map();
     this._staticBatchBodies = [];
     this._npcControllers = new Set();
+    this._accumulator = 0;
+    this._interpolationAlpha = 0;
   }
 
   static async init() {
@@ -46,19 +62,61 @@ export class Physics {
 
   step(dt, beforeSubstep = null) {
     if (!this.world) return 0;
-    // Keep solver steps small on low-frame-rate machines. The vehicle callback
-    // refreshes each raycast suspension and tyre force before every substep.
-    const frameDt = Math.min(Math.max(dt || 1 / 60, 1 / 240), 1 / 30);
-    const maxSubstep = 1 / 120;
-    const substeps = Math.max(1, Math.ceil(frameDt / maxSubstep));
-    const subDt = frameDt / substeps;
-    for (let i = 0; i < substeps; i++) {
-      if (typeof beforeSubstep === 'function') beforeSubstep(subDt);
-      this.world.timestep = subDt;
+    // Accumulate render time and advance Rapier only at an exact 120 Hz.
+    // A bounded backlog avoids a spiral of death after a long browser stall.
+    const frameDt = Math.min(Math.max(Number(dt) || 0, 0), MAX_FRAME_STEP);
+    this._accumulator = Math.min(
+      this._accumulator + frameDt,
+      FIXED_STEP * MAX_SUBSTEPS,
+    );
+    let substeps = 0;
+    while (this._accumulator + 1e-10 >= FIXED_STEP && substeps < MAX_SUBSTEPS) {
+      for (const body of this._vehicleBodies.values()) {
+        if (!body._openWorldCurrentPose) {
+          body._openWorldCurrentPose = captureVehiclePose(body);
+        }
+        if (!body._openWorldPreviousPose) {
+          body._openWorldPreviousPose = captureVehiclePose(body);
+        } else {
+          body._openWorldPreviousPose.position.copy(body._openWorldCurrentPose.position);
+          body._openWorldPreviousPose.quaternion.copy(body._openWorldCurrentPose.quaternion);
+        }
+      }
+      if (typeof beforeSubstep === 'function') beforeSubstep(FIXED_STEP);
+      this.world.timestep = FIXED_STEP;
       this.world.step(this._eventQueue);
+      for (const body of this._vehicleBodies.values()) {
+        body._openWorldCurrentPose = captureVehiclePose(
+          body,
+          body._openWorldCurrentPose || {},
+        );
+      }
+      this._accumulator = Math.max(0, this._accumulator - FIXED_STEP);
       this._stepCount++;
+      substeps++;
     }
+    this._interpolationAlpha = THREE.MathUtils.clamp(
+      this._accumulator / FIXED_STEP,
+      0,
+      1,
+    );
     return substeps;
+  }
+
+  getInterpolationAlpha() {
+    return this._interpolationAlpha;
+  }
+
+  getInterpolatedVehiclePose(body, alpha = this._interpolationAlpha) {
+    if (!body) return null;
+    const previous = body._openWorldPreviousPose;
+    const current = body._openWorldCurrentPose;
+    if (!previous || !current) return captureVehiclePose(body);
+    const blend = THREE.MathUtils.clamp(Number(alpha) || 0, 0, 1);
+    return {
+      position: previous.position.clone().lerp(current.position, blend),
+      quaternion: previous.quaternion.clone().slerp(current.quaternion, blend),
+    };
   }
 
   // ===== COLLIDER REGISTRATION =====
@@ -345,18 +403,40 @@ export class Physics {
     const maxY = Math.max(...list.map(b => b.max.y));
     const centerY = Number.isFinite(options.centerY) ? options.centerY : (minY + maxY) * 0.5;
     const dynamic = options.dynamic !== false;
+    const tune = options.tuning || {};
+    const mass = Math.max(1, Number(options.mass) || Number(tune.mass) || 1450);
+    const centerOfMass = options.centerOfMass || { x: 0, y: 0, z: 0 };
+    const width = Math.max(0.05, Math.max(...list.map(box => box.max.x)) - Math.min(...list.map(box => box.min.x)));
+    const height = Math.max(0.05, maxY - minY);
+    const length = Math.max(0.05, Math.max(...list.map(box => box.max.z)) - Math.min(...list.map(box => box.min.z)));
+    const inertiaScale = THREE.MathUtils.clamp(Number(tune.inertiaScale ?? 0.85), 0.5, 1.5);
+    const principalInertia = {
+      x: mass * (height * height + length * length) / 12 * inertiaScale,
+      y: mass * (width * width + length * length) / 12 * inertiaScale,
+      z: mass * (width * width + height * height) / 12 * inertiaScale,
+    };
     let desc;
+    let customMassProperties = false;
     if (dynamic) {
       desc = RAPIER.RigidBodyDesc.dynamic()
         .setTranslation(x, y + centerY, z)
         .setLinearDamping(0.08)
         .setAngularDamping(options.angularDamping ?? 0.95)
         .setCcdEnabled(true)
-        // Allow chassis pitch and roll as well as yaw. The four suspension
-        // struts now act at rotated hardpoints, so impacts/curbs can lean the car.
         .enabledRotations(true, true, true)
-        .setCanSleep(false)
-        .setAdditionalMass(options.mass || 1450);
+        .setCanSleep(false);
+      if (typeof desc.setAdditionalMassProperties === 'function') {
+        desc.setAdditionalMassProperties(
+          mass,
+          centerOfMass,
+          principalInertia,
+          { x: 0, y: 0, z: 0, w: 1 },
+        );
+        customMassProperties = true;
+      } else {
+        desc.setAdditionalMass(mass);
+        console.warn('[Physics] Bundled Rapier build lacks custom COM/inertia support; using profile mass only.');
+      }
     } else {
       desc = RAPIER.RigidBodyDesc.kinematicPositionBased()
         .setTranslation(x, y, z);
@@ -373,6 +453,7 @@ export class Physics {
       const hz = (b.max.z - b.min.z) / 2;
       if (![hx, hy, hz].every(Number.isFinite) || hx <= 0.025 || hy <= 0.025 || hz <= 0.025) continue;
       const cd = RAPIER.ColliderDesc.cuboid(hx, hy, hz)
+        .setDensity(0)
         .setTranslation(
           (b.min.x + b.max.x) / 2,
           (b.min.y + b.max.y) / 2 - (dynamic ? centerY : 0),
@@ -385,13 +466,34 @@ export class Physics {
       this.world.createCollider(cd, body);
       created++;
     }
+    if (dynamic) {
+      const actualMass = body.mass();
+      if (!Number.isFinite(actualMass) || Math.abs(actualMass - mass) > Math.max(1, mass * 0.001)) {
+        this.world.removeRigidBody(body);
+        throw new Error(`Vehicle mass mismatch: profile=${mass.toFixed(2)}kg Rapier=${actualMass.toFixed(2)}kg`);
+      }
+      if (customMassProperties && typeof body.localCom === 'function') {
+        const actualCom = body.localCom();
+        if (Math.abs(actualCom.x - centerOfMass.x) > 1e-3
+          || Math.abs(actualCom.y - centerOfMass.y) > 1e-3
+          || Math.abs(actualCom.z - centerOfMass.z) > 1e-3) {
+          this.world.removeRigidBody(body);
+          throw new Error('Vehicle centre of mass does not match its physics profile.');
+        }
+      }
+    }
     body._openWorldDynamic = dynamic;
     body._openWorldCenterY = dynamic ? centerY : 0;
     body._openWorldGroundY = y;
     body._openWorldYawOffset = options.yawOffset || 0;
-    body._openWorldTuning = options.tuning || {};
-    body._openWorldPowertrainState = createPowertrainState(body._openWorldTuning);
+    body._openWorldTuning = tune;
+    body._openWorldPowertrainState = createPowertrainState(tune);
     body._openWorldColliderCount = created;
+    body._openWorldMassProperties = { mass, centerOfMass, principalInertia, customMassProperties };
+    if (dynamic) {
+      body._openWorldPreviousPose = captureVehiclePose(body);
+      body._openWorldCurrentPose = captureVehiclePose(body);
+    }
     this._vehicleBodies.set(body.handle, body);
     return body;
   }
@@ -401,7 +503,8 @@ export class Physics {
   // and all collisions remain under Rapier's rigid-body solver.
   applyVehicleControls(body, controls = {}) {
     if (!body || !this.world || !body._openWorldDynamic) return null;
-    const dt = Math.min(Math.max(controls.dt || 1 / 60, 0), 1 / 30);
+    const suppliedDt = Number(controls.dt);
+    const dt = Number.isFinite(suppliedDt) && suppliedDt > 0 ? Math.min(suppliedDt, FIXED_STEP) : FIXED_STEP;
     if (dt <= 0) return null;
 
     const translation = body.translation();
@@ -426,15 +529,20 @@ export class Physics {
     const right = { x: rightV.x, z: rightV.z };
     const velocity = body.linvel();
     const angular = body.angvel();
+    const worldCom = typeof body.worldCom === 'function' ? body.worldCom() : translation;
     let forwardSpeed = velocity.x * forward.x + velocity.z * forward.z;
     let lateralSpeed = velocity.x * right.x + velocity.z * right.z;
     let horizontalSpeed = Math.hypot(velocity.x, velocity.z);
     const mass = Math.max(600, body.mass());
     const throttle = THREE.MathUtils.clamp(controls.throttle || 0, -1, 1);
-    const steer = THREE.MathUtils.clamp(controls.steer || 0, -1, 1);
+    const rawSteer = THREE.MathUtils.clamp(controls.steer || 0, -1, 1);
+    const steer = Math.abs(rawSteer) < 0.02 ? 0 : rawSteer;
     const handbrake = !!controls.handbrake;
     const wheelSpecs = Array.isArray(controls.wheels) ? controls.wheels : [];
     const tune = controls.tuning || body._openWorldTuning || {};
+    const weightFront = THREE.MathUtils.clamp(Number(tune.weightFront ?? 0.5), 0.25, 0.75);
+    const frontWheelCount = Math.max(1, wheelSpecs.filter(wheel => wheel.front).length);
+    const rearWheelCount = Math.max(1, wheelSpecs.filter(wheel => !wheel.front).length);
     const downforceCoefficient = tune.downforceCoefficient ?? 0.25;
     const maxDownforce = mass * 9.81 * (tune.maxDownforceG ?? 0.2);
     const downforce = Math.min(maxDownforce, downforceCoefficient * horizontalSpeed * horizontalSpeed);
@@ -444,18 +552,31 @@ export class Physics {
     // Spring, damper, ride-height and tire tuning are per vehicle model.
     const restLength = tune.suspensionRestLength ?? 0.22;
     const travel = tune.suspensionTravel ?? 0.18;
-    const springRate = tune.springRate ?? 32000;
-    const springDamping = tune.springDamping ?? 3400;
-    const springDampingRelaxation = tune.springDampingRelaxation ?? springDamping * 0.78;
+    const springRateBase = tune.springRate ?? 32000;
+    const springDampingBase = tune.springDamping ?? 3400;
+    const springDampingRelaxationBase = tune.springDampingRelaxation ?? springDampingBase * 0.78;
+    const dampingRatio = Number(tune.suspensionDampingRatio);
     const suspensionResponse = tune.suspensionResponse ?? 28;
     const wheelStates = [];
     const rayHits = [];
     const supportCache = body._openWorldWheelSupportCache || (body._openWorldWheelSupportCache = []);
     const bodyCenterY = body._openWorldCenterY || 0;
-    const gravityLoadPerWheel = (mass * 9.81 / Math.max(1, wheelSpecs.length)) + aeroLoadPerWheel;
 
     for (let wheelIndex = 0; wheelIndex < wheelSpecs.length; wheelIndex++) {
       const wheel = wheelSpecs[wheelIndex];
+      const sprungMass = mass * (wheel.front ? weightFront / frontWheelCount : (1 - weightFront) / rearWheelCount);
+      const springRate = wheel.front
+        ? (tune.springRateFront ?? springRateBase)
+        : (tune.springRateRear ?? springRateBase);
+      const calculatedDamping = Number.isFinite(dampingRatio) && dampingRatio > 0
+        ? 2 * dampingRatio * Math.sqrt(springRate * sprungMass)
+        : springDampingBase;
+      const compressionDamping = wheel.front
+        ? (tune.springDampingFront ?? calculatedDamping * 0.8)
+        : (tune.springDampingRear ?? calculatedDamping * 0.8);
+      const reboundDamping = wheel.front
+        ? (tune.springDampingRelaxationFront ?? calculatedDamping * 1.2)
+        : (tune.springDampingRelaxationRear ?? springDampingRelaxationBase);
       const lx = wheel.x || 0;
       const lz = wheel.z || 0;
       const localHardpointY = (wheel.y || 0) - bodyCenterY + restLength;
@@ -498,7 +619,7 @@ export class Physics {
       // ray misses at road edges without letting a car float over real gaps.
       if (!hit || !hit.normal || hit.normal.y < 0.45) {
         const cached = supportCache[wheelIndex];
-        if (cached && cached.age < 2
+        if (cached && (cached.ageSeconds || 0) < 0.05
           && Math.hypot(hardpoint.x - cached.hardpoint.x, hardpoint.z - cached.hardpoint.z) < Math.max(0.35, horizontalSpeed * dt * 1.35)
           && Math.abs(hardpoint.y - cached.hardpoint.y) < 0.16) {
           const timeOfImpact = hardpoint.y - cached.pointY;
@@ -509,14 +630,14 @@ export class Physics {
               normal: cached.normal,
               _openWorldGrace: true,
             };
-            cached.age += 1;
+            cached.ageSeconds = (cached.ageSeconds || 0) + dt;
           }
         }
       }
 
       if (!hit || !hit.normal || hit.normal.y < 0.45) {
-        if (supportCache[wheelIndex]) supportCache[wheelIndex].age += 1;
-        wheelStates.push({ contact: false, offset: -travel, front: !!wheel.front });
+        if (supportCache[wheelIndex]) supportCache[wheelIndex].ageSeconds = (supportCache[wheelIndex].ageSeconds || 0) + dt;
+        wheelStates.push({ contact: false, offset: -travel, front: !!wheel.front, hardpoint, radius, compression: 0, normalLoad: 0 });
         rayHits.push(null);
         continue;
       }
@@ -528,7 +649,7 @@ export class Physics {
       // Give the ray enough recovery range to lift a car whose collider has started
       // resting on the ground. Applied spring travel remains bounded below.
       if (suspensionLength < -maxCompression || suspensionLength > restLength + travel) {
-        wheelStates.push({ contact: false, offset: -travel, front: !!wheel.front });
+        wheelStates.push({ contact: false, offset: -travel, front: !!wheel.front, hardpoint, radius, compression: 0, normalLoad: 0 });
         rayHits.push(null);
         continue;
       }
@@ -540,9 +661,9 @@ export class Physics {
         ? cachedSupport.compressionFiltered
           + (targetCompression - cachedSupport.compressionFiltered) * compressionBlend
         : targetCompression;
-      const hardpointX = hardpoint.x - translation.x;
-      const hardpointY = hardpoint.y - translation.y;
-      const hardpointZ = hardpoint.z - translation.z;
+      const hardpointX = hardpoint.x - worldCom.x;
+      const hardpointY = hardpoint.y - worldCom.y;
+      const hardpointZ = hardpoint.z - worldCom.z;
       let contactNormal = new THREE.Vector3(hit.normal.x, hit.normal.y, hit.normal.z).normalize();
       if (cachedSupport?.normal && !hit._openWorldGrace) {
         const previousNormal = new THREE.Vector3(
@@ -559,8 +680,8 @@ export class Physics {
       const anchorVZ = velocity.z + angular.x * hardpointY - angular.y * hardpointX;
       const anchorNormalSpeed = anchorVX * contactNormal.x
         + anchorVY * contactNormal.y + anchorVZ * contactNormal.z;
-      const damping = anchorNormalSpeed < 0 ? springDamping : springDampingRelaxation;
-      const normalBaseLoad = gravityLoadPerWheel / Math.max(0.55, contactNormal.y);
+      const damping = anchorNormalSpeed < 0 ? compressionDamping : reboundDamping;
+      const normalBaseLoad = (sprungMass * 9.81 + aeroLoadPerWheel) / Math.max(0.55, contactNormal.y);
       const springForce = THREE.MathUtils.clamp(
         normalBaseLoad + springRate * compression - damping * anchorNormalSpeed,
         0,
@@ -588,7 +709,7 @@ export class Physics {
           hardpoint: { x: hardpoint.x, y: hardpoint.y, z: hardpoint.z },
           normal: { x: contactNormal.x, y: contactNormal.y, z: contactNormal.z },
           compressionFiltered: compression,
-          age: 0,
+          ageSeconds: 0,
         };
       } else if (supportCache[wheelIndex]) {
         supportCache[wheelIndex].compressionFiltered = compression;
@@ -625,8 +746,8 @@ export class Physics {
       for (let i = 0; i < wheelSpecs.length; i++) {
         const wheel = wheelSpecs[i];
         if (!!wheel.front !== frontAxle || !wheelStates[i]?.contact) continue;
-        if (wheel.x < 0) left = i;
-        else if (wheel.x > 0) right = i;
+        if (wheel.x > 0) left = i;
+        else if (wheel.x < 0) right = i;
       }
       if (left < 0 || right < 0) continue;
       const compressionDifference = (wheelStates[left].compression || 0)
@@ -705,7 +826,18 @@ export class Physics {
       }
       if (brakeAcceleration > 0) {
         const brakeSign = forwardSpeed === 0 ? 0 : -Math.sign(forwardSpeed);
-        applyWheelImpulse(grounded, forward.x * brakeSign, forward.z * brakeSign, brakeAcceleration, tune.brakingGripUsageLimit ?? 0.92);
+        const frontBrakes = grounded.filter(index => wheelSpecs[index].front);
+        const rearBrakes = grounded.filter(index => !wheelSpecs[index].front);
+        const brakeBias = THREE.MathUtils.clamp(tune.brakeBias ?? 0.60, 0.45, 0.80);
+        if (frontBrakes.length && rearBrakes.length) {
+          applyWheelImpulse(frontBrakes, forward.x * brakeSign, forward.z * brakeSign,
+            brakeAcceleration * brakeBias, tune.brakingGripUsageLimit ?? 0.92);
+          applyWheelImpulse(rearBrakes, forward.x * brakeSign, forward.z * brakeSign,
+            brakeAcceleration * (1 - brakeBias), tune.brakingGripUsageLimit ?? 0.92);
+        } else {
+          applyWheelImpulse(grounded, forward.x * brakeSign, forward.z * brakeSign,
+            brakeAcceleration, tune.brakingGripUsageLimit ?? 0.92);
+        }
       }
       if (handbrake && Math.abs(forwardSpeed) > 0.2) {
         const rear = grounded.filter(index => !wheelSpecs[index].front);
@@ -773,9 +905,9 @@ export class Physics {
         if (wheelForwardV.lengthSq() < 1e-8) wheelForwardV.set(forward.x, 0, forward.z);
         wheelForwardV.normalize();
         const wheelRightV = wheelForwardV.clone().cross(new THREE.Vector3(0, 1, 0)).normalize();
-        const rx = state.point.x - translation.x;
-        const ry = state.point.y - translation.y;
-        const rz = state.point.z - translation.z;
+        const rx = state.point.x - worldCom.x;
+        const ry = state.point.y - worldCom.y;
+        const rz = state.point.z - worldCom.z;
         const pointVX = velocity.x + angular.y * rz - angular.z * ry;
         const pointVY = velocity.y + angular.z * rx - angular.x * rz;
         const pointVZ = velocity.z + angular.x * ry - angular.y * rx;
@@ -890,6 +1022,9 @@ export class Physics {
       body.setLinvel({ x: 0, y: 0, z: 0 }, true);
       body.setAngvel({ x: 0, y: 0, z: 0 }, true);
       body._openWorldGroundY = y;
+      body._openWorldPreviousPose = captureVehiclePose(body, body._openWorldPreviousPose || {});
+      body._openWorldCurrentPose = captureVehiclePose(body, body._openWorldCurrentPose || {});
+      if (body._openWorldWheelSupportCache) body._openWorldWheelSupportCache.length = 0;
     } else {
       body.setNextKinematicTranslation({ x, y, z });
       body.setNextKinematicRotation({ x: q.x, y: q.y, z: q.z, w: q.w });
@@ -983,6 +1118,8 @@ export class Physics {
     this._playerController = null;
     this._vehicleBodies.clear();
     this._eventQueue = null;
+    this._accumulator = 0;
+    this._interpolationAlpha = 0;
   }
 }
 
