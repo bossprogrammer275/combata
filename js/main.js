@@ -1441,6 +1441,8 @@ class Game {
 
   async setupPostProcessing() {
     if (this.graphicsQuality !== 'ultra' || !this._graphicsCapabilities?.ultra) return false;
+    let composer = null;
+    let gtao = null;
     try {
       const [
         { EffectComposer },
@@ -1461,12 +1463,12 @@ class Game {
       const width = Math.max(1, Math.round(innerWidth * this.renderScale));
       const height = Math.max(1, Math.round(innerHeight * this.renderScale));
       const dpr = Math.min(window.devicePixelRatio || 1, this.graphicsProfile.maxDpr);
-      const composer = new EffectComposer(this.renderer);
+      composer = new EffectComposer(this.renderer);
       composer.setPixelRatio(dpr);
       composer.setSize(width, height);
       composer.addPass(new RenderPass(this.scene, this.camera));
 
-      const gtao = new GTAOPass(this.scene, this.camera, width, height);
+      gtao = new GTAOPass(this.scene, this.camera, width, height);
       gtao.output = GTAOPass.OUTPUT.Denoise;
       gtao.blendIntensity = 0.78;
       composer.addPass(gtao);
@@ -1488,6 +1490,8 @@ class Game {
       if (window.__graphics) window.__graphics.postProcessing = 'GTAO + restrained bloom + SMAA';
       return true;
     } catch (error) {
+      gtao?.dispose?.();
+      composer?.dispose?.();
       this.composer?.dispose?.();
       this.composer = null;
       this.gtaoPass = null;
