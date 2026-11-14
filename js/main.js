@@ -639,12 +639,12 @@ class Game {
         case 'KeyX': if (this.state === 'playing' && !this.player.skydive && !(this.vehicles && this.vehicles.driver)) this.input.throwGrenade = true; break;
         case 'KeyF': if (this.state === 'playing' && this.nearLoot) this.lootPickup(); else I.climb = true; e.preventDefault(); break;
         case 'KeyZ': if (this.state === 'playing') I.climb = true; e.preventDefault(); break;
-        case 'KeyK':
-          if (this.state === 'playing' && this.player && !this.player.skydive && this.vehicles) {
-            this.vehicles.spawnNearPlayer('bugatti', this.player).then((v) => {
-              this.hud.toast(v ? 'BUGATTI READY · PRESS E TO ENTER' : 'NO CLEAR SPACE FOR BUGATTI');
-            }).catch((err) => console.error('[Vehicle] Bugatti spawn failed:', err));
+        case 'F8':
+          if (this.state === 'playing' && this.vehicles) {
+            const enabled = this.vehicles.togglePhysicsDebug();
+            this.hud.toast(enabled ? 'VEHICLE PHYSICS DEBUG ON' : 'VEHICLE PHYSICS DEBUG OFF');
           }
+          e.preventDefault();
           break;
         case 'KeyT':
           if (this.state === 'playing' && this.player && !this.player.skydive && this.vehicles) {
@@ -1064,7 +1064,7 @@ class Game {
       });
     }
     if (this.vehicles) {
-      this.vehicles.syncDynamicBodies(dt);
+      this.vehicles.syncDynamicBodies(dt, this.physics?.getInterpolationAlpha?.() ?? 1);
       if (this.vehicles.driver) {
         this.vehicles.updateChaseCamera(dt, this.input, this.player);
       }
