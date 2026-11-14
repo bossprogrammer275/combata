@@ -466,6 +466,10 @@ export class Physics {
       this.world.createCollider(cd, body);
       created++;
     }
+    if (created === 0) {
+      this.world.removeRigidBody(body);
+      throw new Error('Vehicle chassis has no valid Rapier colliders.');
+    }
     if (dynamic) {
       const actualMass = body.mass();
       if (!Number.isFinite(actualMass) || Math.abs(actualMass - mass) > Math.max(1, mass * 0.001)) {
