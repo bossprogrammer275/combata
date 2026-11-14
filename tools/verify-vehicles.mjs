@@ -828,6 +828,7 @@ try {
     const truck = physics.createVehicleBody(35, 0, 22, vehicleYawOffset, [truckSpec.physicsBox], {
       dynamic: true, centerY: truckSpec.centerY,
       mass: CAR_PHYSICS.cybertruck.mass,
+      centerOfMass: vehicleCenterOfMass('cybertruck', truckSpec.centerY),
       yawOffset: vehicleYawOffset,
       tuning: CAR_PHYSICS.cybertruck,
       angularDamping: CAR_PHYSICS.cybertruck.angularDamping,
@@ -866,6 +867,7 @@ try {
     const sunkTruck = physics.createVehicleBody(-40, -0.68, -30, vehicleYawOffset, [truckSpec.physicsBox], {
       dynamic: true, centerY: truckSpec.centerY,
       mass: CAR_PHYSICS.cybertruck.mass,
+      centerOfMass: vehicleCenterOfMass('cybertruck', truckSpec.centerY),
       yawOffset: vehicleYawOffset,
       tuning: CAR_PHYSICS.cybertruck,
       angularDamping: CAR_PHYSICS.cybertruck.angularDamping,
@@ -965,11 +967,7 @@ try {
       dynamic: true,
       centerY: spec.centerY,
       mass: tune.mass,
-      centerOfMass: {
-        x: 0,
-        y: tune.centerOfMassHeight - spec.centerY,
-        z: tune.wheelbase * (tune.weightFront - 0.5),
-      },
+      centerOfMass: vehicleCenterOfMass(kind, spec.centerY),
       yawOffset: vehicleYawOffset,
       tuning: tune,
       angularDamping: tune.angularDamping,
