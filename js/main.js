@@ -588,7 +588,16 @@ class Game {
     });
     $('sens').oninput = (e) => { this.player.sensitivity = parseFloat(e.target.value); this.profile.data.settings.sens = parseFloat(e.target.value); this.profile.save(); };
     $('vol').oninput = (e) => { this.audio.setVolume(parseFloat(e.target.value)); this.profile.data.settings.vol = parseFloat(e.target.value); this.profile.save(); };
-    $('quality').onchange = (e) => { this.applyQuality(e.target.value); };
+    $('quality').onchange = (e) => {
+      const next = this.resolveGraphicsQuality(e.target.value);
+      if (next === this.profile.data.settings.quality) return;
+      // World materials, atmosphere and asset budgets are built for the chosen
+      // quality tier. Rebuild the world cleanly instead of changing only the
+      // renderer and leaving low-quality materials in memory.
+      this.profile.data.settings.quality = next;
+      this.profile.save();
+      location.reload();
+    };
     const mapSel = $('map-select');
     if (mapSel) {
       mapSel.value = currentScene;
@@ -1370,13 +1379,14 @@ class Game {
     const maxTextureSize = this.renderer.capabilities?.maxTextureSize || 0;
     const maxRenderbufferSize = Number(gl.getParameter(gl.MAX_RENDERBUFFER_SIZE)) || 0;
     const legacyGpu = /Intel.*HD Graphics 5\d\d|HD Graphics 520|SwiftShader|llvmpipe|Mali-4|Adreno 3\d\d/i.test(rendererName);
-    const modernGpu = /GeForce|RTX|GTX 1[0-9]{3}|Radeon (RX|Pro)|AMD Radeon.*(6|7|8|9)[0-9]{3}|Arc A|Apple M[1-9]/i.test(rendererName);
+    const modernGpu = /GeForce|RTX|GTX 1[0-9]{3}|Radeon RX|AMD Radeon Pro|Arc A|Apple M[1-9]/i.test(rendererName);
     const webgl2 = !!this.renderer.capabilities?.isWebGL2;
     const ultra = webgl2
       && maxTextureSize >= 8192
       && maxRenderbufferSize >= 8192
       && !legacyGpu
-      && (deviceMemory >= 8 || modernGpu);
+      && modernGpu
+      && (deviceMemory === 0 || deviceMemory >= 8);
     const capabilities = {
       webgl2,
       renderer: rendererName || 'Unknown GPU',
