@@ -10,7 +10,7 @@ Store the model and its textures under:
 data/models/cars/<vehicle-folder>/
 ```
 
-Prefer a self-contained GLB. For a GLTF with external buffers or textures, keep the folder structure intact and check every referenced file is included.
+Prefer a self-contained GLB. For a GLTF with external buffers or textures, keep the folder structure intact and check every referenced file is included. Vehicle-local axes are +Y up, +Z forward and +X left; the loader applies a model's nose correction once at the root.
 
 The model should use metres where possible, have its wheels touching the ground, and have a clear front direction. OPEN WORLD normalises the vehicle's longest horizontal body dimension using `targetLen`, so do not try to fix an incorrect length using non-uniform scale.
 
@@ -27,13 +27,21 @@ mycar: {
 },
 ```
 
-Add a separate entry to `CAR_PHYSICS`. The example below is a starting shape, not a tuning preset to reuse unchanged:
+Add a separate entry to `CAR_PHYSICS`. The example below is a starting shape, not a tuning preset to reuse unchanged. Measure the front/rear track widths and tyre radii from the imported GLB; the loader checks them against this profile before spawning the car:
 
 ```js
 mycar: {
   mass: 1450,
   drivetrain: 'rwd', // 'fwd', 'rwd' or 'awd'
   wheelbase: 2.65,
+  trackFront: 1.58,
+  trackRear: 1.58,
+  wheelRadiusFront: 0.32,
+  wheelRadiusRear: 0.32,
+  weightFront: 0.50,
+  centerOfMassHeight: 0.52,
+  inertiaScale: 0.85,
+  brakeBias: 0.60,
   powertrain: {
     type: 'dct',     // use 'ev' for a single-speed electric vehicle
     gearRatios: [3.1, 2.2, 1.6, 1.2, 0.95, 0.78],
@@ -201,11 +209,11 @@ node --check js/vehicles.js
 node --check tools/asset-lab.js
 ```
 
-The vehicle verification checks model dimensions, grounding, four wheel pivots, tyre attachment, collision boxes, vehicle-specific physics and the individual interior-camera heights. It also checks an automatically detected steering-wheel pivot when one is available. If the model has no confidently named steering wheel, complete the manual Asset Lab rig and then test it in-game.
+The vehicle verification checks model dimensions, grounding, four wheel pivots, tyre attachment, collision boxes, profile mass/centre of mass, fixed 120 Hz stepping, a 60-second straight-line symmetry run, mirrored left/right turns, vehicle-specific physics and cockpit heights. It also checks an automatically detected steering-wheel pivot when one is available. If the model has no confidently named steering wheel, complete the manual Asset Lab rig and then test it in-game.
 
 The GitHub Actions **Game physics verification** workflow also runs on pushes to `main`.
 
-Only after these checks pass should the vehicle be added to a world spawn list. Do not modify `data/worlds/city-a.json` just to calibrate the model; car setup belongs in the model/profile and asset override layers.
+Use **F9** in-game to display the fitted chassis collider and four live suspension rays while calibrating. Only after these checks pass should the vehicle be added to a world spawn list. Do not modify `data/worlds/city-a.json` just to calibrate the model; car setup belongs in the model/profile and asset override layers.
 
 ## 8. Final acceptance checklist
 
