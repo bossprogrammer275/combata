@@ -45,7 +45,7 @@ All imported vehicle models use **+Y up, +Z forward and +X left**. The right sid
 
 Each registered vehicle has one model entry and one physics profile. The GLB supplies its wheel positions and tyre radii; the profile supplies mass, weight distribution, centre of mass, inertia scale, suspension, braking, grip and powertrain tuning. The loader checks the four-corner layout against those values and refuses mismatched or incomplete models. It does not replace broken assets with a placeholder box car.
 
-The physics debug overlay is available in-game with **F8**. It draws the fitted chassis collision box and the four live suspension rays.
+The physics debug overlay is available in-game with **F9** (the existing F8 control remains time-of-day). It draws the fitted chassis collision box and the four live suspension rays.
 
 ## 2. GLB Model Authoring Specifications
 
