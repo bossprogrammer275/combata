@@ -1247,9 +1247,17 @@ export class VehicleSystem {
       const frontWheels = physicsWheels.filter(wheel => wheel.front);
       const rearWheels = physicsWheels.filter(wheel => !wheel.front);
       const average = values => values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
+      const frontLeft = frontWheels.find(wheel => wheel.x > 0);
+      const frontRight = frontWheels.find(wheel => wheel.x < 0);
+      const rearLeft = rearWheels.find(wheel => wheel.x > 0);
+      const rearRight = rearWheels.find(wheel => wheel.x < 0);
+      if (frontWheels.length !== 2 || rearWheels.length !== 2
+        || !frontLeft || !frontRight || !rearLeft || !rearRight) {
+        throw new Error(`[${kind}] GLB wheel layout must contain two left/right wheels on both axles.`);
+      }
       const measuredWheelbase = Math.abs(average(frontWheels.map(wheel => wheel.z)) - average(rearWheels.map(wheel => wheel.z)));
-      const measuredFrontTrack = Math.abs(frontWheels.find(wheel => wheel.x > 0).x - frontWheels.find(wheel => wheel.x < 0).x);
-      const measuredRearTrack = Math.abs(rearWheels.find(wheel => wheel.x > 0).x - rearWheels.find(wheel => wheel.x < 0).x);
+      const measuredFrontTrack = Math.abs(frontLeft.x - frontRight.x);
+      const measuredRearTrack = Math.abs(rearLeft.x - rearRight.x);
       const measuredFrontRadius = average(frontWheels.map(wheel => wheel.radius));
       const measuredRearRadius = average(rearWheels.map(wheel => wheel.radius));
       const within = (actual, expected, tolerance) => Math.abs(actual - expected) / Math.max(0.001, expected) <= tolerance;
@@ -1294,23 +1302,23 @@ export class VehicleSystem {
       // is the source of truth while parked and driven; the old swept-AABB
       // controller remains only as a no-Rapier fallback.
       if (this.physics && this.physics.world) {
-        try {
-          v.rapierBody = this.physics.createVehicleBody(
-            def.x, def.elevation || 0, def.z, yaw + yawOffset, [physicsBox],
-            {
-              dynamic: true, centerY: physicsCenterY, mass: v.mass,
-              centerOfMass: {
-                x: 0,
-                y: physicsProfile.centerOfMassHeight - physicsCenterY,
-                z: physicsProfile.wheelbase * (physicsProfile.weightFront - 0.5),
-              },
-              yawOffset, tuning: physicsProfile, angularDamping: physicsProfile.angularDamping,
+        v.rapierBody = this.physics.createVehicleBody(
+          def.x, def.elevation || 0, def.z, yaw + yawOffset, [physicsBox],
+          {
+            dynamic: true, centerY: physicsCenterY, mass: v.mass,
+            centerOfMass: {
+              x: 0,
+              y: physicsProfile.centerOfMassHeight - physicsCenterY,
+              z: physicsProfile.wheelbase * (physicsProfile.weightFront - 0.5),
             },
-          );
-          v.physicsDynamic = !!v.rapierBody?._openWorldDynamic;
-          // Let the chassis settle onto its wheel springs before accepting
-          // player input; never reset a moving vehicle during ordinary frames.
-        } catch (e) { console.warn('[Vehicle] Dynamic Rapier body failed; using AABB fallback:', e); }
+            yawOffset, tuning: physicsProfile, angularDamping: physicsProfile.angularDamping,
+          },
+        );
+        v.physicsDynamic = !!v.rapierBody?._openWorldDynamic;
+        if (!v.physicsDynamic) throw new Error(`[${kind}] Rapier did not create a dynamic vehicle chassis.`);
+        // If Rapier is available, a profile/mass/COM failure is fatal for this
+        // spawn. The AABB fallback is only for installations where Rapier failed
+        // to initialize at all, not a silent substitute for broken vehicle physics.
       }
 
       this.scene.add(root);
