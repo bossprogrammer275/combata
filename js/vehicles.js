@@ -1272,7 +1272,6 @@ export class VehicleSystem {
         frontRadius: measuredFrontRadius,
         rearRadius: measuredRearRadius,
       };
-      const physicsProfile = { ...CAR_PHYSICS[kind] };
       const baseInteriorCamera = base.userData.assetOverride?.interiorCamera
         || physicsProfile.interiorCamera
         || { height: Math.max(0.85, (bodyBox.max.y - bodyBox.min.y) * 0.62), forward: 0.18, side: 0, lookAhead: 18, pitch: 0, fov: 82 };
