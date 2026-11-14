@@ -683,7 +683,13 @@ try {
   const vehicleYawOffset = Math.PI;
   const rb = physics.createVehicleBody(10, 0, 20, vehicleYawOffset, [dynamicVehicleSpec.physicsBox], {
     dynamic: true, centerY: dynamicVehicleSpec.centerY,
-    mass: CAR_PHYSICS.lambo.mass, yawOffset: vehicleYawOffset, tuning: CAR_PHYSICS.lambo,
+    mass: CAR_PHYSICS.lambo.mass,
+    centerOfMass: {
+      x: 0,
+      y: CAR_PHYSICS.lambo.centerOfMassHeight - dynamicVehicleSpec.centerY,
+      z: CAR_PHYSICS.lambo.wheelbase * (CAR_PHYSICS.lambo.weightFront - 0.5),
+    },
+    yawOffset: vehicleYawOffset, tuning: CAR_PHYSICS.lambo,
   });
   check('vehicle chassis is dynamic', !!rb?._openWorldDynamic);
   const expectedLamboCom = {
