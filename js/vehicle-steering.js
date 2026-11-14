@@ -1,4 +1,12 @@
 // Shared steering geometry and chase-camera look behaviour for all vehicles.
+// Imported vehicle frame: +Y up, +Z forward, +X left; -X is right.
+// Positive player steering input remains a right turn in the game's controls.
+export const VEHICLE_COORDINATES = Object.freeze({
+  up: '+Y',
+  forward: '+Z',
+  left: '+X',
+  right: '-X',
+});
 export function ackermannSteerAngle(centerAngle, wheelX, wheels = [], wheelbase = 2.7, lateralSign = 1) {
   const angle = Number.isFinite(centerAngle) ? centerAngle : 0;
   if (Math.abs(angle) < 1e-4 || !Array.isArray(wheels) || wheels.length < 2) return angle;
@@ -7,8 +15,8 @@ export function ackermannSteerAngle(centerAngle, wheelX, wheels = [], wheelbase 
   const trackWidth = Math.max(...xs) - Math.min(...xs);
   if (trackWidth < 0.25 || !Number.isFinite(wheelbase) || wheelbase <= 0.25) return angle;
 
-  // Positive steering means a right turn in this game's local XZ convention.
-  // The wheel on the inside of the turn steers farther than the outside wheel.
+  // Positive steering input means right. lateralSign converts the imported
+  // model's +X-left convention into the right-side coordinate used by Ackermann.
   const turnRadius = wheelbase / Math.max(1e-4, Math.tan(Math.abs(angle)));
   const vehicleRightX = wheelX * (lateralSign < 0 ? -1 : 1);
   const isInside = angle > 0 ? vehicleRightX > 0 : vehicleRightX < 0;
