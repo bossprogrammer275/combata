@@ -114,6 +114,9 @@ try {
       playerPosition: { x: player.pos.x, y: player.pos.y, z: player.pos.z },
       poseMode: character._poseMode,
       actionNames: Object.keys(character._actions || {}),
+      actionWeights: Object.fromEntries(Object.entries(character._actions || {}).map(([name, action]) => [
+        name, Number(action.getEffectiveWeight().toFixed(4)),
+      ])),
       modelReady: character._isBuilt,
     };
   });
@@ -121,6 +124,11 @@ try {
   check("test begins in third-person free roam", startup.gameState === "playing" && !startup.firstPerson);
   check("no crouch input is held at startup", !startup.input.crouch && startup.crouchKeyCount === 0 && !startup.playerCrouched);
   check("player character has completed its real FBX build", startup.modelReady);
+  check("spawn starts with a clean idle pose and no jump anticipation",
+    startup.poseMode === "idle"
+      && startup.actionWeights.idle >= 0.999
+      && (startup.actionWeights.jump || 0) <= 0.001,
+    JSON.stringify({ poseMode: startup.poseMode, idle: startup.actionWeights.idle, jump: startup.actionWeights.jump || 0 }));
 
   cdp = await context.newCDPSession(page);
   cdp.on("Page.screencastFrame", event => {
@@ -195,6 +203,20 @@ try {
   await Promise.all(frameWrites);
 
   const diagnostics = await page.evaluate(() => window.__playerIdleSamples || []);
+  const runtimeVisuals = await page.evaluate(() => {
+    const game = window.__game;
+    const background = game?.scene?.background;
+    const weatherButton = document.getElementById("weather-btn");
+    return {
+      graphicsQuality: game?.graphicsQuality || null,
+      atmosphereAvailable: !!game?.world?.atmosphere,
+      backgroundType: background?.isColor ? "color" : background?.isTexture ? "texture" : background ? typeof background : "missing",
+      backgroundHex: background?.isColor ? "#" + background.getHexString() : null,
+      backgroundBrightness: background?.isColor ? background.r + background.g + background.b : null,
+      weatherButtonVisible: !!weatherButton && getComputedStyle(weatherButton).display !== "none",
+      staleMissileHintPresent: !!document.getElementById("device-prompt"),
+    };
+  });
   const modes = {};
   let transitions = 0;
   let priorMode = null;
@@ -223,6 +245,7 @@ try {
     settledSampleCount: settledSamples.length,
     uncommandedAirSampleCount: uncommandedAirSamples.length,
     startup,
+    runtimeVisuals,
     ending: diagnostics[diagnostics.length - 1] || null,
     browserErrors: errors,
     screencastError,
@@ -248,6 +271,15 @@ try {
   check("stationary player remains in idle after settling",
     settledSamples.length > 0 && settledSamples.every(sample => sample.poseMode === "idle"),
     JSON.stringify(modes));
+  check("rendered scene has a visible sky instead of a black void",
+    Number(runtimeVisuals.backgroundBrightness) > 0.3,
+    JSON.stringify(runtimeVisuals));
+  check("weather control only appears when time-of-day is supported",
+    runtimeVisuals.atmosphereAvailable || !runtimeVisuals.weatherButtonVisible,
+    JSON.stringify(runtimeVisuals));
+  check("stale always-on missile device hint is absent",
+    !runtimeVisuals.staleMissileHintPresent,
+    JSON.stringify(runtimeVisuals));
   check("browser ran without JavaScript or network errors", errors.length === 0, `${errors.length} errors`);
   check("screencast frames were written without errors", !screencastError, screencastError || `${frameCount} images`);
 
