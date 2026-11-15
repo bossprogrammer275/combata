@@ -1,6 +1,22 @@
 // Shared Web Audio primitives used by the authored vehicle sound engines.
 // The individual engine modules keep their own oscillator/filter graphs.
 export function createSoundEngineTools(ctx, noiseBuffer) {
+  let disposed = false;
+  const sources = new Set();
+  const trackSource = (source) => {
+    sources.add(source);
+    source.addEventListener('ended', () => sources.delete(source), { once: true });
+    return source;
+  };
+  const disposeSources = (delay = 0.12) => {
+    if (disposed) return;
+    disposed = true;
+    const stopAt = ctx.currentTime + Math.max(0, delay);
+    for (const source of sources) {
+      try { source.stop(stopAt); } catch {}
+    }
+    sources.clear();
+  };
   const G = (value = 0) => {
     const node = ctx.createGain();
     node.gain.value = value;
@@ -19,7 +35,7 @@ export function createSoundEngineTools(ctx, noiseBuffer) {
     node.frequency.value = frequency;
     node.detune.value = detune;
     node.start();
-    return node;
+    return trackSource(node);
   };
   const N = () => {
     const source = ctx.createBufferSource();
@@ -27,7 +43,7 @@ export function createSoundEngineTools(ctx, noiseBuffer) {
     source.loop = true;
     const latestSafeOffset = Math.max(0, noiseBuffer.duration - 0.55);
     source.start(0, Math.random() * latestSafeOffset);
-    return source;
+    return trackSource(source);
   };
   const SH = (amount) => {
     const shaper = ctx.createWaveShaper();
@@ -40,11 +56,13 @@ export function createSoundEngineTools(ctx, noiseBuffer) {
     return shaper;
   };
   const burst = (options) => {
+    if (disposed) return null;
     const time = options.t ?? ctx.currentTime;
     const source = ctx.createBufferSource();
     const filter = F(options.type || 'bandpass', options.f0, options.q || 1);
     const gain = G(0);
     source.buffer = noiseBuffer;
+    trackSource(source);
     filter.frequency.setValueAtTime(options.f0, time);
     if (options.f1) {
       filter.frequency.exponentialRampToValueAtTime(options.f1, time + options.dur);
@@ -60,6 +78,7 @@ export function createSoundEngineTools(ctx, noiseBuffer) {
     return { source, filter, gain };
   };
   const tone = (f0, f1, duration, volume, destination) => {
+    if (disposed) return null;
     const time = ctx.currentTime;
     const oscillator = O('sine', f0);
     const gain = G(0);
@@ -76,7 +95,7 @@ export function createSoundEngineTools(ctx, noiseBuffer) {
     if (!param || !Number.isFinite(value)) return;
     param.setTargetAtTime(value, ctx.currentTime, timeConstant);
   };
-  return { ctx, noiseBuffer, G, F, O, N, SH, burst, tone, target };
+  return { ctx, noiseBuffer, G, F, O, N, SH, burst, tone, target, disposeSources };
 }
 
 export const clampSoundValue = (value, min, max) =>
