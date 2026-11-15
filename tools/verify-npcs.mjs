@@ -8,6 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const model = NPC_MODELS.civilian_002;
 assert.ok(model, "civilian_002 must be the main civilian");
 assert.equal(NPC_GLOBAL_CONFIG.modelId, "civilian_002");
+assert.ok(model.inPlace.includes("jump"), "jump animation must be root-motion stripped so gameplay physics controls jump height");
 assert.ok(fs.existsSync(path.join(root, model.modelUrl.replace("./", ""))), "canonical rigged model missing");
 
 const manifest = JSON.parse(fs.readFileSync(path.join(root, model.manifestUrl.replace("./", "")), "utf8"));
