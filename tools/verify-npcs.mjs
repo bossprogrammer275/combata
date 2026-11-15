@@ -122,7 +122,6 @@ assert.ok(characterRuntime.includes("leftShoulder") && characterRuntime.includes
   "weapon pose must include shoulder articulation");
 
 const main = fs.readFileSync(path.join(root, "js/main.js"), "utf8");
-const worldRuntime = fs.readFileSync(path.join(root, "js/world.js"), "utf8");
 const htmlRuntime = fs.readFileSync(path.join(root, "index.html"), "utf8");
 assert.ok(!main.includes("npc1/Walking.fbx"), "legacy NPC prefetch is still active");
 assert.ok(worldRuntime.includes("this.buildLighting(quality);\n    // buildSky() has a low-cost ultra-low fallback. Always call it"),
