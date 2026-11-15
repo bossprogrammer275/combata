@@ -1,0 +1,174 @@
+{
+  "id": "new-map",
+  "name": "New Map",
+  "version": 1,
+  "bounds": 900,
+  "startPoint": {
+    "x": 0,
+    "z": 70,
+    "yaw": 3.141592653589793
+  },
+  "ground": {
+    "size": 2600,
+    "color": 4864554
+  },
+  "roads": [
+    {
+      "w": 12,
+      "sidewalk": true,
+      "smooth": true,
+      "points": [
+        [
+          -32,
+          51
+        ],
+        [
+          -33,
+          104
+        ],
+        [
+          -17,
+          111
+        ],
+        [
+          12,
+          111
+        ],
+        [
+          44,
+          110
+        ],
+        [
+          77,
+          111
+        ],
+        [
+          79,
+          73
+        ],
+        [
+          77,
+          49
+        ],
+        [
+          56,
+          47
+        ],
+        [
+          27,
+          51
+        ],
+        [
+          5,
+          49
+        ],
+        [
+          -10,
+          39
+        ],
+        [
+          -29,
+          39
+        ],
+        [
+          -32,
+          49
+        ],
+        [
+          -32,
+          49
+        ],
+        [
+          -32,
+          49
+        ]
+      ]
+    }
+  ],
+  "glbAssets": [
+    {
+      "url": "data/models/assets/tree_low-poly.glb",
+      "x": -6,
+      "z": 69,
+      "ry": 0,
+      "targetH": 7,
+      "building": false,
+      "collisionH": 0
+    },
+    {
+      "url": "data/models/assets/tree_low-poly.glb",
+      "x": -6,
+      "z": 75,
+      "ry": 0,
+      "targetH": 7,
+      "building": false,
+      "collisionH": 0
+    },
+    {
+      "url": "data/models/assets/tree_low-poly.glb",
+      "x": -7,
+      "z": 83,
+      "ry": 0,
+      "targetH": 7,
+      "building": false,
+      "collisionH": 0
+    },
+    {
+      "url": "data/models/assets/tree_low-poly.glb",
+      "x": -7,
+      "z": 89,
+      "ry": 0,
+      "targetH": 7,
+      "building": false,
+      "collisionH": 0
+    },
+    {
+      "url": "data/models/assets/tree_low-poly.glb",
+      "x": 3,
+      "z": 65,
+      "ry": 0,
+      "targetH": 7,
+      "building": false,
+      "collisionH": 0
+    },
+    {
+      "url": "data/models/assets/tree_low-poly.glb",
+      "x": 17,
+      "z": 65,
+      "ry": 0,
+      "targetH": 7,
+      "building": false,
+      "collisionH": 0
+    },
+    {
+      "url": "data/models/cars/CAR Model by Ignition Labs - 5zUWP5UsLg-.glb",
+      "x": 9,
+      "z": 74,
+      "ry": 0,
+      "targetH": 1.5,
+      "building": false,
+      "collisionH": 0
+    },
+    {
+      "url": "data/models/cars/tesla_cybertruk_low_poly/scene.gltf",
+      "x": 18,
+      "z": 77,
+      "ry": 0,
+      "targetH": 2,
+      "building": false,
+      "collisionH": 0
+    }
+  ],
+  "vehicles": [],
+  "pads": [],
+  "buildings": [],
+  "props": [],
+  "landmarks": [],
+  "trees": [],
+  "spawns": [],
+  "cover": [],
+  "loot": [],
+  "transit": [],
+  "named": [],
+  "reactives": []
+}
