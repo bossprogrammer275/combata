@@ -964,7 +964,7 @@ export class VehicleSystem {
     const b = this._parkedAABB(v);
     v.parkedCol = this.world.addCollider(b.x, b.y, b.z, b.w, b.h, b.d);
     if (this.physics && v.rapierBody) {
-      this.physics.updateVehicleBody(v.rapierBody, v.pos.x, v.def.elevation || 0, v.pos.z, this._worldYaw(v));
+      this.physics.updateVehicleBody(v.rapierBody, v.pos.x, v.pos.y, v.pos.z, this._worldYaw(v));
     }
   }
 
@@ -1430,6 +1430,39 @@ export class VehicleSystem {
     if (this._speedometerCanvas) this._speedometerCanvas.style.display = 'block';
   }
 
+  _findExitPosition(veh, player) {
+    const yaw = Number.isFinite(veh.yaw) ? veh.yaw : 0;
+    const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+    const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+    const radius = Math.max(0.3, Number(player.radius) || 0.42);
+    const sideGap = (veh.half?.x || 1.15) + radius + 0.55;
+    const endGap = (veh.half?.z || 2.5) + radius + 0.55;
+    const candidates = [
+      right.clone().multiplyScalar(sideGap),
+      right.clone().multiplyScalar(-sideGap),
+      forward.clone().multiplyScalar(endGap),
+      forward.clone().multiplyScalar(-endGap),
+      right.clone().multiplyScalar(sideGap).addScaledVector(forward, endGap * 0.55),
+      right.clone().multiplyScalar(-sideGap).addScaledVector(forward, endGap * 0.55),
+    ];
+    for (const offset of candidates) {
+      const x = veh.pos.x + offset.x;
+      const z = veh.pos.z + offset.z;
+      if (this.surfaceDistance(veh, x, z) < radius + 0.18) continue;
+      if (this.world?.colliderAt?.(x, z, radius)) continue;
+      const sampledY = this.world?.groundHeightAt?.(x, z, (veh.pos.y || 0) + 1.5);
+      const y = Number.isFinite(sampledY) && sampledY >= (veh.pos.y || 0) - 0.75
+        ? sampledY
+        : (Number.isFinite(veh.pos.y) ? veh.pos.y : 0);
+      return new THREE.Vector3(x, y, z);
+    }
+    // Do not leave the player embedded in the chassis if every preferred exit
+    // side is blocked. The rear clearance is the least intrusive fallback.
+    return veh.pos.clone().addScaledVector(forward, -endGap).setY(
+      Number.isFinite(veh.pos.y) ? veh.pos.y : 0,
+    );
+  }
+
   exit(player) {
     const veh = this.driver;
     if (!veh) return;
@@ -1437,19 +1470,29 @@ export class VehicleSystem {
     this.interiorView = false;
     this.driver = null;
     veh.def.occupied = false;
-    const carYaw = this._worldYaw(veh);
-    player.pos.set(veh.pos.x + Math.cos(carYaw) * 3, 0.5, veh.pos.z - Math.sin(carYaw) * 3);
+
+    // Keep the capsule disabled while it is moved out of the cabin. Re-enabling
+    // it at the stale in-car transform makes it overlap the chassis and pushes
+    // the parked car away on the next physics step.
+    const exitPos = this._findExitPosition(veh, player);
+    player.pos.copy(exitPos);
     player.vel.set(0, 0, 0);
-    if (this.physics) this.physics.setPlayerCollisionEnabled(true);
     player.onGround = true;
-    player.yaw = carYaw + Math.PI;
+    player.yaw = Number.isFinite(veh.yaw) ? veh.yaw : 0;
+
     player.char.root.visible = true;
     player.char.root.position.copy(player.pos);
     player.char.root.rotation.y = player.yaw + Math.PI;
     player.char.update(0.016);
-    if (this.physics) this.physics.setPlayerPosition(player.pos.x, player.pos.y, player.pos.z);
-    // Re-park: fitted footprint back at the exit pose.
+
+    // Restore the chassis at its actual road/bridge elevation before enabling
+    // the player's capsule. setPlayerPosition teleports the kinematic body now.
+    veh.root.position.copy(veh.pos);
     this._addParkedCollider(veh);
+    if (this.physics) {
+      this.physics.setPlayerPosition(player.pos.x, player.pos.y, player.pos.z);
+      this.physics.setPlayerCollisionEnabled(true);
+    }
     this._camPos = null;
     if (this._speedometerCanvas) this._speedometerCanvas.style.display = 'none';
   }
