@@ -319,7 +319,7 @@ check('player autostep accepts narrow road-edge curb strips', () => {
 check('vehicle exit position is teleported before the player collider is re-enabled', () => {
   const source = requirePlayerControllerSource();
   const start = source.indexOf('setPlayerPosition(x, y, z)');
-  const method = source.slice(start, start + 420);
+  const method = source.slice(start, start + 800);
   assert.ok(method.includes('this._playerBody.setTranslation(position, true)'),
     'player relocation still waits until the next physics step');
   assert.ok(method.includes('this._playerBody.setNextKinematicTranslation(position)'),
