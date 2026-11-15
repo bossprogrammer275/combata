@@ -262,6 +262,7 @@ export function createChironW16Engine({ ctx, destination, noiseBuffer }) {
       S.crank = ctx.currentTime - startedAt < 1.3 ? 1 : 0;
       S.cut = !!telemetry.revLimiter
         && Math.floor(ctx.currentTime / 0.055) % 2 === 0;
+      if (S.cut) S.te = 0;
       S.since += dt;
 
       if (S.gear !== previousGear && S.gear > 0) {
