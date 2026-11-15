@@ -844,12 +844,15 @@ export class Physics {
       }
     };
     if (wheelSpecs.length && grounded.length) {
+      const driveGripBudget = throttle < -0.01
+        ? (tune.reverseGripUsageLimit ?? tune.driveGripUsageLimit ?? 0.76)
+        : (tune.driveGripUsageLimit ?? 0.76);
       if (tune.drivetrain === 'awd' && frontDriveWheels.length && rearDriveWheels.length) {
         const frontBias = THREE.MathUtils.clamp(tune.frontDriveBias ?? 0.5, 0.25, 0.75);
-        applyWheelImpulse(frontDriveWheels, forward.x, forward.z, driveAcceleration * frontBias, tune.driveGripUsageLimit ?? 0.76);
-        applyWheelImpulse(rearDriveWheels, forward.x, forward.z, driveAcceleration * (1 - frontBias), tune.driveGripUsageLimit ?? 0.76);
+        applyWheelImpulse(frontDriveWheels, forward.x, forward.z, driveAcceleration * frontBias, driveGripBudget);
+        applyWheelImpulse(rearDriveWheels, forward.x, forward.z, driveAcceleration * (1 - frontBias), driveGripBudget);
       } else {
-        applyWheelImpulse(powered, forward.x, forward.z, driveAcceleration, tune.driveGripUsageLimit ?? 0.76);
+        applyWheelImpulse(powered, forward.x, forward.z, driveAcceleration, driveGripBudget);
       }
       if (brakeAcceleration > 0) {
         const brakeSign = forwardSpeed === 0 ? 0 : -Math.sign(forwardSpeed);
