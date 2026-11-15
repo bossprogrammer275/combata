@@ -745,6 +745,10 @@ class Game {
           e.preventDefault();
           this.requestVehicleSpawn('cybertruck', 'TESLA');
           break;
+        case 'KeyB':
+          e.preventDefault();
+          this.requestVehicleSpawn('bugatti', 'BUGATTI CHIRON');
+          break;
         case 'KeyU':
           if (this.state === 'playing' && !this.player.skydive && !(this.vehicles && this.vehicles.driver) && this.nearTransit && this.world.namedLocations) {
             this.transitMenuOpen = !this.transitMenuOpen;
