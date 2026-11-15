@@ -495,6 +495,7 @@ class Game {
     this.player.onGround = true;
     this.player.skydive = false;
     if (this.physics) this.physics.setPlayerPosition(this.player.pos.x, this.player.pos.y, this.player.pos.z);
+    this.player.char?.setRestPose?.();
     this.state = 'playing';
     this.hud.setHealth(this.hp, this.maxHp);
     this.updateHud();
@@ -528,6 +529,7 @@ class Game {
     this.player.pitch = 0;
     this.player.onGround = true;
     if (this.physics) this.physics.setPlayerPosition(this.player.pos.x, this.player.pos.y, this.player.pos.z);
+    this.player.char?.setRestPose?.();
     this.updateHud();
   }
 
@@ -1198,9 +1200,6 @@ class Game {
       else if (near) vpEl.textContent = 'PRESS [E] TO ENTER ' + near.kind.toUpperCase();
     }
 
-    const dp = document.getElementById('device-prompt');
-    if (dp) dp.classList.toggle('hidden', !this.player.onGround || this.player.skydive || (this.tools && this.tools.isOpen()));
-
     this.nearTransit = null;
     if (this.player.onGround && !this.player.skydive && this.world.transitPoints && this.world.transitPoints.length) {
       const pp = this.player.pos;
@@ -1236,7 +1235,9 @@ class Game {
     // weather button — always visible when playing
     const wbEl = document.getElementById('weather-btn');
     if (wbEl) {
-      wbEl.style.display = (this.state === 'playing' && !driving) ? 'block' : 'none';
+      // The low-memory renderer has a static sky and no time-of-day system.
+      // Don't show an F8 control there when the key handler cannot change it.
+      wbEl.style.display = (this.state === 'playing' && !driving && this.world.atmosphere) ? 'block' : 'none';
       wbEl.onclick = () => { if (this.world.atmosphere) { const tod = this.world.atmosphere; const times = [{name:'MORNING',h:8},{name:'AFTERNOON',h:14},{name:'EVENING',h:18},{name:'NIGHT',h:22}]; let ci = times.findIndex(t => { const d = Math.abs(tod.timeOfDay - t.h); return d < 3 || d > 21; }); ci = (ci + 1) % times.length; tod.setTime(times[ci].h); this.hud.toast(`TIME: ${times[ci].name}`); } };
       const ap = this.world.atmosphere ? this.world.atmosphere.phaseName : 'day';
       wbEl.textContent = `F8: ${ap.toUpperCase()}`;
