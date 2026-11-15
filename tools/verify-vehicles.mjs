@@ -104,10 +104,14 @@ try {
   const appSource = await fs.promises.readFile(path.join(ROOT, 'js/main.js'), 'utf8');
   const pageSource = await fs.promises.readFile(path.join(ROOT, 'index.html'), 'utf8');
   const vehicleSource = await fs.promises.readFile(path.join(ROOT, 'js/vehicles.js'), 'utf8');
-  check('K spawns the Lamborghini and T spawns the Cybertruck',
+  check('K opens the dynamic vehicle garage and the Bugatti is listed',
     appSource.includes("case 'KeyK':")
-      && appSource.includes("requestVehicleSpawn('lambo', 'LAMBORGHINI')")
-      && appSource.includes("requestVehicleSpawn('cybertruck', 'TESLA')"));
+      && appSource.includes('this.toggleVehicleSpawnMenu();')
+      && appSource.includes('Object.keys(CAR_MODELS).forEach((kind, index) =>')
+      && appSource.includes("bugatti: { name: 'BUGATTI CHIRON PUR SPORT', className: 'HYPERCAR' }")
+      && appSource.includes("this.requestVehicleSpawn(kind, meta.name)")
+      && pageSource.includes('id="vehicle-spawn-menu"')
+      && pageSource.includes('id="vehicle-spawn-list"'));
   check('Esc opens the pause menu and Esc from pause resumes the game',
     appSource.includes("else if (this.state === 'playing') this.pause();")
       && appSource.includes("if (this.state === 'paused') this.resume();")
