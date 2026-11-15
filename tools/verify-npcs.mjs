@@ -82,6 +82,7 @@ assert.ok(characterRuntime.includes("if (this.appearance.hipWeaponPose === false
 assert.ok(characterRuntime.includes("resolvePlayerAnimation(state, this._poseMode || 'idle')"), "player animation must use one latched state resolver");
 assert.ok(characterRuntime.includes("jumpStartOffset(next.getClip().duration)"), "jump must skip its crouch anticipation frames");
 assert.ok(characterRuntime.includes("const poseBlend = desired === 'jump' ? 1 : blend"), "jump must not blend against a competing locomotion cycle");
+assert.ok(characterRuntime.includes("next.setEffectiveWeight(0)"), "resetting a selected clip must not restore it at full weight before crossfade");
 assert.ok(playerRuntime.includes("groundSpeed: hs"), "player rig must receive measured horizontal movement");
 assert.ok(playerRuntime.includes("(this.pos.x - frameStartX) / animationDt"), "player animation speed must come from collision-resolved displacement");
 assert.equal(resolvePlayerAnimation({ groundSpeed: 0, moveX: 1, speed: 1 }, "idle"), "idle",
@@ -95,6 +96,10 @@ assert.equal(resolvePlayerAnimation({ groundSpeed: 2.7 }, "run"), "walk",
 assert.equal(resolvePlayerAnimation({ groundSpeed: 4.2, sprint: 1 }, "run"), "sprint");
 assert.equal(resolvePlayerAnimation({ groundSpeed: 4.2, airborne: 1 }, "sprint"), "jump");
 assert.equal(resolvePlayerAnimation({ groundSpeed: 0.1 }, "walk"), "idle");
+assert.equal(resolvePlayerAnimation({ moveZ: 1, speed: 0.55 }, "idle"), "walk",
+  "shared enemy rigs must retain their normalized-speed animation contract");
+assert.equal(resolvePlayerAnimation({ moveZ: 1, speed: 1 }, "walk"), "run",
+  "shared enemy rigs must still reach their run clip");
 assert.equal(jumpStartOffset(1), 0.18);
 assert.equal(jumpStartOffset(0.5), 0.1);
 assert.ok(characterRuntime.includes("const blend = 1 - Math.exp"), "animation blending must be frame-rate independent");
