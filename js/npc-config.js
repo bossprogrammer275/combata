@@ -23,7 +23,7 @@ export const NPC_MODELS = Object.freeze({
       wave: BASE + "animations/wave.fbx",
       sit_down: BASE + "animations/sit_down.fbx"
     }),
-    inPlace: Object.freeze(["walk", "run", "sprint", "crouch_walk", "jump"])
+    inPlace: Object.freeze(["walk", "run", "sprint", "crouch_walk"])
   })
 });
 export const NPC_GLOBAL_CONFIG = Object.freeze({
