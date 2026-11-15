@@ -1203,6 +1203,7 @@ export class VehicleSystem {
         vehicle.speed = motion.forwardSpeed;
         vehicle.lateralVel = motion.lateralSpeed;
         vehicle._lastMotion = motion;
+        vehicle._lastDriveInput = { ...drive };
       }
     }
   }
@@ -1703,6 +1704,76 @@ export class VehicleSystem {
     return false;
   }
 
+  getEngineAudioState(dt = 1 / 60) {
+    const vehicle = this.driver;
+    if (!vehicle) return null;
+    const tuning = vehicle.physicsProfile || CAR_PHYSICS[vehicle.kind] || CAR_PHYSICS.lambo;
+    const physicsState = vehicle.rapierBody?._openWorldPowertrainState || {};
+    const motion = vehicle._lastMotion || {};
+    const drive = vehicle._lastDriveInput || vehicle._pendingDriveInput || {};
+    const forwardSpeed = Number.isFinite(motion.forwardSpeed)
+      ? motion.forwardSpeed
+      : (Number(vehicle.speed) || 0);
+    const throttleInput = THREE.MathUtils.clamp(Number(drive.throttle) || 0, -1, 1);
+    const wheels = Array.isArray(motion.wheelStates)
+      ? motion.wheelStates
+      : (vehicle.rapierBody?._openWorldWheelStates || []);
+    const surfaceCounts = new Map();
+    for (const wheel of wheels) {
+      if (!wheel?.contact) continue;
+      const surface = String(wheel.surface?.surface || 'asphalt').toLowerCase();
+      surfaceCounts.set(surface, (surfaceCounts.get(surface) || 0) + 1);
+    }
+    const surface = [...surfaceCounts.entries()]
+      .sort((a, b) => b[1] - a[1])[0]?.[0] || 'asphalt';
+    const isElectric = tuning.powertrain?.type === 'ev';
+    const rpm = Number.isFinite(motion.rpm)
+      ? motion.rpm
+      : (Number(physicsState.rpm) || tuning.powertrain?.idleRpm || 0);
+    const motorRpm = Number.isFinite(motion.motorRpm)
+      ? motion.motorRpm
+      : (Number(physicsState.motorRpm) || 0);
+    const gear = motion.gearNumber ?? physicsState.gear ?? 1;
+
+    return {
+      kind: vehicle.kind,
+      dt: THREE.MathUtils.clamp(Number(dt) || 1 / 60, 0.001, 0.05),
+      rpm,
+      motorRpm,
+      gear,
+      throttle: Math.max(0, throttleInput),
+      engineLoad: Number.isFinite(motion.engineLoad)
+        ? motion.engineLoad
+        : (Number(physicsState.engineLoad) || Math.abs(throttleInput)),
+      driveDemand: Number.isFinite(motion.driveDemand)
+        ? motion.driveDemand
+        : (Number(physicsState.driveDemand) || Math.max(0, throttleInput)),
+      regenLevel: Number.isFinite(motion.regenLevel)
+        ? motion.regenLevel
+        : (Number(physicsState.regenLevel) || 0),
+      boost: Number.isFinite(motion.boost)
+        ? motion.boost
+        : (Number(physicsState.boost) || 0),
+      shiftTimer: Number(motion.shiftTimer ?? physicsState.shiftTimer) || 0,
+      shiftDirection: motion.shiftDirection ?? physicsState.shiftDirection ?? null,
+      revLimiter: !!(motion.revLimiter ?? physicsState.revLimiter),
+      braking: throttleInput < -0.01 && forwardSpeed > 0.8,
+      handbrake: !!drive.handbrake,
+      speed: forwardSpeed,
+      speedKph: Math.abs(forwardSpeed) * 3.6,
+      lateralSpeed: Number(motion.lateralSpeed) || 0,
+      slipRatio: THREE.MathUtils.clamp(
+        Math.abs(Number(motion.lateralSpeed) || 0) / Math.max(2, Math.abs(forwardSpeed)),
+        0, 1,
+      ),
+      interior: !!this.interiorView,
+      surface,
+      driveMode: vehicle.driveMode || (isElectric ? 'beast' : undefined),
+      exhaustOpen: !!vehicle.exhaustOpen,
+      corsa: !!vehicle.corsa,
+    };
+  }
+
   update(dt, input, player) {
     const v = this.driver;
     if (!v) return;
@@ -1716,6 +1787,7 @@ export class VehicleSystem {
     v.steerInput = (v.steerInput || 0) + (rawSteerInput - (v.steerInput || 0)) * steeringBlend;
     if (Math.abs(v.steerInput) < 0.02) v.steerInput = 0;
     const steerInput = v.steerInput;
+    v._lastDriveInput = { throttle, steer: steerInput, handbrake };
     let curSpd = 0;
     if (v.physicsDynamic && this.physics && v.rapierBody) {
       // Body pose/velocity come from the last completed Rapier step. Apply
@@ -1917,10 +1989,8 @@ export class VehicleSystem {
       rig.pivot.rotation[rig.axis] = rig.angle;
     }
 
-    // Engine sound
-    if (curSpd > 0.5 && this.audio && this.audio.engine) {
-      this.audio.engine(Math.min(1, curSpd / 35));
-    }
+    // Vehicle sound is updated centrally after Rapier completes the frame so
+    // the dedicated engine module receives the newest RPM/gear/boost telemetry.
 
     // Camera positioning is performed after Rapier finishes the frame's steps.
   }
