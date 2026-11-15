@@ -13,7 +13,7 @@ export class GameAudio {
   init() {
     if (this.ctx) return;
     if (this._disabled) return;
-    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
     this.master = this.ctx.createGain();
     this.master.gain.value = this.volume;
     this.master.connect(this.ctx.destination);
