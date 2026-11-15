@@ -196,6 +196,7 @@ export class Character {
     this._pendingState = null;
     this._isBuilt = false;
     this._poseMode = 'idle';
+    this._forceRestPose = false;
     this._crouchY = 0;
     this._prevAirborne = false;
     this._wasAirborne = false;
@@ -264,6 +265,10 @@ export class Character {
       this._pendingState = null;
       this.setState(state);
     }
+    // A gameplay spawn/respawn can happen before the async rig finishes loading.
+    // Apply the requested rest pose after the pending state so no startup jump
+    // anticipation frame leaks into the first visible frame.
+    if (this._forceRestPose) this.setRestPose();
     if (this._firstPerson) this.root.visible = false;
     console.info('[Character] Built ' + MODEL.displayName + ' player rig');
   }
@@ -389,7 +394,27 @@ export class Character {
     this.applyWeaponPose(dt);
   }
 
-  setRestPose() {}
+  setRestPose() {
+    this._forceRestPose = true;
+    this._poseMode = 'idle';
+    this._crouchY = 0;
+    this._pendingWeaponPose = { aiming: false, moving: false };
+    this._wasAirborne = false;
+    this._prevAirborne = false;
+    if (!this._isBuilt || !this._mixer) return;
+
+    // Hard-reset every action once at spawn. This removes any leftover jump
+    // anticipation/crouch blend from loading or the previous life.
+    for (const [name, action] of Object.entries(this._actions)) {
+      action.enabled = true;
+      action.reset();
+      action.setEffectiveTimeScale(1);
+      action.setEffectiveWeight(name === 'idle' ? 1 : 0);
+      action.play();
+    }
+    if (this._model) this._model.position.y = 0;
+    this._forceRestPose = false;
+  }
 
   dispose() {
     if (this._mixer) this._mixer.stopAllAction();
