@@ -471,6 +471,23 @@ export class Physics {
       throw new Error('Vehicle chassis has no valid Rapier colliders.');
     }
     if (dynamic) {
+      // Rapier defers the combined body + attached-collider mass calculation
+      // until the next physics step. Recompute now so spawn-time validation
+      // reads the actual configured chassis mass and centre of mass immediately.
+      if (customMassProperties && typeof body.setAdditionalMassProperties === 'function') {
+        body.setAdditionalMassProperties(
+          mass,
+          centerOfMass,
+          principalInertia,
+          { x: 0, y: 0, z: 0, w: 1 },
+          true,
+        );
+      }
+      if (typeof body.recomputeMassPropertiesFromColliders === 'function') {
+        body.recomputeMassPropertiesFromColliders();
+      }
+    }
+    if (dynamic) {
       const actualMass = body.mass();
       if (!Number.isFinite(actualMass) || Math.abs(actualMass - mass) > Math.max(1, mass * 0.001)) {
         this.world.removeRigidBody(body);
