@@ -315,6 +315,16 @@ try {
       ? Math.hypot(secondAfterStarterCars.pos.x - firstAfterStarterCars.pos.x, secondAfterStarterCars.pos.z - firstAfterStarterCars.pos.z).toFixed(1)
       : 'none'));
 
+  check('vehicle exit moves the player capsule before restoring collision', () => {
+    const exitIndex = vehicleSource.indexOf('  exit(player) {');
+    const exitBlock = vehicleSource.slice(exitIndex, exitIndex + 2100);
+    const teleportIndex = exitBlock.indexOf('this.physics.setPlayerPosition');
+    const enableIndex = exitBlock.indexOf('this.physics.setPlayerCollisionEnabled(true)');
+    check('vehicle exit has a clear-side placement helper',
+      vehicleSource.includes('_findExitPosition(veh, player)')
+        && exitBlock.includes('this._findExitPosition(veh, player)'));
+    return teleportIndex >= 0 && enableIndex > teleportIndex;
+  });
   check('world yaw includes the GLB nose-axis correction', () => {
     const yaw = VehicleSystem.prototype._worldYaw({ yaw: 0.42, yawOffset: Math.PI });
     assert.ok(Math.abs(yaw - (0.42 + Math.PI)) < 1e-8);
@@ -342,7 +352,7 @@ try {
     assert.equal(CAR_PHYSICS.cybertruck.drivetrain, 'awd');
     assert.ok(CAR_PHYSICS.lambo.springRateRear > CAR_PHYSICS.lambo.springRateFront);
     assert.ok(CAR_PHYSICS.cybertruck.springRateFront > 0 && CAR_PHYSICS.cybertruck.springRateRear > 0);
-    assert.equal(CAR_PHYSICS.cybertruck.speedometerMaxKmh, 180);
+    assert.equal(CAR_PHYSICS.cybertruck.speedometerMaxKmh, 216);
     assert.equal(CAR_PHYSICS.cybertruck.powertrain.type, 'ev');
     assert.equal(CAR_PHYSICS.lambo.powertrain.type, 'dct');
     assert.equal(CAR_PHYSICS.lambo.interiorCamera.height, 0.98,
@@ -355,7 +365,10 @@ try {
     assert.equal(CAR_PHYSICS.lambo.mass, 1620);
     assert.equal(CAR_PHYSICS.cybertruck.mass, 3150);
     assert.equal(CAR_PHYSICS.lambo.speedometerMaxKmh, 325);
-    assert.ok(Math.abs(CAR_PHYSICS.cybertruck.maxSpeed - 50) < 1e-8);
+    assert.ok(Math.abs(CAR_PHYSICS.cybertruck.maxSpeed - 60) < 1e-8);
+    assert.ok(CAR_PHYSICS.lambo.powertrain.maxAcceleration >= 16
+      && CAR_PHYSICS.cybertruck.powertrain.maxAcceleration >= 14,
+      'both vehicles must have responsive launch acceleration');
     assert.ok(Math.abs(CAR_PHYSICS.lambo.centerOfMassHeight - 0.46) < 1e-8);
     assert.ok(Math.abs(CAR_PHYSICS.cybertruck.centerOfMassHeight - 0.75) < 1e-8);
     assert.equal(CAR_MODELS.bugatti, undefined);
@@ -492,6 +505,22 @@ try {
           front: !!w.front,
         };
       });
+      // Match production physics hardpoint normalization. The GLB remains
+      // untouched; only the suspension/tire contact points are mirrored.
+      for (const front of [true, false]) {
+        const axle = wheelSpecs.filter(w => w.front === front);
+        const left = axle.find(w => w.x > 0);
+        const right = axle.find(w => w.x < 0);
+        if (!left || !right) continue;
+        const halfTrack = (Math.abs(left.x) + Math.abs(right.x)) * 0.5;
+        const axleZ = (left.z + right.z) * 0.5;
+        const axleY = (left.y + right.y) * 0.5;
+        const axleRadius = (left.radius + right.radius) * 0.5;
+        left.x = halfTrack; right.x = -halfTrack;
+        left.z = right.z = axleZ;
+        left.y = right.y = axleY;
+        left.radius = right.radius = axleRadius;
+      }
       const physicsBox = { min: bodyBox.min.clone(), max: bodyBox.max.clone() };
       const minWheelY = Math.min(...wheelSpecs.map(w => w.y));
       const meanRadius = wheelSpecs.reduce((sum, w) => sum + w.radius, 0) / wheelSpecs.length;
