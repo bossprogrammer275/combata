@@ -237,6 +237,18 @@ check('diagonal road surface stores a real oriented footprint', () => {
     'raycast failed to hit the real diagonal road surface');
 });
 
+check('surface-only road proxies never become invisible player blockers', () => {
+  const world = worldHarness();
+  world._addRoadSurfaceColliders(
+    [{ x: -20, z: 0 }, { x: 20, z: 0 }], 12, 1.0, false, 0.05,
+  );
+  assert.equal(world.colliderAt(0, 0, 0.42), false,
+    'the road height-sampling proxy was incorrectly treated as a solid wall');
+  const proxy = world.colliders[0];
+  assert.equal(proxy.surfaceOnly, true);
+  assert.ok(proxy.max.y > 0.3, 'regression test must pass the former low-surface early-out');
+});
+
 check('pedestrian is not pushed by empty corners of a diagonal road AABB', () => {
   const world = worldHarness();
   world._addRoadSurfaceColliders(
