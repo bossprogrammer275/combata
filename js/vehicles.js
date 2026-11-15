@@ -758,6 +758,7 @@ export class VehicleSystem {
     this.vehicles = [];
     this.driver = null;
     this.preferredVehicle = null;
+    this.lastSpawnError = null;
     this._camPos = null;
     this._camLook = null;
     this._lookYaw = 0;
@@ -888,6 +889,7 @@ export class VehicleSystem {
   // Spawn within interaction range, avoiding existing cars. This keeps the
   // newly requested vehicle reachable with E instead of putting it several metres away.
   async spawnNearPlayer(kind, player) {
+    this.lastSpawnError = null;
     const driving = this.driver;
     const origin = driving?.pos || player?.pos;
     if (!origin) return null;
@@ -903,10 +905,12 @@ export class VehicleSystem {
       pos: { x: origin.x, z: origin.z },
     };
     const candidates = [
-      [3.5, 3.5], [3.5, -3.5], [4, 4], [4, -4],
-      [4, 3], [4, -3], [3, 5], [3, -5],
-      [5, 3], [5, -3], [5, 4], [5, -4],
-      [2.5, 5.5], [2.5, -5.5], [5.5, 2.5], [5.5, -2.5],
+      // The two default cars are parked diagonally beside the player start.
+      // Put the first hotkey spawn straight ahead/behind, then use the sides.
+      [6, 0], [-6, 0], [0, 5.25], [0, -5.25],
+      [6, 1.5], [6, -1.5], [-6, 1.5], [-6, -1.5],
+      [5.5, 3], [5.5, -3], [-5.5, 3], [-5.5, -3],
+      [4.5, 4.5], [4.5, -4.5], [-4.5, 4.5], [-4.5, -4.5],
     ];
     let spot = null;
     for (const [forward, lateral] of candidates) {
@@ -915,7 +919,9 @@ export class VehicleSystem {
       preview.pos.x = x;
       preview.pos.z = z;
       if (this.surfaceDistance(preview, origin.x, origin.z) > 4.25) continue;
-      if (this.vehicles.some(v => Math.hypot(v.pos.x - x, v.pos.z - z) < 5.2)) continue;
+      // A vehicle can request another car while occupied; don't treat the
+      // car being driven as an obstacle to its own spawn search.
+      if (this.vehicles.some(v => v !== driving && Math.hypot(v.pos.x - x, v.pos.z - z) < 5.2)) continue;
       const sampledY = this.world?.groundHeightAt?.(x, z, baseY + 1.5);
       const elevation = Number.isFinite(sampledY) ? sampledY : Math.max(0, baseY);
       spot = { x, z, elevation };
@@ -1328,6 +1334,7 @@ export class VehicleSystem {
       console.log('[Vehicle] Spawned car (' + kind + ') at', def.x, def.z, '- boxes:', colBoxes.length, 'wheels:', wheels.length);
       return v;
     } catch (e) {
+      this.lastSpawnError = e;
       root?.removeFromParent();
       console.error('[Vehicle] Spawn failed:', e);
       return null;
