@@ -195,6 +195,10 @@ export class GameAudio {
     return this.vehicleSoundEngines?.setWarningTone(enabled) || false;
   }
 
+  setVehicleSoundEnvironment(kind, environment) {
+    return this.vehicleSoundEngines?.setEnvironment(kind, environment) || false;
+  }
+
   jump() { this._noise(.08, 'lowpass', 500, 1, .1, .07); }
 
   airstrikeRadio() {
