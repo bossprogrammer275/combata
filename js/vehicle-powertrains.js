@@ -101,10 +101,20 @@ function stepCombustion(state,spec,tune,throttle,speed,dt) {
       : (turbo.spoolDownRate||3.2);
     state.boost+=(boostTarget-state.boost)*Math.min(1,dt*spoolRate);
   } else state.boost=0;
-  // The Chiron prototype's W16 torque model holds an effective 1,500 rpm
-  // floor while the four turbos are still spooling.
-  const torqueRpm=turbo?Math.max(state.rpm,1500):state.rpm;
-  let torque=sampleCurve(spec.torqueCurve,clamp(torqueRpm,idle,redline),spec.peakTorqueNm||500);
+  let torque;
+  if(turbo?.torqueModel==='chiron-w16'){
+    // Exact W16 torque envelope from the authored Chiron simulator:
+    // 1,600 Nm plateau from 2,200 rpm, tapering after 6,200 rpm.
+    const r=Math.max(state.rpm,1500);
+    torque=1600*Math.min(1,r/2200)*(r>6200?Math.max(0.3,1-(r-6200)/1500):1);
+  } else if(spec.torqueModel==='gallardo-v10'){
+    // Exact naturally aspirated V10 torque curve used by the Gallardo prototype.
+    const r=Math.max(state.rpm,1200);
+    torque=540*(0.62+0.38*Math.min(1,r/6500))
+      *(r>6500?1-(r-6500)/1500*0.12:1);
+  } else {
+    torque=sampleCurve(spec.torqueCurve,clamp(state.rpm,idle,redline),spec.peakTorqueNm||500);
+  }
   if(turbo)torque*=0.4+0.6*state.boost;
   const force=torque*activeRatio*finalDrive*(spec.drivetrainEfficiency||.88)/radius;
   const rawAccel=force/Math.max(600,tune.mass||1500);
