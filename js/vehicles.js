@@ -41,7 +41,8 @@ export const CAR_PHYSICS = {
     brakeBias: 0.62,
     powertrain: {
       type: 'dct',
-      gearRatios: [3.15, 2.18, 1.58, 1.20, 0.97, 0.82, 0.69],
+      // The Gallardo e-gear prototype and real gearbox are six-speed.
+      gearRatios: [3.15, 2.18, 1.58, 1.20, 0.97, 0.82],
       finalDrive: 4.20,
       wheelRadius: 0.34,
       idleRpm: 900,
@@ -187,6 +188,15 @@ export const CAR_PHYSICS = {
       drivetrainEfficiency: 0.90,
       maxAcceleration: 16.2,
       shiftTorqueRetention: 0.12,
+      // The W16's boost is not instantaneous: its spool state feeds both
+      // low-RPM torque delivery and the authored turbo whistle/bov sound layers.
+      turboBoost: {
+        spoolStartRpm: 1400,
+        fullSpoolRpm: 4000,
+        spoolUpBase: 0.8,
+        spoolDownRate: 3.2,
+        maxBoostBar: 1.8,
+      },
       torqueCurve: [
         [750, 420], [1000, 700], [1500, 1200], [2000, 1600],
         [3000, 1600], [4500, 1600], [6000, 1600], [6700, 1570],
