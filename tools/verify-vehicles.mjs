@@ -299,10 +299,15 @@ try {
   const cityStartPlayer = { pos: { x: 10, y: 0.5, z: 166 }, yaw: 0 };
   const firstAfterStarterCars = await starterCarSpawnHarness.spawnNearPlayer('cybertruck', cityStartPlayer);
   const secondAfterStarterCars = await starterCarSpawnHarness.spawnNearPlayer('lambo', cityStartPlayer);
-  check('first hotkey vehicle spawns despite the two default city cars',
+  check('first hotkey vehicle spawns in the forward camera lane',
     firstAfterStarterCars?.kind === 'cybertruck'
+      && Math.abs(firstAfterStarterCars.pos.x - cityStartPlayer.pos.x) < 0.01
+      && firstAfterStarterCars.pos.z < cityStartPlayer.pos.z
       && starterCarSpawnHarness.surfaceDistance(firstAfterStarterCars, cityStartPlayer.pos.x, cityStartPlayer.pos.z) <= 4.25,
     'spawn=' + (firstAfterStarterCars ? firstAfterStarterCars.pos.x.toFixed(1) + ',' + firstAfterStarterCars.pos.z.toFixed(1) : 'none'));
+  check('a failed dynamic chassis setup falls back to the AABB vehicle controller',
+    vehicleSource.includes('Dynamic Rapier body failed; using AABB fallback:')
+      && vehicleSource.includes('has no dynamic Rapier body; using the tested AABB vehicle controller'));
   check('second hotkey vehicle finds another nearby slot without overlapping the first',
     secondAfterStarterCars?.kind === 'lambo'
       && Math.hypot(secondAfterStarterCars.pos.x - firstAfterStarterCars.pos.x, secondAfterStarterCars.pos.z - firstAfterStarterCars.pos.z) >= 5.2,
