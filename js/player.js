@@ -61,8 +61,9 @@ export class Player {
       skin: [0.82, 0.62, 0.48], pants: [0.20, 0.22, 0.30], shirt: this.clothesPalette[0],
       boots: [0.14, 0.12, 0.10], vest: [0.28, 0.32, 0.22], cap: [0.20, 0.22, 0.26],
       showCap: false, pack: true, helmet: false, weaponTint: [0.18, 0.18, 0.20],
-      // civilian_002's authored forward axis is local -Z.
-      modelYawOffset: 0,
+      // Match the pedestrian rig orientation: civilian_002's visible
+      // forward direction needs the same 180-degree root correction.
+      modelYawOffset: Math.PI,
       // Use the actual walk cycle at normal speed; the run/sprint clips are
       // reserved for faster movement and explicit sprint input.
       runThreshold: 0.62,
