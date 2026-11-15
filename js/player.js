@@ -304,7 +304,10 @@ export class Player {
 
     // Gravity moves the capsule only when genuinely falling off an edge.
     if (!this.climbing) {
-      if (this.onGround) this.vel.y = 0;
+      // Rapier's kinematic character controller needs a downward contact probe
+      // to keep computedGrounded() true while standing still. With zero vertical
+      // translation it alternates false/true, retriggering the jump animation.
+      if (this.onGround) this.vel.y = this.physics && this.physics._playerBody ? -1.0 : 0;
       else this.vel.y -= 16 * dt;
 
       // integrate with axis-separated collision
