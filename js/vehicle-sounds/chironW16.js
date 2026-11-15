@@ -210,7 +210,6 @@ export function createChironW16Engine({ ctx, destination, noiseBuffer }) {
     const te = S.te;
     const r = S.rpm / LIM;
     const crank = S.crank ? 1 : 0;
-    P(A.oscs[0].o.frequency, Math.max(8, f * A.oscs[0].m), 0.012);
     A.oscs.forEach(x => P(x.o.frequency, Math.max(8, f * x.m), 0.012));
     P(A.lfo.frequency, f / 4 + 0.3, 0.05);
     P(A.lp.frequency, crank ? 260 : 350 + S.rpm * 0.38 + te * 2700, 0.04);
@@ -238,7 +237,7 @@ export function createChironW16Engine({ ctx, destination, noiseBuffer }) {
     start(telemetry = {}, options = {}) {
       if (S.on) return;
       S.on = true;
-      startedAt = ctx.currentTime;
+      startedAt = ctx.currentTime - (options.coldStart === false ? 1.3 : 0);
       S.crank = options.coldStart === false ? 0 : 1;
       S.rpm = Math.max(IDLE, Number(telemetry.rpm) || IDLE);
       S.gear = numericGear(telemetry.gear, 1);
@@ -254,7 +253,9 @@ export function createChironW16Engine({ ctx, destination, noiseBuffer }) {
       S.rpm = clampSoundValue(telemetry.rpm || IDLE, 0, LIM + 300);
       S.kph = Math.abs(Number(telemetry.speed) || 0) * 3.6;
       S.gear = numericGear(telemetry.gear, S.gear);
-      S.thr = clampSoundValue(telemetry.throttle, 0, 1);
+      const targetThrottle = clampSoundValue(telemetry.throttle, 0, 1);
+      S.thr += (targetThrottle - S.thr)
+        * Math.min(1, dt * (targetThrottle > S.thr ? 9 : 14));
       S.shift = Math.max(0, Number(telemetry.shiftTimer) || 0);
       S.te = S.shift > 0 ? 0 : S.thr;
       S.boost = clampSoundValue(telemetry.boost, 0, 1);
