@@ -130,6 +130,13 @@ assert.ok(worldRuntime.includes("new THREE.Color(0x83b8d4)"),
   "ultra-low sky must not use the default black renderer clear");
 assert.ok(main.includes("this.player.char?.setRestPose?.()"),
   "spawn and respawn must reset all animation weights to a clean idle pose");
+const playerBuildIndex = main.indexOf("this.player = new Player(");
+const physicsPrimeIndex = main.indexOf("this.physics.step(1 / 60);");
+const profileApplyIndex = main.indexOf("this.player.applyProfile(this.profile);");
+assert.ok(playerBuildIndex >= 0 && physicsPrimeIndex > playerBuildIndex && profileApplyIndex > physicsPrimeIndex,
+  "Rapier must be primed at the spawn point before the game can enter free roam");
+assert.ok(main.includes("this.player.pos.set(spawn.x, Math.max(0, Number(supportY) || 0), spawn.z)"),
+  "Rapier prime must use the exact authored ground support height");
 assert.ok((main.match(/this\.player\.char\?\.setRestPose\?\.\(\)/g) || []).length >= 2,
   "both spawn and respawn must clear leftover jump/crouch blending");
 assert.ok(!main.includes("const dp = document.getElementById('device-prompt')"),
