@@ -129,7 +129,8 @@ try {
       && evSoundSource.includes('const SURF ='));
   check('vehicle audio uses real post-physics telemetry, not the legacy speed-only synth',
     appSource.includes('this.audio.updateVehicleEngine(')
-      && vehicleSource.includes('getEngineAudioState(dt)')
+      && appSource.includes('this.vehicles.getEngineAudioState(dt)')
+      && vehicleSource.includes('getEngineAudioState(dt = 1 / 60)')
       && !vehicleSource.includes('this.audio.engine('));
   check('K opens the dynamic vehicle garage and the Bugatti is listed',
     appSource.includes("case 'KeyK':")
