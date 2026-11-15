@@ -55,6 +55,7 @@ try{
   const configs=[
     {kind:'lambo',expectedHeight:0.98,expectedFov:82,prefix:'lamborghini'},
     {kind:'cybertruck',expectedHeight:1.42,expectedFov:82,prefix:'cybertruck'},
+    {kind:'bugatti',expectedHeight:0.94,expectedFov:82,prefix:'bugatti-chiron'},
   ];
   for(const spec of configs){
     const base=await page.evaluate(async kind=>await window.__vehicleVisualTest.load(kind),spec.kind);
@@ -80,6 +81,10 @@ try{
     }else if(spec.kind==='lambo'){
       check('Lamborghini keeps the tighter 0.30m wheel-member grouping radius',
         Math.abs(wheelDiagnostics.wheelMemberRadius-0.30)<1e-9,
+        'radius='+wheelDiagnostics.wheelMemberRadius);
+    }else if(spec.kind==='bugatti'){
+      check('Bugatti uses its own measured wheel-member grouping radius',
+        Math.abs(wheelDiagnostics.wheelMemberRadius-0.42)<1e-9,
         'radius='+wheelDiagnostics.wheelMemberRadius);
     }
     console.log('WHEEL DETECTOR '+JSON.stringify({
@@ -172,7 +177,7 @@ try{
   await fs.writeFile(path.join(OUT,'summary.json'),JSON.stringify({
     status:failures===0?'passed':'failed',
     failures,
-    screenshots:['lamborghini-exterior.png','lamborghini-interior.png','cybertruck-exterior.png','cybertruck-interior.png'],
+    screenshots:['lamborghini-exterior.png','lamborghini-interior.png','cybertruck-exterior.png','cybertruck-interior.png','bugatti-chiron-exterior.png','bugatti-chiron-interior.png'],
     wheelScreenshots:reportWheelSummary,
     browserErrors:[...errors,...browserErrors],
   },null,2));
