@@ -350,6 +350,10 @@ export class Character {
 
   applyWeaponPose(dt = 1 / 60) {
     if (!this._weaponBones?.length) return;
+    // The player uses the rig's own relaxed idle and locomotion arm motion.
+    // Apply the held-weapon correction only when aiming so it cannot force
+    // the shoulders into the wide hip-fire pose while standing or walking.
+    if (this.appearance.hipWeaponPose === false && !this._pendingWeaponPose.aiming) return;
     const selected = WEAPON_POSES[this.weaponType] || WEAPON_POSES.rifle;
     const pose = this._pendingWeaponPose.aiming ? selected.aim : selected.hip;
     if (!pose) return;
