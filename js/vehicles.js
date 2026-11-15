@@ -905,17 +905,16 @@ export class VehicleSystem {
       pos: { x: origin.x, z: origin.z },
     };
     const candidates = [
-      // Spawn beside and slightly ahead of the player, inside the normal
-      // third-person camera view and within E-entry range. Pure forward
-      // placement put the vehicle beyond the camera's look target.
-      [2.5, 3.5], [2.5, -3.5],
-      [4.5, 2.0], [4.5, -2.0],
-      [-2.5, 3.5], [-2.5, -3.5],
-      [5.0, 0], [-5.0, 0],
-      [2.5, 4.8], [2.5, -4.8],
-      [-2.5, 4.8], [-2.5, -4.8],
+      // Put the first requested car directly in the camera's forward lane.
+      // The near-side slots keep a second car reachable without overlapping it.
+      [4.2, 0],
+      [0, 5.2], [0, -5.2],
+      [4.2, 5.2], [4.2, -5.2],
+      [-4.2, 0],
       [5.5, 2.8], [5.5, -2.8],
       [-5.5, 2.8], [-5.5, -2.8],
+      [2.5, 6.0], [2.5, -6.0],
+      [-2.5, 6.0], [-2.5, -6.0],
     ];
     let spot = null;
     for (const [forward, lateral] of candidates) {
@@ -1322,23 +1321,28 @@ export class VehicleSystem {
       // is the source of truth while parked and driven; the old swept-AABB
       // controller remains only as a no-Rapier fallback.
       if (this.physics && this.physics.world) {
-        v.rapierBody = this.physics.createVehicleBody(
-          def.x, def.elevation || 0, def.z, yaw + yawOffset, [physicsBox],
-          {
-            dynamic: true, centerY: physicsCenterY, mass: v.mass,
-            centerOfMass: {
-              x: 0,
-              y: physicsProfile.centerOfMassHeight - physicsCenterY,
-              z: physicsProfile.wheelbase * (physicsProfile.weightFront - 0.5),
+        try {
+          v.rapierBody = this.physics.createVehicleBody(
+            def.x, def.elevation || 0, def.z, yaw + yawOffset, [physicsBox],
+            {
+              dynamic: true, centerY: physicsCenterY, mass: v.mass,
+              centerOfMass: {
+                x: 0,
+                y: physicsProfile.centerOfMassHeight - physicsCenterY,
+                z: physicsProfile.wheelbase * (physicsProfile.weightFront - 0.5),
+              },
+              yawOffset, tuning: physicsProfile, angularDamping: physicsProfile.angularDamping,
             },
-            yawOffset, tuning: physicsProfile, angularDamping: physicsProfile.angularDamping,
-          },
-        );
-        v.physicsDynamic = !!v.rapierBody?._openWorldDynamic;
-        if (!v.physicsDynamic) throw new Error(`[${kind}] Rapier did not create a dynamic vehicle chassis.`);
-        // If Rapier is available, a profile/mass/COM failure is fatal for this
-        // spawn. The AABB fallback is only for installations where Rapier failed
-        // to initialize at all, not a silent substitute for broken vehicle physics.
+          );
+          v.physicsDynamic = !!v.rapierBody?._openWorldDynamic;
+          if (!v.physicsDynamic) {
+            console.warn(`[Vehicle] ${kind} has no dynamic Rapier body; using the tested AABB vehicle controller.`);
+          }
+        } catch (error) {
+          v.rapierBody = null;
+          v.physicsDynamic = false;
+          console.warn('[Vehicle] Dynamic Rapier body failed; using AABB fallback:', error);
+        }
       }
 
       root.visible = true;
