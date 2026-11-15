@@ -1836,6 +1836,31 @@ export class World {
     return out;
   }
 
+  _sliceOffsetRoadPolyline(centerPts, offsetPts, cumulative, start, end) {
+    if (centerPts.length < 2 || offsetPts.length !== centerPts.length || end <= start) return [];
+    const total = cumulative[cumulative.length - 1];
+    start = THREE.MathUtils.clamp(start, 0, total);
+    end = THREE.MathUtils.clamp(end, 0, total);
+    if (end - start < 0.05) return [];
+    const at = distance => {
+      let i = 0;
+      while (i < cumulative.length - 2 && cumulative[i + 1] < distance) i++;
+      const segment = Math.max(1e-6, cumulative[i + 1] - cumulative[i]);
+      const t = THREE.MathUtils.clamp((distance - cumulative[i]) / segment, 0, 1);
+      return {
+        x: THREE.MathUtils.lerp(offsetPts[i].x, offsetPts[i + 1].x, t),
+        y: THREE.MathUtils.lerp(Number(offsetPts[i].y) || 0, Number(offsetPts[i + 1].y) || 0, t),
+        z: THREE.MathUtils.lerp(offsetPts[i].z, offsetPts[i + 1].z, t),
+      };
+    };
+    const out = [at(start)];
+    for (let i = 1; i < centerPts.length - 1; i++) {
+      if (cumulative[i] > start + 0.01 && cumulative[i] < end - 0.01) out.push(offsetPts[i]);
+    }
+    out.push(at(end));
+    return out;
+  }
+
   _offsetRoadPolyline(pts, offset) {
     const n = pts.length;
     if (n < 2 || Math.abs(offset) < 1e-6) return pts.map(p => ({ x: p.x, z: p.z, y: p.y || 0 }));
@@ -1962,11 +1987,16 @@ export class World {
   _buildRoadSidewalks(chains, walkMat = this._sceneMat('walk'), curbMat = this.mCurb()) {
     if (!chains?.length) return;
     const { metadata, ranges } = this._roadJunctionData(chains);
-    const drawRuns = (pts, data, blocked, width, y, mat, colliderWidth, thickness) => {
+    const drawRuns = (centerPts, offsetPts, data, blocked, width, y, mat, colliderWidth, thickness) => {
       let cursor = 0;
       const draw = (start, end) => {
         if (end - start < 0.08) return;
-        const run = this._sliceRoadPolyline(pts, data.cumulative, start, end);
+        // Offset curves have slightly different arc lengths from the centreline.
+        // Slice by the centreline's segment/t coordinates so an intersection cut
+        // lands at the same cross-street on the pavement and curb.
+        const run = this._sliceOffsetRoadPolyline(
+          centerPts, offsetPts, data.cumulative, start, end,
+        );
         if (run.length < 2) return;
         this._strokeMitered(run, width, y, mat, false);
         this._addRoadSurfaceColliders(run, colliderWidth, y, false, thickness);
@@ -1991,7 +2021,7 @@ export class World {
           this._strokeMitered(pavement, 2.4, 0.12, walkMat, true);
           this._addRoadSurfaceColliders(pavement, 2.4, 0.12, true, 0.04);
         } else {
-          drawRuns(pavement, data, blocked, 2.4, 0.12, walkMat, 2.4, 0.04);
+          drawRuns(chain.pts, pavement, data, blocked, 2.4, 0.12, walkMat, 2.4, 0.04);
         }
       }
       for (const side of [-1, 1]) {
@@ -2002,7 +2032,7 @@ export class World {
         } else {
           // The curb is narrow; keep its collision strip cut with the visual
           // pavement so the player controller never meets a hidden junction wall.
-          drawRuns(curb, data, blocked, 0.36, 0.10, curbMat, 0.36, 0.06);
+          drawRuns(chain.pts, curb, data, blocked, 0.36, 0.10, curbMat, 0.36, 0.06);
         }
       }
     }
