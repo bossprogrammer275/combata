@@ -947,7 +947,7 @@ export class Physics {
           wheelLateralSpeed,
           Math.max(tune.lowSpeedCorneringReference ?? 4.0, Math.abs(wheelLongSpeed)),
         );
-        const corneringStiffness = wheel.front
+        const baseCorneringStiffness = wheel.front
           ? (tune.frontCorneringStiffness ?? 60000)
           : (tune.rearCorneringStiffness ?? 68000);
         const handbrakeRear = handbrake && !wheel.front;
@@ -955,16 +955,30 @@ export class Physics {
         const surfaceGrip = THREE.MathUtils.clamp(state.surface?.grip ?? 1, 0.2, 1.4);
         const tireMu = tune.tireFriction ?? 1.2;
         const cornerMu = handbrakeRear ? (tune.handbrakeRearFriction ?? 0.55) : tireMu;
-        const normalImpulse = Math.max(0, state.normalLoad || 0) * tireMu * surfaceGrip * dt;
+        const normalLoad = Math.max(0, state.normalLoad || 0);
+        const nominalWheelLoad = mass * 9.81
+          * (wheel.front ? weightFront : 1 - weightFront)
+          / (wheel.front ? frontWheelCount : rearWheelCount);
+        // Cornering stiffness follows the wheel's live normal load. This reduces
+        // the artificial extra grip of a heavily loaded tyre and the steering
+        // imbalance caused by suspension load transfer.
+        const loadSensitivity = Math.sqrt(THREE.MathUtils.clamp(
+          normalLoad / Math.max(1, nominalWheelLoad), 0.35, 1.65,
+        ));
+        const corneringStiffness = baseCorneringStiffness * loadSensitivity;
+        const normalImpulse = normalLoad * tireMu * surfaceGrip * dt;
         const usedLongitudinal = Math.min(normalImpulse, longitudinalImpulseByWheel[index] || 0);
         const combinedGripScale = normalImpulse > 1e-6
           ? Math.sqrt(Math.max(0, 1 - (usedLongitudinal / normalImpulse) ** 2))
           : 0;
-        // A brush-style slip-angle response: small slip produces proportional
-        // cornering force, while the friction circle limits large slides.
+        // Use a brush-style slip response with a gentle peak-to-slide falloff:
+        // lateral force rises near-linearly, then loses grip at large slip.
+        const slipFalloff = THREE.MathUtils.clamp(
+          1 - Math.max(0, Math.abs(slipAngle) - 0.18) * 0.45, 0.62, 1,
+        );
         const lateralForce = -corneringStiffness * slipAngle * rearCorneringScale;
-        const maxLateralImpulse = Math.max(0, state.normalLoad || 0)
-          * cornerMu * surfaceGrip * dt * combinedGripScale;
+        const maxLateralImpulse = normalLoad
+          * cornerMu * surfaceGrip * dt * combinedGripScale * slipFalloff;
         const lateralImpulse = THREE.MathUtils.clamp(
           lateralForce * dt, -maxLateralImpulse, maxLateralImpulse,
         );
@@ -1000,6 +1014,24 @@ export class Physics {
         x: angular.x,
         y: angular.y + (wheelAngleRate - angular.y) * steeringResponse,
         z: angular.z,
+      }, true);
+    }
+
+    // A small high-speed yaw damper acts like a stability-control layer only
+    // when the driver is travelling quickly with the wheel centred. It is fully
+    // released as steering or handbrake input increases, so intentional turns
+    // and handbrake slides remain driver-controlled.
+    const yawDamping = Math.max(0, Number(tune.highSpeedYawDamping) || 0);
+    const neutralSteer = 1 - THREE.MathUtils.clamp(Math.abs(steer) / 0.06, 0, 1);
+    const highSpeedBlend = THREE.MathUtils.clamp((horizontalSpeed - 16) / 14, 0, 1);
+    if (yawDamping > 0 && !handbrake && neutralSteer > 0 && highSpeedBlend > 0) {
+      const inertiaY = body._openWorldMassProperties?.principalInertia?.y
+        || mass * 5.5;
+      const dampFraction = 1 - Math.exp(-yawDamping * neutralSteer * highSpeedBlend * dt);
+      body.applyTorqueImpulse({
+        x: 0,
+        y: -angular.y * inertiaY * dampFraction,
+        z: 0,
       }, true);
     }
 
