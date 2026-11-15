@@ -661,13 +661,24 @@ class Game {
       'KeyW', 'KeyA', 'KeyS', 'KeyD',
       'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight',
     ]);
+    // Crouch is a held-key action. Track every crouch key independently so
+    // releasing Ctrl cannot cancel C while C is still physically held.
+    const crouchKeys = this._crouchKeys || (this._crouchKeys = new Set());
+    const crouchKeyCodes = new Set(['KeyC', 'ControlLeft']);
     const updateDriveAxes = () => Object.assign(I, resolveDriveAxes(driveKeys));
+    const updateCrouch = () => { I.crouch = crouchKeys.size > 0; };
     addEventListener('keydown', (e) => {
       if (this.state === 'paused' && e.code !== 'Escape') { e.preventDefault(); return; }
       if (driveKeyCodes.has(e.code)) {
         e.preventDefault();
         driveKeys.add(e.code);
         updateDriveAxes();
+        return;
+      }
+      if (crouchKeyCodes.has(e.code)) {
+        e.preventDefault();
+        if (this.state === 'playing') crouchKeys.add(e.code);
+        updateCrouch();
         return;
       }
       if (e.repeat) return;
@@ -685,7 +696,6 @@ class Game {
       }
       switch (e.code) {
         case 'ShiftLeft': case 'ShiftRight': I.sprint = true; break;
-        case 'KeyC': case 'ControlLeft': I.crouch = true; e.preventDefault(); break;
         case 'Space': I.jump = true; e.preventDefault(); break;
         case 'KeyR': if (this.state === 'playing' && !this.player.skydive && !(this.vehicles && this.vehicles.driver)) this.weapons.startReload(); break;
         case 'KeyX': if (this.state === 'playing' && !this.player.skydive && !(this.vehicles && this.vehicles.driver)) this.input.throwGrenade = true; break;
@@ -777,9 +787,13 @@ class Game {
         e.preventDefault();
         if (driveKeys.delete(e.code)) updateDriveAxes();
       }
+      if (crouchKeyCodes.has(e.code)) {
+        e.preventDefault();
+        crouchKeys.delete(e.code);
+        updateCrouch();
+      }
       switch (e.code) {
         case 'ShiftLeft': case 'ShiftRight': I.sprint = false; break;
-        case 'KeyC': case 'ControlLeft': I.crouch = false; break;
         case 'Space': I.jump = false; break;
         case 'KeyF': I.climb = false; break;
         case 'KeyZ': I.climb = false; break;
@@ -787,8 +801,10 @@ class Game {
     });
     addEventListener('blur', () => {
       driveKeys.clear();
+      crouchKeys.clear();
       updateDriveAxes();
-      I.sprint = false; I.crouch = false; I.jump = false;
+      updateCrouch();
+      I.sprint = false; I.jump = false;
     });
     addEventListener('mousedown', (e) => {
       if (this.state !== 'playing' || this.player.skydive || (this.tools && this.tools.isOpen())) return;
@@ -879,6 +895,7 @@ class Game {
     if (this.state !== 'playing') return;
     this.state = 'paused';
     if (this._driveKeys) this._driveKeys.clear();
+    if (this._crouchKeys) this._crouchKeys.clear();
     this.input.forward = 0; this.input.right = 0;
     this.input.fire = false; this.input.ads = false;
     this.input.sprint = false; this.input.crouch = false; this.input.jump = false;
