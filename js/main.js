@@ -262,6 +262,29 @@ class Game {
     this._pendingQuality = s.quality;
   }
 
+  requestVehicleSpawn(kind, label) {
+    if (this.state !== 'playing' || !this.player || this.player.skydive || !this.vehicles) return false;
+    if (this.transitMenuOpen) {
+      this.transitMenuOpen = false;
+      this.hud.hideTransitMenu();
+    }
+    const vehicles = this.vehicles;
+    vehicles.spawnNearPlayer(kind, this.player).then((vehicle) => {
+      if (vehicle) {
+        this.hud.toast(label + ' READY · PRESS E TO ENTER');
+        return;
+      }
+      const reason = vehicles.lastSpawnError?.message;
+      this.hud.toast(reason
+        ? label + ' SPAWN FAILED · CHECK CONSOLE'
+        : 'NO CLEAR SPACE FOR ' + label);
+    }).catch((error) => {
+      console.error('[Vehicle] ' + label + ' spawn failed:', error);
+      this.hud.toast(label + ' SPAWN FAILED · CHECK CONSOLE');
+    });
+    return true;
+  }
+
   // ===== FREE ROAM =====
   startFreeRoam() {
     this.match = { mode: 'freeroam', running: true };
@@ -675,13 +698,13 @@ class Game {
           }
           e.preventDefault();
           break;
+        case 'KeyK':
+          e.preventDefault();
+          this.requestVehicleSpawn('lambo', 'LAMBORGHINI');
+          break;
         case 'KeyT':
-          if (this.state === 'playing' && this.player && !this.player.skydive && this.vehicles) {
-            if (this.transitMenuOpen) { this.transitMenuOpen = false; this.hud.hideTransitMenu(); }
-            this.vehicles.spawnNearPlayer('cybertruck', this.player).then((v) => {
-              this.hud.toast(v ? 'TESLA READY · PRESS E TO ENTER' : 'NO CLEAR SPACE FOR TESLA');
-            }).catch((err) => console.error('[Vehicle] Tesla spawn failed:', err));
-          }
+          e.preventDefault();
+          this.requestVehicleSpawn('cybertruck', 'TESLA');
           break;
         case 'KeyU':
           if (this.state === 'playing' && !this.player.skydive && !(this.vehicles && this.vehicles.driver) && this.nearTransit && this.world.namedLocations) {
