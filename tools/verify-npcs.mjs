@@ -84,6 +84,8 @@ assert.ok(characterRuntime.includes("jumpStartOffset(next.getClip().duration)"),
 assert.ok(characterRuntime.includes("const poseBlend = desired === 'jump' ? 1 : blend"), "jump must not blend against a competing locomotion cycle");
 assert.ok(characterRuntime.includes("next.setEffectiveWeight(0)"), "resetting a selected clip must not restore it at full weight before crossfade");
 assert.ok(playerRuntime.includes("groundSpeed: hs"), "player rig must receive measured horizontal movement");
+assert.ok(playerRuntime.includes("this.physics && this.physics._playerBody ? -1.0 : 0"),
+  "Rapier player must keep a downward ground probe while standing still");
 assert.ok(playerRuntime.includes("(this.pos.x - frameStartX) / animationDt"), "player animation speed must come from collision-resolved displacement");
 assert.equal(resolvePlayerAnimation({ groundSpeed: 0, moveX: 1, speed: 1 }, "idle"), "idle",
   "key intent alone must not start a walk cycle when the player is blocked");
@@ -121,4 +123,6 @@ assert.ok(main.includes("I.crouch = crouchKeys.size > 0"),
   "releasing one crouch key must not clear another held crouch key");
 assert.ok(main.includes("crouchKeys.clear()"),
   "pause/blur must clear stuck crouch input");
+assert.ok(main.includes("this.world.groundHeightAt(s.x, s.z)"),
+  "player must spawn at the support surface instead of falling from a fixed Y offset");
 console.log("NPC verification passed: civilian_002, " + activeKeys.length + " approved clips, authored sidewalk routes and physics/population config.");
