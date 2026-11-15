@@ -167,6 +167,19 @@ class Game {
       this.physics = null;
     }
     this.player = new Player(this.camera, this.world, this.audio, this.physics);
+    if (this.physics) {
+      // Prime Rapier's broadphase/query state with the player already at the
+      // authored spawn. Without this first step, the first live movement query
+      // can report airborne for one frame and trigger the jump anticipation pose.
+      const spawn = this.world.startPoint;
+      const supportY = this.world.groundHeightAt
+        ? this.world.groundHeightAt(spawn.x, spawn.z)
+        : 0;
+      this.player.pos.set(spawn.x, Math.max(0, Number(supportY) || 0), spawn.z);
+      this.player.onGround = true;
+      this.physics.setPlayerPosition(this.player.pos.x, this.player.pos.y, this.player.pos.z);
+      this.physics.step(1 / 60);
+    }
     this.player.applyProfile(this.profile);
     this.weapons = new WeaponSystem(this.camera, this.scene, this.world, this.fx, this.audio, this.hud);
     this.scene.add(this.player.char.root);
