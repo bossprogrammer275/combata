@@ -6,7 +6,7 @@
 import { createSoundEngineTools, clampSoundValue } from './soundEngineTools.js';
 
 export function createCybertruckTriMotorEngine({ ctx, destination, noiseBuffer }) {
-  const { G, F, O, N, burst, tone, target } =
+  const { G, F, O, N, burst, tone, target, disposeSources } =
     createSoundEngineTools(ctx, noiseBuffer);
   const SP = {
     beast: { P: 630, F: 33500, nm: 3, name: 'Cyberbeast' },
@@ -257,6 +257,7 @@ export function createCybertruckTriMotorEngine({ ctx, destination, noiseBuffer }
       S.on = false;
       A.master.gain.setTargetAtTime(0, ctx.currentTime, 0.08);
     },
+    dispose() { disposeSources(0.12); },
     setMix(key, value) {
       if (!Object.prototype.hasOwnProperty.call(MIX, key)) return false;
       MIX[key] = clampSoundValue(value, 0, 1.5);
