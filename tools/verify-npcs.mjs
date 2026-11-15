@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { NPC_MODELS, NPC_GLOBAL_CONFIG } from "../js/npc-config.js";
+import { resolvePlayerAnimation, jumpStartOffset } from "../js/player-animation.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const model = NPC_MODELS.civilian_002;
@@ -74,11 +75,28 @@ assert.ok(characterRuntime.includes("modelYawOffset: Math.PI"), "enemy default y
 assert.ok(characterRuntime.includes("key === 'idle' ? 1 : 0"), "civilian_002 standing idle must be the initial player pose");
 assert.ok(playerRuntime.includes("runThreshold: 0.62"), "normal-speed player movement must select the walk clip, not the run clip");
 assert.ok(playerRuntime.includes("hipWeaponPose: false"), "player idle and locomotion clips must retain their natural arm poses");
-assert.ok(playerRuntime.includes("const facingX = groundSpeed > 0.18 ? this.vel.x : this._moveX"),
-  "player facing must follow actual movement momentum during direction changes");
+assert.ok(playerRuntime.includes("const facingX = this._animationVelocityX"),
+  "player facing must follow collision-resolved travel rather than requested keys");
 assert.ok(characterRuntime.includes("if (this.appearance.hipWeaponPose === false && !this._pendingWeaponPose.aiming) return;"),
   "player hip-fire arm correction must not override idle or locomotion poses");
-assert.ok(characterRuntime.includes("speed >= this.appearance.runThreshold"), "faster non-sprint movement must retain the run clip");
+assert.ok(characterRuntime.includes("resolvePlayerAnimation(state, this._poseMode || 'idle')"), "player animation must use one latched state resolver");
+assert.ok(characterRuntime.includes("jumpStartOffset(next.getClip().duration)"), "jump must skip its crouch anticipation frames");
+assert.ok(characterRuntime.includes("const poseBlend = desired === 'jump' ? 1 : blend"), "jump must not blend against a competing locomotion cycle");
+assert.ok(playerRuntime.includes("groundSpeed: hs"), "player rig must receive measured horizontal movement");
+assert.ok(playerRuntime.includes("(this.pos.x - frameStartX) / animationDt"), "player animation speed must come from collision-resolved displacement");
+assert.equal(resolvePlayerAnimation({ groundSpeed: 0, moveX: 1, speed: 1 }, "idle"), "idle",
+  "key intent alone must not start a walk cycle when the player is blocked");
+assert.equal(resolvePlayerAnimation({ groundSpeed: 0.5 }, "idle"), "walk");
+assert.equal(resolvePlayerAnimation({ groundSpeed: 3.2 }, "walk"), "run");
+assert.equal(resolvePlayerAnimation({ groundSpeed: 2.95 }, "run"), "run",
+  "run hysteresis must retain the run clip while speed dips slightly");
+assert.equal(resolvePlayerAnimation({ groundSpeed: 2.7 }, "run"), "walk",
+  "run hysteresis must return to walk below its exit threshold");
+assert.equal(resolvePlayerAnimation({ groundSpeed: 4.2, sprint: 1 }, "run"), "sprint");
+assert.equal(resolvePlayerAnimation({ groundSpeed: 4.2, airborne: 1 }, "sprint"), "jump");
+assert.equal(resolvePlayerAnimation({ groundSpeed: 0.1 }, "walk"), "idle");
+assert.equal(jumpStartOffset(1), 0.18);
+assert.equal(jumpStartOffset(0.5), 0.1);
 assert.ok(characterRuntime.includes("const blend = 1 - Math.exp"), "animation blending must be frame-rate independent");
 assert.ok(characterRuntime.includes("action.setLoop(oneShot ? THREE.LoopOnce : THREE.LoopRepeat"), "jump must be a one-shot clip, not a repeated loop");
 assert.ok(playerRuntime.includes("syncCharacter(dt = 1 / 60)"), "player must pass frame time into animation blending");
