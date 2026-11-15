@@ -135,7 +135,7 @@ export const CAR_PHYSICS = {
     driveGripUsageLimit: 0.80,
     brakingGripUsageLimit: 0.97,
     handbrakeGripUsageLimit: 0.76,
-    steeringAngle: 0.55,
+    steeringAngle: 0.58,
     handbrakeSteerAngle: 0.55,
     frontGrip: 9.2,
     rearGrip: 9.8,
