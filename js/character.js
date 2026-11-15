@@ -323,6 +323,9 @@ export class Character {
       if (next) {
         next.reset();
         next.enabled = true;
+        // reset() restores Three.js action weight to 1; explicitly zero it so
+        // ordinary clip changes crossfade instead of stacking two full poses.
+        next.setEffectiveWeight(0);
         if (desired === 'jump') next.time = jumpStartOffset(next.getClip().duration);
         next.play();
       }
