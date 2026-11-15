@@ -1,10 +1,13 @@
 // Procedural audio — all sounds synthesized via Web Audio, no asset files.
+import { SoundEngineGlobal } from './soundEngineGlobal.js';
+
 export class GameAudio {
   constructor(quality) {
     this.ctx = null;
     this.master = null;
     this.volume = 1.4;
     this._disabled = quality === 'ultra-low';
+    this.vehicleSoundEngines = null;
   }
 
   init() {
@@ -15,10 +18,15 @@ export class GameAudio {
     this.master.gain.value = this.volume;
     this.master.connect(this.ctx.destination);
     // reusable noise buffer
-    const len = this.ctx.sampleRate * 1.2;
+    const len = this.ctx.sampleRate * 2;
     this.noiseBuf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
     const d = this.noiseBuf.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    this.vehicleSoundEngines = new SoundEngineGlobal({
+      ctx: this.ctx,
+      destination: this.master,
+      noiseBuffer: this.noiseBuf,
+    });
   }
 
   setVolume(v) { this.volume = v; if (this.master) this.master.gain.value = v; }
@@ -169,29 +177,22 @@ export class GameAudio {
 
   footstep() { this._noise(.05, 'lowpass', 400 + Math.random() * 200, 1, .08, .045); }
 
-  // vehicle engine drone — pitch rises with throttle (called per-frame while driving)
-  engine(intensity = 0) {
-    if (!this.ctx) return;
-    const t = this.ctx.currentTime;
-    if (!this._engine) {
-      const g = this.ctx.createGain(); g.gain.value = 0; g.connect(this.master);
-      const o = this.ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 55; o.connect(g); o.start();
-      const o2 = this.ctx.createOscillator(); o.type = 'square'; o2.frequency.value = 28;
-      const g2 = this.ctx.createGain(); g2.gain.value = 0.35;
-      o2.connect(g2); g2.connect(g); o2.start();
-      this._engine = { g, o, o2, last: 0 };
-    }
-    const e = this._engine;
-    const now = performance.now();
-    if (now - e.last < 80) return;
-    e.last = now;
-    e.g.gain.setTargetAtTime(0.015 + intensity * 0.15, t, 0.15);
-    e.o.frequency.setTargetAtTime(55 + intensity * 110, t, 0.12);
-    e.o2.frequency.setTargetAtTime(28 + intensity * 55, t, 0.12);
+  // Route real vehicle telemetry into the matching authored sound module.
+  updateVehicleEngine(vehicle, telemetry) {
+    if (!this.ctx || this._disabled || !this.vehicleSoundEngines) return false;
+    return this.vehicleSoundEngines.update(vehicle, telemetry);
   }
 
   stopEngine() {
-    if (this._engine && this.ctx) this._engine.g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.08);
+    if (this.vehicleSoundEngines) this.vehicleSoundEngines.stop();
+  }
+
+  setVehicleSoundMix(kind, key, value) {
+    return this.vehicleSoundEngines?.setMix(kind, key, value) || false;
+  }
+
+  setCybertruckWarningTone(enabled) {
+    return this.vehicleSoundEngines?.setWarningTone(enabled) || false;
   }
 
   jump() { this._noise(.08, 'lowpass', 500, 1, .1, .07); }
