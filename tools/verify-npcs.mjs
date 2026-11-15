@@ -108,6 +108,12 @@ assert.ok(characterRuntime.includes("const blend = 1 - Math.exp"), "animation bl
 assert.ok(characterRuntime.includes("action.setLoop(oneShot ? THREE.LoopOnce : THREE.LoopRepeat"), "jump must be a one-shot clip, not a repeated loop");
 assert.ok(playerRuntime.includes("syncCharacter(dt = 1 / 60)"), "player must pass frame time into animation blending");
 
+assert.ok(characterRuntime.includes("setRestPose()"), "Character must expose a deterministic idle reset for spawn/respawn");
+assert.ok(characterRuntime.includes("action.setEffectiveWeight(name === 'idle' ? 1 : 0)"),
+  "spawn pose reset must leave idle as the only weighted clip");
+assert.ok(characterRuntime.includes("if (this._forceRestPose) this.setRestPose()"),
+  "an idle reset requested before FBX loading must apply after the rig builds");
+
 assert.ok(characterRuntime.includes("const desired = animated.clone().multiply(offset)"),
   "weapon pose must be additive over the real Mixamo arm animation");
 assert.ok(characterRuntime.includes("new THREE.Euler(pose.faL || 0, 0, 0)"),
@@ -116,7 +122,23 @@ assert.ok(characterRuntime.includes("leftShoulder") && characterRuntime.includes
   "weapon pose must include shoulder articulation");
 
 const main = fs.readFileSync(path.join(root, "js/main.js"), "utf8");
+const worldRuntime = fs.readFileSync(path.join(root, "js/world.js"), "utf8");
+const htmlRuntime = fs.readFileSync(path.join(root, "index.html"), "utf8");
 assert.ok(!main.includes("npc1/Walking.fbx"), "legacy NPC prefetch is still active");
+assert.ok(worldRuntime.includes("this.buildLighting(quality);\n    // buildSky() has a low-cost ultra-low fallback. Always call it"),
+  "ultra-low graphics must still initialize a visible sky background");
+assert.ok(worldRuntime.includes("new THREE.Color(0x83b8d4)"),
+  "ultra-low sky must not use the default black renderer clear");
+assert.ok(main.includes("this.player.char?.setRestPose?.()"),
+  "spawn and respawn must reset all animation weights to a clean idle pose");
+assert.ok((main.match(/this\.player\.char\?\.setRestPose\?\.\(\)/g) || []).length >= 2,
+  "both spawn and respawn must clear leftover jump/crouch blending");
+assert.ok(!main.includes("const dp = document.getElementById('device-prompt')"),
+  "missile device prompt must not be shown unconditionally in free roam");
+assert.ok(!htmlRuntime.includes('id="device-prompt"'),
+  "stale always-on missile device hint must be removed from the HUD");
+assert.ok(main.includes("!driving && this.world.atmosphere) ? 'block' : 'none'"),
+  "F8 weather control must be hidden when the low-end renderer has no atmosphere system");
 assert.ok(main.includes("const crouchKeys = this._crouchKeys || (this._crouchKeys = new Set())"),
   "crouch input must track each held key independently");
 assert.ok(main.includes("I.crouch = crouchKeys.size > 0"),
