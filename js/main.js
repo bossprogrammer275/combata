@@ -481,8 +481,15 @@ class Game {
     const d0 = this.weapons.defs[0], d1 = this.weapons.defs[1], d2 = this.weapons.defs[2];
     for (const d of [d0, d1, d2]) if (d.state) { d.state.mag = d.mag; d.state.reserve = 240; }
     const s = this.world.startPoint;
-    this.player.pos.set(s.x, 0.5, s.z);
+    const supportY = this.world.groundHeightAt
+      ? this.world.groundHeightAt(s.x, s.z)
+      : 0;
+    this.player.pos.set(s.x, Math.max(0, Number(supportY) || 0), s.z);
     this.player.vel.set(0, 0, 0);
+    this.player.jumpCameraHeight = 0;
+    this.player.jumpCameraVelocity = 0;
+    this.player._animationVelocityX = 0;
+    this.player._animationVelocityZ = 0;
     this.player.yaw = s.yaw != null ? s.yaw : Math.PI;
     this.player.pitch = 0;
     this.player.onGround = true;
@@ -508,8 +515,15 @@ class Game {
     for (const d of [d0, d1, d2]) if (d.state) { d.state.mag = d.mag; d.state.reserve = 240; }
     this.weapons.hud.setWeapon(this.weapons.def, this.weapons.state);
     const s = this.world.startPoint;
-    this.player.pos.set(s.x, 0.5, s.z);
+    const supportY = this.world.groundHeightAt
+      ? this.world.groundHeightAt(s.x, s.z)
+      : 0;
+    this.player.pos.set(s.x, Math.max(0, Number(supportY) || 0), s.z);
     this.player.vel.set(0, 0, 0);
+    this.player.jumpCameraHeight = 0;
+    this.player.jumpCameraVelocity = 0;
+    this.player._animationVelocityX = 0;
+    this.player._animationVelocityZ = 0;
     this.player.yaw = s.yaw != null ? s.yaw : Math.PI;
     this.player.pitch = 0;
     this.player.onGround = true;
