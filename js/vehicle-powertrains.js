@@ -55,7 +55,7 @@ function stepElectric(state,spec,tune,throttle,speed,dt) {
   return {
     driveAcceleration,brakeAcceleration,maxForward:tune.maxSpeed||40,
     gear:'D',gearNumber:1,rpm:state.rpm,motorRpm:state.motorRpm,
-    engineLoad:state.engineLoad,driveDemand,regenLevel,boost:0,
+    engineLoad:state.engineLoad,driveDemand:state.driveDemand,regenLevel:state.regenLevel,boost:0,
     shiftTimer:0,shiftDirection:null,revLimiter:false,
     powertrainType:'electric-single-speed'
   };
