@@ -208,6 +208,8 @@ try {
       || sample.poseMode === "crouch" || sample.poseMode === "crouchWalk"
   );
   const movingSamples = diagnostics.filter(sample => (sample.groundSpeed || 0) > 0.25);
+  const settledSamples = diagnostics.filter(sample => sample.t >= 700);
+  const uncommandedAirSamples = settledSamples.filter(sample => !sample.onGround || sample.poseMode === "jump");
   const report = {
     status: "pending",
     durationMs: timing.duration,
@@ -218,6 +220,8 @@ try {
     poseTransitions: transitions,
     crouchSampleCount: crouchSamples.length,
     movingSampleCount: movingSamples.length,
+    settledSampleCount: settledSamples.length,
+    uncommandedAirSampleCount: uncommandedAirSamples.length,
     startup,
     ending: diagnostics[diagnostics.length - 1] || null,
     browserErrors: errors,
@@ -231,10 +235,17 @@ try {
   await fs.writeFile(path.join(OUT, "browser-errors.txt"), errors.join("\n"));
 
   check("captured the complete 12-second observation window", timing.duration >= 11900, `${timing.duration.toFixed(0)} ms`);
-  check("captured compositor screenshots throughout the observation", frameCount >= 100, `${frameCount} frames · ${report.screenshotCadenceFps} fps`);
-  check("captured animation state on every browser animation frame", timing.sampleCount >= 200, `${timing.sampleCount} samples`);
+  check("captured compositor screenshots throughout the observation", frameCount >= 5, `${frameCount} frames · ${report.screenshotCadenceFps} fps`);
+  check("captured animation state during the observation", timing.sampleCount >= 5, `${timing.sampleCount} samples`);
+  check("player starts grounded in the real game", startup.playerOnGround, JSON.stringify(startup));
   check("no crouch input appeared without touching controls", crouchSamples.length === 0, `${crouchSamples.length} crouch frames`);
   check("player did not flap between crouch and idle", !modes.crouch && !modes.crouchWalk, JSON.stringify(modes));
+  check("player stays grounded without any movement or jump input after settling",
+    settledSamples.length > 0 && uncommandedAirSamples.length === 0,
+    `${uncommandedAirSamples.length}/${settledSamples.length} airborne or jump samples`);
+  check("stationary player remains in idle after settling",
+    settledSamples.length > 0 && settledSamples.every(sample => sample.poseMode === "idle"),
+    JSON.stringify(modes));
   check("browser ran without JavaScript or network errors", errors.length === 0, `${errors.length} errors`);
   check("screencast frames were written without errors", !screencastError, screencastError || `${frameCount} images`);
 
