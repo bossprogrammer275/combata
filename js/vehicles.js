@@ -20,6 +20,7 @@ export const CAR_MODELS = {
   // renderer's one-time nose correction at the vehicle root.
   lambo: { url: './data/models/cars/CAR Model by Ignition Labs - 5zUWP5UsLg-.glb', targetLen: 4.7, color: 0xda2828, nose: 1 },
   cybertruck: { url: './data/models/cars/tesla_cybertruk_low_poly/scene.gltf', targetLen: 5.7, color: 0x888888, nose: 1 },
+  bugatti: { url: './data/models/cars/2021_bugatti_chiron_pur_sport/scene.gltf', targetLen: 4.647, color: 0x111820, nose: 1 },
 };
 
 // Physical values are tuning baselines, not claims of laboratory measurement.
@@ -160,6 +161,79 @@ export const CAR_PHYSICS = {
     angularDamping: 1.0,
     highSpeedYawDamping: 0.85,
   },
+  bugatti: {
+    mass: 1995,
+    drivetrain: 'awd',
+    wheelbase: 2.711,
+    trackFront: 1.776,
+    trackRear: 1.695,
+    wheelRadiusFront: 0.3395,
+    wheelRadiusRear: 0.35545,
+    weightFront: 0.45,
+    centerOfMassHeight: 0.47,
+    inertiaScale: 0.92,
+    brakeBias: 0.62,
+    powertrain: {
+      type: 'dct',
+      gearRatios: [3.10, 2.10, 1.55, 1.20, 0.98, 0.87, 0.80],
+      finalDrive: 3.30,
+      wheelRadius: 0.35,
+      idleRpm: 750,
+      redline: 7000,
+      upshiftRpm: 6900,
+      downshiftRpm: 2500,
+      shiftTime: 0.11,
+      peakTorqueNm: 1600,
+      drivetrainEfficiency: 0.90,
+      maxAcceleration: 16.2,
+      shiftTorqueRetention: 0.12,
+      torqueCurve: [
+        [750, 420], [1000, 700], [1500, 1200], [2000, 1600],
+        [3000, 1600], [4500, 1600], [6000, 1600], [6700, 1570],
+        [6900, 1510], [7000, 1200],
+      ],
+    },
+    interiorCamera: { height: 0.94, forward: 0.34, side: 0.0, lookAhead: 20, pitch: 0, fov: 82 },
+    steeringWheel: { axis: 'x', maxAngleDeg: 450, sign: 1, response: 11 },
+    engineAcceleration: 13.8,
+    reverseAcceleration: 8.5,
+    reverseGripUsageLimit: 0.92,
+    brakeAcceleration: 20.0,
+    maxSpeed: 97.22,
+    maxReverseSpeed: 15.0,
+    speedometerMaxKmh: 350,
+    aeroDragArea: 0.92,
+    rollingResistance: 0.014,
+    speedSteeringFalloff: 0.008,
+    minSteeringScale: 0.26,
+    steeringResponse: 17.0,
+    antiRollStiffness: 56000,
+    downforceCoefficient: 0.78,
+    maxDownforceG: 0.40,
+    driveGripUsageLimit: 0.86,
+    brakingGripUsageLimit: 0.98,
+    handbrakeGripUsageLimit: 0.72,
+    frontDriveBias: 0.38,
+    steeringAngle: 0.54,
+    handbrakeSteerAngle: 0.50,
+    frontGrip: 10.8,
+    rearGrip: 11.4,
+    handbrakeRearGrip: 0.58,
+    frontCorneringStiffness: 104000,
+    rearCorneringStiffness: 114000,
+    tireFriction: 1.52,
+    handbrakeRearFriction: 0.48,
+    suspensionRestLength: 0.11,
+    suspensionTravel: 0.075,
+    springRateFront: 74000,
+    springRateRear: 88000,
+    suspensionDampingRatio: 0.52,
+    suspensionResponse: 34,
+    uprightStrength: 4.4,
+    uprightDamping: 5.0,
+    angularDamping: 0.98,
+    highSpeedYawDamping: 0.82,
+  },
 };
 
 // Rotate a root-space XZ rect by yaw -> world-space AABB extents.
@@ -215,6 +289,17 @@ function boxSize(b, out) {
 // Exported options let the visual calibration harness measure a model before
 // deciding whether it needs a vehicle-specific size allowance.
 export function getWheelClassificationOptions(kind) {
+  if (kind === 'bugatti') {
+    return {
+      // The Chiron asset stores its four road wheels as a single front-left
+      // assembly. Runtime clones that assembly to measured Pur Sport hardpoints.
+      // Its rim/tyre detail is grouped with a tighter bound than the Cybertruck.
+      wheelMemberRadius: 0.42,
+      wheelMemberMaxSize: 1.05,
+      wheelMemberHeightTolerance: 0.48,
+      wheelCandidateMaxSize: 1.05,
+    };
+  }
   return kind === 'cybertruck'
     ? {
       // Cybertruck wheels are ~0.92m tall and their split outer tyre pieces sit
@@ -272,6 +357,7 @@ function classifyCarMeshes(items, options = {}) {
   const cands = annotated.filter((m) => {
     const reasons = [];
     if (blobs.has(m.o)) reasons.push('display-stand');
+    if (m.o.userData?.staticVehicleHardware) reasons.push('static-vehicle-hardware');
     const hierarchyName = meshHierarchyName(m.o);
     if (/(steer|dashboard|cockpit|interior|instrument|seat|pedal|gear.?shift)/i.test(hierarchyName)) reasons.push('interior-or-steering-hierarchy');
     if (m.s.y < 0.30) reasons.push('diameter-below-0.30m');
@@ -335,7 +421,7 @@ function classifyCarMeshes(items, options = {}) {
       ) * 0.5;
       const axialTolerance = w.best.s.getComponent(axleIndex) * 0.5 + wheelTreadFragmentAxialPadding;
       const members = annotated.filter((m) => {
-        if (blobs.has(m.o)) return false;
+        if (blobs.has(m.o) || m.o.userData?.staticVehicleHardware) return false;
         const maxDimension = Math.max(m.s.x, m.s.y, m.s.z);
         const centerDistance = m.c.distanceTo(w.best.c);
         const hubMember = centerDistance < wheelMemberRadius
@@ -388,7 +474,7 @@ function classifyCarMeshes(items, options = {}) {
   const nearWheelExcludedMap = new Map();
   if (wheels.length === 4) {
     for (const mesh of annotated) {
-      if (blobs.has(mesh.o) || wheelMeshes.has(mesh.o)) continue;
+      if (blobs.has(mesh.o) || wheelMeshes.has(mesh.o) || mesh.o.userData?.staticVehicleHardware) continue;
       for (const wheel of wheels) {
         const distance = mesh.c.distanceTo(wheel.best.c);
         if (distance > wheelMemberRadius + 0.12) continue;
@@ -422,7 +508,7 @@ function classifyCarMeshes(items, options = {}) {
     }
   }
   const nearWheelExcludedMeshes = [...nearWheelExcludedMap.values()];
-  const body = annotated.filter((m) => !blobs.has(m.o) && !wheelMeshes.has(m.o));
+  const body = annotated.filter((m) => !blobs.has(m.o) && !wheelMeshes.has(m.o) && !m.o.userData?.staticVehicleHardware);
   const bodyBox = new THREE.Box3();
   for (const m of body) { bodyBox.expandByPoint(m.min); bodyBox.expandByPoint(m.max); }
   const wheelDiagnostics = {
@@ -577,6 +663,104 @@ export function rigSteeringWheel(scene, config = {}, toLocal = (value) => value.
   return { pivot, meshes: selected };
 }
 
+// The bundled Chiron Pur Sport GLTF exports one complete front-left road-wheel
+// assembly. Split its brake hardware from the rotating rim/tyre, then instance
+// the authored geometry at the four measured Pur Sport hardpoints. No procedural
+// replacement wheel meshes are introduced.
+function splitBugattiWheelAssembly(scene) {
+  let source = null;
+  scene.traverse((node) => {
+    if (!source && node.name === 'Wheel1A_3D') source = node;
+  });
+  if (!source || !source.parent) throw new Error('[bugatti] GLTF is missing its Wheel1A_3D wheel assembly');
+  const parent = source.parent;
+  const wheelParts = source.children.filter((child) => !/calliper/i.test(child.name || ''));
+  const brakeParts = source.children.filter((child) => /calliper/i.test(child.name || ''));
+  if (wheelParts.length < 2 || brakeParts.length !== 1) {
+    throw new Error('[bugatti] Expected two authored wheel groups and one separate caliper group');
+  }
+  const makeGroup = (name, parts) => {
+    const group = new THREE.Group();
+    group.name = name;
+    group.position.copy(source.position);
+    group.quaternion.copy(source.quaternion);
+    group.scale.copy(source.scale);
+    group.matrixAutoUpdate = source.matrixAutoUpdate;
+    if (!group.matrixAutoUpdate) group.matrix.copy(source.matrix);
+    for (const part of parts) group.add(part);
+    parent.add(group);
+    return group;
+  };
+  const wheel = makeGroup('bugatti-wheel-assembly-source', wheelParts);
+  const brakes = makeGroup('bugatti-brake-hardware-source', brakeParts);
+  brakes.traverse((node) => {
+    if (node.isMesh) node.userData.staticVehicleHardware = true;
+  });
+  parent.remove(source);
+  return { wheel, brakes };
+}
+
+function cloneVehicleAssemblyAt(source, targetWorld, mirrorX = false, sizeScale = 1) {
+  const parent = source.parent;
+  if (!parent) throw new Error('[bugatti] Wheel source lost its model parent');
+  source.updateWorldMatrix(true, false);
+  const sourceBox = new THREE.Box3().setFromObject(source);
+  if (sourceBox.isEmpty()) throw new Error('[bugatti] Authored wheel assembly has no measurable geometry');
+  const sourceCenterLocal = source.worldToLocal(sourceBox.getCenter(new THREE.Vector3()));
+  const targetParentLocal = parent.worldToLocal(targetWorld.clone());
+  const clone = source.clone(true);
+  clone.scale.multiplyScalar(sizeScale);
+  if (mirrorX) clone.scale.x *= -1;
+  const transformedCenter = sourceCenterLocal.clone()
+    .multiply(clone.scale)
+    .applyQuaternion(clone.quaternion);
+  clone.position.copy(targetParentLocal).sub(transformedCenter);
+  parent.add(clone);
+  clone.updateWorldMatrix(true, true);
+  return clone;
+}
+
+function createBugattiRoadWheels(scene, assembly, profile, nose) {
+  scene.updateWorldMatrix(true, true);
+  const body = assembly.bodyBox;
+  const bodyCenter = body.getCenter(new THREE.Vector3());
+  const sourceBounds = new THREE.Box3().setFromObject(assembly.wheel);
+  if (sourceBounds.isEmpty()) throw new Error('[bugatti] Cannot measure the authored wheel source');
+  const sourceCenter = sourceBounds.getCenter(new THREE.Vector3());
+  const rearScale = profile.wheelRadiusRear / profile.wheelRadiusFront;
+  const rearHubRise = profile.wheelRadiusRear - profile.wheelRadiusFront;
+  const layouts = [
+    { name: 'front-left', side: 1, front: true },
+    { name: 'front-right', side: -1, front: true },
+    { name: 'rear-left', side: 1, front: false },
+    { name: 'rear-right', side: -1, front: false },
+  ];
+  const wheelClones = [];
+  for (const layout of layouts) {
+    const track = layout.front ? profile.trackFront : profile.trackRear;
+    const z = bodyCenter.z + (layout.front ? 1 : -1) * Math.sign(nose || 1) * profile.wheelbase * 0.5;
+    const y = sourceCenter.y + (layout.front ? 0 : rearHubRise);
+    const target = new THREE.Vector3(bodyCenter.x + layout.side * track * 0.5, y, z);
+    const wheel = cloneVehicleAssemblyAt(assembly.wheel, target, layout.side < 0, layout.front ? 1 : rearScale);
+    wheel.name = 'bugatti-road-wheel-' + layout.name;
+    const brake = assembly.brakes.clone(true);
+    brake.position.copy(wheel.position);
+    brake.quaternion.copy(wheel.quaternion);
+    brake.scale.copy(wheel.scale);
+    brake.name = 'bugatti-static-brake-' + layout.name;
+    parentAdd(brake, assembly.brakes.parent);
+    wheelClones.push({ name: layout.name, wheel, brake });
+  }
+  assembly.wheel.removeFromParent();
+  assembly.brakes.removeFromParent();
+  return wheelClones;
+}
+
+function parentAdd(object, parent) {
+  if (!parent) throw new Error('[bugatti] Brake hardware lost its model parent');
+  parent.add(object);
+}
+
 function rigWheels(scene, wheelInfos, toLocal) {
   const rigs = [];
   for (const w of wheelInfos) {
@@ -606,6 +790,7 @@ export async function loadCarModel(kind = 'lambo') {
     const scene = gltf.scene;
     await loadAssetOverrides();
     applyAssetOverrides(scene, def.url); // node transforms are applied before mesh fitting and collision extraction
+    const bugattiAssembly = kind === 'bugatti' ? splitBugattiWheelAssembly(scene) : null;
     // The Cybertruck GLB splits tyre sidewalls, tread, rim and hub details into
     // more separate meshes than the sports-car asset. Keep those parts together
     // around each wheel hub so the complete rubber tyre spins with the rim.
@@ -643,6 +828,10 @@ export async function loadCarModel(kind = 'lambo') {
     scene.position.z -= bc.z;
     scene.position.y -= bb.min.y;
     scene.updateMatrixWorld(true);
+
+    // The Pur Sport asset has one authored road-wheel assembly. Place four
+    // copies using its measured 4.647m-normalized body and official hardpoints.
+    if (kind === 'bugatti') createBugattiRoadWheels(scene, { ...bugattiAssembly, bodyBox: cls.bodyBox }, CAR_PHYSICS.bugatti, def.nose);
 
     // Pass 3: final classification in normalized space. Boxes below are in
     // ROOT space (== world coords here, root identity): the clone keeps the
