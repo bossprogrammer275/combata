@@ -1088,7 +1088,17 @@ export class Physics {
     return {
       yaw, forwardSpeed, lateralSpeed, horizontalSpeed,
       wheelContacts: grounded.length, wheelStates,
-      gear: powertrain.gear, rpm: powertrain.rpm, engineLoad: powertrain.engineLoad,
+      gear: powertrain.gear,
+      gearNumber: powertrain.gearNumber,
+      rpm: powertrain.rpm,
+      motorRpm: powertrain.motorRpm,
+      engineLoad: powertrain.engineLoad,
+      driveDemand: powertrain.driveDemand,
+      regenLevel: powertrain.regenLevel,
+      boost: powertrain.boost,
+      shiftTimer: powertrain.shiftTimer,
+      shiftDirection: powertrain.shiftDirection,
+      revLimiter: powertrain.revLimiter,
       powertrainType: powertrain.powertrainType,
     };
   }
