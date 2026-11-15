@@ -272,7 +272,7 @@ export class Civilian {
         if (moved.speed > 0.1) this.yaw += angleDelta(this.yaw, Math.atan2(-this.velocity.x, -this.velocity.z)) * (1 - Math.exp(-P.turnResponse * dt));
         this.root.position.copy(this.pos);
         this.root.rotation.y = this.yaw + Math.PI;
-        this.ch.play("walk", { loop: true });
+        if (this.ch.currentAnimation !== "walk") this.ch.play("walk", { loop: true });
       }
       this.activityT -= dt;
       if (this.activityT <= 0 && this.activity === "approach") this._finishActivity();
