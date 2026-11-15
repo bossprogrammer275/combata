@@ -979,11 +979,7 @@ export class Physics {
         const slipFalloff = THREE.MathUtils.clamp(
           1 - Math.max(0, Math.abs(slipAngle) - 0.18) * 0.45, 0.62, 1,
         );
-        // Lateral tire force follows the wheel's rolling direction. Reversing
-        // travel reverses the sign of the cornering response: with the same
-        // steering input, a reversing car must yaw the opposite way.
-        const rollingDirection = Math.abs(wheelLongSpeed) > 0.35 ? Math.sign(wheelLongSpeed) : 1;
-        const lateralForce = -corneringStiffness * slipAngle * rollingDirection * rearCorneringScale;
+        const lateralForce = -corneringStiffness * slipAngle * rearCorneringScale;
         const maxLateralImpulse = normalLoad
           * cornerMu * surfaceGrip * dt * combinedGripScale * slipFalloff;
         const lateralImpulse = THREE.MathUtils.clamp(
@@ -999,6 +995,25 @@ export class Physics {
       const gripRate = handbrake ? 0.9 : 8.5;
       const lateralImpulse = -lateralSpeed * mass * (1 - Math.exp(-gripRate * dt));
       body.applyImpulse({ x: right.x * lateralImpulse, y: 0, z: right.z * lateralImpulse }, true);
+    }
+
+    // Reverse steering produces the opposite yaw response to forward travel.
+    // Keep this assist coupled to wheel angle and signed longitudinal speed;
+    // handbrake slides remain governed by the rear tire grip model.
+    if (wheelSpecs.length && grounded.length && forwardSpeed < -0.35
+      && !handbrake && Math.abs(steer) > 0.02) {
+      const wheelbase = Math.max(1.5, tune.wheelbase ?? 2.7);
+      const targetYawRate = THREE.MathUtils.clamp(
+        -steer * forwardSpeed * Math.tan(Math.abs(wheelAngle)) / wheelbase,
+        -1.2, 1.2,
+      );
+      const inertiaY = body._openWorldMassProperties?.principalInertia?.y || mass * 5.5;
+      const response = 1 - Math.exp(-3.2 * dt);
+      body.applyTorqueImpulse({
+        x: 0,
+        y: (targetYawRate - angular.y) * inertiaY * response,
+        z: 0,
+      }, true);
     }
 
     if (wheelSpecs.length && grounded.length) {
