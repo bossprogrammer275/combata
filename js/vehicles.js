@@ -767,6 +767,13 @@ function createBugattiRoadWheels(scene, assembly, profile, nose, preCloneClassif
     bodyCenter: bodyCenter.toArray(),
     sourceAnchor: sourceAnchor.toArray(),
     sourceCandidate: sourceCandidates[0].name,
+    sourceCandidates: sourceCandidates.map(candidate => ({ name: candidate.name, center: candidate.center, size: candidate.size, hierarchy: candidate.hierarchy })),
+    sourceChildBounds: assembly.wheel.children.map(child => {
+      const box = new THREE.Box3().setFromObject(child);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      return { name: child.name, center: center.toArray(), size: size.toArray() };
+    }),
     parentWorldScale: new THREE.Vector3().setFromMatrixScale(assembly.wheel.parent.matrixWorld).toArray(),
     wheels: wheelClones.map(({ name, target, placed, root }) => ({ name, target, root })),
   }));
