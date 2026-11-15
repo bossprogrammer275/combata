@@ -104,6 +104,33 @@ try {
   const appSource = await fs.promises.readFile(path.join(ROOT, 'js/main.js'), 'utf8');
   const pageSource = await fs.promises.readFile(path.join(ROOT, 'index.html'), 'utf8');
   const vehicleSource = await fs.promises.readFile(path.join(ROOT, 'js/vehicles.js'), 'utf8');
+  const audioSource = await fs.promises.readFile(path.join(ROOT, 'js/audio.js'), 'utf8');
+  const soundRouterSource = await fs.promises.readFile(path.join(ROOT, 'js/soundEngineGlobal.js'), 'utf8');
+  const v10SoundSource = await fs.promises.readFile(path.join(ROOT, 'js/vehicle-sounds/gallardoV10.js'), 'utf8');
+  const w16SoundSource = await fs.promises.readFile(path.join(ROOT, 'js/vehicle-sounds/chironW16.js'), 'utf8');
+  const evSoundSource = await fs.promises.readFile(path.join(ROOT, 'js/vehicle-sounds/cybertruckTriMotor.js'), 'utf8');
+  check('global vehicle sound router registers the three authored sound engines',
+    soundRouterSource.includes('createGallardoV10Engine')
+      && soundRouterSource.includes('createChironW16Engine')
+      && soundRouterSource.includes('createCybertruckTriMotorEngine')
+      && audioSource.includes('new SoundEngineGlobal'));
+  check('Gallardo source graph retains V10 firing harmonics and top-end scream',
+    v10SoundSource.includes("[0.5, 'sawtooth', 0.35, 0]")
+      && v10SoundSource.includes("[6, 'sawtooth', 1]")
+      && v10SoundSource.includes("layer('bandpass', 3500, 1.5, A.mExh)"));
+  check('Chiron source graph retains W16 orders, turbo whistle and blow-off layers',
+    w16SoundSource.includes("[6, 'triangle', 0.14, 0]")
+      && w16SoundSource.includes('A.tw = [0, 1].map')
+      && w16SoundSource.includes('function bov(boost)'));
+  check('Cybertruck source graph retains tri-motor orders, inverter and warning tone',
+    evSoundSource.includes('[1, 1.006, 0.994]')
+      && evSoundSource.includes("A.pk1 = F('peaking', 900, 3)")
+      && evSoundSource.includes('A.avG = G(0)')
+      && evSoundSource.includes('const SURF ='));
+  check('vehicle audio uses real post-physics telemetry, not the legacy speed-only synth',
+    appSource.includes('this.audio.updateVehicleEngine(')
+      && vehicleSource.includes('getEngineAudioState(dt)')
+      && !vehicleSource.includes('this.audio.engine('));
   check('K opens the dynamic vehicle garage and the Bugatti is listed',
     appSource.includes("case 'KeyK':")
       && appSource.includes('this.toggleVehicleSpawnMenu();')
@@ -129,6 +156,7 @@ try {
   const { loadCarModel, CAR_MODELS, CAR_PHYSICS, VEHICLE_COORDINATES, VehicleSystem, rigSteeringWheel } = await import('../js/vehicles.js');
   const { Physics } = await import('../js/physics.js');
   const { createPowertrainState, stepVehiclePowertrain } = await import('../js/vehicle-powertrains.js');
+  const { VEHICLE_SOUND_ENGINES } = await import('../js/soundEngineGlobal.js');
   const {
     clampCockpitCameraValue, getCockpitLookAngles, resolveCockpitCameraProfile,
   } = await import('../js/vehicle-cockpit.js');
@@ -351,6 +379,14 @@ try {
     assert.ok(w16Launch.driveAcceleration > iceLaunch.driveAcceleration);
   });
 
+  check('authored sound profiles match the real drivetrain layouts', () => {
+    assert.deepEqual(Object.keys(VEHICLE_SOUND_ENGINES).sort(), ['bugatti', 'cybertruck', 'lambo']);
+    assert.equal(CAR_PHYSICS.lambo.powertrain.gearRatios.length, 6);
+    assert.equal(CAR_PHYSICS.bugatti.powertrain.gearRatios.length, 7);
+    assert.equal(CAR_PHYSICS.bugatti.powertrain.turboBoost.maxBoostBar, 1.8);
+    assert.equal(CAR_PHYSICS.cybertruck.powertrain.finalDrive, 10);
+  });
+
   check('vehicle types have distinct physics tuning', () => {
     assert.notEqual(CAR_PHYSICS.lambo.mass, CAR_PHYSICS.cybertruck.mass);
     assert.notEqual(CAR_PHYSICS.lambo.powertrain.type, CAR_PHYSICS.cybertruck.powertrain.type);
@@ -445,6 +481,28 @@ try {
       && CAR_PHYSICS.cybertruck.interiorCamera.height === 1.42
       && CAR_PHYSICS.cybertruck.interiorCamera.height - CAR_PHYSICS.lambo.interiorCamera.height > 0.35,
     'Lamborghini=0.98m, Cybertruck=1.42m');
+
+  check('Cybertruck motor RPM and lift-off regen are exposed for its sound model', () => {
+    const state = createPowertrainState(CAR_PHYSICS.cybertruck);
+    let result = null;
+    for (let i = 0; i < 90; i++) {
+      result = stepVehiclePowertrain(state, CAR_PHYSICS.cybertruck, 0, 20, 1 / 60);
+    }
+    assert.ok(result.motorRpm > 4000);
+    assert.ok(result.regenLevel > 0.2);
+    assert.equal(result.driveDemand, 0);
+  });
+
+  check('Chiron turbo spool rises under load and is part of drivetrain output', () => {
+    const state = createPowertrainState(CAR_PHYSICS.bugatti);
+    let result = null;
+    for (let i = 0; i < 240; i++) {
+      result = stepVehiclePowertrain(state, CAR_PHYSICS.bugatti, 1, 10, 1 / 60);
+    }
+    assert.ok(state.boost > 0.4 && state.boost <= 1);
+    assert.ok(result.boost > 0.4);
+    assert.ok(result.driveAcceleration > 0);
+  });
 
   const dynamicVehicleSpecs = {};
   for (const kind of Object.keys(CAR_MODELS)) {
