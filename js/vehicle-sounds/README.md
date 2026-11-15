@@ -22,6 +22,7 @@ export function createNewCarEngine({ ctx, destination, noiseBuffer }) {
     start(telemetry, { coldStart } = {}) {},
     update(telemetry) {},
     stop() {},
+    dispose() { /* stop long-running oscillators and looping noise sources */ },
     setMix(key, value) {},
     getState() {},
   };
