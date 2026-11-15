@@ -69,7 +69,9 @@ export class World {
     this.bvhWorld = new BVHWorld();
     this.grid = this.bvhWorld;
     this.buildLighting(quality);
-    if (quality !== 'ultra-low') this.buildSky();
+    // buildSky() has a low-cost ultra-low fallback. Always call it so low-end
+    // devices receive a real sky background instead of the renderer's black clear.
+    this.buildSky();
     this.buildGround(sceneData && sceneData.ground);
     this.startPoint = { x: 0, z: 40, yaw: Math.PI };
     this.assetsReady = Promise.resolve();
@@ -628,7 +630,12 @@ export class World {
   }
 
   buildSky() {
-    if (this._quality === 'ultra-low') { this.scene.background = new THREE.Color(0x5a6a78); return; }
+    if (this._quality === 'ultra-low') {
+      // Lightweight daytime horizon for constrained GPUs: no sky dome, shader,
+      // or environment texture, but never leave the scene with a black void.
+      this.scene.background = new THREE.Color(0x83b8d4);
+      return;
+    }
     // Atmosphere handles the sky dome; just set env map for PBR reflections
     const sky = TEX.makeSkyTexture();
     this.scene.environment = sky;
