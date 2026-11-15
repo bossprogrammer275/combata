@@ -2456,6 +2456,9 @@ export class World {
       ? this.grid.queryPoint(x, z, radius)
       : this.colliders;
     for (const c of near) {
+      // Road/sidewalk proxy boxes are height-sampling metadata only. Their broad
+      // AABBs can extend beyond the visible strip and must never block walking.
+      if (c.surfaceOnly || c.type === 'road_surface') continue;
       if (c.max.y < 0.3) continue;
       if (c.orientedBox) {
         // Road/sidewalk AABBs are broadphase only. Use a circle-vs-oriented
