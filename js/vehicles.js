@@ -508,7 +508,8 @@ function classifyCarMeshes(items, options = {}) {
     }
   }
   const nearWheelExcludedMeshes = [...nearWheelExcludedMap.values()];
-  const body = annotated.filter((m) => !blobs.has(m.o) && !wheelMeshes.has(m.o) && !m.o.userData?.staticVehicleHardware);
+  const body = annotated.filter((m) => !blobs.has(m.o) && !wheelMeshes.has(m.o)
+    && !m.o.userData?.staticVehicleHardware && !m.o.userData?.vehicleWheelSource);
   const bodyBox = new THREE.Box3();
   for (const m of body) { bodyBox.expandByPoint(m.min); bodyBox.expandByPoint(m.max); }
   const wheelDiagnostics = {
@@ -692,6 +693,9 @@ function splitBugattiWheelAssembly(scene) {
     return group;
   };
   const wheel = makeGroup('bugatti-wheel-assembly-source', wheelParts);
+  wheel.traverse((node) => {
+    if (node.isMesh) node.userData.vehicleWheelSource = true;
+  });
   const brakes = makeGroup('bugatti-brake-hardware-source', brakeParts);
   brakes.traverse((node) => {
     if (node.isMesh) node.userData.staticVehicleHardware = true;
