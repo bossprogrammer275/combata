@@ -115,4 +115,10 @@ assert.ok(characterRuntime.includes("leftShoulder") && characterRuntime.includes
 
 const main = fs.readFileSync(path.join(root, "js/main.js"), "utf8");
 assert.ok(!main.includes("npc1/Walking.fbx"), "legacy NPC prefetch is still active");
+assert.ok(main.includes("const crouchKeys = this._crouchKeys || (this._crouchKeys = new Set())"),
+  "crouch input must track each held key independently");
+assert.ok(main.includes("I.crouch = crouchKeys.size > 0"),
+  "releasing one crouch key must not clear another held crouch key");
+assert.ok(main.includes("crouchKeys.clear()"),
+  "pause/blur must clear stuck crouch input");
 console.log("NPC verification passed: civilian_002, " + activeKeys.length + " approved clips, authored sidewalk routes and physics/population config.");
