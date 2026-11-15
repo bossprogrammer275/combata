@@ -3,7 +3,20 @@
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 export function createPowertrainState(tune = {}) {
   const p = tune.powertrain || {};
-  return { gear:1, rpm:p.idleRpm||850, shiftTimer:0, motorRpm:0, throttle:0, engineLoad:0 };
+  return {
+    gear: 1,
+    rpm: p.idleRpm || 850,
+    shiftTimer: 0,
+    shiftDirection: null,
+    shiftEvent: 0,
+    motorRpm: 0,
+    throttle: 0,
+    engineLoad: 0,
+    boost: 0,
+    regenLevel: 0,
+    driveDemand: 0,
+    revLimiter: false,
+  };
 }
 function sampleCurve(curve, rpm, fallback) {
   if (!Array.isArray(curve) || !curve.length) return fallback;
@@ -23,11 +36,29 @@ function stepElectric(state,spec,tune,throttle,speed,dt) {
   const accel=clamp(force/Math.max(600,tune.mass||1500),0,spec.maxAcceleration||11.5);
   state.motorRpm+=(rpm-state.motorRpm)*(1-Math.exp(-10*dt));
   state.rpm=state.motorRpm;state.gear=1;state.shiftTimer=0;state.throttle=throttle;state.engineLoad=Math.abs(throttle);
-  let driveAcceleration=0,brakeAcceleration=0;
-  if(throttle>.01){if(speed<-.8)brakeAcceleration=(tune.brakeAcceleration||12)*throttle;else driveAcceleration=accel*throttle*clamp(1-Math.max(0,speed)/Math.max(1,tune.maxSpeed||50)*.12,.82,1);}
-  else if(throttle<-.01){if(speed>.8)brakeAcceleration=(tune.brakeAcceleration||12)*Math.abs(throttle);else driveAcceleration=-(tune.reverseAcceleration||5)*Math.abs(throttle);}
-  else if(speed>1.5)brakeAcceleration=spec.regenDeceleration||.75;
-  return {driveAcceleration,brakeAcceleration,maxForward:tune.maxSpeed||40,gear:'D',rpm:state.rpm,engineLoad:state.engineLoad,powertrainType:'electric-single-speed'};
+  let driveAcceleration=0,brakeAcceleration=0,regenLevel=0;
+  if(throttle>.01){
+    if(speed<-.8)brakeAcceleration=(tune.brakeAcceleration||12)*throttle;
+    else driveAcceleration=accel*throttle*clamp(1-Math.max(0,speed)/Math.max(1,tune.maxSpeed||50)*.12,.82,1);
+  } else if(throttle<-.01){
+    if(speed>.8){
+      brakeAcceleration=(tune.brakeAcceleration||12)*Math.abs(throttle);
+      regenLevel=.269*Math.abs(throttle);
+    } else driveAcceleration=-(tune.reverseAcceleration||5)*Math.abs(throttle);
+  } else if(speed>1.5){
+    brakeAcceleration=spec.regenDeceleration||.75;
+    regenLevel=.269*clamp(Math.min(1,speed/1.5),0,1);
+  }
+  state.regenLevel=regenLevel;
+  state.driveDemand=clamp(driveAcceleration/Math.max(1,spec.maxAcceleration||11.5),0,1);
+  state.revLimiter=false;
+  return {
+    driveAcceleration,brakeAcceleration,maxForward:tune.maxSpeed||40,
+    gear:'D',gearNumber:1,rpm:state.rpm,motorRpm:state.motorRpm,
+    engineLoad:state.engineLoad,driveDemand,regenLevel,boost:0,
+    shiftTimer:0,shiftDirection:null,revLimiter:false,
+    powertrainType:'electric-single-speed'
+  };
 }
 function stepCombustion(state,spec,tune,throttle,speed,dt) {
   const gears=spec.gearRatios||[3.1,2.1,1.45,1.05,.82,.68], radius=Math.max(.2,spec.wheelRadius||.34);
@@ -36,19 +67,56 @@ function stepCombustion(state,spec,tune,throttle,speed,dt) {
   const wheelRpm=Math.abs(speed)/radius*60/(Math.PI*2),coupled=wheelRpm*ratio*finalDrive;
   state.rpm+=(Math.max(idle,coupled)-state.rpm)*(1-Math.exp(-14*dt));
   state.shiftTimer=Math.max(0,state.shiftTimer-dt);
-  if(throttle>.08&&state.shiftTimer<=0&&state.rpm>(spec.upshiftRpm||redline*.94)&&state.gear<gears.length){state.gear++;state.shiftTimer=spec.shiftTime||.16;}
-  else if(state.shiftTimer<=0&&state.gear>1&&state.rpm<(spec.downshiftRpm||2500)&&speed>4){state.gear--;state.shiftTimer=(spec.shiftTime||.16)*1.15;}
+  if(state.shiftTimer<=0)state.shiftDirection=null;
+  if(throttle>.08&&state.shiftTimer<=0&&state.rpm>(spec.upshiftRpm||redline*.94)&&state.gear<gears.length){
+    state.gear++;
+    state.shiftTimer=spec.shiftTime||.16;
+    state.shiftDirection='up';
+    state.shiftEvent++;
+  } else if(state.shiftTimer<=0&&state.gear>1&&state.rpm<(spec.downshiftRpm||2500)&&speed>4){
+    state.gear--;
+    state.shiftTimer=(spec.shiftTime||.16)*1.15;
+    state.shiftDirection='down';
+    state.shiftEvent++;
+  }
   const active=clamp(state.gear-1,0,gears.length-1),activeRatio=gears[active];
-  const torque=sampleCurve(spec.torqueCurve,clamp(state.rpm,idle,redline),spec.peakTorqueNm||500);
+  const turbo=spec.turboBoost||null;
+  const turboThrottle=state.shiftTimer>0?0:Math.max(0,throttle);
+  if(turbo){
+    const spoolStart=turbo.spoolStartRpm||1400;
+    const fullSpool=turbo.fullSpoolRpm||4000;
+    const boostTarget=turboThrottle*clamp((state.rpm-spoolStart)/Math.max(1,fullSpool-spoolStart),0,1);
+    const spoolRate=boostTarget>state.boost
+      ? (turbo.spoolUpBase||0.8)+state.rpm/5000
+      : (turbo.spoolDownRate||3.2);
+    state.boost+=(boostTarget-state.boost)*Math.min(1,dt*spoolRate);
+  } else state.boost=0;
+  let torque=sampleCurve(spec.torqueCurve,clamp(state.rpm,idle,redline),spec.peakTorqueNm||500);
+  if(turbo)torque*=0.4+0.6*state.boost;
   const force=torque*activeRatio*finalDrive*(spec.drivetrainEfficiency||.88)/radius;
   const rawAccel=force/Math.max(600,tune.mass||1500);
   const fade=clamp(1-Math.max(0,speed)/Math.max(1,tune.maxSpeed||50)*.08,.88,1);
   const shiftCut=state.shiftTimer>0?(spec.shiftTorqueRetention||.16):1;
-  state.throttle=throttle;state.engineLoad=Math.abs(throttle)*shiftCut;
+  state.throttle=throttle;
+  state.engineLoad=Math.abs(throttle)*shiftCut;
+  state.revLimiter=throttle>0.4&&state.rpm>=redline-30;
   let driveAcceleration=0,brakeAcceleration=0;
-  if(throttle>.01){if(speed<-.8)brakeAcceleration=(tune.brakeAcceleration||12)*throttle;else driveAcceleration=Math.min(spec.maxAcceleration||14,rawAccel)*throttle*fade*shiftCut;}
-  else if(throttle<-.01){if(speed>.8)brakeAcceleration=(tune.brakeAcceleration||12)*Math.abs(throttle);else driveAcceleration=-(tune.reverseAcceleration||4.5)*Math.abs(throttle);}
-  return {driveAcceleration,brakeAcceleration,maxForward:tune.maxSpeed||40,gear:String(state.gear),rpm:state.rpm,engineLoad:state.engineLoad,powertrainType:spec.type||'combustion-dct'};
+  if(throttle>.01){
+    if(speed<-.8)brakeAcceleration=(tune.brakeAcceleration||12)*throttle;
+    else driveAcceleration=Math.min(spec.maxAcceleration||14,rawAccel)*throttle*fade*shiftCut;
+  } else if(throttle<-.01){
+    if(speed>.8)brakeAcceleration=(tune.brakeAcceleration||12)*Math.abs(throttle);
+    else driveAcceleration=-(tune.reverseAcceleration||4.5)*Math.abs(throttle);
+  }
+  state.driveDemand=clamp(driveAcceleration/Math.max(1,spec.maxAcceleration||14),0,1);
+  state.regenLevel=0;
+  return {
+    driveAcceleration,brakeAcceleration,maxForward:tune.maxSpeed||40,
+    gear:String(state.gear),gearNumber:state.gear,rpm:state.rpm,
+    engineLoad:state.engineLoad,driveDemand:state.driveDemand,regenLevel:0,
+    boost:state.boost,shiftTimer:state.shiftTimer,shiftDirection:state.shiftDirection,
+    revLimiter:state.revLimiter,powertrainType:spec.type||'combustion-dct'
+  };
 }
 export function stepVehiclePowertrain(state,tune,throttle,forwardSpeed,dt,surfaceSpeedMultiplier=1) {
   const spec=tune.powertrain||{},t=clamp(Number(throttle)||0,-1,1),speed=Number(forwardSpeed)||0,step=clamp(Number(dt)||1/60,0,1/30);
