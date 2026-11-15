@@ -57,6 +57,8 @@ assert.ok(civilianRuntime.includes("startConversation") && civilianRuntime.inclu
 assert.ok(civilianRuntime.includes("updateSocial"), "civilian runtime must support NPC-to-NPC social behaviour");
 assert.ok(civilianRuntime.includes("Math.atan2(-dx, -dz)"), "civilian look-at yaw must match the rig's 180-degree model correction");
 assert.ok(civilianRuntime.includes("Math.atan2(-this.velocity.x, -this.velocity.z)"), "civilian locomotion yaw must face actual travel direction");
+assert.ok(civilianRuntime.includes('if (this.ch.currentAnimation !== "walk") this.ch.play("walk", { loop: true });'),
+  "civilian approach animation must not restart its walk clip every frame");
 
 
 const playerRuntime = fs.readFileSync(path.join(root, "js/player.js"), "utf8");
