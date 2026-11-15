@@ -979,7 +979,11 @@ export class Physics {
         const slipFalloff = THREE.MathUtils.clamp(
           1 - Math.max(0, Math.abs(slipAngle) - 0.18) * 0.45, 0.62, 1,
         );
-        const lateralForce = -corneringStiffness * slipAngle * rearCorneringScale;
+        // Lateral tire force follows the wheel's rolling direction. Reversing
+        // travel reverses the sign of the cornering response: with the same
+        // steering input, a reversing car must yaw the opposite way.
+        const rollingDirection = Math.abs(wheelLongSpeed) > 0.35 ? Math.sign(wheelLongSpeed) : 1;
+        const lateralForce = -corneringStiffness * slipAngle * rollingDirection * rearCorneringScale;
         const maxLateralImpulse = normalLoad
           * cornerMu * surfaceGrip * dt * combinedGripScale * slipFalloff;
         const lateralImpulse = THREE.MathUtils.clamp(
