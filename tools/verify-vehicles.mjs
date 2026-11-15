@@ -384,7 +384,11 @@ try {
     assert.equal(CAR_PHYSICS.bugatti.mass, 1995);
     assert.equal(CAR_PHYSICS.bugatti.drivetrain, 'awd');
     assert.equal(CAR_PHYSICS.bugatti.powertrain.type, 'dct');
+    assert.equal(CAR_PHYSICS.bugatti.powertrain.idleRpm, 750);
+    assert.equal(CAR_PHYSICS.bugatti.powertrain.peakTorqueNm, 1600);
     assert.equal(CAR_PHYSICS.bugatti.powertrain.redline, 7000);
+    assert.equal(CAR_PHYSICS.bugatti.steeringWheel.axis, 'x');
+    assert.ok(CAR_PHYSICS.bugatti.trackFront > CAR_PHYSICS.bugatti.trackRear);
     assert.equal(CAR_PHYSICS.bugatti.wheelbase, 2.711);
     assert.equal(CAR_PHYSICS.bugatti.interiorCamera.height, 0.94);
     assert.ok(Math.abs(CAR_PHYSICS.bugatti.maxSpeed - 350 / 3.6) < 0.01);
@@ -393,6 +397,20 @@ try {
     assert.equal(VEHICLE_COORDINATES.forward, '+Z');
     assert.equal(VEHICLE_COORDINATES.left, '+X');
   });
+
+  const mainSource = fs.readFileSync(path.join(ROOT, 'js/main.js'), 'utf8');
+  const htmlSource = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  check('K opens the vehicle selector rather than spawning a fixed car',
+    /case 'KeyK':\s*e\.preventDefault\(\);\s*this\.toggleVehicleSpawnMenu\(\);/.test(mainSource));
+  check('vehicle selector is populated from every registered vehicle model',
+    /Object\.keys\(CAR_MODELS\)/.test(mainSource)
+      && /dataset\.vehicleKind\s*=\s*kind/.test(mainSource));
+  check('individual T and B vehicle spawn hotkeys are removed',
+    !/requestVehicleSpawn\('(lambo|cybertruck|bugatti)'/.test(mainSource));
+  check('vehicle selector dialog markup is present',
+    /id="vehicle-spawn-menu"/.test(htmlSource)
+      && /id="vehicle-spawn-list"/.test(htmlSource)
+      && /id="vehicle-spawn-close"/.test(htmlSource));
 
   // A hand-assigned, generically named steering mesh must rotate on its
   // own pivot and must not pull the dashboard with it.
@@ -1354,7 +1372,7 @@ try {
     return result;
   };
 
-  for (const [kind, x] of [['cybertruck', -180], ['lambo', -100]]) {
+  for (const [kind, x] of [['cybertruck', -180], ['lambo', -100], ['bugatti', -20]]) {
     const straight = handlingPass(kind, x, { throttle: 1, steer: 0, frames: 100 });
     const acceleratingTurn = handlingPass(kind, x + 45, { throttle: 1, steer: 0.72, frames: 100 });
     const coastingTurn = handlingPass(kind, x + 90, { startSpeed: 15, throttle: 0, steer: 0.85, frames: 90 });
@@ -1375,7 +1393,7 @@ try {
   // Isolated cornering lab: drive each real GLB on a clean Rapier ground plane.
   // A normal ~0.5g turn should not unload a diagonal wheel pair or roll the
   // chassis onto one corner. This stays in the developer test harness only.
-  const corneringKinds = ['lambo', 'cybertruck'];
+  const corneringKinds = ['lambo', 'cybertruck', 'bugatti'];
   const corneringResults = {};
   for (let kindIndex = 0; kindIndex < corneringKinds.length; kindIndex++) {
     const kind = corneringKinds[kindIndex];
@@ -1454,9 +1472,10 @@ try {
   }
   const sportsCarTurn = corneringResults.lambo?.yawResponse || 0;
   const teslaTurn = corneringResults.cybertruck?.yawResponse || 0;
-  check('both actual vehicle models retain steering response under the same test conditions',
-    sportsCarTurn > 0.08 && teslaTurn > 0.08,
-    `sports car=${(sportsCarTurn * 180 / Math.PI).toFixed(1)}deg Tesla=${(teslaTurn * 180 / Math.PI).toFixed(1)}deg`);
+  const bugattiTurn = corneringResults.bugatti?.yawResponse || 0;
+  check('all three vehicles retain steering response under the same cornering test',
+    sportsCarTurn > 0.08 && teslaTurn > 0.08 && bugattiTurn > 0.08,
+    `Lamborghini=${(sportsCarTurn * 180 / Math.PI).toFixed(1)}deg Tesla=${(teslaTurn * 180 / Math.PI).toFixed(1)}deg Chiron=${(bugattiTurn * 180 / Math.PI).toFixed(1)}deg`);
 
 } catch (e) {
   failures++;
