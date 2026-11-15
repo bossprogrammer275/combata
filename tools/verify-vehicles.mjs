@@ -330,16 +330,21 @@ try {
     assert.ok(Math.abs(VehicleSystem.prototype._worldYaw({ yaw: 0.42 }) - 0.42) < 1e-8);
   });
 
-  check('EV motor and combustion DCT have distinct powertrain dynamics', () => {
+  check('EV and both combustion cars use their own powertrain models', () => {
     const evState = createPowertrainState(CAR_PHYSICS.cybertruck);
     const iceState = createPowertrainState(CAR_PHYSICS.lambo);
+    const w16State = createPowertrainState(CAR_PHYSICS.bugatti);
     const evLaunch = stepVehiclePowertrain(evState, CAR_PHYSICS.cybertruck, 1, 0, 1 / 60);
     const iceLaunch = stepVehiclePowertrain(iceState, CAR_PHYSICS.lambo, 1, 0, 1 / 60);
+    const w16Launch = stepVehiclePowertrain(w16State, CAR_PHYSICS.bugatti, 1, 0, 1 / 60);
     assert.equal(evLaunch.powertrainType, 'electric-single-speed');
     assert.equal(iceLaunch.powertrainType, 'dct');
+    assert.equal(w16Launch.powertrainType, 'dct');
     assert.equal(evLaunch.gear, 'D');
     assert.equal(iceLaunch.gear, '1');
-    assert.ok(evLaunch.driveAcceleration > 0 && iceLaunch.driveAcceleration > 0);
+    assert.equal(w16Launch.gear, '1');
+    assert.ok(evLaunch.driveAcceleration > 0 && iceLaunch.driveAcceleration > 0 && w16Launch.driveAcceleration > 0);
+    assert.ok(w16Launch.driveAcceleration > iceLaunch.driveAcceleration);
   });
 
   check('vehicle types have distinct physics tuning', () => {
@@ -370,9 +375,16 @@ try {
       'both vehicles must have responsive launch acceleration');
     assert.ok(Math.abs(CAR_PHYSICS.lambo.centerOfMassHeight - 0.46) < 1e-8);
     assert.ok(Math.abs(CAR_PHYSICS.cybertruck.centerOfMassHeight - 0.75) < 1e-8);
-    assert.equal(CAR_MODELS.bugatti, undefined);
-    assert.equal(CAR_PHYSICS.bugatti, undefined);
-    assert.equal(Object.keys(CAR_MODELS).sort().join(','), 'cybertruck,lambo');
+    assert.equal(CAR_MODELS.bugatti.url, './data/models/cars/2021_bugatti_chiron_pur_sport/scene.gltf');
+    assert.equal(CAR_MODELS.bugatti.targetLen, 4.647);
+    assert.equal(CAR_PHYSICS.bugatti.mass, 1995);
+    assert.equal(CAR_PHYSICS.bugatti.drivetrain, 'awd');
+    assert.equal(CAR_PHYSICS.bugatti.powertrain.type, 'dct');
+    assert.equal(CAR_PHYSICS.bugatti.powertrain.redline, 7000);
+    assert.equal(CAR_PHYSICS.bugatti.wheelbase, 2.711);
+    assert.equal(CAR_PHYSICS.bugatti.interiorCamera.height, 0.94);
+    assert.ok(Math.abs(CAR_PHYSICS.bugatti.maxSpeed - 350 / 3.6) < 0.01);
+    assert.equal(Object.keys(CAR_MODELS).sort().join(','), 'bugatti,cybertruck,lambo');
     assert.equal(VEHICLE_COORDINATES.up, '+Y');
     assert.equal(VEHICLE_COORDINATES.forward, '+Z');
     assert.equal(VEHICLE_COORDINATES.left, '+X');
@@ -754,6 +766,19 @@ try {
     };
   };
   const dynamicVehicleSpec = dynamicVehicleSpecs.lambo || Object.values(dynamicVehicleSpecs)[0];
+  check('Bugatti has a separate AWD W16 DCT chassis tune', () => {
+    const p = CAR_PHYSICS.bugatti;
+    assert.equal(p.mass, 1995);
+    assert.equal(p.drivetrain, 'awd');
+    assert.equal(p.wheelbase, 2.711);
+    assert.equal(p.trackFront, 1.776);
+    assert.equal(p.trackRear, 1.695);
+    assert.equal(p.powertrain.type, 'dct');
+    assert.equal(p.powertrain.gearRatios.length, 7);
+    assert.equal(p.speedometerMaxKmh, 350);
+    assert.ok(p.springRateFront > 0 && p.springRateRear > 0 && p.tireFriction > 1.3);
+  });
+
   check('sports car and Cybertruck use separate drivetrain and chassis tuning',
     CAR_PHYSICS.lambo.drivetrain === 'rwd'
       && CAR_PHYSICS.cybertruck.drivetrain === 'awd'
@@ -767,10 +792,12 @@ try {
     CAR_PHYSICS.lambo.handbrakeRearGrip < CAR_PHYSICS.lambo.rearGrip
       && CAR_PHYSICS.cybertruck.handbrakeRearFriction < CAR_PHYSICS.cybertruck.tireFriction,
     `sport rear grip=${CAR_PHYSICS.lambo.handbrakeRearGrip} truck rear friction=${CAR_PHYSICS.cybertruck.handbrakeRearFriction}`);
-  check('both car types produce real GLB suspension specs',
-    !!dynamicVehicleSpecs.lambo && !!dynamicVehicleSpecs.cybertruck &&
-      dynamicVehicleSpecs.lambo.wheels.length === 4 && dynamicVehicleSpecs.cybertruck.wheels.length === 4,
-    `lambo=${dynamicVehicleSpecs.lambo?.wheels.length ?? 0} cybertruck=${dynamicVehicleSpecs.cybertruck?.wheels.length ?? 0}`);
+  check('all three car types produce real GLB suspension specs',
+    !!dynamicVehicleSpecs.lambo && !!dynamicVehicleSpecs.cybertruck && !!dynamicVehicleSpecs.bugatti
+      && dynamicVehicleSpecs.lambo.wheels.length === 4
+      && dynamicVehicleSpecs.cybertruck.wheels.length === 4
+      && dynamicVehicleSpecs.bugatti.wheels.length === 4,
+    `lambo=${dynamicVehicleSpecs.lambo?.wheels.length ?? 0} cybertruck=${dynamicVehicleSpecs.cybertruck?.wheels.length ?? 0} bugatti=${dynamicVehicleSpecs.bugatti?.wheels.length ?? 0}`);
 
   check('real GLB produces a dynamic suspension spec',
     !!dynamicVehicleSpec && dynamicVehicleSpec.wheels.length === 4,
@@ -984,6 +1011,51 @@ try {
   } else {
     check('Cybertruck dynamic suspension spec exists', false);
   }
+  // Exercise the new Chiron GLB on the same live Rapier suspension path.
+  const bugattiSpec = dynamicVehicleSpecs.bugatti;
+  if (bugattiSpec) {
+    const bugattiStartZ = 360;
+    const bugatti = physics.createVehicleBody(-110, 0, bugattiStartZ, vehicleYawOffset, [bugattiSpec.physicsBox], {
+      dynamic: true, centerY: bugattiSpec.centerY,
+      mass: CAR_PHYSICS.bugatti.mass,
+      centerOfMass: vehicleCenterOfMass('bugatti', bugattiSpec.centerY),
+      yawOffset: vehicleYawOffset,
+      tuning: CAR_PHYSICS.bugatti,
+      angularDamping: CAR_PHYSICS.bugatti.angularDamping,
+    });
+    physics.step(1 / 60);
+    physics.updateVehicleBody(bugatti, -110, 0, bugattiStartZ, vehicleYawOffset);
+    physics.step(1 / 60);
+    let bugattiMotion = null;
+    for (let i = 0; i < 120; i++) {
+      physics.step(1 / 60, h => {
+        bugattiMotion = physics.applyVehicleControls(bugatti, {
+          throttle: 1, steer: 0.18, handbrake: false, dt: h,
+          wheels: bugattiSpec.wheels, tuning: CAR_PHYSICS.bugatti,
+          surfaceAt: () => ({ surface: 'asphalt', grip: 1, rollingDrag: 1, speedLimitMultiplier: 1 }),
+        });
+      });
+    }
+    const bugattiPosition = bugatti.translation();
+    check('Bugatti AWD suspension keeps at least three tyre contacts',
+      (bugattiMotion?.wheelContacts || 0) >= 3,
+      `contacts=${bugattiMotion?.wheelContacts ?? 0}`);
+    check('Bugatti W16 DCT delivers forward acceleration with steering',
+      bugattiPosition.z < bugattiStartZ - 1 && Math.abs(bugattiMotion?.yawRate || 0) > 0.01,
+      `z=${bugattiPosition.z.toFixed(2)} speed=${bugattiMotion?.forwardSpeed?.toFixed(2)}`);
+    const bugattiTireBottom = estimatedWheelBottom(bugatti, bugattiSpec.wheels, bugattiSpec.centerY);
+    check('Bugatti tyres stay at road height rather than clipping through it',
+      Math.abs(bugattiTireBottom) < 0.12,
+      `estimated tire-bottom Y=${bugattiTireBottom.toFixed(3)}`);
+    const steerAngles = bugatti._openWorldSteerAngles || [];
+    const rearSteer = steerAngles.filter((angle, i) => !bugattiSpec.wheels[i]?.front);
+    check('Bugatti keeps its rear axle non-steering',
+      rearSteer.length === 2 && rearSteer.every(angle => Math.abs(angle) < 0.01),
+      rearSteer.map(angle => angle.toFixed(3)).join(','));
+  } else {
+    check('Bugatti dynamic suspension spec exists', false);
+  }
+
   const supportBody = physics.createVehicleBody(110, 0, 0, vehicleYawOffset, [dynamicVehicleSpec.physicsBox], {
     dynamic: true, centerY: dynamicVehicleSpec.centerY,
     mass: CAR_PHYSICS.lambo.mass, centerOfMass: vehicleCenterOfMass('lambo', dynamicVehicleSpec.centerY), yawOffset: vehicleYawOffset,
