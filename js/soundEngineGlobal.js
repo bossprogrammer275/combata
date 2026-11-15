@@ -20,6 +20,9 @@ export class SoundEngineGlobal {
     this.destination = destination;
     this.noiseBuffer = noiseBuffer;
     this.modules = new Map();
+    this.mixProfiles = new Map();
+    this.environments = new Map();
+    this.warningToneEnabled = true;
     this.startedVehicles = new WeakSet();
     this.active = null;
     this.activeKind = null;
@@ -38,8 +41,24 @@ export class SoundEngineGlobal {
       destination: this.destination,
       noiseBuffer: this.noiseBuffer,
     });
+    const mix = this.mixProfiles.get(kind);
+    if (mix) for (const [key, value] of Object.entries(mix)) engine.setMix?.(key, value);
+    if (kind === 'cybertruck') engine.setWarningTone?.(this.warningToneEnabled);
+    if (this.environments.has(kind)) engine.setEnvironment?.(this.environments.get(kind));
     this.modules.set(kind, engine);
     return engine;
+  }
+
+  _releaseActive() {
+    if (this.active) {
+      const kind = this.activeKind;
+      this.active.stop();
+      this.active.dispose?.();
+      if (kind) this.modules.delete(kind);
+    }
+    this.active = null;
+    this.activeKind = null;
+    this.activeVehicle = null;
   }
 
   update(vehicle, telemetry = {}) {
@@ -49,7 +68,7 @@ export class SoundEngineGlobal {
     }
     const kind = vehicle.kind;
     if (this.activeVehicle !== vehicle || this.activeKind !== kind) {
-      if (this.active) this.active.stop();
+      this._releaseActive();
       const engine = this._getModule(kind);
       if (!engine) {
         this.active = null;
@@ -69,25 +88,30 @@ export class SoundEngineGlobal {
   }
 
   stop() {
-    if (this.active) this.active.stop();
-    this.active = null;
-    this.activeKind = null;
-    this.activeVehicle = null;
+    this._releaseActive();
   }
 
   setMix(kind, key, value) {
+    const profile = this.mixProfiles.get(kind) || {};
+    profile[key] = value;
+    this.mixProfiles.set(kind, profile);
     const engine = this.modules.get(kind);
-    return engine ? engine.setMix?.(key, value) ?? false : false;
+    if (engine) engine.setMix?.(key, value);
+    return true;
   }
 
   setWarningTone(enabled) {
+    this.warningToneEnabled = !!enabled;
     const engine = this.modules.get('cybertruck');
-    return engine?.setWarningTone?.(enabled) ?? false;
+    if (engine) engine.setWarningTone?.(this.warningToneEnabled);
+    return true;
   }
 
   setEnvironment(kind, environment) {
+    this.environments.set(kind, environment);
     const engine = this.modules.get(kind);
-    return engine?.setEnvironment?.(environment) ?? false;
+    if (engine) engine.setEnvironment?.(environment);
+    return true;
   }
 
   getActiveState() {
