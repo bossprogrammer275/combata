@@ -92,13 +92,16 @@ try{
         running: !!state?.on,
       });
     }
-    manager.stop();
-    await ctx.close();
-    return results;
+    manager.dispose();
+    const contextClosed = await Promise.race([
+      ctx.close().then(() => true, () => false),
+      new Promise(resolve => setTimeout(() => resolve(false), 800)),
+    ]);
+    return { results, contextClosed };
   });
   check('all authored vehicle sound graphs build and accept live telemetry',
-    soundSmoke.length === 3
-      && soundSmoke.every(item => item.ok && item.running && Math.abs(item.stateRpm - item.expected) < 1),
+    soundSmoke.results.length === 3
+      && soundSmoke.results.every(item => item.ok && item.running && Math.abs(item.stateRpm - item.expected) < 1),
     JSON.stringify(soundSmoke));
 
   const configs=[
