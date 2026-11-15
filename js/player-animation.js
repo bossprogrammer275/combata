@@ -3,7 +3,12 @@
 const MOVING_MODES = new Set(["walk", "run", "sprint", "crouchWalk"]);
 
 export function resolvePlayerAnimation(state = {}, previous = "idle") {
-  const groundSpeed = Math.max(0, Number.isFinite(state.groundSpeed) ? state.groundSpeed : 0);
+  // The player supplies measured metres/second. Shared enemy rigs still send
+  // normalized speed plus a movement direction, so keep that legacy contract.
+  const hasMeasuredSpeed = Number.isFinite(state.groundSpeed);
+  const intent = Math.hypot(Number(state.moveX) || 0, Number(state.moveZ) || 0);
+  const fallbackSpeed = Math.min(1, Math.max(0, Number(state.speed) || 0)) * 5.32;
+  const groundSpeed = Math.max(0, hasMeasuredSpeed ? state.groundSpeed : (intent > 0.05 ? fallbackSpeed : 0));
   if (Number(state.airborne) > 0.5) return "jump";
 
   const moving = groundSpeed > (MOVING_MODES.has(previous) ? 0.14 : 0.24);
