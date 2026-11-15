@@ -225,12 +225,11 @@ export function createGallardoV10Engine({ ctx, destination, noiseBuffer }) {
     start(telemetry = {}, options = {}) {
       if (S.on) return;
       S.on = true;
-      startedAt = ctx.currentTime;
+      startedAt = ctx.currentTime - (options.coldStart === false ? 1.1 : 0);
       S.crank = options.coldStart === false ? 0 : 1;
       S.rpm = Math.max(IDLE, Number(telemetry.rpm) || IDLE);
       S.gear = numericGear(telemetry.gear, 1);
       lastGear = S.gear;
-      S.master = 0;
       A.master.gain.setTargetAtTime(0.9, ctx.currentTime, 0.05);
       if (options.coldStart !== false) starter();
     },
@@ -241,7 +240,9 @@ export function createGallardoV10Engine({ ctx, destination, noiseBuffer }) {
       S.rpm = clampSoundValue(Number(telemetry.rpm) || IDLE, 0, LIM + 300);
       S.kph = Math.abs(Number(telemetry.speed) || 0) * 3.6;
       S.gear = numericGear(telemetry.gear, S.gear);
-      S.thr = clampSoundValue(telemetry.throttle, 0, 1);
+      const targetThrottle = clampSoundValue(telemetry.throttle, 0, 1);
+      S.thr += (targetThrottle - S.thr)
+        * Math.min(1, dt * (targetThrottle > S.thr ? 10 : 14));
       S.shift = Math.max(0, Number(telemetry.shiftTimer) || 0);
       S.down = telemetry.shiftDirection === 'down';
       S.te = S.shift > 0 ? (S.down ? 1 : 0) : S.thr;
