@@ -119,6 +119,7 @@ export const CAR_PHYSICS = {
       type: 'ev',
        maxMotorTorque: 1520,
       peakPowerKw: 470,
+      maxDriveForceN: 33500,
       driveCutKmh: 209,
       finalDrive: 10.0,
       wheelRadius: 0.419,
