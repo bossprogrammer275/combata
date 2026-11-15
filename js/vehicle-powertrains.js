@@ -51,7 +51,13 @@ function stepElectric(state,spec,tune,throttle,speed,dt) {
     regenLevel=.269*clamp(Math.min(1,speed/1.5),0,1);
   }
   state.regenLevel=regenLevel;
-  state.driveDemand=clamp(driveAcceleration/Math.max(1,spec.maxAcceleration||11.5),0,1);
+  const maxDriveForce=spec.maxDriveForceN
+    || ((spec.maxMotorTorque||1400)*finalDrive*efficiency/radius);
+  state.driveDemand=clamp(
+    (Math.max(0,driveAcceleration)*Math.max(600,tune.mass||1500))
+      / (Math.max(1,maxDriveForce)*efficiency),
+    0,1,
+  );
   state.revLimiter=false;
   return {
     driveAcceleration,brakeAcceleration,maxForward:tune.maxSpeed||40,
