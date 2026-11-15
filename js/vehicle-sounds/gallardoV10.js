@@ -5,7 +5,7 @@
 import { createSoundEngineTools, clampSoundValue, numericGear } from './soundEngineTools.js';
 
 export function createGallardoV10Engine({ ctx, destination, noiseBuffer }) {
-  const { G, F, O, N, SH, burst, tone, target } =
+  const { G, F, O, N, SH, burst, tone, target, disposeSources } =
     createSoundEngineTools(ctx, noiseBuffer);
   const IDLE = 900, LIM = 8500, RED = 8000;
   const PV = {
@@ -283,6 +283,7 @@ export function createGallardoV10Engine({ ctx, destination, noiseBuffer }) {
       S.on = false;
       A.master.gain.setTargetAtTime(0, ctx.currentTime, 0.08);
     },
+    dispose() { disposeSources(0.12); },
     setMix(key, value) {
       if (!Object.prototype.hasOwnProperty.call(MIX, key)) return false;
       MIX[key] = clampSoundValue(value, 0, 1.5);
