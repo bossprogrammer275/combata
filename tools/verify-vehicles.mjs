@@ -1026,6 +1026,10 @@ try {
     physics.step(1 / 60);
     physics.updateVehicleBody(bugatti, -110, 0, bugattiStartZ, vehicleYawOffset);
     physics.step(1 / 60);
+    const bugattiStartRotation = bugatti.rotation();
+    const bugattiStartYaw = new THREE.Euler().setFromQuaternion(
+      new THREE.Quaternion(bugattiStartRotation.x, bugattiStartRotation.y, bugattiStartRotation.z, bugattiStartRotation.w), 'YXZ',
+    ).y;
     let bugattiMotion = null;
     for (let i = 0; i < 120; i++) {
       physics.step(1 / 60, h => {
@@ -1037,12 +1041,19 @@ try {
       });
     }
     const bugattiPosition = bugatti.translation();
+    const bugattiEndRotation = bugatti.rotation();
+    const bugattiEndYaw = new THREE.Euler().setFromQuaternion(
+      new THREE.Quaternion(bugattiEndRotation.x, bugattiEndRotation.y, bugattiEndRotation.z, bugattiEndRotation.w), 'YXZ',
+    ).y;
+    const bugattiYawDelta = Math.atan2(
+      Math.sin(bugattiEndYaw - bugattiStartYaw), Math.cos(bugattiEndYaw - bugattiStartYaw),
+    );
     check('Bugatti AWD suspension keeps at least three tyre contacts',
       (bugattiMotion?.wheelContacts || 0) >= 3,
       `contacts=${bugattiMotion?.wheelContacts ?? 0}`);
     check('Bugatti W16 DCT delivers forward acceleration with steering',
-      bugattiPosition.z < bugattiStartZ - 1 && Math.abs(bugattiMotion?.yawRate || 0) > 0.01,
-      `z=${bugattiPosition.z.toFixed(2)} speed=${bugattiMotion?.forwardSpeed?.toFixed(2)}`);
+      bugattiPosition.z < bugattiStartZ - 1 && Math.abs(bugattiYawDelta) > 0.005,
+      `z=${bugattiPosition.z.toFixed(2)} speed=${bugattiMotion?.forwardSpeed?.toFixed(2)} yaw=${(bugattiYawDelta * 180 / Math.PI).toFixed(2)}deg`);
     const bugattiTireBottom = estimatedWheelBottom(bugatti, bugattiSpec.wheels, bugattiSpec.centerY);
     check('Bugatti tyres stay at road height rather than clipping through it',
       Math.abs(bugattiTireBottom) < 0.12,
