@@ -112,7 +112,7 @@ export class Civilian {
   face(position) {
     const dx = position.x - this.pos.x, dz = position.z - this.pos.z;
     if (dx * dx + dz * dz < 0.001) return;
-    this.yaw += angleDelta(this.yaw, Math.atan2(dx, dz)) * 0.25;
+    this.yaw += angleDelta(this.yaw, Math.atan2(-dx, -dz)) * 0.25;
   }
 
   isAimedAt(context) {
@@ -269,7 +269,7 @@ export class Civilian {
       } else {
         const desired = delta.normalize().multiplyScalar(P.walkSpeed);
         const moved = this._move(dt, desired, this.pos.y);
-        if (moved.speed > 0.1) this.yaw += angleDelta(this.yaw, Math.atan2(this.velocity.x, this.velocity.z)) * (1 - Math.exp(-P.turnResponse * dt));
+        if (moved.speed > 0.1) this.yaw += angleDelta(this.yaw, Math.atan2(-this.velocity.x, -this.velocity.z)) * (1 - Math.exp(-P.turnResponse * dt));
         this.root.position.copy(this.pos);
         this.root.rotation.y = this.yaw + Math.PI;
         this.ch.play("walk", { loop: true });
@@ -445,7 +445,7 @@ export class Civilian {
       this.ch.play("crouch_walk", { loop: true });
     }
 
-    if (moved.speed > 0.12) this.yaw += angleDelta(this.yaw, Math.atan2(this.velocity.x, this.velocity.z)) * (1 - Math.exp(-P.turnResponse * d));
+    if (moved.speed > 0.12) this.yaw += angleDelta(this.yaw, Math.atan2(-this.velocity.x, -this.velocity.z)) * (1 - Math.exp(-P.turnResponse * d));
     else if (player && playerDistance < C.behaviour.lookAtPlayerDistance) this.face(player.pos);
     this.root.position.copy(this.pos);
     this.root.rotation.y = this.yaw + Math.PI;
