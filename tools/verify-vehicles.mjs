@@ -663,6 +663,11 @@ try {
   // Rapier's computedGrounded() can alternate while the capsule remains supported.
   physics.setPlayerPosition(0, 0.06, 0);
   physics.step(1 / 60);
+  // Allow the controller to snap the initial 6cm spawn offset onto the floor.
+  for (let i = 0; i < 6; i++) {
+    physics.movePlayer(0, -1 / 60, 0);
+    physics.step(1 / 60);
+  }
   let stationaryGroundedFrames = 0;
   const stationaryProbeFrames = 60;
   for (let i = 0; i < stationaryProbeFrames; i++) {
