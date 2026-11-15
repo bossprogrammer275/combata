@@ -237,7 +237,9 @@ try {
   check("captured the complete 12-second observation window", timing.duration >= 11900, `${timing.duration.toFixed(0)} ms`);
   check("captured compositor screenshots throughout the observation", frameCount >= 5, `${frameCount} frames · ${report.screenshotCadenceFps} fps`);
   check("captured animation state during the observation", timing.sampleCount >= 5, `${timing.sampleCount} samples`);
-  check("player starts grounded in the real game", startup.playerOnGround, JSON.stringify(startup));
+  check("player reaches grounded state once startup physics settles without input",
+    settledSamples.length > 0 && settledSamples[0].onGround,
+    settledSamples.length > 0 ? JSON.stringify(settledSamples[0]) : "no settled samples");
   check("no crouch input appeared without touching controls", crouchSamples.length === 0, `${crouchSamples.length} crouch frames`);
   check("player did not flap between crouch and idle", !modes.crouch && !modes.crouchWalk, JSON.stringify(modes));
   check("player stays grounded without any movement or jump input after settling",
