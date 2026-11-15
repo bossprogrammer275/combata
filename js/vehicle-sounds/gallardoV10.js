@@ -246,7 +246,12 @@ export function createGallardoV10Engine({ ctx, destination, noiseBuffer }) {
       S.shift = Math.max(0, Number(telemetry.shiftTimer) || 0);
       S.down = telemetry.shiftDirection === 'down';
       S.te = S.shift > 0 ? (S.down ? 1 : 0) : S.thr;
-      S.cut = !!telemetry.revLimiter;
+      const previousCut = S.cut;
+      S.cut = !!telemetry.revLimiter && Math.floor(ctx.currentTime / 0.05) % 2 === 0;
+      if (S.cut) {
+        S.te = 0;
+        if (!previousCut && Math.random() < (S.sport ? 0.7 : 0.35)) pop(0.5);
+      }
       S.cab = !!telemetry.interior;
       S.sport = !!telemetry.exhaustOpen;
       S.corsa = !!telemetry.corsa;
