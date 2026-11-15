@@ -747,14 +747,22 @@ function createBugattiRoadWheels(scene, assembly, profile, nose) {
     const target = new THREE.Vector3(bodyCenter.x + layout.side * track * 0.5, y, z);
     const wheel = cloneVehicleAssemblyAt(assembly.wheel, target, layout.side < 0, layout.front ? 1 : rearScale);
     wheel.name = 'bugatti-road-wheel-' + layout.name;
+    const placedBounds = new THREE.Box3().setFromObject(wheel);
+    const placedCenter = placedBounds.getCenter(new THREE.Vector3());
     const brake = assembly.brakes.clone(true);
     brake.position.copy(wheel.position);
     brake.quaternion.copy(wheel.quaternion);
     brake.scale.copy(wheel.scale);
     brake.name = 'bugatti-static-brake-' + layout.name;
     parentAdd(brake, assembly.brakes.parent);
-    wheelClones.push({ name: layout.name, wheel, brake });
+    wheelClones.push({ name: layout.name, target: target.toArray(), placed: placedCenter.toArray(), root: wheel.position.toArray(), wheel, brake });
   }
+  console.log('[Bugatti] wheel placement calibration', JSON.stringify({
+    bodyCenter: bodyCenter.toArray(),
+    sourceCenter: sourceCenter.toArray(),
+    parentWorldScale: new THREE.Vector3().setFromMatrixScale(assembly.wheel.parent.matrixWorld).toArray(),
+    wheels: wheelClones.map(({ name, target, placed, root }) => ({ name, target, placed, root })),
+  }));
   assembly.wheel.removeFromParent();
   assembly.brakes.removeFromParent();
   return wheelClones;
@@ -859,7 +867,7 @@ export async function loadCarModel(kind = 'lambo') {
     if (!within(measuredWheelbase, profile.wheelbase, 0.15)
       || !within(measuredFrontTrack, profile.trackFront, 0.15)
       || !within(measuredRearTrack, profile.trackRear, 0.15)) {
-      throw new Error(`[${kind}] GLB/profile wheel-layout mismatch: wheelbase=${measuredWheelbase.toFixed(3)}m, tracks=${measuredFrontTrack.toFixed(3)}/${measuredRearTrack.toFixed(3)}m`);
+      throw new Error(`[${kind}] GLB/profile wheel-layout mismatch: wheelbase=${measuredWheelbase.toFixed(3)}m, tracks=${measuredFrontTrack.toFixed(3)}/${measuredRearTrack.toFixed(3)}m; centres=${JSON.stringify(cls.wheelDiagnostics.selectedWheels.map(w => ({ quadrant:w.quadrant, center:w.center })))}`);
     }
     const wheelCenterX = average(cls.wheelInfos.map(wheel => wheel.center.x));
     if (Math.abs(wheelCenterX) > 0.10) {
