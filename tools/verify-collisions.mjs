@@ -1,6 +1,7 @@
 // verify-collisions.mjs — smoke tests for the GLB collision pipeline.
 // Run with: node tools/verify-collisions.mjs
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import * as THREE from 'three';
 import { World } from '../js/world.js';
 import { Player } from '../js/player.js';
