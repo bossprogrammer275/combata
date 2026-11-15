@@ -384,12 +384,15 @@ try {
     assert.equal(CAR_PHYSICS.lambo.powertrain.gearRatios.length, 6);
     assert.equal(CAR_PHYSICS.lambo.powertrain.torqueModel, 'gallardo-v10');
     assert.equal(CAR_PHYSICS.lambo.powertrain.peakTorqueNm, 540);
+    assert.equal(CAR_PHYSICS.lambo.speedometerMaxKmh, 325);
+    assert.ok(Math.abs(CAR_PHYSICS.lambo.maxSpeed - 328 / 3.6) < 0.01);
     assert.equal(CAR_PHYSICS.bugatti.powertrain.gearRatios.length, 7);
     assert.equal(CAR_PHYSICS.bugatti.powertrain.turboBoost.maxBoostBar, 1.8);
     assert.equal(CAR_PHYSICS.bugatti.powertrain.turboBoost.torqueModel, 'chiron-w16');
     assert.equal(CAR_PHYSICS.cybertruck.powertrain.finalDrive, 10);
     assert.equal(CAR_PHYSICS.cybertruck.powertrain.maxMotorTorque, 1520);
     assert.equal(CAR_PHYSICS.cybertruck.powertrain.peakPowerKw, 470);
+    assert.equal(CAR_PHYSICS.cybertruck.powertrain.maxDriveForceN, 33500);
     assert.equal(CAR_PHYSICS.cybertruck.powertrain.driveCutKmh, 209);
   });
 
