@@ -19,6 +19,10 @@ function hasXZOverlap(c, xMin, xMax, zMin, zMax) {
   return c.max.x > xMin && c.min.x < xMax && c.max.z > zMin && c.min.z < zMax;
 }
 
+function requirePlayerControllerSource() {
+  return fs.readFileSync(new URL('../js/physics.js', import.meta.url), 'utf8');
+}
+
 let failures = 0;
 function check(name, fn) {
   try {
@@ -261,6 +265,42 @@ check('pedestrian is not pushed by empty corners of a diagonal road AABB', () =>
   player.moveAxis(0, 0, 0);
   assert.ok(Math.abs(player.pos.y - 0.06) < 1e-5,
     'player inside the road was not stepped onto the road surface');
+});
+
+check('sidewalks and curb collision surfaces stop at same-level road junctions', () => {
+  const world = Object.create(World.prototype);
+  world.ribbons = [];
+  world.sidewalkCollisionRuns = [];
+  world._sceneMat = () => ({ key: 'sidewalk' });
+  world.mCurb = () => ({ key: 'curb' });
+  world._strokeMitered = function (pts, width, y, mat, closed) {
+    this.ribbons.push({ pts, width, y, mat, closed });
+  };
+  world._addRoadSurfaceColliders = function (pts, width, y, closed, thickness) {
+    this.sidewalkCollisionRuns.push({ pts, width, y, closed, thickness });
+  };
+  const chains = [
+    { pts: [{ x: -20, y: 0, z: 0 }, { x: 20, y: 0, z: 0 }], W: 18, roadY: 0.06, sidewalk: true, closed: false },
+    { pts: [{ x: 0, y: 0, z: -20 }, { x: 0, y: 0, z: 20 }], W: 8, roadY: 0.06, sidewalk: true, closed: false },
+  ];
+  world._buildRoadSidewalks(chains, { key: 'sidewalk' }, { key: 'curb' });
+  const ribbons = world.ribbons.filter(r => r.mat.key === 'sidewalk' || r.mat.key === 'curb');
+  assert.ok(ribbons.length >= 8, 'sidewalk/curb runs were not generated on both sides of both roads');
+  for (const run of [...ribbons, ...world.sidewalkCollisionRuns]) {
+    const xs = run.pts.map(p => p.x), zs = run.pts.map(p => p.z);
+    const axis = Math.max(...xs) - Math.min(...xs) > Math.max(...zs) - Math.min(...zs) ? 'x' : 'z';
+    const distanceFromJunction = Math.min(...run.pts.map(p => Math.abs(p[axis])));
+    assert.ok(distanceFromJunction >= 9.5,
+      `road-edge run crosses through junction: min ${axis} distance=${distanceFromJunction.toFixed(2)}m`);
+  }
+  assert.equal(world.sidewalkCollisionRuns.length, ribbons.length,
+    'every visible sidewalk/curb strip must have matching trimmed collision geometry');
+});
+
+check('player autostep accepts narrow road-edge curb strips', () => {
+  const source = requirePlayerControllerSource();
+  assert.ok(source.includes('enableAutostep(0.6, 0.18, true)'),
+    'player controller still rejects the 0.36m curb because its minimum step width is too large');
 });
 
 check('lane markings stop at road junctions', () => {
