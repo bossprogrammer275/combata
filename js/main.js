@@ -1023,6 +1023,7 @@ class Game {
   pause() {
     if (this.state !== 'playing') return;
     if (this.vehicleSpawnMenuOpen) this.toggleVehicleSpawnMenu(false, false);
+    if (this.audio && this.audio.stopEngine) this.audio.stopEngine();
     this.state = 'paused';
     if (this._driveKeys) this._driveKeys.clear();
     if (this._crouchKeys) this._crouchKeys.clear();
@@ -1267,6 +1268,12 @@ class Game {
       this.vehicles.syncDynamicBodies(dt, this.physics?.getInterpolationAlpha?.() ?? 1);
       if (this.vehicles.driver) {
         this.vehicles.updateChaseCamera(dt, this.input, this.player);
+        if (this.audio && this.audio.updateVehicleEngine) {
+          this.audio.updateVehicleEngine(
+            this.vehicles.driver,
+            this.vehicles.getEngineAudioState(dt),
+          );
+        }
       }
     }
 
