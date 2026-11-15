@@ -68,12 +68,22 @@ function stepCombustion(state,spec,tune,throttle,speed,dt) {
   state.rpm+=(Math.max(idle,coupled)-state.rpm)*(1-Math.exp(-14*dt));
   state.shiftTimer=Math.max(0,state.shiftTimer-dt);
   if(state.shiftTimer<=0)state.shiftDirection=null;
-  if(throttle>.08&&state.shiftTimer<=0&&state.rpm>(spec.upshiftRpm||redline*.94)&&state.gear<gears.length){
+  const upshiftRpm=Number.isFinite(spec.upshiftRpmLowLoad)
+    ? spec.upshiftRpmLowLoad
+      + Math.max(0,throttle)*( (spec.upshiftRpmFullLoad||spec.upshiftRpmLowLoad) - spec.upshiftRpmLowLoad )
+    : (spec.upshiftRpm||redline*.94);
+  const downshiftRpm=throttle>0.85
+    ? (spec.downshiftRpmHighLoad||spec.downshiftRpm||2500)
+    : (throttle<-.05
+      ? (spec.downshiftRpmBraking||spec.downshiftRpmLowLoad||spec.downshiftRpm||2500)
+      : (spec.downshiftRpmLowLoad||spec.downshiftRpm||2500));
+  const upshiftThrottle=spec.upshiftThrottleThreshold??0.08;
+  if(throttle>upshiftThrottle&&state.shiftTimer<=0&&state.rpm>upshiftRpm&&state.gear<gears.length){
     state.gear++;
     state.shiftTimer=spec.shiftTime||.16;
     state.shiftDirection='up';
     state.shiftEvent++;
-  } else if(state.shiftTimer<=0&&state.gear>1&&state.rpm<(spec.downshiftRpm||2500)&&speed>4){
+  } else if(state.shiftTimer<=0&&state.gear>1&&state.rpm<downshiftRpm&&speed>4){
     state.gear--;
     state.shiftTimer=(spec.shiftTime||.16)*1.15;
     state.shiftDirection='down';
@@ -99,7 +109,11 @@ function stepCombustion(state,spec,tune,throttle,speed,dt) {
   const force=torque*activeRatio*finalDrive*(spec.drivetrainEfficiency||.88)/radius;
   const rawAccel=force/Math.max(600,tune.mass||1500);
   const fade=clamp(1-Math.max(0,speed)/Math.max(1,tune.maxSpeed||50)*.08,.88,1);
-  const shiftCut=state.shiftTimer>0?(spec.shiftTorqueRetention||.16):1;
+  const shiftCut=state.shiftTimer>0
+    ? (state.shiftDirection==='down'
+      ? (spec.downshiftTorqueRetention??(spec.shiftTorqueRetention||.16))
+      : (spec.shiftTorqueRetention||.16))
+    : 1;
   state.throttle=throttle;
   state.engineLoad=Math.abs(throttle)*shiftCut;
   state.revLimiter=throttle>0.4&&state.rpm>=redline-30;
