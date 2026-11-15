@@ -52,6 +52,55 @@ try{
   check('visual test page loaded',!!response&&response.ok(),String(response?.status()));
   await page.waitForFunction(()=>window.__vehicleVisualTest?.ready===true,{timeout:30000});
 
+  const soundSmoke = await page.evaluate(async () => {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+    const length = ctx.sampleRate * 2;
+    const noiseBuffer = ctx.createBuffer(1, length, ctx.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+    const destination = ctx.createGain();
+    destination.gain.value = 0;
+    destination.connect(ctx.destination);
+    const { SoundEngineGlobal } = await import('/js/soundEngineGlobal.js');
+    const manager = new SoundEngineGlobal({ ctx, destination, noiseBuffer });
+    const fixtures = [
+      {
+        vehicle: { kind: 'lambo' },
+        telemetry: { rpm: 4200, speed: 22, gear: 3, throttle: 0.65, shiftTimer: 0, dt: 1 / 60 },
+        expected: 4200,
+      },
+      {
+        vehicle: { kind: 'bugatti' },
+        telemetry: { rpm: 5100, speed: 31, gear: 4, throttle: 0.8, boost: 0.72, shiftTimer: 0, dt: 1 / 60 },
+        expected: 5100,
+      },
+      {
+        vehicle: { kind: 'cybertruck' },
+        telemetry: { rpm: 6800, motorRpm: 6800, speed: 17, throttle: 0.7, driveDemand: 0.75, regenLevel: 0, dt: 1 / 60 },
+        expected: 6800,
+      },
+    ];
+    const results = [];
+    for (const fixture of fixtures) {
+      const ok = manager.update(fixture.vehicle, fixture.telemetry);
+      const state = manager.getActiveState();
+      results.push({
+        kind: fixture.vehicle.kind,
+        ok,
+        stateRpm: state?.rpm ?? state?.mrpm,
+        expected: fixture.expected,
+        running: !!state?.on,
+      });
+    }
+    manager.stop();
+    await ctx.close();
+    return results;
+  });
+  check('all authored vehicle sound graphs build and accept live telemetry',
+    soundSmoke.length === 3
+      && soundSmoke.every(item => item.ok && item.running && Math.abs(item.stateRpm - item.expected) < 1),
+    JSON.stringify(soundSmoke));
+
   const configs=[
     {kind:'lambo',expectedHeight:0.98,expectedFov:82,prefix:'lamborghini'},
     {kind:'cybertruck',expectedHeight:1.42,expectedFov:82,prefix:'cybertruck'},
