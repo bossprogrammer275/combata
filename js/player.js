@@ -24,6 +24,11 @@ export class Player {
     this.radius = 0.42;
     this.height = 1.8;
     this.onGround = true;
+    // The jump animation lifts the visible rig. Gameplay keeps the capsule
+    // grounded and raises only the camera to match that animation.
+    this.jumpCameraHeight = 0;
+    this.jumpCameraVelocity = 0;
+    this._jumpWasDown = false;
     this.crouched = false;
     this.sprinting = false;
     this.sensitivity = 1;
@@ -100,7 +105,7 @@ export class Player {
       speed,
       phase: this.phase,
       weaponType: this.weaponType || 'rifle',
-      airborne: !this.onGround ? 1 : 0,
+      airborne: (!this.onGround || this.jumpCameraHeight > 0.04) ? 1 : 0,
       landDip: this.landDip,
       skydive: this.skydive ? 1 : 0,
       canopy: this.canopy || 0,
@@ -197,6 +202,8 @@ export class Player {
 
   update(dt, input) {
     const k = input;
+    const jumpPressed = !!k.jump && !this._jumpWasDown;
+    this._jumpWasDown = !!k.jump;
 
     // ---- SKYDIVE / PARACHUTE BRANCH (drop from the plane) ----
     if (this.skydive) {
@@ -271,12 +278,24 @@ export class Player {
     const hs = Math.hypot(this.vel.x, this.vel.z);
     if (hs > speed) { this.vel.x *= speed / hs; this.vel.z *= speed / hs; }
 
-    // gravity & jump — tuned for a game-like arc (not earth-realistic)
+    // Animated jump: keep the gameplay capsule at ground level. The Mixamo
+    // jump clip moves the visible rig; this separate ballistic offset moves only
+    // the camera so the player is not raised twice by animation + physics.
+    if (jumpPressed && this.onGround && !this.climbing) {
+      this.jumpCameraHeight = 0;
+      this.jumpCameraVelocity = 5.2;
+      this.audio.jump();
+    }
+    if (this.jumpCameraVelocity > 0 || this.jumpCameraHeight > 0) {
+      this.jumpCameraVelocity -= 14 * dt;
+      this.jumpCameraHeight = Math.max(0, this.jumpCameraHeight + this.jumpCameraVelocity * dt);
+      if (this.jumpCameraHeight === 0) this.jumpCameraVelocity = 0;
+    }
+
+    // Gravity moves the capsule only when genuinely falling off an edge.
     if (!this.climbing) {
-      this.vel.y -= 16 * dt;
-      if (k.jump && this.onGround) {
-        this.vel.y = 8.0; this.onGround = false; this.audio.jump();
-      }
+      if (this.onGround) this.vel.y = 0;
+      else this.vel.y -= 16 * dt;
 
       // integrate with axis-separated collision
       if (this.physics && this.physics._playerBody) {
@@ -434,12 +453,12 @@ export class Player {
 
     if (this.firstPerson) {
       // ---- first-person: camera at the eyes, no visible body ----
-      const eyeY = this.pos.y + (this.crouched ? this.eyeCrouch : this.eyeStand) - this.landDip;
+      const eyeY = this.pos.y + (this.crouched ? this.eyeCrouch : this.eyeStand) - this.landDip + this.jumpCameraHeight;
       this.camera.position.set(this.pos.x, eyeY, this.pos.z);
       this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
     } else {
       // ---- third-person camera ----
-      const headY = this.pos.y + (this.crouched ? 1.25 : 1.55) - this.landDip;
+      const headY = this.pos.y + (this.crouched ? 1.25 : 1.55) - this.landDip + this.jumpCameraHeight;
       const cy = Math.cos(this.pitch), sy = Math.sin(this.pitch);
       // forward (look) direction on the ground, and the right vector
       const fwdX = -Math.sin(this.yaw) * cy;
