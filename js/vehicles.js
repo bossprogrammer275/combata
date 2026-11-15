@@ -704,33 +704,39 @@ function splitBugattiWheelAssembly(scene) {
   return { wheel, brakes };
 }
 
-function cloneVehicleAssemblyAt(source, targetWorld, mirrorX = false, sizeScale = 1) {
+function cloneVehicleAssemblyAt(source, sourceAnchorWorld, targetWorld, mirrorX = false, sizeScale = 1) {
   const parent = source.parent;
   if (!parent) throw new Error('[bugatti] Wheel source lost its model parent');
   source.updateWorldMatrix(true, false);
-  const sourceBox = new THREE.Box3().setFromObject(source);
-  if (sourceBox.isEmpty()) throw new Error('[bugatti] Authored wheel assembly has no measurable geometry');
-  const sourceCenterLocal = source.worldToLocal(sourceBox.getCenter(new THREE.Vector3()));
+  const sourceAnchorLocal = source.worldToLocal(sourceAnchorWorld.clone());
   const targetParentLocal = parent.worldToLocal(targetWorld.clone());
   const clone = source.clone(true);
   clone.scale.multiplyScalar(sizeScale);
   if (mirrorX) clone.scale.x *= -1;
-  const transformedCenter = sourceCenterLocal.clone()
+  const transformedAnchor = sourceAnchorLocal.clone()
     .multiply(clone.scale)
     .applyQuaternion(clone.quaternion);
-  clone.position.copy(targetParentLocal).sub(transformedCenter);
+  clone.position.copy(targetParentLocal).sub(transformedAnchor);
   parent.add(clone);
   clone.updateWorldMatrix(true, true);
   return clone;
 }
 
-function createBugattiRoadWheels(scene, assembly, profile, nose) {
+function createBugattiRoadWheels(scene, assembly, profile, nose, preCloneClassification) {
   scene.updateWorldMatrix(true, true);
   const body = assembly.bodyBox;
   const bodyCenter = body.getCenter(new THREE.Vector3());
-  const sourceBounds = new THREE.Box3().setFromObject(assembly.wheel);
-  if (sourceBounds.isEmpty()) throw new Error('[bugatti] Cannot measure the authored wheel source');
-  const sourceCenter = sourceBounds.getCenter(new THREE.Vector3());
+  const sourceCandidates = (preCloneClassification?.wheelDiagnostics?.meshes || [])
+    .filter(mesh => mesh.candidate)
+    .sort((a, b) => {
+      const av = a.size.reduce((product, value) => product * value, 1);
+      const bv = b.size.reduce((product, value) => product * value, 1);
+      return bv - av;
+    });
+  if (!sourceCandidates.length) throw new Error('[bugatti] No tyre-like mesh was detected in the authored wheel assembly');
+  // Align to the tyre's measured hub centre, not the larger prefab bounds:
+  // the GLTF stores rim/carbon subassemblies asymmetrically around this point.
+  const sourceAnchor = new THREE.Vector3(...sourceCandidates[0].center);
   const rearScale = profile.wheelRadiusRear / profile.wheelRadiusFront;
   const rearHubRise = profile.wheelRadiusRear - profile.wheelRadiusFront;
   const layouts = [
@@ -743,9 +749,9 @@ function createBugattiRoadWheels(scene, assembly, profile, nose) {
   for (const layout of layouts) {
     const track = layout.front ? profile.trackFront : profile.trackRear;
     const z = bodyCenter.z + (layout.front ? 1 : -1) * Math.sign(nose || 1) * profile.wheelbase * 0.5;
-    const y = sourceCenter.y + (layout.front ? 0 : rearHubRise);
+    const y = sourceAnchor.y + (layout.front ? 0 : rearHubRise);
     const target = new THREE.Vector3(bodyCenter.x + layout.side * track * 0.5, y, z);
-    const wheel = cloneVehicleAssemblyAt(assembly.wheel, target, layout.side < 0, layout.front ? 1 : rearScale);
+    const wheel = cloneVehicleAssemblyAt(assembly.wheel, sourceAnchor, target, layout.side < 0, layout.front ? 1 : rearScale);
     wheel.name = 'bugatti-road-wheel-' + layout.name;
     const placedBounds = new THREE.Box3().setFromObject(wheel);
     const placedCenter = placedBounds.getCenter(new THREE.Vector3());
@@ -759,9 +765,10 @@ function createBugattiRoadWheels(scene, assembly, profile, nose) {
   }
   console.log('[Bugatti] wheel placement calibration', JSON.stringify({
     bodyCenter: bodyCenter.toArray(),
-    sourceCenter: sourceCenter.toArray(),
+    sourceAnchor: sourceAnchor.toArray(),
+    sourceCandidate: sourceCandidates[0].name,
     parentWorldScale: new THREE.Vector3().setFromMatrixScale(assembly.wheel.parent.matrixWorld).toArray(),
-    wheels: wheelClones.map(({ name, target, placed, root }) => ({ name, target, placed, root })),
+    wheels: wheelClones.map(({ name, target, placed, root }) => ({ name, target, root })),
   }));
   assembly.wheel.removeFromParent();
   assembly.brakes.removeFromParent();
@@ -843,7 +850,9 @@ export async function loadCarModel(kind = 'lambo') {
 
     // The Pur Sport asset has one authored road-wheel assembly. Place four
     // copies using its measured 4.647m-normalized body and official hardpoints.
-    if (kind === 'bugatti') createBugattiRoadWheels(scene, { ...bugattiAssembly, bodyBox: cls.bodyBox }, CAR_PHYSICS.bugatti, def.nose);
+    if (kind === 'bugatti') createBugattiRoadWheels(
+      scene, { ...bugattiAssembly, bodyBox: cls.bodyBox }, CAR_PHYSICS.bugatti, def.nose, cls,
+    );
 
     // Pass 3: final classification in normalized space. Boxes below are in
     // ROOT space (== world coords here, root identity): the clone keeps the
