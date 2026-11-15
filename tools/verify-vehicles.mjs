@@ -377,15 +377,20 @@ try {
     assert.equal(iceLaunch.gear, '1');
     assert.equal(w16Launch.gear, '1');
     assert.ok(evLaunch.driveAcceleration > 0 && iceLaunch.driveAcceleration > 0 && w16Launch.driveAcceleration > 0);
-    assert.ok(w16Launch.driveAcceleration > iceLaunch.driveAcceleration);
   });
 
   check('authored sound profiles match the real drivetrain layouts', () => {
     assert.deepEqual(Object.keys(VEHICLE_SOUND_ENGINES).sort(), ['bugatti', 'cybertruck', 'lambo']);
     assert.equal(CAR_PHYSICS.lambo.powertrain.gearRatios.length, 6);
+    assert.equal(CAR_PHYSICS.lambo.powertrain.torqueModel, 'gallardo-v10');
+    assert.equal(CAR_PHYSICS.lambo.powertrain.peakTorqueNm, 540);
     assert.equal(CAR_PHYSICS.bugatti.powertrain.gearRatios.length, 7);
     assert.equal(CAR_PHYSICS.bugatti.powertrain.turboBoost.maxBoostBar, 1.8);
+    assert.equal(CAR_PHYSICS.bugatti.powertrain.turboBoost.torqueModel, 'chiron-w16');
     assert.equal(CAR_PHYSICS.cybertruck.powertrain.finalDrive, 10);
+    assert.equal(CAR_PHYSICS.cybertruck.powertrain.maxMotorTorque, 1520);
+    assert.equal(CAR_PHYSICS.cybertruck.powertrain.peakPowerKw, 470);
+    assert.equal(CAR_PHYSICS.cybertruck.powertrain.driveCutKmh, 209);
   });
 
   check('vehicle types have distinct physics tuning', () => {
@@ -496,13 +501,17 @@ try {
 
   check('Chiron turbo spool rises under load and is part of drivetrain output', () => {
     const state = createPowertrainState(CAR_PHYSICS.bugatti);
+    const lamboState = createPowertrainState(CAR_PHYSICS.lambo);
     let result = null;
+    let lamboResult = null;
     for (let i = 0; i < 240; i++) {
       result = stepVehiclePowertrain(state, CAR_PHYSICS.bugatti, 1, 10, 1 / 60);
+      lamboResult = stepVehiclePowertrain(lamboState, CAR_PHYSICS.lambo, 1, 10, 1 / 60);
     }
     assert.ok(state.boost > 0.4 && state.boost <= 1);
     assert.ok(result.boost > 0.4);
-    assert.ok(result.driveAcceleration > 0);
+    assert.ok(result.driveAcceleration > lamboResult.driveAcceleration,
+      `boosted W16=${result.driveAcceleration.toFixed(2)}m/s² Gallardo=${lamboResult.driveAcceleration.toFixed(2)}m/s²`);
   });
 
   const dynamicVehicleSpecs = {};
