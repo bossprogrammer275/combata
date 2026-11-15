@@ -91,7 +91,10 @@ function stepCombustion(state,spec,tune,throttle,speed,dt) {
       : (turbo.spoolDownRate||3.2);
     state.boost+=(boostTarget-state.boost)*Math.min(1,dt*spoolRate);
   } else state.boost=0;
-  let torque=sampleCurve(spec.torqueCurve,clamp(state.rpm,idle,redline),spec.peakTorqueNm||500);
+  // The Chiron prototype's W16 torque model holds an effective 1,500 rpm
+  // floor while the four turbos are still spooling.
+  const torqueRpm=turbo?Math.max(state.rpm,1500):state.rpm;
+  let torque=sampleCurve(spec.torqueCurve,clamp(torqueRpm,idle,redline),spec.peakTorqueNm||500);
   if(turbo)torque*=0.4+0.6*state.boost;
   const force=torque*activeRatio*finalDrive*(spec.drivetrainEfficiency||.88)/radius;
   const rawAccel=force/Math.max(600,tune.mass||1500);
