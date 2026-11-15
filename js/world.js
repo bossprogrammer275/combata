@@ -1770,22 +1770,10 @@ export class World {
       if (ch.guardrails) this._buildRoadGuardrails(pts, ch.W, roadY);
 
       this._roadChains.push({ pts, W: ch.W, sidewalk: ch.sidewalk, roadY, closed: ch.closed, surface: ch.surface || 'asphalt' });
-      if (!ch.sidewalk) continue;
-      const edge = ch.W / 2;
-      for (const side of [-1, 1]) {
-        // Use the same mitered offset for pavement and curb. A normalized average
-        // normal shrinks offsets at corners, causing sidewalk seams and pinholes.
-        const offPts = this._offsetRoadPolyline(pts, side * (edge + 1.2));
-        this._strokeMitered(offPts, 2.4, walkY, walkMat, ch.closed);
-        this._addRoadSurfaceColliders(offPts, 2.4, walkY, ch.closed, 0.04);
-      }
-      for (const side of [-1, 1]) {
-        const curbPts = this._offsetRoadPolyline(pts, side * (edge + 0.12));
-        this._strokeMitered(curbPts, 0.36, 0.10, curbMat, ch.closed);
-        // The curb strip fills the 6cm rise between asphalt and sidewalk.
-        this._addRoadSurfaceColliders(curbPts, 0.36, walkY, ch.closed, 0.06);
-      }
     }
+    // Sidewalks and their physical surfaces stop before same-level road
+    // junctions. Higher flyovers remain independent and keep their own paths.
+    this._buildRoadSidewalks(this._roadChains, walkMat, curbMat);
     // Paint is independent geometry so road markings can stop before junctions.
     this._buildRoadMarkings(this._roadChains);
 
@@ -1947,6 +1935,79 @@ export class World {
     return hits;
   }
 
+  _roadJunctionData(chains) {
+    const metadata = chains.map(ch => {
+      const cumulative = this._roadPolylineLengths(ch.pts);
+      const segmentLengths = cumulative.slice(1).map((d, i) => d - cumulative[i]);
+      return { cumulative, segmentLengths, total: cumulative[cumulative.length - 1] || 0 };
+    });
+    const hits = this._findRoadJunctions(chains, metadata);
+    const ranges = hits.map((items, i) => {
+      const total = metadata[i].total;
+      const intervals = items.map(hit => [
+        Math.max(0, hit.distance - hit.radius),
+        Math.min(total, hit.distance + hit.radius),
+      ]).filter(range => range[1] - range[0] > 0.05).sort((a, b) => a[0] - b[0]);
+      const merged = [];
+      for (const range of intervals) {
+        const last = merged[merged.length - 1];
+        if (last && range[0] <= last[1] + 0.2) last[1] = Math.max(last[1], range[1]);
+        else merged.push(range.slice());
+      }
+      return merged;
+    });
+    return { metadata, ranges };
+  }
+
+  _buildRoadSidewalks(chains, walkMat = this._sceneMat('walk'), curbMat = this.mCurb()) {
+    if (!chains?.length) return;
+    const { metadata, ranges } = this._roadJunctionData(chains);
+    const drawRuns = (pts, data, blocked, width, y, mat, colliderWidth, thickness) => {
+      let cursor = 0;
+      const draw = (start, end) => {
+        if (end - start < 0.08) return;
+        const run = this._sliceRoadPolyline(pts, data.cumulative, start, end);
+        if (run.length < 2) return;
+        this._strokeMitered(run, width, y, mat, false);
+        this._addRoadSurfaceColliders(run, colliderWidth, y, false, thickness);
+      };
+      for (const [start, end] of blocked) {
+        if (start > cursor + 0.05) draw(cursor, start);
+        cursor = Math.max(cursor, end);
+        if (cursor >= data.total) break;
+      }
+      if (cursor < data.total - 0.05) draw(cursor, data.total);
+    };
+
+    for (let i = 0; i < chains.length; i++) {
+      const chain = chains[i];
+      if (!chain.sidewalk || chain.pts.length < 2) continue;
+      const data = metadata[i];
+      const blocked = chain.closed ? [] : ranges[i];
+      const edge = chain.W / 2;
+      for (const side of [-1, 1]) {
+        const pavement = this._offsetRoadPolyline(chain.pts, side * (edge + 1.2));
+        if (chain.closed) {
+          this._strokeMitered(pavement, 2.4, 0.12, walkMat, true);
+          this._addRoadSurfaceColliders(pavement, 2.4, 0.12, true, 0.04);
+        } else {
+          drawRuns(pavement, data, blocked, 2.4, 0.12, walkMat, 2.4, 0.04);
+        }
+      }
+      for (const side of [-1, 1]) {
+        const curb = this._offsetRoadPolyline(chain.pts, side * (edge + 0.12));
+        if (chain.closed) {
+          this._strokeMitered(curb, 0.36, 0.10, curbMat, true);
+          this._addRoadSurfaceColliders(curb, 0.36, 0.12, true, 0.06);
+        } else {
+          // The curb is narrow; keep its collision strip cut with the visual
+          // pavement so the player controller never meets a hidden junction wall.
+          drawRuns(curb, data, blocked, 0.36, 0.10, curbMat, 0.36, 0.06);
+        }
+      }
+    }
+  }
+
   _buildRoadMarkings(chains) {
     if (!chains?.length) return;
     const yellow = this._mat('lane-center-mark', () => new THREE.MeshStandardMaterial({
@@ -1962,26 +2023,7 @@ export class World {
       polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
     }));
 
-    const metadata = chains.map(ch => {
-      const cumulative = this._roadPolylineLengths(ch.pts);
-      const segmentLengths = cumulative.slice(1).map((d, i) => d - cumulative[i]);
-      return { cumulative, segmentLengths, total: cumulative[cumulative.length - 1] || 0 };
-    });
-    const hits = this._findRoadJunctions(chains, metadata);
-    const mergedRanges = hits.map((items, i) => {
-      const total = metadata[i].total;
-      const ranges = items.map(h => [
-        Math.max(0, h.distance - h.radius),
-        Math.min(total, h.distance + h.radius),
-      ]).filter(r => r[1] - r[0] > 0.05).sort((a, b) => a[0] - b[0]);
-      const merged = [];
-      for (const range of ranges) {
-        const last = merged[merged.length - 1];
-        if (last && range[0] <= last[1] + 0.2) last[1] = Math.max(last[1], range[1]);
-        else merged.push(range.slice());
-      }
-      return merged;
-    });
+    const { metadata, ranges: mergedRanges } = this._roadJunctionData(chains);
 
     const blocked = (ranges, start, end) => ranges.some(r => start < r[1] && end > r[0]);
     const drawDashed = (chain, data, offsetPts, ranges, startDistance, endDistance, dash, period, width, mat) => {
