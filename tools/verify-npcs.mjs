@@ -62,7 +62,13 @@ const characterRuntime = fs.readFileSync(path.join(root, "js/character.js"), "ut
 assert.ok(playerRuntime.includes("modelYawOffset: 0"), "player must use civilian_002's local forward axis");
 assert.ok(characterRuntime.includes("modelYawOffset: Math.PI"), "enemy default yaw offset must remain explicit");
 assert.ok(characterRuntime.includes("key === 'idle' ? 1 : 0"), "civilian_002 standing idle must be the initial player pose");
-assert.ok(characterRuntime.includes("speed >= this.appearance.runThreshold"), "normal player movement must select the real run clip at run speed");
+assert.ok(playerRuntime.includes("runThreshold: 0.62"), "normal-speed player movement must select the walk clip, not the run clip");
+assert.ok(playerRuntime.includes("hipWeaponPose: false"), "player idle and locomotion clips must retain their natural arm poses");
+assert.ok(playerRuntime.includes("const facingX = groundSpeed > 0.18 ? this.vel.x : this._moveX"),
+  "player facing must follow actual movement momentum during direction changes");
+assert.ok(characterRuntime.includes("if (this.appearance.hipWeaponPose === false && !this._pendingWeaponPose.aiming) return;"),
+  "player hip-fire arm correction must not override idle or locomotion poses");
+assert.ok(characterRuntime.includes("speed >= this.appearance.runThreshold"), "faster non-sprint movement must retain the run clip");
 assert.ok(characterRuntime.includes("const blend = 1 - Math.exp"), "animation blending must be frame-rate independent");
 assert.ok(characterRuntime.includes("action.setLoop(oneShot ? THREE.LoopOnce : THREE.LoopRepeat"), "jump must be a one-shot clip, not a repeated loop");
 assert.ok(playerRuntime.includes("syncCharacter(dt = 1 / 60)"), "player must pass frame time into animation blending");
