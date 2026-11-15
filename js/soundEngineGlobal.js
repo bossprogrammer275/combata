@@ -85,6 +85,11 @@ export class SoundEngineGlobal {
     return engine?.setWarningTone?.(enabled) ?? false;
   }
 
+  setEnvironment(kind, environment) {
+    const engine = this.modules.get(kind);
+    return engine?.setEnvironment?.(environment) ?? false;
+  }
+
   getActiveState() {
     return this.active?.getState?.() || null;
   }
