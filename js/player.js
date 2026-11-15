@@ -61,8 +61,13 @@ export class Player {
       skin: [0.82, 0.62, 0.48], pants: [0.20, 0.22, 0.30], shirt: this.clothesPalette[0],
       boots: [0.14, 0.12, 0.10], vest: [0.28, 0.32, 0.22], cap: [0.20, 0.22, 0.26],
       showCap: false, pack: true, helmet: false, weaponTint: [0.18, 0.18, 0.20],
-      // civilian_002 faces local -Z, unlike the old npc1 avatar.
+      // civilian_002's authored forward axis is local -Z.
       modelYawOffset: 0,
+      // Use the actual walk cycle at normal speed; the run/sprint clips are
+      // reserved for faster movement and explicit sprint input.
+      runThreshold: 0.62,
+      // Let the rig's idle/walk/run clips control relaxed arms until aiming.
+      hipWeaponPose: false,
     };
     this.char = new Character(this.appearance);
     this.phase = 0;          // walk-cycle phase, advanced by movement
@@ -400,8 +405,14 @@ export class Player {
     } else if (this.aimAmount > 0.5 && !moving) {
       faceYaw = this.yaw;
     } else if (moving) {
-      if (Math.hypot(this._moveX, this._moveZ) > 0.01) {
-        faceYaw = Math.atan2(-this._moveX, -this._moveZ);
+      // Face the direction the body is actually travelling, not the new key
+      // intent while momentum is still carrying the player the other way.
+      // This prevents the walk/run cycle from appearing to play backwards
+      // during quick direction changes.
+      const facingX = groundSpeed > 0.18 ? this.vel.x : this._moveX;
+      const facingZ = groundSpeed > 0.18 ? this.vel.z : this._moveZ;
+      if (Math.hypot(facingX, facingZ) > 0.01) {
+        faceYaw = Math.atan2(-facingX, -facingZ);
       }
     }
     let dy = faceYaw - this.bodyYaw;
