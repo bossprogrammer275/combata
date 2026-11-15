@@ -13,7 +13,7 @@ import { HUD } from './hud.js';
 import { GameAudio } from './audio.js';
 import { Profile, SHOP } from './profile.js';
 import { AchievementSystem } from './achievements.js';
-import { VehicleSystem } from './vehicles.js';
+import { VehicleSystem, CAR_MODELS, CAR_PHYSICS } from './vehicles.js';
 import { Civilians } from './civilians.js';
 import { Physics } from './physics.js';
 import { resolveDriveAxes } from './vehicle-steering.js';
@@ -40,6 +40,7 @@ class Game {
     this.playerTeam = -1; // -1: every NPC is hostile to the player
     this.fullMapOpen = false;
     this.transitMenuOpen = false;
+    this.vehicleSpawnMenuOpen = false;
     this.nearTransit = null;
     this.nearLoot = null;
     this.ismailg = false;
@@ -275,12 +276,98 @@ class Game {
     this._pendingQuality = s.quality;
   }
 
-  requestVehicleSpawn(kind, label) {
-    if (this.state !== 'playing' || !this.player || this.player.skydive || !this.vehicles) return false;
-    if (this.transitMenuOpen) {
-      this.transitMenuOpen = false;
-      this.hud.hideTransitMenu();
+  buildVehicleSpawnMenu() {
+    const list = document.getElementById('vehicle-spawn-list');
+    if (!list) return;
+    const labels = {
+      lambo: { name: 'LAMBORGHINI', className: 'SUPERCAR' },
+      cybertruck: { name: 'TESLA CYBERTRUCK', className: 'ELECTRIC PICKUP' },
+      bugatti: { name: 'BUGATTI CHIRON PUR SPORT', className: 'HYPERCAR' },
+    };
+    list.replaceChildren();
+    Object.keys(CAR_MODELS).forEach((kind, index) => {
+      const tune = CAR_PHYSICS[kind] || {};
+      const meta = labels[kind] || {
+        name: kind.replace(/[-_]+/g, ' ').toUpperCase(),
+        className: 'VEHICLE',
+      };
+      const powertrain = tune.powertrain?.type === 'ev' ? 'ELECTRIC' : 'COMBUSTION';
+      const drivetrain = String(tune.drivetrain || 'DRIVE').toUpperCase();
+      const speed = Number.isFinite(tune.speedometerMaxKmh)
+        ? ' · ' + Math.round(tune.speedometerMaxKmh) + ' KM/H'
+        : '';
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'vehicle-spawn-card';
+      button.dataset.vehicleKind = kind;
+      button.setAttribute('aria-label', 'Spawn ' + meta.name);
+      const number = document.createElement('span');
+      number.className = 'vehicle-spawn-number';
+      number.textContent = String(index + 1).padStart(2, '0');
+      const name = document.createElement('span');
+      name.className = 'vehicle-spawn-name';
+      name.textContent = meta.name;
+      const type = document.createElement('span');
+      type.className = 'vehicle-spawn-meta';
+      type.textContent = meta.className + ' · ' + powertrain + ' · ' + drivetrain + speed;
+      const action = document.createElement('span');
+      action.className = 'vehicle-spawn-action';
+      action.textContent = 'SPAWN VEHICLE →';
+      button.append(number, name, type, action);
+      button.addEventListener('click', () => {
+        this.toggleVehicleSpawnMenu(false);
+        this.requestVehicleSpawn(kind, meta.name);
+      });
+      list.appendChild(button);
+    });
+  }
+
+  toggleVehicleSpawnMenu(forceOpen, restorePointer = true) {
+    const menu = document.getElementById('vehicle-spawn-menu');
+    if (!menu) return false;
+    const shouldOpen = typeof forceOpen === 'boolean'
+      ? forceOpen
+      : !this.vehicleSpawnMenuOpen;
+
+    if (shouldOpen) {
+      if (this.state !== 'playing' || !this.vehicles || this.player?.skydive) return false;
+      if (this.vehicleSpawnMenuOpen) return true;
+      if (this.transitMenuOpen) {
+        this.transitMenuOpen = false;
+        this.hud.hideTransitMenu();
+      }
+      if (this.tools && this.tools.isOpen()) this.tools.close();
+      this.vehicleSpawnMenuOpen = true;
+      if (this._driveKeys) this._driveKeys.clear();
+      if (this._crouchKeys) this._crouchKeys.clear();
+      Object.assign(this.input, {
+        forward: 0, right: 0, sprint: false, crouch: false, jump: false,
+        climb: false, fire: false, ads: false, mouseDX: 0, mouseDY: 0,
+      });
+      this.lookDrag = false;
+      menu.classList.remove('hidden');
+      menu.setAttribute('aria-hidden', 'false');
+      const crosshair = document.getElementById('crosshair');
+      if (crosshair) crosshair.style.opacity = '0';
+      // Set the open flag before releasing pointer lock; the lock-change
+      // handler must not interpret this intentional menu interaction as pause.
+      if (document.pointerLockElement) document.exitPointerLock();
+      menu.querySelector('[data-vehicle-kind]')?.focus();
+      return true;
     }
+
+    if (!this.vehicleSpawnMenuOpen) return false;
+    this.vehicleSpawnMenuOpen = false;
+    menu.classList.add('hidden');
+    menu.setAttribute('aria-hidden', 'true');
+    if (restorePointer && this.state === 'playing') this.lockPointer();
+    return true;
+  }
+
+  requestVehicleSpawn(kind, label) {
+    if (this.state !== 'playing' || !this.player || this.player.skydive
+      || !this.vehicles || !CAR_MODELS[kind]) return false;
     const vehicles = this.vehicles;
     vehicles.spawnNearPlayer(kind, this.player).then((vehicle) => {
       if (vehicle) {
@@ -679,6 +766,14 @@ class Game {
     $('toggle-cap').onclick = () => { this.profile.equip('cap', !this.profile.data.equipped.cap); this.player.applyProfile(this.profile); this.refreshMenu(); };
     $('toggle-glasses').onclick = () => { this.profile.equip('glasses', !this.profile.data.equipped.glasses); this.player.applyProfile(this.profile); this.refreshMenu(); };
 
+    this.buildVehicleSpawnMenu();
+    const vehicleMenu = $('vehicle-spawn-menu');
+    const closeVehicleMenu = () => this.toggleVehicleSpawnMenu(false);
+    $('vehicle-spawn-close')?.addEventListener('click', closeVehicleMenu);
+    vehicleMenu?.addEventListener('click', (event) => {
+      if (event.target === vehicleMenu) closeVehicleMenu();
+    });
+
     const introSkip = document.getElementById('intro-skip');
     if (introSkip) introSkip.onclick = () => { this.skipIntro = true; };
   }
@@ -697,6 +792,13 @@ class Game {
     const updateDriveAxes = () => Object.assign(I, resolveDriveAxes(driveKeys));
     const updateCrouch = () => { I.crouch = crouchKeys.size > 0; };
     addEventListener('keydown', (e) => {
+      if (this.vehicleSpawnMenuOpen) {
+        if (e.code === 'Escape' || e.code === 'KeyK') {
+          e.preventDefault();
+          this.toggleVehicleSpawnMenu(false);
+        }
+        return;
+      }
       if (this.state === 'paused' && e.code !== 'Escape') { e.preventDefault(); return; }
       if (driveKeyCodes.has(e.code)) {
         e.preventDefault();
@@ -739,15 +841,7 @@ class Game {
           break;
         case 'KeyK':
           e.preventDefault();
-          this.requestVehicleSpawn('lambo', 'LAMBORGHINI');
-          break;
-        case 'KeyT':
-          e.preventDefault();
-          this.requestVehicleSpawn('cybertruck', 'TESLA');
-          break;
-        case 'KeyB':
-          e.preventDefault();
-          this.requestVehicleSpawn('bugatti', 'BUGATTI CHIRON');
+          this.toggleVehicleSpawnMenu();
           break;
         case 'KeyU':
           if (this.state === 'playing' && !this.player.skydive && !(this.vehicles && this.vehicles.driver) && this.nearTransit && this.world.namedLocations) {
@@ -816,6 +910,7 @@ class Game {
       }
     });
     addEventListener('keyup', (e) => {
+      if (this.vehicleSpawnMenuOpen) return;
       if (driveKeyCodes.has(e.code)) {
         e.preventDefault();
         if (driveKeys.delete(e.code)) updateDriveAxes();
@@ -840,17 +935,18 @@ class Game {
       I.sprint = false; I.jump = false;
     });
     addEventListener('mousedown', (e) => {
-      if (this.state !== 'playing' || this.player.skydive || (this.tools && this.tools.isOpen())) return;
+      if (this.vehicleSpawnMenuOpen || this.state !== 'playing' || this.player.skydive || (this.tools && this.tools.isOpen())) return;
       if (e.button === 0) I.fire = true;
       if (e.button === 2) I.ads = true;
     });
     addEventListener('mouseup', (e) => {
-      if (this.tools && this.tools.isOpen()) return;
+      if (this.vehicleSpawnMenuOpen || (this.tools && this.tools.isOpen())) return;
       if (e.button === 0) I.fire = false;
       if (e.button === 2) I.ads = false;
     });
     addEventListener('contextmenu', (e) => e.preventDefault());
     addEventListener('wheel', (e) => {
+      if (this.vehicleSpawnMenuOpen) return;
       if (this.tools && this.tools.isOpen()) { this.tools.handleWheel(e.deltaY); return; }
       if (this.overview) {
         this.overview.dist = Math.max(15, Math.min(2400, this.overview.dist * (e.deltaY > 0 ? 1.12 : 1 / 1.12)));
@@ -859,7 +955,7 @@ class Game {
       if (this.state === 'playing' && !this.player.skydive && !(this.vehicles && this.vehicles.driver)) this.weapons.swap(e.deltaY > 0 ? 1 : -1);
     }, { passive: true });
     addEventListener('mousemove', (e) => {
-      if (this.state !== 'playing' || this.player.skydive || (this.tools && this.tools.isOpen())) return;
+      if (this.vehicleSpawnMenuOpen || this.state !== 'playing' || this.player.skydive || (this.tools && this.tools.isOpen())) return;
       if (this.drone) {
         this.input.mouseDX = e.movementX; this.input.mouseDY = e.movementY;
         return;
@@ -878,11 +974,11 @@ class Game {
       }
     });
     addEventListener('mousedown', (e) => {
-      if (this.state === 'playing' && !this.player.skydive && document.pointerLockElement !== this.renderer.domElement && !(this.tools && this.tools.isOpen())) this.lookDrag = true;
+      if (!this.vehicleSpawnMenuOpen && this.state === 'playing' && !this.player.skydive && document.pointerLockElement !== this.renderer.domElement && !(this.tools && this.tools.isOpen())) this.lookDrag = true;
     });
     addEventListener('mouseup', () => { this.lookDrag = false; });
     document.addEventListener('pointerlockchange', () => {
-      if (document.pointerLockElement !== this.renderer.domElement && this.state === 'playing' && !this.player.skydive && !(this.tools && this.tools.isOpen()) && !this.drone) this.pause();
+      if (document.pointerLockElement !== this.renderer.domElement && this.state === 'playing' && !this.player.skydive && !(this.tools && this.tools.isOpen()) && !this.drone && !this.vehicleSpawnMenuOpen) this.pause();
     });
   }
 
@@ -926,6 +1022,7 @@ class Game {
 
   pause() {
     if (this.state !== 'playing') return;
+    if (this.vehicleSpawnMenuOpen) this.toggleVehicleSpawnMenu(false, false);
     this.state = 'paused';
     if (this._driveKeys) this._driveKeys.clear();
     if (this._crouchKeys) this._crouchKeys.clear();
