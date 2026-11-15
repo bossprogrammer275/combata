@@ -22,7 +22,6 @@ const ANIM_URLS = {
   wave: MODEL.animations.wave,
   sitDown: MODEL.animations.sit_down,
 };
-const CROUCH_DROP = 0.30;
 const loader = new FBXLoader();
 let _baseGroup = null;
 let _clips = {};
@@ -197,7 +196,6 @@ export class Character {
     this._isBuilt = false;
     this._poseMode = 'idle';
     this._forceRestPose = false;
-    this._crouchY = 0;
     this._prevAirborne = false;
     this._wasAirborne = false;
     this._wasClimbing = false;
@@ -316,7 +314,6 @@ export class Character {
     const groundSpeed = Math.max(0, Number(state.groundSpeed) || 0);
     const moving = groundSpeed > 0.14;
     const aiming = Number(state.aim) > 0.1;
-    const crouching = desired === 'crouch' || desired === 'crouchWalk';
 
     this._pendingWeaponPose = { aiming, moving };
 
@@ -353,9 +350,8 @@ export class Character {
       );
     }
 
-    const targetCrouchY = crouching ? -CROUCH_DROP : 0;
-    this._crouchY += (targetCrouchY - this._crouchY) * blend;
-    this._model.position.y = this._crouchY;
+    // Crouch height is authored in the Mixamo crouch/crouch-walk clips.
+    // Do not translate the model as well or the visual crouch is doubled.
   }
 
   applyWeaponPose(dt = 1 / 60) {
@@ -397,7 +393,6 @@ export class Character {
   setRestPose() {
     this._forceRestPose = true;
     this._poseMode = 'idle';
-    this._crouchY = 0;
     this._pendingWeaponPose = { aiming: false, moving: false };
     this._wasAirborne = false;
     this._prevAirborne = false;
@@ -412,7 +407,6 @@ export class Character {
       action.setEffectiveWeight(name === 'idle' ? 1 : 0);
       action.play();
     }
-    if (this._model) this._model.position.y = 0;
     this._forceRestPose = false;
   }
 

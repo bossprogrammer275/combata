@@ -109,6 +109,10 @@ assert.ok(characterRuntime.includes("action.setLoop(oneShot ? THREE.LoopOnce : T
 assert.ok(playerRuntime.includes("syncCharacter(dt = 1 / 60)"), "player must pass frame time into animation blending");
 
 assert.ok(characterRuntime.includes("setRestPose()"), "Character must expose a deterministic idle reset for spawn/respawn");
+assert.ok(!characterRuntime.includes("CROUCH_DROP") && !characterRuntime.includes("_crouchY"),
+  "crouch height must come only from the authored animation clip");
+assert.ok(!characterRuntime.includes("this._model.position.y"),
+  "character animation must not translate the model vertically to imitate crouching");
 assert.ok(characterRuntime.includes("action.setEffectiveWeight(name === 'idle' ? 1 : 0)"),
   "spawn pose reset must leave idle as the only weighted clip");
 assert.ok(characterRuntime.includes("if (this._forceRestPose) this.setRestPose()"),
