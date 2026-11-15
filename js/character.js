@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { FBXLoader } from './lib/FBXLoader.js';
 import { NPC_MODELS, NPC_GLOBAL_CONFIG } from './npc-config.js';
+import { resolvePlayerAnimation, jumpStartOffset } from './player-animation.js';
 
 const MODEL = NPC_MODELS[NPC_GLOBAL_CONFIG.modelId];
 const ANIM_URLS = {
@@ -194,6 +195,7 @@ export class Character {
     this._model = null;
     this._pendingState = null;
     this._isBuilt = false;
+    this._poseMode = 'idle';
     this._crouchY = 0;
     this._prevAirborne = false;
     this._wasAirborne = false;
@@ -304,45 +306,45 @@ export class Character {
 
   applyPose(state = {}, dt = 1 / 60) {
     if (!this._mixer || !this._model) return;
-    const moving = Math.hypot(state.moveX || 0, state.moveZ || 0) > 0.05 || (state.speed || 0) > 0.15;
-    const sprinting = state.sprint > 0.5;
-    const crouching = state.crouch > 0.5;
-    const aiming = state.aim > 0.1;
-    const airborne = state.airborne > 0.5;
-    const speed = state.speed || 0;
-    const justJumped = airborne && !this._prevAirborne;
-    this._prevAirborne = airborne;
-    this._wasAirborne = airborne;
 
-    const weights = { idle: 0, walk: 0, run: 0, sprint: 0, crouch: 0, crouchWalk: 0, jump: 0 };
-    if (airborne) weights.jump = 1;
-    else if (state.climbing > 0.5 || state.stairClimb > 0.5) weights.walk = moving ? 1 : 0;
-    else if (moving && crouching) weights.crouchWalk = 1;
-    else if (moving && sprinting) weights.sprint = 1;
-    else if (moving && speed >= this.appearance.runThreshold) weights.run = 1;
-    else if (moving) weights.walk = 1;
-    else if (crouching) weights.crouch = 1;
-    else weights.idle = 1;
+    const desired = resolvePlayerAnimation(state, this._poseMode || 'idle');
+    const groundSpeed = Math.max(0, Number(state.groundSpeed) || 0);
+    const moving = groundSpeed > 0.14;
+    const aiming = Number(state.aim) > 0.1;
+    const crouching = desired === 'crouch' || desired === 'crouchWalk';
 
-    // Aiming is an additive arm pose over the civilian_002 locomotion clip.
     this._pendingWeaponPose = { aiming, moving };
-    const blend = 1 - Math.exp(-Math.max(0, Math.min(dt, 0.1)) * 17);
-    for (const [name, action] of Object.entries(this._actions)) {
-      const target = weights[name] || 0;
-      const current = action.getEffectiveWeight();
-      if (target > 0 && current < 0.002) {
-        action.reset();
-        action.enabled = true;
-        action.play();
+
+    // Only enter/reset a clip when the state actually changes. This prevents
+    // locomotion clips from restarting every frame or blending in response to
+    // tiny changes in key intent / collision velocity.
+    if (desired !== this._poseMode) {
+      const next = this._actions[desired];
+      if (next) {
+        next.reset();
+        next.enabled = true;
+        if (desired === 'jump') next.time = jumpStartOffset(next.getClip().duration);
+        next.play();
       }
-      if (justJumped && name === 'jump') action.reset();
-      action.setEffectiveWeight(current + (target - current) * blend);
+      this._poseMode = desired;
+    }
+
+    // Locomotion gets a short crossfade. Jump is exclusive: do not blend the
+    // old walk/run cycle into the takeoff pose.
+    const blend = 1 - Math.exp(-Math.max(0, Math.min(dt, 0.1)) * 24);
+    const poseBlend = desired === 'jump' ? 1 : blend;
+    const speed = Number(state.speed) || 0;
+    for (const [name, action] of Object.entries(this._actions)) {
+      const target = name === desired ? 1 : 0;
+      const current = action.getEffectiveWeight();
+      action.setEffectiveWeight(current + (target - current) * poseBlend);
       if (target > 0) action.setEffectiveTimeScale(
         name === 'sprint' ? THREE.MathUtils.clamp(speed * 2.1, 0.92, 1.32)
           : name === 'run' ? THREE.MathUtils.clamp(speed * 2.0, 0.82, 1.28)
             : name === 'walk' || name === 'crouchWalk' ? THREE.MathUtils.clamp(speed * 2.2, 0.68, 1.2) : 1
       );
     }
+
     const targetCrouchY = crouching ? -CROUCH_DROP : 0;
     this._crouchY += (targetCrouchY - this._crouchY) * blend;
     this._model.position.y = this._crouchY;
