@@ -8,7 +8,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const model = NPC_MODELS.civilian_002;
 assert.ok(model, "civilian_002 must be the main civilian");
 assert.equal(NPC_GLOBAL_CONFIG.modelId, "civilian_002");
-assert.ok(model.inPlace.includes("jump"), "jump animation must be root-motion stripped so gameplay physics controls jump height");
+assert.ok(!model.inPlace.includes("jump"),
+  "jump clip must retain its authored vertical lift; only the camera receives gameplay jump height");
 assert.ok(fs.existsSync(path.join(root, model.modelUrl.replace("./", ""))), "canonical rigged model missing");
 
 const manifest = JSON.parse(fs.readFileSync(path.join(root, model.manifestUrl.replace("./", "")), "utf8"));
@@ -65,6 +66,10 @@ assert.ok(civilianRuntime.includes('if (this.ch.currentAnimation !== "walk") thi
 const playerRuntime = fs.readFileSync(path.join(root, "js/player.js"), "utf8");
 const characterRuntime = fs.readFileSync(path.join(root, "js/character.js"), "utf8");
 assert.ok(playerRuntime.includes("modelYawOffset: Math.PI"), "player must use the same 180-degree civilian_002 orientation as pedestrians");
+assert.ok(playerRuntime.includes("jumpCameraHeight"),
+  "jump should raise camera height separately from the gameplay capsule");
+assert.ok(playerRuntime.includes("this.vel.y = 0;") && !playerRuntime.includes("this.vel.y = 8.0;"),
+  "space jump must not add a second physical lift on top of the Mixamo jump clip");
 assert.ok(characterRuntime.includes("modelYawOffset: Math.PI"), "enemy default yaw offset must remain explicit");
 assert.ok(characterRuntime.includes("key === 'idle' ? 1 : 0"), "civilian_002 standing idle must be the initial player pose");
 assert.ok(playerRuntime.includes("runThreshold: 0.62"), "normal-speed player movement must select the walk clip, not the run clip");
