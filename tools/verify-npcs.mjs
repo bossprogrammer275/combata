@@ -55,6 +55,8 @@ assert.ok(worldRuntime.includes("nearestNpcInteractable"), "world must expose ne
 assert.ok(civilianRuntime.includes("startConversation") && civilianRuntime.includes("nearestUsableObject"),
   "civilian runtime must support player dialogue and world-object use");
 assert.ok(civilianRuntime.includes("updateSocial"), "civilian runtime must support NPC-to-NPC social behaviour");
+assert.ok(civilianRuntime.includes("Math.atan2(-dx, -dz)"), "civilian look-at yaw must match the rig's 180-degree model correction");
+assert.ok(civilianRuntime.includes("Math.atan2(-this.velocity.x, -this.velocity.z)"), "civilian locomotion yaw must face actual travel direction");
 
 
 const playerRuntime = fs.readFileSync(path.join(root, "js/player.js"), "utf8");
