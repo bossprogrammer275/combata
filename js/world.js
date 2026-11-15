@@ -1981,7 +1981,7 @@ export class World {
       }
       return merged;
     });
-    return { metadata, ranges };
+    return { metadata, hits, ranges };
   }
 
   _buildRoadSidewalks(chains, walkMat = this._sceneMat('walk'), curbMat = this.mCurb()) {
@@ -2053,7 +2053,7 @@ export class World {
       polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
     }));
 
-    const { metadata, ranges: mergedRanges } = this._roadJunctionData(chains);
+    const { metadata, hits, ranges: mergedRanges } = this._roadJunctionData(chains);
 
     const blocked = (ranges, start, end) => ranges.some(r => start < r[1] && end > r[0]);
     const drawDashed = (chain, data, offsetPts, ranges, startDistance, endDistance, dash, period, width, mat) => {
