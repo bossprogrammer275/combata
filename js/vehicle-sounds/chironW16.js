@@ -5,7 +5,7 @@
 import { createSoundEngineTools, clampSoundValue, numericGear } from './soundEngineTools.js';
 
 export function createChironW16Engine({ ctx, destination, noiseBuffer }) {
-  const { G, F, O, N, SH, burst, tone, target } =
+  const { G, F, O, N, SH, burst, tone, target, disposeSources } =
     createSoundEngineTools(ctx, noiseBuffer);
   const IDLE = 850, LIM = 7000, RED = 6700;
   const MIX = { mEng: 0.9, mTur: 0.7, mExh: 0.8, mRoad: 0.6 };
@@ -294,6 +294,7 @@ export function createChironW16Engine({ ctx, destination, noiseBuffer }) {
       S.on = false;
       A.master.gain.setTargetAtTime(0, ctx.currentTime, 0.08);
     },
+    dispose() { disposeSources(0.12); },
     setMix(key, value) {
       if (!Object.prototype.hasOwnProperty.call(MIX, key)) return false;
       MIX[key] = clampSoundValue(value, 0, 1.5);
