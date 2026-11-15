@@ -104,6 +104,10 @@ try {
   const appSource = await fs.promises.readFile(path.join(ROOT, 'js/main.js'), 'utf8');
   const pageSource = await fs.promises.readFile(path.join(ROOT, 'index.html'), 'utf8');
   const vehicleSource = await fs.promises.readFile(path.join(ROOT, 'js/vehicles.js'), 'utf8');
+  check('K spawns the Lamborghini and T spawns the Cybertruck',
+    appSource.includes("case 'KeyK':")
+      && appSource.includes("requestVehicleSpawn('lambo', 'LAMBORGHINI')")
+      && appSource.includes("requestVehicleSpawn('cybertruck', 'TESLA')"));
   check('Esc opens the pause menu and Esc from pause resumes the game',
     appSource.includes("else if (this.state === 'playing') this.pause();")
       && appSource.includes("if (this.state === 'paused') this.resume();")
@@ -271,6 +275,39 @@ try {
   check('newly spawned vehicle is made the preferred E-entry target',
     hotkeySpawnHarness.preferredVehicle === teslaSpawn);
 
+  // Mirror city-a's two default parked vehicles. Hotkey spawning must find a
+  // usable point instead of testing only the diagonals occupied by those cars.
+  const starterCarSpawnHarness = Object.create(VehicleSystem.prototype);
+  starterCarSpawnHarness.vehicles = [
+    { pos: { x: 12, z: 220 }, yaw: 0, yawOffset: Math.PI, half: { x: 1.15, z: 2.45 } },
+    { pos: { x: -2, z: 220 }, yaw: 0, yawOffset: Math.PI, half: { x: 1.12, z: 2.85 } },
+  ];
+  starterCarSpawnHarness.driver = null;
+  starterCarSpawnHarness.world = { groundHeightAt: () => 0.06 };
+  starterCarSpawnHarness.spawn = async (def) => {
+    const car = {
+      ...def,
+      pos: { x: def.x, y: def.elevation, z: def.z },
+      yaw: def.ry || 0,
+      yawOffset: Math.PI,
+      half: { x: def.kind === 'cybertruck' ? 1.12 : 1.15, z: def.kind === 'cybertruck' ? 2.85 : 2.45 },
+    };
+    starterCarSpawnHarness.vehicles.push(car);
+    return car;
+  };
+  const cityStartPlayer = { pos: { x: 5, y: 0, z: 225 }, yaw: 0 };
+  const firstAfterStarterCars = await starterCarSpawnHarness.spawnNearPlayer('cybertruck', cityStartPlayer);
+  const secondAfterStarterCars = await starterCarSpawnHarness.spawnNearPlayer('lambo', cityStartPlayer);
+  check('first hotkey vehicle spawns despite the two default city cars',
+    firstAfterStarterCars?.kind === 'cybertruck'
+      && starterCarSpawnHarness.surfaceDistance(firstAfterStarterCars, cityStartPlayer.pos.x, cityStartPlayer.pos.z) <= 4.25,
+    'spawn=' + (firstAfterStarterCars ? firstAfterStarterCars.pos.x.toFixed(1) + ',' + firstAfterStarterCars.pos.z.toFixed(1) : 'none'));
+  check('second hotkey vehicle finds another nearby slot without overlapping the first',
+    secondAfterStarterCars?.kind === 'lambo'
+      && Math.hypot(secondAfterStarterCars.pos.x - firstAfterStarterCars.pos.x, secondAfterStarterCars.pos.z - firstAfterStarterCars.pos.z) >= 5.2,
+    'separation=' + (secondAfterStarterCars && firstAfterStarterCars
+      ? Math.hypot(secondAfterStarterCars.pos.x - firstAfterStarterCars.pos.x, secondAfterStarterCars.pos.z - firstAfterStarterCars.pos.z).toFixed(1)
+      : 'none'));
 
   check('world yaw includes the GLB nose-axis correction', () => {
     const yaw = VehicleSystem.prototype._worldYaw({ yaw: 0.42, yawOffset: Math.PI });
