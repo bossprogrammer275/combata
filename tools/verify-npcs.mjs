@@ -59,7 +59,7 @@ assert.ok(civilianRuntime.includes("updateSocial"), "civilian runtime must suppo
 
 const playerRuntime = fs.readFileSync(path.join(root, "js/player.js"), "utf8");
 const characterRuntime = fs.readFileSync(path.join(root, "js/character.js"), "utf8");
-assert.ok(playerRuntime.includes("modelYawOffset: 0"), "player must use civilian_002's local forward axis");
+assert.ok(playerRuntime.includes("modelYawOffset: Math.PI"), "player must use the same 180-degree civilian_002 orientation as pedestrians");
 assert.ok(characterRuntime.includes("modelYawOffset: Math.PI"), "enemy default yaw offset must remain explicit");
 assert.ok(characterRuntime.includes("key === 'idle' ? 1 : 0"), "civilian_002 standing idle must be the initial player pose");
 assert.ok(playerRuntime.includes("runThreshold: 0.62"), "normal-speed player movement must select the walk clip, not the run clip");
