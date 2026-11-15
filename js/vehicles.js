@@ -48,19 +48,19 @@ export const CAR_PHYSICS = {
       upshiftRpm: 8000,
       downshiftRpm: 2600,
       shiftTime: 0.08,
-      peakTorqueNm: 600,
+      peakTorqueNm: 660,
       drivetrainEfficiency: 0.90,
-      maxAcceleration: 13.8,
-      torqueCurve: [[900, 220], [2000, 330], [3000, 420], [4000, 500], [5000, 560], [6500, 600], [7500, 590], [8000, 561], [8500, 500]],
+      maxAcceleration: 16.5,
+      torqueCurve: [[900, 280], [2000, 410], [3000, 500], [4000, 570], [5000, 630], [6500, 660], [7500, 650], [8000, 610], [8500, 520]],
     },
     interiorCamera: { height: 0.98, forward: 0.16, side: 0, lookAhead: 18, pitch: 0, fov: 82 },
     steeringWheel: { axis: 'x', maxAngleDeg: 450, sign: 1, response: 11 },
     engineAcceleration: 11.8,
-    reverseAcceleration: 5.4,
+    reverseAcceleration: 7.2,
     brakeAcceleration: 16.0,
-    maxSpeed: 90.3,
-    maxReverseSpeed: 13.0,
-    speedometerMaxKmh: 325,
+    maxSpeed: 100,
+    maxReverseSpeed: 15.0,
+    speedometerMaxKmh: 360,
     aeroDragArea: 0.78,
     rollingResistance: 0.015,
     speedSteeringFalloff: 0.0105,
@@ -89,7 +89,8 @@ export const CAR_PHYSICS = {
     suspensionResponse: 32,
     uprightStrength: 3.8,
     uprightDamping: 4.3,
-    angularDamping: 0.82,
+    angularDamping: 0.90,
+    highSpeedYawDamping: 0.75,
   },
   cybertruck: {
     mass: 3150,
@@ -105,11 +106,11 @@ export const CAR_PHYSICS = {
     brakeBias: 0.60,
     powertrain: {
       type: 'ev',
-      maxMotorTorque: 1000,
-      peakPowerKw: 447,
+      maxMotorTorque: 1450,
+      peakPowerKw: 520,
       finalDrive: 10.0,
       wheelRadius: 0.419,
-      maxAcceleration: 11.5,
+      maxAcceleration: 15.0,
       regenDeceleration: 1.15,
       drivetrainEfficiency: 0.92,
       torqueCurve: [[0, 1000], [4500, 1000], [9000, 800], [14000, 580], [18000, 0]],
@@ -117,11 +118,11 @@ export const CAR_PHYSICS = {
     interiorCamera: { height: 1.42, forward: 0.30, side: 0, lookAhead: 20, pitch: 0, fov: 82 },
     steeringWheel: { axis: 'x', maxAngleDeg: 450, sign: 1, response: 9 },
     engineAcceleration: 12.8,
-    reverseAcceleration: 5.8,
+    reverseAcceleration: 7.2,
     brakeAcceleration: 15.5,
-    maxSpeed: 50,
-    maxReverseSpeed: 13.0,
-    speedometerMaxKmh: 180,
+    maxSpeed: 60,
+    maxReverseSpeed: 15.0,
+    speedometerMaxKmh: 216,
     aeroDragArea: 1.22,
     rollingResistance: 0.020,
     speedSteeringFalloff: 0.0075,
@@ -155,6 +156,7 @@ export const CAR_PHYSICS = {
     rollUprightStrength: 9.0,
     rollUprightDamping: 8.5,
     angularDamping: 1.0,
+    highSpeedYawDamping: 0.85,
   },
 };
 
@@ -1295,6 +1297,22 @@ export class VehicleSystem {
         frontRadius: measuredFrontRadius,
         rearRadius: measuredRearRadius,
       };
+      // Keep the imported GLB and measured calibration untouched, but make the
+      // physics hardpoints truly symmetric. Small authored left/right offsets
+      // otherwise create a constant yaw moment once both axles are driven.
+      for (const axle of [frontWheels, rearWheels]) {
+        const left = axle.find(wheel => wheel.x > 0);
+        const right = axle.find(wheel => wheel.x < 0);
+        if (!left || !right) continue;
+        const halfTrack = (Math.abs(left.x) + Math.abs(right.x)) * 0.5;
+        const axleZ = (left.z + right.z) * 0.5;
+        const axleY = (left.y + right.y) * 0.5;
+        const axleRadius = (left.radius + right.radius) * 0.5;
+        left.x = halfTrack; right.x = -halfTrack;
+        left.z = right.z = axleZ;
+        left.y = right.y = axleY;
+        left.radius = right.radius = axleRadius;
+      }
       const baseInteriorCamera = base.userData.assetOverride?.interiorCamera
         || physicsProfile.interiorCamera
         || { height: Math.max(0.85, (bodyBox.max.y - bodyBox.min.y) * 0.62), forward: 0.18, side: 0, lookAhead: 18, pitch: 0, fov: 82 };
