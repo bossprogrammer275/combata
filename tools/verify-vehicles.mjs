@@ -315,16 +315,15 @@ try {
       ? Math.hypot(secondAfterStarterCars.pos.x - firstAfterStarterCars.pos.x, secondAfterStarterCars.pos.z - firstAfterStarterCars.pos.z).toFixed(1)
       : 'none'));
 
-  check('vehicle exit moves the player capsule before restoring collision', () => {
-    const exitIndex = vehicleSource.indexOf('  exit(player) {');
-    const exitBlock = vehicleSource.slice(exitIndex, exitIndex + 2100);
-    const teleportIndex = exitBlock.indexOf('this.physics.setPlayerPosition');
-    const enableIndex = exitBlock.indexOf('this.physics.setPlayerCollisionEnabled(true)');
-    check('vehicle exit has a clear-side placement helper',
-      vehicleSource.includes('_findExitPosition(veh, player)')
-        && exitBlock.includes('this._findExitPosition(veh, player)'));
-    return teleportIndex >= 0 && enableIndex > teleportIndex;
-  });
+  const exitIndex = vehicleSource.indexOf('  exit(player) {');
+  const exitBlock = vehicleSource.slice(exitIndex, exitIndex + 2100);
+  const teleportIndex = exitBlock.indexOf('this.physics.setPlayerPosition');
+  const enableIndex = exitBlock.indexOf('this.physics.setPlayerCollisionEnabled(true)');
+  check('vehicle exit has a clear-side placement helper',
+    vehicleSource.includes('_findExitPosition(veh, player)')
+      && exitBlock.includes('this._findExitPosition(veh, player)'));
+  check('vehicle exit teleports the player before restoring collision',
+    teleportIndex >= 0 && enableIndex > teleportIndex);
   check('world yaw includes the GLB nose-axis correction', () => {
     const yaw = VehicleSystem.prototype._worldYaw({ yaw: 0.42, yawOffset: Math.PI });
     assert.ok(Math.abs(yaw - (0.42 + Math.PI)) < 1e-8);
