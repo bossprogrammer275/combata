@@ -39,7 +39,8 @@ function stepElectric(state,spec,tune,throttle,speed,dt) {
   let driveAcceleration=0,brakeAcceleration=0,regenLevel=0;
   if(throttle>.01){
     if(speed<-.8)brakeAcceleration=(tune.brakeAcceleration||12)*throttle;
-    else driveAcceleration=accel*throttle*clamp(1-Math.max(0,speed)/Math.max(1,tune.maxSpeed||50)*.12,.82,1);
+    else if(Math.abs(speed)*3.6<=(spec.driveCutKmh??Infinity))
+      driveAcceleration=accel*throttle*clamp(1-Math.max(0,speed)/Math.max(1,tune.maxSpeed||50)*.12,.82,1);
   } else if(throttle<-.01){
     if(speed>.8){
       brakeAcceleration=(tune.brakeAcceleration||12)*Math.abs(throttle);
