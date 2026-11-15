@@ -905,12 +905,17 @@ export class VehicleSystem {
       pos: { x: origin.x, z: origin.z },
     };
     const candidates = [
-      // The two default cars are parked diagonally beside the player start.
-      // Put the first hotkey spawn straight ahead/behind, then use the sides.
-      [6, 0], [-6, 0], [0, 5.25], [0, -5.25],
-      [6, 1.5], [6, -1.5], [-6, 1.5], [-6, -1.5],
-      [5.5, 3], [5.5, -3], [-5.5, 3], [-5.5, -3],
-      [4.5, 4.5], [4.5, -4.5], [-4.5, 4.5], [-4.5, -4.5],
+      // Spawn beside and slightly ahead of the player, inside the normal
+      // third-person camera view and within E-entry range. Pure forward
+      // placement put the vehicle beyond the camera's look target.
+      [2.5, 3.5], [2.5, -3.5],
+      [4.5, 2.0], [4.5, -2.0],
+      [-2.5, 3.5], [-2.5, -3.5],
+      [5.0, 0], [-5.0, 0],
+      [2.5, 4.8], [2.5, -4.8],
+      [-2.5, 4.8], [-2.5, -4.8],
+      [5.5, 2.8], [5.5, -2.8],
+      [-5.5, 2.8], [-5.5, -2.8],
     ];
     let spot = null;
     for (const [forward, lateral] of candidates) {
@@ -1142,6 +1147,15 @@ export class VehicleSystem {
       // The clone keeps the normalized base transform (recenter offset/scale);
       // userData boxes are in root space and translate with the root directly.
       const clone = base.clone(true);
+      clone.visible = true;
+      let renderableMeshCount = 0;
+      clone.traverse(node => {
+        if (!node.isMesh) return;
+        renderableMeshCount++;
+        node.visible = true;
+        node.frustumCulled = false;
+      });
+      if (!renderableMeshCount) throw new Error('Vehicle model has no renderable meshes: ' + kind);
       root.add(clone);
       const colBoxes = base.userData.colBoxes || [];
       if (!colBoxes.length || !base.userData.bodyBox) throw new Error('Vehicle asset has no valid fitted chassis collision geometry: ' + kind);
@@ -1327,11 +1341,15 @@ export class VehicleSystem {
         // to initialize at all, not a silent substitute for broken vehicle physics.
       }
 
+      root.visible = true;
+      root.position.set(def.x, def.elevation || 0, def.z);
+      root.updateMatrixWorld(true);
       this.scene.add(root);
       this.vehicles.push(v);
       if (this.physicsDebugEnabled) this._ensurePhysicsDebugVehicle(v);
       this._addParkedCollider(v);
-      console.log('[Vehicle] Spawned car (' + kind + ') at', def.x, def.z, '- boxes:', colBoxes.length, 'wheels:', wheels.length);
+      console.log('[Vehicle] Spawned car (' + kind + ') at', def.x, def.elevation || 0, def.z,
+        '- meshes:', renderableMeshCount, 'boxes:', colBoxes.length, 'wheels:', wheels.length);
       return v;
     } catch (e) {
       this.lastSpawnError = e;
