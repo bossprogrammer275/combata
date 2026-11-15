@@ -103,12 +103,12 @@ try{
       const detail=await page.evaluate(q=>window.__vehicleVisualTest.focusWheel(q),quadrant);
       const shot=await capture(page,spec.prefix+'-wheel-'+quadrant);
       let steeredShot=null;
-      if(spec.kind==='cybertruck'&&quadrant.startsWith('front')){
+      if(quadrant.startsWith('front')){
         const angle=quadrant==='front-left'?0.48:-0.48;
         const steering=await page.evaluate(value=>window.__vehicleVisualTest.setWheelSteering(value),angle);
         const frontWheels=steering.filter(w=>w.front);
         const rearWheels=steering.filter(w=>!w.front);
-        check('Cybertruck '+quadrant+' keeps the complete tyre attached while steering',
+        check(spec.kind+' '+quadrant+' keeps complete tyre groups attached while steering',
           steering.length===4
             && frontWheels.length===2
             && rearWheels.length===2
