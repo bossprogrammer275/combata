@@ -266,7 +266,9 @@ export class Physics {
 
     // Create character controller via world (correct API)
     this._playerController = this.world.createCharacterController(0.01);
-    this._playerController.enableAutostep(0.6, 0.5, true);
+    // Curbs are only 0.36m wide. The old 0.5m minimum rejected them as
+    // step candidates, forcing the player to jump at road/sidewalk edges.
+    this._playerController.enableAutostep(0.6, 0.18, true);
     this._playerController.enableSnapToGround(0.5);
     this._playerController.setApplyImpulsesToDynamicBodies(false);
 
@@ -314,7 +316,12 @@ export class Physics {
 
   setPlayerPosition(x, y, z) {
     if (!this._playerBody) return;
-    this._playerBody.setNextKinematicTranslation({ x, y, z });
+    const position = { x, y, z };
+    // Used for vehicle enter/exit and other explicit relocations: update the
+    // kinematic body immediately, then leave the same next target queued so
+    // the following physics step does not interpolate from the old position.
+    this._playerBody.setTranslation(position, true);
+    this._playerBody.setNextKinematicTranslation(position);
   }
 
   getPlayerPosition() {
