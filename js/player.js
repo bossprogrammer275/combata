@@ -29,6 +29,8 @@ export class Player {
     this.jumpCameraHeight = 0;
     this.jumpCameraVelocity = 0;
     this._jumpWasDown = false;
+    this._animationVelocityX = 0;
+    this._animationVelocityZ = 0;
     this.crouched = false;
     this.sprinting = false;
     this.sensitivity = 1;
@@ -91,7 +93,11 @@ export class Player {
   // networkable description of this character (also fed to the local rig).
   // Remote players in MP will be built from the same shape.
   getState() {
-    const hs = Math.hypot(this.vel.x, this.vel.z);
+    // The local body animation follows actual travel, not requested input.
+    // During a skydive, use the body's horizontal velocity directly.
+    const animationVX = this.skydive ? this.vel.x : this._animationVelocityX;
+    const animationVZ = this.skydive ? this.vel.z : this._animationVelocityZ;
+    const hs = Math.hypot(animationVX, animationVZ);
     const speed = Math.min(1, hs / (this.baseSpeed * this.sprintMult));
     return {
       x: this.pos.x, y: this.pos.y, z: this.pos.z,
@@ -99,7 +105,9 @@ export class Player {
       crouch: this.crouched ? 1 : 0,
       aim: this.aimAmount,
       aimYaw: this._aimYaw || 0,
-      moveX: this._moveX || 0, moveZ: this._moveZ || 0,
+      moveX: hs > 0.05 ? animationVX / hs : 0,
+      moveZ: hs > 0.05 ? animationVZ / hs : 0,
+      groundSpeed: hs,
       sprint: this.sprinting ? 1 : 0,
       lean: this.leanAmount,
       speed,
@@ -243,6 +251,8 @@ export class Player {
       return;
     }
 
+    const frameStartX = this.pos.x;
+    const frameStartZ = this.pos.z;
     this.crouched = !!k.crouch;
     const rawMoving = (k.forward !== 0 || k.right !== 0) ? 1 : 0;
     this.sprinting = !!(k.sprint && rawMoving && !this.crouched);
@@ -337,6 +347,12 @@ export class Player {
     }
     if (this.pos.y < 0) { this.pos.y = 0; this.vel.y = 0; this.onGround = true; }
 
+    // Measure the movement the collision controller actually allowed. This is
+    // the source of truth for locomotion animation and body facing.
+    const animationDt = Math.max(dt, 1 / 240);
+    this._animationVelocityX = (this.pos.x - frameStartX) / animationDt;
+    this._animationVelocityZ = (this.pos.z - frameStartZ) / animationDt;
+
     // Staircase detection: if we stepped up while on ground and moving, we're on stairs
     if (this.onGround && moving && !this.climbing) {
       const yDelta = this.pos.y - this._prevGroundY;
@@ -398,7 +414,7 @@ export class Player {
 
     // ---- body pose state (smoothed, networkable) ----
     // walk-cycle phase advances with ground speed (only when actually moving)
-    const groundSpeed = Math.hypot(this.vel.x, this.vel.z);
+    const groundSpeed = Math.hypot(this._animationVelocityX, this._animationVelocityZ);
     if (moving) this.phase += dt * (this.sprinting ? 11 : 7.5) * Math.min(1, groundSpeed / (this.baseSpeed * 0.6) + 0.2);
     // aim blend from ADS; lean from strafe intent
     const targetAim = (k.ads || k.fire) ? 1 : 0;
@@ -429,8 +445,8 @@ export class Player {
       // intent while momentum is still carrying the player the other way.
       // This prevents the walk/run cycle from appearing to play backwards
       // during quick direction changes.
-      const facingX = groundSpeed > 0.18 ? this.vel.x : this._moveX;
-      const facingZ = groundSpeed > 0.18 ? this.vel.z : this._moveZ;
+      const facingX = this._animationVelocityX;
+      const facingZ = this._animationVelocityZ;
       if (Math.hypot(facingX, facingZ) > 0.01) {
         faceYaw = Math.atan2(-facingX, -facingZ);
       }
