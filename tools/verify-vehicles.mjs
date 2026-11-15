@@ -659,6 +659,21 @@ try {
   );
   check('Rapier raycast does not hit beyond its max distance', shortRay === null);
 
+  // Reproduce a player standing still on the road. Without downward movement,
+  // Rapier's computedGrounded() can alternate while the capsule remains supported.
+  physics.setPlayerPosition(0, 0.06, 0);
+  physics.step(1 / 60);
+  let stationaryGroundedFrames = 0;
+  const stationaryProbeFrames = 60;
+  for (let i = 0; i < stationaryProbeFrames; i++) {
+    const stationary = physics.movePlayer(0, -1 / 60, 0);
+    physics.step(1 / 60);
+    if (stationary.ground) stationaryGroundedFrames++;
+  }
+  check('stationary Rapier player remains grounded across consecutive contact probes',
+    stationaryGroundedFrames >= 58,
+    `${stationaryGroundedFrames}/${stationaryProbeFrames} grounded frames`);
+
   // Match the road surface to the actual rendered ribbon triangles rather than
   // a cuboid strip with its own invisible vertical side faces.
   const roadGeometry = new THREE.BufferGeometry();
