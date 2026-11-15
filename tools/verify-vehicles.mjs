@@ -279,8 +279,9 @@ try {
   // usable point instead of testing only the diagonals occupied by those cars.
   const starterCarSpawnHarness = Object.create(VehicleSystem.prototype);
   starterCarSpawnHarness.vehicles = [
-    { pos: { x: 12, z: 220 }, yaw: 0, yawOffset: Math.PI, half: { x: 1.15, z: 2.45 } },
-    { pos: { x: -2, z: 220 }, yaw: 0, yawOffset: Math.PI, half: { x: 1.12, z: 2.85 } },
+    // Actual city-a.json vehicle spawns (the two authored starter cars).
+    { pos: { x: 16, z: 184 }, yaw: 1.57, yawOffset: Math.PI, half: { x: 1.15, z: 2.45 } },
+    { pos: { x: 29, z: 184 }, yaw: 1.57, yawOffset: Math.PI, half: { x: 1.12, z: 2.85 } },
   ];
   starterCarSpawnHarness.driver = null;
   starterCarSpawnHarness.world = { groundHeightAt: () => 0.06 };
@@ -295,7 +296,7 @@ try {
     starterCarSpawnHarness.vehicles.push(car);
     return car;
   };
-  const cityStartPlayer = { pos: { x: 5, y: 0, z: 225 }, yaw: 0 };
+  const cityStartPlayer = { pos: { x: 10, y: 0.5, z: 166 }, yaw: 0 };
   const firstAfterStarterCars = await starterCarSpawnHarness.spawnNearPlayer('cybertruck', cityStartPlayer);
   const secondAfterStarterCars = await starterCarSpawnHarness.spawnNearPlayer('lambo', cityStartPlayer);
   check('first hotkey vehicle spawns despite the two default city cars',
