@@ -17,7 +17,7 @@ import { VehicleSystem, CAR_MODELS, CAR_PHYSICS } from './vehicles.js';
 import { Civilians } from './civilians.js';
 import { Physics } from './physics.js';
 import { resolveDriveAxes } from './vehicle-steering.js';
-import { prefetch, prefetchPersistent } from './model-loader.js';
+import { prefetchPersistent } from './model-loader.js';
 
 const currentScene = new URLSearchParams(location.search).get('scene') || 'city-a.json';
 const SCENE_URL = './data/worlds/' + currentScene;
@@ -122,11 +122,6 @@ class Game {
     void prefetchPersistent(Object.values(CAR_MODELS).map(model => model.url));
     // Pre-fetch scene data in parallel with renderer warmup.
     this._sceneFetch = fetch(SCENE_URL).then(r => r.json()).then(data => {
-      // Immediately start prefetching all GLB model binaries off main thread
-      if (data && data.glbAssets) {
-        const urls = data.glbAssets.map(a => a.url).filter(u => u && (u.endsWith('.glb') || u.endsWith('.gltf')));
-        if (urls.length) prefetch(urls);
-      }
       return data;
     }).catch(() => null);
     requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -195,9 +190,9 @@ class Game {
       this.updateHud();
     };
     this.vehicles = new VehicleSystem(this.scene, this.world, this.camera, this.audio, this.physics);
-    this.vehicles.buildFromWorld();
+    const vehicleStartup = this.vehicles.buildFromWorld();
     this.vehicles.setPlayerRef(this.player);
-    setLoad(0.74, 'LOADING CIVILIAN 002…');
+    setLoad(0.74, 'LOADING VEHICLES & CIVILIAN 002…');
     this.civilians = new Civilians(this.scene, this.world, {
       quality,
       physics: this.physics,
@@ -206,7 +201,9 @@ class Game {
       hud: this.hud,
     });
     this.civilians.onCasualty = (civ) => this.civilianDown(civ);
-    await this.civilians.ready;
+    // Finish heavy vehicle parsing behind the loading screen so it cannot hitch
+    // the first moments of driving.
+    await Promise.all([this.civilians.ready, vehicleStartup]);
     this.tools = new Tools(this);
     this.godMode = false;
     this._hostileCap = 1;
