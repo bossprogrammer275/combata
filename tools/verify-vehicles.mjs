@@ -131,7 +131,10 @@ try {
     appSource.includes('this.audio.updateVehicleEngine(')
       && appSource.includes('this.vehicles.getEngineAudioState(dt)')
       && vehicleSource.includes('getEngineAudioState(dt = 1 / 60)')
-      && !vehicleSource.includes('this.audio.engine('));
+      && !vehicleSource.includes('this.audio.engine(')
+      && appSource.includes("case 'KeyM':")
+      && appSource.includes("this.vehicles.toggleDriveMode()")
+      && pageSource.includes("<b>M</b> Cybertruck mode"));
   check('K opens the dynamic vehicle garage and the Bugatti is listed',
     appSource.includes("case 'KeyK':")
       && appSource.includes('this.toggleVehicleSpawnMenu();')
@@ -394,6 +397,13 @@ try {
     assert.equal(CAR_PHYSICS.cybertruck.powertrain.peakPowerKw, 470);
     assert.equal(CAR_PHYSICS.cybertruck.powertrain.maxDriveForceN, 33500);
     assert.equal(CAR_PHYSICS.cybertruck.powertrain.driveCutKmh, 209);
+    assert.equal(CAR_PHYSICS.cybertruck.powertrain.maxRegenForceN, 9000);
+    assert.equal(CAR_PHYSICS.cybertruck.powertrain.maxRegenPowerKw, 110);
+    assert.equal(CAR_PHYSICS.cybertruck.powertrain.brakeForceN, 16000);
+    assert.deepEqual(CAR_PHYSICS.cybertruck.powertrain.modes.beast,
+      { peakPowerKw: 470, maxDriveForceN: 33500, motorCount: 3 });
+    assert.deepEqual(CAR_PHYSICS.cybertruck.powertrain.modes.awd,
+      { peakPowerKw: 224, maxDriveForceN: 26000, motorCount: 2 });
   });
 
   check('vehicle types have distinct physics tuning', () => {
@@ -498,9 +508,32 @@ try {
       result = stepVehiclePowertrain(state, CAR_PHYSICS.cybertruck, 0, 20, 1 / 60);
     }
     assert.ok(result.motorRpm > 4000);
-    assert.ok(result.regenLevel > 0.2);
+    assert.ok(result.regenLevel > 0.15 && result.regenLevel < 0.18);
     assert.equal(result.driveDemand, 0);
   });
+
+  check('Cybertruck dual-motor mode changes its force and power envelope', () => {
+    const state = createPowertrainState(CAR_PHYSICS.cybertruck);
+    state.driveMode = 'awd';
+    const result = stepVehiclePowertrain(state, CAR_PHYSICS.cybertruck, 1, 0, 1 / 60);
+    assert.equal(result.driveMode, 'awd');
+    assert.equal(result.driveDemand, 1);
+    assert.ok(result.driveAcceleration < stepVehiclePowertrain(
+      createPowertrainState(CAR_PHYSICS.cybertruck),
+      CAR_PHYSICS.cybertruck, 1, 0, 1 / 60,
+    ).driveAcceleration);
+  });
+
+  const modeHarness = {
+    driver: {
+      kind: 'cybertruck',
+      rapierBody: { _openWorldPowertrainState: { driveMode: 'beast' } },
+    },
+  };
+  check('Cybertruck M-key mode action switches physics state and cycles back',
+    VehicleSystem.prototype.toggleDriveMode.call(modeHarness) === 'awd'
+      && modeHarness.driver.rapierBody._openWorldPowertrainState.driveMode === 'awd'
+      && VehicleSystem.prototype.toggleDriveMode.call(modeHarness) === 'beast');
 
   check('Chiron turbo spool rises under load and is part of drivetrain output', () => {
     const state = createPowertrainState(CAR_PHYSICS.bugatti);
