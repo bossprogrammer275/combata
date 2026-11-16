@@ -289,6 +289,37 @@ export function rotBoxXZ(bb, yaw, out) {
 const loader = new GLTFLoader();
 const _modelCache = Object.create(null);
 const _modelLoadPromises = new Map();
+const _modelLoadQueue = [];
+const MODEL_DEVICE_MEMORY_GB = typeof navigator !== 'undefined'
+  ? (Number(navigator.deviceMemory) || 4)
+  : 4;
+const MODEL_HARDWARE_THREADS = typeof navigator !== 'undefined'
+  ? (Number(navigator.hardwareConcurrency) || 2)
+  : 2;
+// A single GLTF parse at a time avoids memory spikes and main-thread stalls on
+// 4 GB / dual-core laptops. Better hardware can decode two or three in parallel.
+const MODEL_DECODE_CONCURRENCY = MODEL_DEVICE_MEMORY_GB <= 4 || MODEL_HARDWARE_THREADS <= 4
+  ? 1
+  : MODEL_DEVICE_MEMORY_GB <= 8 ? 2 : 3;
+let _activeModelLoads = 0;
+
+function drainCarModelQueue() {
+  while (_activeModelLoads < MODEL_DECODE_CONCURRENCY && _modelLoadQueue.length) {
+    const task = _modelLoadQueue.shift();
+    _activeModelLoads++;
+    _loadCarModelUncached(task.kind).then(task.resolve, task.reject).finally(() => {
+      _activeModelLoads--;
+      drainCarModelQueue();
+    });
+  }
+}
+
+function enqueueCarModelLoad(kind) {
+  return new Promise((resolve, reject) => {
+    _modelLoadQueue.push({ kind, resolve, reject });
+    drainCarModelQueue();
+  });
+}
 
 // ---------- model normalization ----------
 // Sketchfab car models arrive with arbitrary origins (the cybertruck mesh sits
@@ -774,8 +805,10 @@ async function _loadCarModelUncached(kind = 'lambo') {
   if (_modelCache[kind]) return _modelCache[kind];
   const def = CAR_MODELS[kind];
   if (!def) throw new Error('Unknown vehicle model: ' + kind);
+  const loadStartedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
   try {
     const gltf = await new Promise((res, rej) => loader.load(def.url, res, undefined, rej));
+    const decodedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const scene = gltf.scene;
     await loadAssetOverrides();
     applyAssetOverrides(scene, def.url); // node transforms are applied before mesh fitting and collision extraction
@@ -806,16 +839,9 @@ async function _loadCarModelUncached(kind = 'lambo') {
       ? cls.bodyBox.getSize(new THREE.Vector3())
       : cls.total.clone();
     const longestH = Math.max(bodySize.x, bodySize.z, 0.001);
-    if (kind === 'bugatti') {
-      console.log('[Bugatti] body fit before normalization', JSON.stringify({
-        bodySize: bodySize.toArray(),
-        totalSize: cls.total.toArray(),
-        displayBlobCount: cls.blobs.size,
-        displayBlobs: [...cls.blobs].slice(0, 20).map(mesh => mesh.name || '(unnamed)'),
-        wheelCandidates: cls.wheelDiagnostics.meshes.filter(mesh => mesh.candidate)
-          .map(mesh => ({ name: mesh.name, center: mesh.center, size: mesh.size })),
-      }));
-    }
+    // Keep startup logs lean; detailed mesh diagnostics remain available in
+    // the dedicated visual verification tool rather than serializing mesh data
+    // on the user's main thread during ordinary game loading.
     scene.scale.multiplyScalar(def.targetLen / longestH);
     scene.updateMatrixWorld(true);
 
@@ -931,7 +957,8 @@ async function _loadCarModelUncached(kind = 'lambo') {
     scene.userData.wheelCalibration = wheelCalibration;
 
     _modelCache[kind] = scene;
-    console.log(`[Vehicle] Loaded car model: ${kind} (body ${fsize.x.toFixed(2)}x${fsize.y.toFixed(2)}x${fsize.z.toFixed(2)}m, ${colBoxes.length} collision boxes, ${rigs.length} wheels)`);
+    const finishedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    console.log(`[Vehicle] Loaded ${kind}: fetch/decode ${Math.round(decodedAt - loadStartedAt)}ms, fit ${Math.round(finishedAt - decodedAt)}ms, ${colBoxes.length} colliders / ${rigs.length} wheels`);
     return scene;
   } catch (e) {
     console.error(`[Vehicle] Refusing to load ${kind}; no placeholder vehicle will be substituted.`, e);
@@ -947,7 +974,7 @@ export function loadCarModel(kind = 'lambo') {
   if (_modelCache[kind]) return Promise.resolve(_modelCache[kind]);
   const existing = _modelLoadPromises.get(kind);
   if (existing) return existing;
-  const pending = _loadCarModelUncached(kind);
+  const pending = enqueueCarModelLoad(kind);
   _modelLoadPromises.set(kind, pending);
   pending.then(
     () => { if (_modelLoadPromises.get(kind) === pending) _modelLoadPromises.delete(kind); },
