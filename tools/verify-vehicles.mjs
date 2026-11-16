@@ -790,7 +790,9 @@ try {
       check('Escalade merged GLTF tyre/rim materials are split into four actual wheel corners',
         split?.clusters?.length === 4
           && new Set(split.clusters.map(cluster => cluster.corner)).size === 4
-          && split.sourceMaterials >= 5,
+          && split.sourceMaterials >= 5
+          && split.clusters.filter(cluster => cluster.corner.startsWith('front')).every(cluster => cluster.center[1] > 0)
+          && split.clusters.filter(cluster => cluster.corner.startsWith('rear')).every(cluster => cluster.center[1] < 0),
         JSON.stringify(split));
     }
     check('wheels low on body', wheels.every((w) => w.center.y < 0.65),
