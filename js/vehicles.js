@@ -1179,7 +1179,7 @@ async function _loadCarModelUncached(kind = 'lambo') {
     // base position/scale, so they translate with the vehicle root directly.
     cls = classifyCarMeshes(meshWorldBoxes(scene), wheelClassificationOptions);
     if (kind === 'escalade' && cls.wheelInfos.length !== 4) {
-      const diagnostics = cls.wheelDiagnostics.candidateDiagnostics
+      const diagnostics = cls.wheelDiagnostics.meshes
         .filter(item => item.name.includes('[Escalade') || item.candidate)
         .map(item => ({ name: item.name, size: item.size, center: item.center, candidate: item.candidate, rejectedReasons: item.rejectedReasons }));
       console.warn('[Escalade wheel split diagnostics]', JSON.stringify({
