@@ -112,7 +112,7 @@ try{
     manager.update(chiron, {
       rpm: 5900, speed: 52, gear: 5, throttle: 0.82,
       boost: 0.86, shiftTimer: 0, interior: false, dt: 1 / 60,
-      revLimiter: false,
+      environment: 'tunnel', revLimiter: false,
     });
     const chironBoost = manager.getActiveState();
 
