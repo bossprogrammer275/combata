@@ -56,5 +56,6 @@ noise buffer. The authored module remains responsible for its own sound graph.
 | `lambo` | `gallardoV10.js` | Gallardo naturally aspirated V10, exhaust/intake layers, e-gear transients |
 | `bugatti` | `chironW16.js` | Chiron W16, turbo whistle, blow-off valve, crackle and tunnel reverb |
 | `cybertruck` | `cybertruckTriMotor.js` | Cyberbeast motor orders, inverter, tyres, wind, body, warning tone and regen |
+| `escalade` | `escaladeV8.js` | Vortec 6000 V8 crank/firing orders, intake/exhaust, four-speed shifts, transmission, tyres and wind |
 
 The graph builders and one-shot helpers are in `soundEngineTools.js`.
