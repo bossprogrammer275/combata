@@ -139,7 +139,7 @@ export function createEscaladeV8Engine({ ctx, destination, noiseBuffer }) {
   }
 
   function gearShift(nextGear, direction) {
-    const up = direction ? direction === 'up' : nextGear > S.gear;
+    const up = direction ? direction === 'up' : nextGear > lastGear;
     const time = ctx.currentTime;
     S.shiftDir = up ? 'up' : 'down';
     S.sinceShift = 0;
