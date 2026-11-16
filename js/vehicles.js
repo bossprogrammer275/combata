@@ -284,11 +284,12 @@ export function rotBoxXZ(bb, yaw, out) {
   return out;
 }
 
-// Prefetch all car models at module init (off main thread)
-prefetch(Object.values(CAR_MODELS).map(c => c.url));
-
+// Car source files are persisted by the service worker. Avoid the old
+// model-loader prefetch here: its raw buffers were not consumed by this
+// dedicated GLTFLoader, so it fetched large car files a second time.
 const loader = new GLTFLoader();
-const _modelCache = {};
+const _modelCache = Object.create(null);
+const _modelLoadPromises = new Map();
 
 // ---------- model normalization ----------
 // Sketchfab car models arrive with arbitrary origins (the cybertruck mesh sits
@@ -304,14 +305,20 @@ const _modelCache = {};
 function meshWorldBoxes(root) {
   const out = [];
   root.updateMatrixWorld(true);
-  const wb = new THREE.Box3();
+  // Match Box3.setFromObject for static GLB meshes, but reuse each geometry's
+  // local bounds instead of re-walking its vertex buffer on every classifier pass.
+  const localBox = new THREE.Box3();
+  const worldBox = new THREE.Box3();
   root.traverse((o) => {
     if (!o.isMesh) return;
-    const g = o.geometry;
-    if (!g || !g.attributes.position) return;
-    wb.setFromObject(o);
-    if (wb.isEmpty()) return;
-    out.push({ o, min: wb.min.clone(), max: wb.max.clone() });
+    const geometry = o.geometry;
+    if (!geometry?.attributes?.position) return;
+    if (!geometry.boundingBox) geometry.computeBoundingBox();
+    if (!geometry.boundingBox || geometry.boundingBox.isEmpty()) return;
+    localBox.copy(geometry.boundingBox);
+    worldBox.copy(localBox).applyMatrix4(o.matrixWorld);
+    if (worldBox.isEmpty()) return;
+    out.push({ o, min: worldBox.min.clone(), max: worldBox.max.clone() });
   });
   return out;
 }
@@ -764,7 +771,7 @@ function rigWheels(scene, wheelInfos, toLocal) {
   return rigs;
 }
 
-export async function loadCarModel(kind = 'lambo') {
+async function _loadCarModelUncached(kind = 'lambo') {
   if (_modelCache[kind]) return _modelCache[kind];
   const def = CAR_MODELS[kind];
   if (!def) throw new Error('Unknown vehicle model: ' + kind);
@@ -934,7 +941,21 @@ export async function loadCarModel(kind = 'lambo') {
   }
 }
 
-Object.keys(CAR_MODELS).forEach(k => loadCarModel(k).catch(() => {}));
+// Share one network/decode/normalization promise per car. Before this guard,
+// three starter spawns could all enter GLTFLoader for the same large Chiron
+// before the first load populated _modelCache.
+export function loadCarModel(kind = 'lambo') {
+  if (_modelCache[kind]) return Promise.resolve(_modelCache[kind]);
+  const existing = _modelLoadPromises.get(kind);
+  if (existing) return existing;
+  const pending = _loadCarModelUncached(kind);
+  _modelLoadPromises.set(kind, pending);
+  pending.then(
+    () => { if (_modelLoadPromises.get(kind) === pending) _modelLoadPromises.delete(kind); },
+    () => { if (_modelLoadPromises.get(kind) === pending) _modelLoadPromises.delete(kind); },
+  );
+  return pending;
+}
 
 export class VehicleSystem {
   constructor(scene, world, camera, audio, physics = null) {
@@ -1053,25 +1074,47 @@ export class VehicleSystem {
   }
 
   buildFromWorld() {
-    // The driving sandbox intentionally starts with exactly two nearby cars.
-    // Prefer authored spawns closest to the player start, but never allow the
-    // map's old large vehicle list to flood the initial scene.
+    // Spawn one of each registered car around the player's authored start.
+    // Selecting unique kinds keeps a large authored vehicle list from filling
+    // the initial area with duplicate models.
     const start = this.world.startPoint || { x: 0, z: 0 };
+    const maxDistance = 48;
     const authored = (this.world.vehicleSpawns || [])
+      .filter(vehicle => CAR_MODELS[vehicle.kind]
+        && Math.hypot(vehicle.x - start.x, vehicle.z - start.z) <= maxDistance)
       .slice()
-      .sort((a, b) => Math.hypot(a.x - start.x, a.z - start.z) - Math.hypot(b.x - start.x, b.z - start.z));
-    const chosen = authored.slice(0, 2);
-    if (chosen.length < 2) {
-      const extra = [
-        { x: start.x + 7, z: start.z - 5, ry: start.yaw || 0, kind: 'lambo', elevation: 0 },
-        { x: start.x - 7, z: start.z - 5, ry: start.yaw || 0, kind: 'cybertruck', elevation: 0 },
-      ];
-      for (const candidate of extra) {
-        if (chosen.length >= 2) break;
-        if (!chosen.some(v => Math.hypot(v.x - candidate.x, v.z - candidate.z) < 5)) chosen.push(candidate);
-      }
+      .sort((a, b) =>
+        Math.hypot(a.x - start.x, a.z - start.z)
+        - Math.hypot(b.x - start.x, b.z - start.z));
+    const chosen = [];
+    const usedKinds = new Set();
+    for (const vehicle of authored) {
+      if (usedKinds.has(vehicle.kind)) continue;
+      chosen.push(vehicle);
+      usedKinds.add(vehicle.kind);
+      if (chosen.length >= Object.keys(CAR_MODELS).length) break;
     }
-    for (const s of chosen) this.spawn({ ...s, elevation: s.elevation || 0 });
+
+    // Keep a safe fallback for scenes without authored car positions.
+    const fallbackSlots = [
+      { x: start.x - 10, z: start.z + 12, ry: start.yaw || 0 },
+      { x: start.x + 3, z: start.z + 12, ry: start.yaw || 0 },
+      { x: start.x + 16, z: start.z + 12, ry: start.yaw || 0 },
+    ];
+    for (const kind of Object.keys(CAR_MODELS)) {
+      if (usedKinds.has(kind) || chosen.length >= Object.keys(CAR_MODELS).length) continue;
+      const slot = fallbackSlots[chosen.length] || fallbackSlots[fallbackSlots.length - 1];
+      chosen.push({ ...slot, kind, elevation: 0 });
+      usedKinds.add(kind);
+    }
+
+    this.startupVehicleLoads = Promise.allSettled(
+      chosen.map(vehicle => this.spawn({
+        ...vehicle,
+        elevation: Number.isFinite(vehicle.elevation) ? vehicle.elevation : 0,
+      })),
+    );
+    return this.startupVehicleLoads;
   }
 
   // Spawn within interaction range, avoiding existing cars. This keeps the
@@ -1341,7 +1384,8 @@ export class VehicleSystem {
         if (!node.isMesh) return;
         renderableMeshCount++;
         node.visible = true;
-        node.frustumCulled = false;
+        // Keep Three.js frustum culling enabled for dense GLTF models.
+        node.frustumCulled = true;
       });
       if (!renderableMeshCount) throw new Error('Vehicle model has no renderable meshes: ' + kind);
       root.add(clone);
