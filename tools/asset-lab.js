@@ -9,7 +9,7 @@ const assets={
 '/data/models/cars/CAR Model by Ignition Labs - 5zUWP5UsLg-.glb':{name:'Lamborghini model',kind:'vehicle',targetLen:4.7,camera:{height:.98,forward:.16,side:0,lookAhead:18,pitch:0,fov:82}},
 '/data/models/cars/tesla_cybertruk_low_poly/scene.gltf':{name:'Tesla Cybertruck',kind:'vehicle',targetLen:5.7,camera:{height:1.42,forward:.3,side:0,lookAhead:20,pitch:0,fov:82}},
 '/data/models/cars/2021_bugatti_chiron_pur_sport/scene.gltf':{name:'Bugatti Chiron Pur Sport',kind:'vehicle',targetLen:4.647,camera:{height:.94,forward:.34,side:0,lookAhead:20,pitch:0,fov:82}},
-'/data/models/cars/cadillac_escalade_2006/scene.gltf':{name:'Cadillac Escalade ESV',kind:'vehicle',targetLen:5.624,rotation:{x:-Math.PI/2,y:0,z:0},camera:{height:1.36,forward:.38,side:0,lookAhead:20,pitch:0,fov:82}}};
+'/data/models/cars/cadillac_escalade_2006/scene.gltf':{name:'Cadillac Escalade ESV',kind:'vehicle',targetLen:5.624,camera:{height:1.36,forward:.38,side:0,lookAhead:20,pitch:0,fov:82}}};
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x111914);scene.add(new THREE.HemisphereLight(0xdcebe0,0x26352a,2.1));
 const key=new THREE.DirectionalLight(0xfff1d9,3.2);key.position.set(8,12,9);scene.add(key);const fill=new THREE.DirectionalLight(0x9ab9d6,1);fill.position.set(-8,6,-7);scene.add(fill);scene.add(new THREE.GridHelper(80,80,0x49604e,0x26352a));
 const camera=new THREE.PerspectiveCamera(45,1,.05,2000),renderer=new THREE.WebGLRenderer({canvas:$('view'),antialias:true,preserveDrawingBuffer:true});
