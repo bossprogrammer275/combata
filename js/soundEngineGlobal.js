@@ -4,11 +4,13 @@
 import { createGallardoV10Engine } from './vehicle-sounds/gallardoV10.js';
 import { createChironW16Engine } from './vehicle-sounds/chironW16.js';
 import { createCybertruckTriMotorEngine } from './vehicle-sounds/cybertruckTriMotor.js';
+import { createEscaladeV8Engine } from './vehicle-sounds/escaladeV8.js';
 
 export const VEHICLE_SOUND_ENGINES = Object.freeze({
   lambo: createGallardoV10Engine,
   bugatti: createChironW16Engine,
   cybertruck: createCybertruckTriMotorEngine,
+  escalade: createEscaladeV8Engine,
 });
 
 export class SoundEngineGlobal {
