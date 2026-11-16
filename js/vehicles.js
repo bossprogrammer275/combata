@@ -1178,6 +1178,15 @@ async function _loadCarModelUncached(kind = 'lambo') {
     // ROOT space (== world coords here, root identity): the clone keeps the
     // base position/scale, so they translate with the vehicle root directly.
     cls = classifyCarMeshes(meshWorldBoxes(scene), wheelClassificationOptions);
+    if (kind === 'escalade' && cls.wheelInfos.length !== 4) {
+      const diagnostics = cls.wheelDiagnostics.candidateDiagnostics
+        .filter(item => item.name.includes('[Escalade') || item.candidate)
+        .map(item => ({ name: item.name, size: item.size, center: item.center, candidate: item.candidate, rejectedReasons: item.rejectedReasons }));
+      console.warn('[Escalade wheel split diagnostics]', JSON.stringify({
+        split: scene.userData.escaladeWheelSplit,
+        candidates: diagnostics,
+      }));
+    }
     const requiredQuadrants = ['front-left', 'front-right', 'rear-left', 'rear-right'];
     const wheelByCorner = new Map(cls.wheelInfos.map(wheel => [wheel.quadrant, wheel]));
     if (cls.wheelInfos.length !== 4 || requiredQuadrants.some(corner => !wheelByCorner.has(corner))) {
