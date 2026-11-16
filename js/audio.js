@@ -29,6 +29,14 @@ export class GameAudio {
     });
   }
 
+  resume() {
+    if (!this.ctx) this.init();
+    if (this.ctx?.state === 'suspended') {
+      this.ctx.resume().catch(error => console.warn('[Audio] resume failed:', error));
+    }
+    return this.ctx?.state || 'unavailable';
+  }
+
   setVolume(v) { this.volume = v; if (this.master) this.master.gain.value = v; }
 
   _noise(dur, filterType, freq, q, gain, decay = null, freqEnd = null) {
