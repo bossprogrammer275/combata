@@ -180,11 +180,11 @@ export function createEscaladeV8Engine({ ctx, destination, noiseBuffer }) {
     P(A.intakeHigh.gain.gain, throttle * throttle * 0.035 * interior, 0.08);
     P(A.intakeHigh.filter.frequency, 1200 + rpm * 0.18, 0.10);
 
-    P(A.exhaustRumble.gain, (0.025 + runningLoad * 0.065) * exterior, 0.08);
+    P(A.exhaustRumble.gain.gain, (0.025 + runningLoad * 0.065) * exterior, 0.08);
     P(A.exhaustRumble.filter.frequency, 110 + rpm * 0.045, 0.08);
-    P(A.exhaustPulse.gain, (0.018 + runningLoad * 0.052) * exterior, 0.08);
+    P(A.exhaustPulse.gain.gain, (0.018 + runningLoad * 0.052) * exterior, 0.08);
     P(A.exhaustPulse.filter.frequency, 360 + rpm * 0.16, 0.08);
-    P(A.exhaustRasp.gain, throttle * (0.006 + speedRatio * 0.018) * exterior, 0.08);
+    P(A.exhaustRasp.gain.gain, throttle * (0.006 + speedRatio * 0.018) * exterior, 0.08);
     P(A.exhaustRasp.filter.frequency, 1050 + rpm * 0.22, 0.08);
 
     P(A.transWhine.gain.gain, (0.006 + speedRatio * 0.025) * (0.65 + throttle * 0.35), 0.10);
