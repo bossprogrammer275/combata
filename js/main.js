@@ -858,6 +858,7 @@ class Game {
         case 'KeyQ': if (this.state === 'playing' && !this.player.skydive && !(this.vehicles && this.vehicles.driver)) this.weapons.swap(1); break;
         case 'KeyE':
           if (this.state === 'playing') {
+            this.audio.resume();
             if (this.vehicles && this.vehicles.driver) {
               this.vehicles.exit(this.player);
               this.audio.stopEngine();
