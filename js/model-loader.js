@@ -105,7 +105,10 @@ export async function prefetchPersistent(urls = []) {
     || !urls.length) return false;
   // Best-effort persistent storage keeps the car cache from being evicted
   // as readily under browser storage pressure. This never blocks startup.
-  try { void navigator.storage?.persist?.(); } catch { /* unsupported */ }
+  try {
+    const persistenceRequest = navigator.storage?.persist?.();
+    persistenceRequest?.catch?.(() => {});
+  } catch { /* unsupported */ }
   if (!_assetServiceWorkerPromise) {
     const serviceWorkerUrl = new URL('../service-worker.js', import.meta.url);
     const scopeUrl = new URL('../', import.meta.url);
