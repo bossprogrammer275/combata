@@ -116,11 +116,11 @@ try {
   const escaladeSoundSource = await fs.promises.readFile(path.join(ROOT, 'js/vehicle-sounds/escaladeV8.js'), 'utf8');
   const start = cityScene.startPoint;
   const starterCars = cityScene.vehicles || [];
-  check('city-a parks all three registered cars beside the player spawn',
-    starterCars.length === 3
-      && new Set(starterCars.map(vehicle => vehicle.kind)).size === 3
-      && ['lambo', 'cybertruck', 'bugatti'].every(kind => starterCars.some(vehicle => vehicle.kind === kind))
-      && starterCars.every(vehicle => Math.hypot(vehicle.x - start.x, vehicle.z - start.z) < 24),
+  check('city-a parks all four registered cars beside the player spawn',
+    starterCars.length === 4
+      && new Set(starterCars.map(vehicle => vehicle.kind)).size === 4
+      && ['lambo', 'cybertruck', 'bugatti', 'escalade'].every(kind => starterCars.some(vehicle => vehicle.kind === kind))
+      && starterCars.every(vehicle => Math.hypot(vehicle.x - start.x, vehicle.z - start.z) < 32),
     starterCars.map(vehicle => vehicle.kind + '@' + vehicle.x + ',' + vehicle.z).join(' | '));
   check('initial garage starts one of each registered model, without duplicates',
     vehicleSource.includes('const usedKinds = new Set()')
@@ -333,11 +333,11 @@ try {
   };
   spawnHarness.spawn = (def) => spawnCalls.push(def);
   spawnHarness.buildFromWorld();
-  check('initial world spawns all three unique registered cars near the player',
-    spawnCalls.length === 3
-      && new Set(spawnCalls.map(vehicle => vehicle.kind)).size === 3
-      && ['lambo', 'cybertruck', 'bugatti'].every(kind => spawnCalls.some(vehicle => vehicle.kind === kind))
-      && spawnCalls.every(vehicle => Math.hypot(vehicle.x - 5, vehicle.z - 225) < 15),
+  check('initial world spawns all four unique registered cars near the player',
+    spawnCalls.length === 4
+      && new Set(spawnCalls.map(vehicle => vehicle.kind)).size === 4
+      && ['lambo', 'cybertruck', 'bugatti', 'escalade'].every(kind => spawnCalls.some(vehicle => vehicle.kind === kind))
+      && spawnCalls.every(vehicle => Math.hypot(vehicle.x - 5, vehicle.z - 225) < 30),
     `count=${spawnCalls.length} kinds=${spawnCalls.map(vehicle => vehicle.kind).join(',')} distances=${spawnCalls.map(v => Math.hypot(v.x - 5, v.z - 225).toFixed(1)).join(',')}`);
 
   const hotkeySpawnHarness = Object.create(VehicleSystem.prototype);
