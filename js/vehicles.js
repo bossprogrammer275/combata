@@ -992,7 +992,7 @@ function splitEscaladeWheelMeshes(scene) {
       radius,
       bounds: { min, max },
       triangles: count,
-      key: (wheelCenter.y < 0 ? 'front' : 'rear') + '-' + (wheelCenter.x > 0 ? 'left' : 'right'),
+      key: (wheelCenter.y > 0 ? 'front' : 'rear') + '-' + (wheelCenter.x > 0 ? 'left' : 'right'),
     };
   });
   const keys = new Set(clusters.map(cluster => cluster.key));
