@@ -1739,6 +1739,17 @@ export class VehicleSystem {
     return false;
   }
 
+  toggleDriveMode() {
+    const vehicle = this.driver;
+    if (!vehicle || vehicle.kind !== 'cybertruck') return null;
+    const current = vehicle.driveMode || CAR_PHYSICS.cybertruck.powertrain.defaultDriveMode || 'beast';
+    const next = current === 'beast' ? 'awd' : 'beast';
+    vehicle.driveMode = next;
+    const powertrain = vehicle.rapierBody?._openWorldPowertrainState;
+    if (powertrain) powertrain.driveMode = next;
+    return next;
+  }
+
   getEngineAudioState(dt = 1 / 60) {
     const vehicle = this.driver;
     if (!vehicle) return null;
