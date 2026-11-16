@@ -163,6 +163,10 @@ try {
   console.log('[verify] server up on ' + BASE);
 
   const { loadCarModel, CAR_MODELS, CAR_PHYSICS, VEHICLE_COORDINATES, VehicleSystem, rigSteeringWheel } = await import('../js/vehicles.js');
+  const firstBugattiLoad = loadCarModel('bugatti');
+  const secondBugattiLoad = loadCarModel('bugatti');
+  check('concurrent Bugatti requests share one in-flight GLTF load', firstBugattiLoad === secondBugattiLoad);
+  await firstBugattiLoad;
   const { Physics } = await import('../js/physics.js');
   const { createPowertrainState, stepVehiclePowertrain } = await import('../js/vehicle-powertrains.js');
   const { VEHICLE_SOUND_ENGINES } = await import('../js/soundEngineGlobal.js');
@@ -274,14 +278,18 @@ try {
       { x: 31, z: -169, kind: 'lambo' },
       { x: 6, z: 229, kind: 'cybertruck' },
       { x: 4, z: 217, kind: 'lambo' },
+      { x: 7, z: 220, kind: 'bugatti' },
       { x: 94, z: -133, kind: 'cybertruck' },
     ],
   };
   spawnHarness.spawn = (def) => spawnCalls.push(def);
   spawnHarness.buildFromWorld();
-  check('initial world spawns exactly two vehicles nearest the player',
-    spawnCalls.length === 2 && spawnCalls.every(v => Math.hypot(v.x - 5, v.z - 225) < 15),
-    `count=${spawnCalls.length} distances=${spawnCalls.map(v => Math.hypot(v.x - 5, v.z - 225).toFixed(1)).join(',')}`);
+  check('initial world spawns all three unique registered cars near the player',
+    spawnCalls.length === 3
+      && new Set(spawnCalls.map(vehicle => vehicle.kind)).size === 3
+      && ['lambo', 'cybertruck', 'bugatti'].every(kind => spawnCalls.some(vehicle => vehicle.kind === kind))
+      && spawnCalls.every(vehicle => Math.hypot(vehicle.x - 5, vehicle.z - 225) < 15),
+    `count=${spawnCalls.length} kinds=${spawnCalls.map(vehicle => vehicle.kind).join(',')} distances=${spawnCalls.map(v => Math.hypot(v.x - 5, v.z - 225).toFixed(1)).join(',')}`);
 
   const hotkeySpawnHarness = Object.create(VehicleSystem.prototype);
   hotkeySpawnHarness.vehicles = [];
@@ -320,9 +328,10 @@ try {
   // usable point instead of testing only the diagonals occupied by those cars.
   const starterCarSpawnHarness = Object.create(VehicleSystem.prototype);
   starterCarSpawnHarness.vehicles = [
-    // Actual city-a.json vehicle spawns (the two authored starter cars).
-    { pos: { x: 16, z: 184 }, yaw: 1.57, yawOffset: Math.PI, half: { x: 1.15, z: 2.45 } },
-    { pos: { x: 29, z: 184 }, yaw: 1.57, yawOffset: Math.PI, half: { x: 1.12, z: 2.85 } },
+    // Actual city-a.json starter cars, parked west-to-east near player spawn.
+    { pos: { x: 0, z: 178 }, yaw: 1.57, yawOffset: Math.PI, half: { x: 1.15, z: 2.45 } },
+    { pos: { x: 13, z: 178 }, yaw: 1.57, yawOffset: Math.PI, half: { x: 1.12, z: 2.85 } },
+    { pos: { x: 26, z: 178 }, yaw: 1.57, yawOffset: Math.PI, half: { x: 1.15, z: 2.45 } },
   ];
   starterCarSpawnHarness.driver = null;
   starterCarSpawnHarness.world = { groundHeightAt: () => 0.06 };
