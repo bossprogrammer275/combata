@@ -2,6 +2,7 @@
 // buffers/textures are cached across launches; normal page fetches are cache-first.
 const VEHICLE_CACHE = 'open-world-vehicle-assets-v1';
 const VEHICLE_PATH = '/data/models/cars/';
+const pendingAssetFetches = new Map();
 
 self.addEventListener('install', event => {
   event.waitUntil(self.skipWaiting());
@@ -26,10 +27,23 @@ async function fetchAndCache(url) {
   const request = new Request(url.href, { method: 'GET', credentials: 'same-origin' });
   const cached = await cache.match(request);
   if (cached) return cached;
-  const response = await fetch(request);
-  if (!response.ok) throw new Error('HTTP ' + response.status + ' for ' + url.pathname);
-  await cache.put(request, response.clone());
-  return response;
+
+  // Share one request between background preloading and GLTFLoader fetches.
+  const key = request.url;
+  let pending = pendingAssetFetches.get(key);
+  if (!pending) {
+    pending = (async () => {
+      const response = await fetch(request);
+      if (!response.ok) throw new Error('HTTP ' + response.status + ' for ' + url.pathname);
+      try { await cache.put(request, response.clone()); } catch { /* quota/private mode */ }
+      return response;
+    })();
+    pendingAssetFetches.set(key, pending);
+    pending.finally(() => {
+      if (pendingAssetFetches.get(key) === pending) pendingAssetFetches.delete(key);
+    }).catch(() => {});
+  }
+  return (await pending).clone();
 }
 
 async function runLimited(items, limit, task) {
