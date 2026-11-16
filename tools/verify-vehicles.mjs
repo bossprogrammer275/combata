@@ -104,11 +104,37 @@ try {
   const appSource = await fs.promises.readFile(path.join(ROOT, 'js/main.js'), 'utf8');
   const pageSource = await fs.promises.readFile(path.join(ROOT, 'index.html'), 'utf8');
   const vehicleSource = await fs.promises.readFile(path.join(ROOT, 'js/vehicles.js'), 'utf8');
+  const modelLoaderSource = await fs.promises.readFile(path.join(ROOT, 'js/model-loader.js'), 'utf8');
+  const serviceWorkerSource = await fs.promises.readFile(path.join(ROOT, 'service-worker.js'), 'utf8');
+  const cityScene = JSON.parse(await fs.promises.readFile(path.join(ROOT, 'data/worlds/city-a.json'), 'utf8'));
   const audioSource = await fs.promises.readFile(path.join(ROOT, 'js/audio.js'), 'utf8');
   const soundRouterSource = await fs.promises.readFile(path.join(ROOT, 'js/soundEngineGlobal.js'), 'utf8');
   const v10SoundSource = await fs.promises.readFile(path.join(ROOT, 'js/vehicle-sounds/gallardoV10.js'), 'utf8');
   const w16SoundSource = await fs.promises.readFile(path.join(ROOT, 'js/vehicle-sounds/chironW16.js'), 'utf8');
   const evSoundSource = await fs.promises.readFile(path.join(ROOT, 'js/vehicle-sounds/cybertruckTriMotor.js'), 'utf8');
+  const start = cityScene.startPoint;
+  const starterCars = cityScene.vehicles || [];
+  check('city-a parks all three registered cars beside the player spawn',
+    starterCars.length === 3
+      && new Set(starterCars.map(vehicle => vehicle.kind)).size === 3
+      && ['lambo', 'cybertruck', 'bugatti'].every(kind => starterCars.some(vehicle => vehicle.kind === kind))
+      && starterCars.every(vehicle => Math.hypot(vehicle.x - start.x, vehicle.z - start.z) < 24),
+    starterCars.map(vehicle => vehicle.kind + '@' + vehicle.x + ',' + vehicle.z).join(' | '));
+  check('initial garage starts one of each registered model, without duplicates',
+    vehicleSource.includes('const usedKinds = new Set()')
+      && vehicleSource.includes('Object.keys(CAR_MODELS).length')
+      && vehicleSource.includes('_modelLoadPromises.get(kind)'));
+  check('Bugatti mesh fitting reuses computed geometry bounds',
+    vehicleSource.includes('if (!geometry.boundingBox) geometry.computeBoundingBox()')
+      && vehicleSource.includes('worldBox.copy(localBox).applyMatrix4(o.matrixWorld)')
+      && vehicleSource.includes('node.frustumCulled = true'));
+  check('service worker persists vehicle GLTFs, binary buffers and referenced textures',
+    serviceWorkerSource.includes('caches.open(VEHICLE_CACHE)')
+      && serviceWorkerSource.includes('PREFETCH_VEHICLE_ASSETS')
+      && serviceWorkerSource.includes('document.buffers')
+      && serviceWorkerSource.includes('document.images')
+      && modelLoaderSource.includes('navigator.serviceWorker.register')
+      && modelLoaderSource.includes('worker.postMessage'));
   check('global vehicle sound router registers the three authored sound engines',
     soundRouterSource.includes('createGallardoV10Engine')
       && soundRouterSource.includes('createChironW16Engine')
