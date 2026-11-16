@@ -510,6 +510,10 @@ try {
     assert.ok(result.motorRpm > 4000);
     assert.ok(result.regenLevel > 0.15 && result.regenLevel < 0.18);
     assert.equal(result.driveDemand, 0);
+    const cutoffState = createPowertrainState(CAR_PHYSICS.cybertruck);
+    const cutoff = stepVehiclePowertrain(cutoffState, CAR_PHYSICS.cybertruck, 1, 60, 1 / 60);
+    assert.equal(cutoff.driveDemand, 0, 'prototype motor drive cuts above 209 km/h');
+    assert.equal(cutoff.driveAcceleration, 0);
   });
 
   check('Cybertruck dual-motor mode changes its force and power envelope', () => {
