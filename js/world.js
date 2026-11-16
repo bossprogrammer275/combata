@@ -754,8 +754,8 @@ export class World {
       : this._quality === 'high' ? 6
       : this._quality === 'medium' ? 4
       : this._quality === 'low' ? 2 : 1;
-    const memoryConcurrency = this._deviceMemoryGB <= 4 ? 1
-      : this._deviceMemoryGB <= 8 ? 2 : 4;
+    const memoryConcurrency = this._deviceMemoryGB <= 4 ? 2
+      : this._deviceMemoryGB <= 8 ? 3 : 4;
     const CONCURRENT = Math.min(qualityConcurrency, memoryConcurrency);
     for (let i = 0; i < assets.length; i += CONCURRENT) {
       const batch = assets.slice(i, i + CONCURRENT);
