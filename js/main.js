@@ -17,7 +17,7 @@ import { VehicleSystem, CAR_MODELS, CAR_PHYSICS } from './vehicles.js';
 import { Civilians } from './civilians.js';
 import { Physics } from './physics.js';
 import { resolveDriveAxes } from './vehicle-steering.js';
-import { prefetch } from './model-loader.js';
+import { prefetch, prefetchPersistent } from './model-loader.js';
 
 const currentScene = new URLSearchParams(location.search).get('scene') || 'city-a.json';
 const SCENE_URL = './data/worlds/' + currentScene;
@@ -117,6 +117,9 @@ class Game {
       if (m && msg) m.textContent = msg;
     };
     setLoad(0.05, 'INITIALIZING…');
+    // Cache car files and their GLTF dependencies in a service worker so
+    // returning sessions do not download the models and textures again.
+    void prefetchPersistent(Object.values(CAR_MODELS).map(model => model.url));
     // Pre-fetch scene data in parallel with renderer warmup.
     this._sceneFetch = fetch(SCENE_URL).then(r => r.json()).then(data => {
       // Immediately start prefetching all GLB model binaries off main thread
