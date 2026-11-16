@@ -150,10 +150,11 @@ try {
       && serviceWorkerSource.includes('document.images')
       && modelLoaderSource.includes('navigator.serviceWorker.register')
       && modelLoaderSource.includes('worker.postMessage'));
-  check('global vehicle sound router registers the three authored sound engines',
+  check('global vehicle sound router registers all four authored sound engines',
     soundRouterSource.includes('createGallardoV10Engine')
       && soundRouterSource.includes('createChironW16Engine')
       && soundRouterSource.includes('createCybertruckTriMotorEngine')
+      && soundRouterSource.includes('createEscaladeV8Engine')
       && audioSource.includes('new SoundEngineGlobal'));
   check('Gallardo source graph retains V10 firing harmonics and top-end scream',
     v10SoundSource.includes("[0.5, 'sawtooth', 0.35, 0]")
@@ -435,7 +436,12 @@ try {
     const evLaunch = stepVehiclePowertrain(evState, CAR_PHYSICS.cybertruck, 1, 0, 1 / 60);
     const iceLaunch = stepVehiclePowertrain(iceState, CAR_PHYSICS.lambo, 1, 0, 1 / 60);
     const w16Launch = stepVehiclePowertrain(w16State, CAR_PHYSICS.bugatti, 1, 0, 1 / 60);
+    const escaladeState = createPowertrainState(CAR_PHYSICS.escalade);
+    const escaladeLaunch = stepVehiclePowertrain(escaladeState, CAR_PHYSICS.escalade, 1, 0, 1 / 60);
     assert.equal(evLaunch.powertrainType, 'electric-single-speed');
+    assert.equal(escaladeLaunch.powertrainType, 'automatic');
+    assert.equal(escaladeLaunch.gear, '1');
+    assert.ok(escaladeLaunch.driveAcceleration > 0);
     assert.equal(iceLaunch.powertrainType, 'dct');
     assert.equal(w16Launch.powertrainType, 'dct');
     assert.equal(evLaunch.gear, 'D');
@@ -446,6 +452,10 @@ try {
 
   check('authored sound profiles match the real drivetrain layouts', () => {
     assert.deepEqual(Object.keys(VEHICLE_SOUND_ENGINES).sort(), ['bugatti', 'cybertruck', 'escalade', 'lambo']);
+    assert.equal(CAR_PHYSICS.escalade.powertrain.type, 'automatic');
+    assert.equal(CAR_PHYSICS.escalade.powertrain.gearRatios.length, 4);
+    assert.equal(CAR_PHYSICS.escalade.powertrain.peakTorqueNm, 515);
+    assert.equal(CAR_PHYSICS.escalade.mass, 2613);
     assert.equal(CAR_PHYSICS.lambo.powertrain.gearRatios.length, 6);
     assert.equal(CAR_PHYSICS.lambo.powertrain.torqueModel, 'gallardo-v10');
     assert.equal(CAR_PHYSICS.lambo.powertrain.peakTorqueNm, 540);
