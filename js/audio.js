@@ -10,9 +10,9 @@ export class GameAudio {
     this.vehicleSoundEngines = null;
   }
 
-  init() {
+  init(force = false) {
     if (this.ctx) return;
-    if (this._disabled) return;
+    if (this._disabled && !force) return;
     this.ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
     this.master = this.ctx.createGain();
     this.master.gain.value = this.volume;
@@ -30,7 +30,7 @@ export class GameAudio {
   }
 
   resume() {
-    if (!this.ctx) this.init();
+    if (!this.ctx) this.init(true);
     if (this.ctx?.state === 'suspended') {
       this.ctx.resume().catch(error => console.warn('[Audio] resume failed:', error));
     }
@@ -40,7 +40,7 @@ export class GameAudio {
   setVolume(v) { this.volume = v; if (this.master) this.master.gain.value = v; }
 
   _noise(dur, filterType, freq, q, gain, decay = null, freqEnd = null) {
-    if (!this.ctx) return null;
+    if (!this.ctx || this._disabled) return null;
     const t = this.ctx.currentTime;
     const src = this.ctx.createBufferSource();
     src.buffer = this.noiseBuf;
@@ -57,7 +57,7 @@ export class GameAudio {
   }
 
   _tone(freq, dur, gain, type = 'sine', freqEnd = null) {
-    if (!this.ctx) return;
+    if (!this.ctx || this._disabled) return;
     const t = this.ctx.currentTime;
     const o = this.ctx.createOscillator();
     o.type = type; o.frequency.setValueAtTime(freq, t);
@@ -187,7 +187,7 @@ export class GameAudio {
 
   // Route real vehicle telemetry into the matching authored sound module.
   updateVehicleEngine(vehicle, telemetry) {
-    if (!this.ctx || this._disabled || !this.vehicleSoundEngines) return false;
+    if (!this.ctx || !this.vehicleSoundEngines) return false;
     return this.vehicleSoundEngines.update(vehicle, telemetry);
   }
 
