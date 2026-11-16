@@ -116,7 +116,7 @@ export const CAR_PHYSICS = {
     brakeBias: 0.60,
     powertrain: {
       type: 'ev',
-       maxMotorTorque: 1520,
+      maxMotorTorque: 1520,
       peakPowerKw: 470,
       maxDriveForceN: 33500,
       maxRegenForceN: 9000,
@@ -882,7 +882,7 @@ async function _loadCarModelUncached(kind = 'lambo') {
     if (!within(measuredWheelbase, profile.wheelbase, 0.15)
       || !within(measuredFrontTrack, profile.trackFront, 0.15)
       || !within(measuredRearTrack, profile.trackRear, 0.15)) {
-      throw new Error(`[${kind}] GLB/profile wheel-layout mismatch: wheelbase=${measuredWheelbase.toFixed(3)}m, tracks=${measuredFrontTrack.toFixed(3)}/${measuredRearTrack.toFixed(3)}m; centres=${JSON.stringify(cls.wheelDiagnostics.selectedWheels.map(w => ({ quadrant:w.quadrant, center:w.center })))}`);
+      throw new Error(`[${kind}] GLB/profile wheel-layout mismatch: wheelbase=${measuredWheelbase.toFixed(3)}m, tracks=${measuredFrontTrack.toFixed(3)}/${measuredRearTrack.toFixed(3)}m; centres=${JSON.stringify(cls.wheelDiagnostics.selectedWheels.map(w => ({ quadrant: w.quadrant, center: w.center })))}`);
     }
     const wheelCenterX = average(cls.wheelInfos.map(wheel => wheel.center.x));
     if (Math.abs(wheelCenterX) > 0.10) {
@@ -1372,9 +1372,11 @@ export class VehicleSystem {
       const end = state?.contact && state.point
         ? state.point
         : hardpoint
-          ? { x: hardpoint.x, y: hardpoint.y - (state.radius || 0.32)
+          ? {
+            x: hardpoint.x, y: hardpoint.y - (state.radius || 0.32)
               - (vehicle.physicsProfile?.suspensionRestLength ?? 0.22)
-              - (vehicle.physicsProfile?.suspensionTravel ?? 0.18), z: hardpoint.z }
+              - (vehicle.physicsProfile?.suspensionTravel ?? 0.18), z: hardpoint.z
+          }
           : null;
       const a = hardpoint
         ? vehicle.root.worldToLocal(new THREE.Vector3(hardpoint.x, hardpoint.y, hardpoint.z))
@@ -1916,7 +1918,7 @@ export class VehicleSystem {
       this._pushPlayerNearby(v, curSpd);
     } else {
       const absSpd = Math.abs(v.speed);
-  
+
       // ===== LONGITUDINAL: engine / brake / drag =====
       const tune = v.physicsProfile || CAR_PHYSICS[v.kind] || CAR_PHYSICS.lambo;
       if (throttle > 0) {
@@ -1943,21 +1945,21 @@ export class VehicleSystem {
           v.speed = 0;
         }
       }
-  
+
       // Handbrake — strong deceleration, loose rear
       if (handbrake) {
         v.speed *= Math.max(0, 1 - dt * 4);
       }
-  
+
       // Kill tiny speed
       if (absSpd < 0.05 && !throttle) v.speed = 0;
-  
+
       // Clamp
       v.speed = THREE.MathUtils.clamp(v.speed, -(tune.maxReverseSpeed || 9), tune.maxSpeed || 40);
-  
+
       curSpd = Math.abs(v.speed);
       const fwd = v.speed >= 0 ? 1 : -1;
-  
+
       // ===== STEERING + TIRE GRIP =====
       // Bicycle-model steering: wheel angle creates curvature, so steering
       // naturally tightens at low speed and opens up as speed rises.
@@ -1968,7 +1970,7 @@ export class VehicleSystem {
         const yawRate = (v.speed / wheelbase) * Math.tan(wheelAngle);
         v.yaw -= THREE.MathUtils.clamp(yawRate, -1.15, 1.15) * dt;
       }
-  
+
       // Lateral tire velocity decays with grip. A handbrake lowers rear grip,
       // allowing a controlled slide instead of the old instant heading-only turn.
       const targetSlip = steerInput * curSpd * (handbrake ? 0.38 : 0.055);
@@ -1977,13 +1979,13 @@ export class VehicleSystem {
       if (Math.abs(steerInput) < 0.05 && !handbrake) {
         v.lateralVel *= Math.exp(-5.5 * dt);
       }
-  
+
       // ===== MOVEMENT — forward velocity plus tire slip =====
       const fx = -Math.sin(v.yaw), fz = -Math.cos(v.yaw);
       const rx = Math.cos(v.yaw), rz = -Math.sin(v.yaw);
       const moveX = (fx * v.speed + rx * v.lateralVel) * dt;
       const moveZ = (fz * v.speed + rz * v.lateralVel) * dt;
-  
+
       // ===== SWEPT COLLISION — subdivide fast movement to prevent tunnelling =====
       let blocked = false;
       const boxes = v.colBoxes || [];
@@ -1993,7 +1995,7 @@ export class VehicleSystem {
       const wYaw = this._worldYaw(v);
       const wY = v.def.elevation || 0;
       const rb = { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
-  
+
       for (let step = 0; step < moveSteps; step++) {
         if (boxes.length > 0) {
           const newX = v.pos.x + stepX;
@@ -2019,7 +2021,7 @@ export class VehicleSystem {
               if (bxMax <= c.min.x || bxMin >= c.max.x) continue;
               if (bzMax <= c.min.z || bzMin >= c.max.z) continue;
               if (byMax <= c.min.y || byMin >= c.max.y) continue;
-  
+
               const ox1 = bxMax - c.min.x, ox2 = c.max.x - bxMin;
               const oz1 = bzMax - c.min.z, oz2 = c.max.z - bzMin;
               const minX = Math.min(ox1, ox2), minZ = Math.min(oz1, oz2);
@@ -2036,7 +2038,7 @@ export class VehicleSystem {
           this._collideFallback(v);
         }
       }
-  
+
       // Bounce / slow on collision
       if (blocked && curSpd > 2) {
         v.speed *= 0.4;
@@ -2045,22 +2047,22 @@ export class VehicleSystem {
       } else {
         this._pushPlayerNearby(v, curSpd);
       }
-  
+
       // World bounds
       const B = this.world.bounds || 1600;
       v.pos.x = THREE.MathUtils.clamp(v.pos.x, -B, B);
       v.pos.z = THREE.MathUtils.clamp(v.pos.z, -B, B);
-  
+
       // Rapier kinematic body sync
       if (v.rapierBody && this.physics) {
         this.physics.updateVehicleBody(v.rapierBody, v.pos.x, v.def.elevation || 0, v.pos.z, this._worldYaw(v));
       }
-  
+
       // Apply transform (same orientation parked and driven — no 180° snap)
       v.root.position.set(v.pos.x, v.def.elevation || 0, v.pos.z);
       v.root.rotation.y = this._worldYaw(v);
-  
-  
+
+
     }
 
     // ===== WHEEL MECHANICS — per-wheel steering + radius-correct spin =====
