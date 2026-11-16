@@ -128,11 +128,19 @@ try{
       interior: true, dt: 1 / 60,
     });
     const teslaRegen = manager.getActiveState();
+
+    const escalade = fixtures[3].vehicle;
+    manager.update(escalade, {
+      rpm: 4200, speed: 22, gear: 4, throttle: 0.82,
+      shiftTimer: 0.34, shiftDirection: 'up', interior: false, dt: 1 / 60,
+    });
+    const escaladeShift = manager.getActiveState();
     const scenarios = {
       lamboUpshift: lamboUpshift?.gear === 4 && lamboUpshift?.shift > 0,
       lamboDownshift: lamboDownshift?.gear === 3 && lamboDownshift?.down === true && lamboDownshift?.cab === true,
       chironBoostTunnel: chironBoost?.boost > 0.8 && chironBoost?.env === 'tunnel',
       teslaDualMotorRegen: teslaRegen?.mode === 'awd' && teslaRegen?.ts < 0 && teslaRegen?.cab === true,
+      escaladeAutomaticShift: escaladeShift?.gear === 4 && escaladeShift?.shift > 0,
     };
     manager.dispose();
     const contextClosed = await Promise.race([
@@ -218,6 +226,11 @@ try{
       check('Bugatti uses its own measured wheel-member grouping radius',
         Math.abs(wheelDiagnostics.wheelMemberRadius-0.42)<1e-9,
         'radius='+wheelDiagnostics.wheelMemberRadius);
+    }else if(spec.kind==='escalade'){
+      check('Escalade uses its own model-specific tyre/rim assembly grouping',
+        Math.abs(wheelDiagnostics.wheelMemberRadius-0.48)<1e-9
+          && Math.abs(wheelDiagnostics.wheelMemberHeightTolerance-0.55)<1e-9,
+        'radius='+wheelDiagnostics.wheelMemberRadius+' height='+wheelDiagnostics.wheelMemberHeightTolerance);
     }
     console.log('WHEEL DETECTOR '+JSON.stringify({
       kind:spec.kind,
