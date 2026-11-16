@@ -4,7 +4,6 @@ import * as TEX from './textures.js';
 import { GLTFLoader } from './lib/GLTFLoader.js';
 import { BVHWorld } from './bvh-collision.js';
 import { Atmosphere } from './atmosphere.js';
-import { prefetch } from './model-loader.js';
 import { loadAssetOverrides, applyAssetOverrides } from './asset-overrides.js';
 
 function rng(a, b) { return a + Math.random() * (b - a); }
@@ -749,21 +748,14 @@ export class World {
       return;
     }
 
-    // Prefetch all GLB binaries off main thread in parallel before decoding
-    const glbUrls = [...new Set(assets.map(a => a.url).filter(u => u && (u.endsWith('.glb') || u.endsWith('.gltf'))))];
-    if (glbUrls.length) {
-      prefetch(glbUrls);
-      console.log(`[World] Prefetching ${glbUrls.length} model binaries in background`);
-    }
-
     // Keep binary decode concurrency within both the selected tier and the
     // browser's reported memory budget. GLTF decompression spikes CPU/RAM.
     const qualityConcurrency = this._quality === 'ultra' ? 8
       : this._quality === 'high' ? 6
       : this._quality === 'medium' ? 4
       : this._quality === 'low' ? 2 : 1;
-    const memoryConcurrency = this._deviceMemoryGB <= 4 ? 2
-      : this._deviceMemoryGB <= 8 ? 4 : 8;
+    const memoryConcurrency = this._deviceMemoryGB <= 4 ? 1
+      : this._deviceMemoryGB <= 8 ? 2 : 4;
     const CONCURRENT = Math.min(qualityConcurrency, memoryConcurrency);
     for (let i = 0; i < assets.length; i += CONCURRENT) {
       const batch = assets.slice(i, i + CONCURRENT);
