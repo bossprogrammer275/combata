@@ -113,6 +113,7 @@ try {
   const v10SoundSource = await fs.promises.readFile(path.join(ROOT, 'js/vehicle-sounds/gallardoV10.js'), 'utf8');
   const w16SoundSource = await fs.promises.readFile(path.join(ROOT, 'js/vehicle-sounds/chironW16.js'), 'utf8');
   const evSoundSource = await fs.promises.readFile(path.join(ROOT, 'js/vehicle-sounds/cybertruckTriMotor.js'), 'utf8');
+  const escaladeSoundSource = await fs.promises.readFile(path.join(ROOT, 'js/vehicle-sounds/escaladeV8.js'), 'utf8');
   const start = cityScene.startPoint;
   const starterCars = cityScene.vehicles || [];
   check('city-a parks all three registered cars beside the player spawn',
@@ -167,6 +168,12 @@ try {
       && evSoundSource.includes("A.pk1 = F('peaking', 900, 3)")
       && evSoundSource.includes('A.avG = G(0)')
       && evSoundSource.includes('const SURF ='));
+  check('Escalade sound source retains V8 firing orders, intake/exhaust and four-speed shift layers',
+    escaladeSoundSource.includes('[4, \'sawtooth\', 0.92, 0]')
+      && escaladeSoundSource.includes('A.exhaustRumble')
+      && escaladeSoundSource.includes('A.intakeHigh')
+      && escaladeSoundSource.includes('function gearShift')
+      && escaladeSoundSource.includes('A.transWhine'));
   check('vehicle audio uses real post-physics telemetry, not the legacy speed-only synth',
     appSource.includes('this.audio.updateVehicleEngine(')
       && appSource.includes('this.vehicles.getEngineAudioState(dt)')
@@ -185,6 +192,7 @@ try {
       && appSource.includes('this.toggleVehicleSpawnMenu();')
       && appSource.includes('Object.keys(CAR_MODELS).forEach((kind, index) =>')
       && appSource.includes("bugatti: { name: 'BUGATTI CHIRON PUR SPORT', className: 'HYPERCAR' }")
+      && appSource.includes("escalade: { name: 'CADILLAC ESCALADE ESV', className: 'LUXURY SUV' }")
       && appSource.includes("this.requestVehicleSpawn(kind, meta.name)")
       && pageSource.includes('id="vehicle-spawn-menu"')
       && pageSource.includes('id="vehicle-spawn-list"'));
@@ -437,7 +445,7 @@ try {
   });
 
   check('authored sound profiles match the real drivetrain layouts', () => {
-    assert.deepEqual(Object.keys(VEHICLE_SOUND_ENGINES).sort(), ['bugatti', 'cybertruck', 'lambo']);
+    assert.deepEqual(Object.keys(VEHICLE_SOUND_ENGINES).sort(), ['bugatti', 'cybertruck', 'escalade', 'lambo']);
     assert.equal(CAR_PHYSICS.lambo.powertrain.gearRatios.length, 6);
     assert.equal(CAR_PHYSICS.lambo.powertrain.torqueModel, 'gallardo-v10');
     assert.equal(CAR_PHYSICS.lambo.powertrain.peakTorqueNm, 540);
@@ -501,7 +509,7 @@ try {
     assert.equal(CAR_PHYSICS.bugatti.wheelbase, 2.711);
     assert.equal(CAR_PHYSICS.bugatti.interiorCamera.height, 0.94);
     assert.ok(Math.abs(CAR_PHYSICS.bugatti.maxSpeed - 350 / 3.6) < 0.01);
-    assert.equal(Object.keys(CAR_MODELS).sort().join(','), 'bugatti,cybertruck,lambo');
+    assert.equal(Object.keys(CAR_MODELS).sort().join(','), 'bugatti,cybertruck,escalade,lambo');
     assert.equal(VEHICLE_COORDINATES.up, '+Y');
     assert.equal(VEHICLE_COORDINATES.forward, '+Z');
     assert.equal(VEHICLE_COORDINATES.left, '+X');
@@ -767,7 +775,15 @@ try {
       }
       const quads = new Set(wheels.map((w) => `${Math.sign(w.center.x)},${Math.sign(w.center.z)}`));
       check('4 wheels in 4 quadrants', quads.size === 4);
-      check('wheels low on body', wheels.every((w) => w.center.y < 0.65),
+      if (kind === 'escalade') {
+      const split = scene.userData.escaladeWheelSplit;
+      check('Escalade merged GLTF tyre/rim materials are split into four actual wheel corners',
+        split?.clusters?.length === 4
+          && new Set(split.clusters.map(cluster => cluster.corner)).size === 4
+          && split.sourceMaterials >= 5,
+        JSON.stringify(split));
+    }
+    check('wheels low on body', wheels.every((w) => w.center.y < 0.65),
         'ys=' + wheels.map((w) => w.center.y.toFixed(2)).join(','));
       check('axle axis sane', wheels.every((w) => w.axle === 'x' || w.axle === 'z'),
         wheels.map((w) => w.axle).join(','));
@@ -963,6 +979,23 @@ try {
     assert.ok(p.springRateFront > 0 && p.springRateRear > 0 && p.tireFriction > 1.3);
   });
 
+  check('Escalade uses its own ESV AWD body and automatic V8 powertrain', () => {
+    const p = CAR_PHYSICS.escalade;
+    assert.equal(CAR_MODELS.escalade.url, './data/models/cars/cadillac_escalade_2006/scene.gltf');
+    assert.equal(CAR_MODELS.escalade.targetLen, 5.624);
+    assert.equal(CAR_MODELS.escalade.nose, 1);
+    assert.ok(Math.abs(CAR_MODELS.escalade.modelRotation.x + Math.PI / 2) < 1e-9);
+    assert.equal(p.mass, 2613);
+    assert.equal(p.drivetrain, 'awd');
+    assert.equal(p.wheelbase, 3.302);
+    assert.equal(p.trackFront, 1.651);
+    assert.equal(p.trackRear, 1.676);
+    assert.equal(p.powertrain.type, 'automatic');
+    assert.equal(p.powertrain.gearRatios.length, 4);
+    assert.equal(p.powertrain.peakTorqueNm, 515);
+    assert.equal(p.speedometerMaxKmh, 180);
+  });
+
   check('sports car and Cybertruck use separate drivetrain and chassis tuning',
     CAR_PHYSICS.lambo.drivetrain === 'rwd'
       && CAR_PHYSICS.cybertruck.drivetrain === 'awd'
@@ -976,12 +1009,13 @@ try {
     CAR_PHYSICS.lambo.handbrakeRearGrip < CAR_PHYSICS.lambo.rearGrip
       && CAR_PHYSICS.cybertruck.handbrakeRearFriction < CAR_PHYSICS.cybertruck.tireFriction,
     `sport rear grip=${CAR_PHYSICS.lambo.handbrakeRearGrip} truck rear friction=${CAR_PHYSICS.cybertruck.handbrakeRearFriction}`);
-  check('all three car types produce real GLB suspension specs',
-    !!dynamicVehicleSpecs.lambo && !!dynamicVehicleSpecs.cybertruck && !!dynamicVehicleSpecs.bugatti
+  check('all four car types produce real GLB suspension specs',
+    !!dynamicVehicleSpecs.lambo && !!dynamicVehicleSpecs.cybertruck && !!dynamicVehicleSpecs.bugatti && !!dynamicVehicleSpecs.escalade
       && dynamicVehicleSpecs.lambo.wheels.length === 4
       && dynamicVehicleSpecs.cybertruck.wheels.length === 4
-      && dynamicVehicleSpecs.bugatti.wheels.length === 4,
-    `lambo=${dynamicVehicleSpecs.lambo?.wheels.length ?? 0} cybertruck=${dynamicVehicleSpecs.cybertruck?.wheels.length ?? 0} bugatti=${dynamicVehicleSpecs.bugatti?.wheels.length ?? 0}`);
+      && dynamicVehicleSpecs.bugatti.wheels.length === 4
+      && dynamicVehicleSpecs.escalade.wheels.length === 4,
+    `lambo=${dynamicVehicleSpecs.lambo?.wheels.length ?? 0} cybertruck=${dynamicVehicleSpecs.cybertruck?.wheels.length ?? 0} bugatti=${dynamicVehicleSpecs.bugatti?.wheels.length ?? 0} escalade=${dynamicVehicleSpecs.escalade?.wheels.length ?? 0}`);
 
   check('real GLB produces a dynamic suspension spec',
     !!dynamicVehicleSpec && dynamicVehicleSpec.wheels.length === 4,
@@ -1555,7 +1589,7 @@ try {
   // Isolated cornering lab: drive each real GLB on a clean Rapier ground plane.
   // A normal ~0.5g turn should not unload a diagonal wheel pair or roll the
   // chassis onto one corner. This stays in the developer test harness only.
-  const corneringKinds = ['lambo', 'cybertruck', 'bugatti'];
+  const corneringKinds = ['lambo', 'cybertruck', 'bugatti', 'escalade'];
   const corneringResults = {};
   for (let kindIndex = 0; kindIndex < corneringKinds.length; kindIndex++) {
     const kind = corneringKinds[kindIndex];
