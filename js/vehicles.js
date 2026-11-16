@@ -1,7 +1,6 @@
 // VehicleSystem — GTA-style arcade driving with real physics feel + speedometer.
 import * as THREE from 'three';
 import { GLTFLoader } from './lib/GLTFLoader.js';
-import { prefetch } from './model-loader.js';
 import { loadAssetOverrides, applyAssetOverrides } from './asset-overrides.js';
 import {
   VEHICLE_COORDINATES,
