@@ -92,17 +92,59 @@ try{
         running: !!state?.on,
       });
     }
+
+    // Exercise the same non-loop scenarios used in the live car: upshift,
+    // downshift/rev-match, W16 boost/tunnel reverb, and EV lift-off regen.
+    const lambo = fixtures[0].vehicle;
+    manager.update(lambo, {
+      rpm: 7600, speed: 40, gear: 4, throttle: 0.9,
+      shiftTimer: 0.24, shiftDirection: 'up', dt: 1 / 60,
+    });
+    const lamboUpshift = manager.getActiveState();
+    manager.update(lambo, {
+      rpm: 5200, speed: 33, gear: 3, throttle: 0.15,
+      shiftTimer: 0.276, shiftDirection: 'down', interior: true, dt: 1 / 60,
+    });
+    const lamboDownshift = manager.getActiveState();
+
+    const chiron = fixtures[1].vehicle;
+    manager.setEnvironment('bugatti', 'tunnel');
+    manager.update(chiron, {
+      rpm: 5900, speed: 52, gear: 5, throttle: 0.82,
+      boost: 0.86, shiftTimer: 0, interior: false, dt: 1 / 60,
+      revLimiter: false,
+    });
+    const chironBoost = manager.getActiveState();
+
+    const tesla = fixtures[2].vehicle;
+    manager.update(tesla, {
+      rpm: 6800, motorRpm: 6800, speed: 17, throttle: 0,
+      driveMode: 'awd', driveDemand: 0, regenLevel: 0.164,
+      interior: true, dt: 1 / 60,
+    });
+    const teslaRegen = manager.getActiveState();
+    const scenarios = {
+      lamboUpshift: lamboUpshift?.gear === 4 && lamboUpshift?.shift > 0,
+      lamboDownshift: lamboDownshift?.gear === 3 && lamboDownshift?.down === true && lamboDownshift?.cab === true,
+      chironBoostTunnel: chironBoost?.boost > 0.8 && chironBoost?.env === 'tunnel',
+      teslaDualMotorRegen: teslaRegen?.mode === 'awd' && teslaRegen?.ts < 0 && teslaRegen?.cab === true,
+    };
     manager.dispose();
     const contextClosed = await Promise.race([
       ctx.close().then(() => true, () => false),
       new Promise(resolve => setTimeout(() => resolve(false), 800)),
     ]);
-    return { results, contextClosed };
+    return { results, scenarios, contextClosed };
   });
   check('all authored vehicle sound graphs build and accept live telemetry',
     soundSmoke.results.length === 3
       && soundSmoke.results.every(item => item.ok && item.running && Math.abs(item.stateRpm - item.expected) < 1),
-    JSON.stringify(soundSmoke));
+    JSON.stringify(soundSmoke.results));
+  check('authored shift, boost/tunnel and regen/cabin sound scenarios respond',
+    Object.values(soundSmoke.scenarios).every(Boolean),
+    JSON.stringify(soundSmoke.scenarios));
+  check('vehicle sound smoke test disposes its AudioContext',
+    soundSmoke.contextClosed === true);
 
   const configs=[
     {kind:'lambo',expectedHeight:0.98,expectedFov:82,prefix:'lamborghini'},
