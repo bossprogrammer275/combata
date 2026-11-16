@@ -1679,9 +1679,10 @@ try {
   const sportsCarTurn = corneringResults.lambo?.yawResponse || 0;
   const teslaTurn = corneringResults.cybertruck?.yawResponse || 0;
   const bugattiTurn = corneringResults.bugatti?.yawResponse || 0;
-  check('all three vehicles retain steering response under the same cornering test',
-    sportsCarTurn > 0.08 && teslaTurn > 0.08 && bugattiTurn > 0.08,
-    `Lamborghini=${(sportsCarTurn * 180 / Math.PI).toFixed(1)}deg Tesla=${(teslaTurn * 180 / Math.PI).toFixed(1)}deg Chiron=${(bugattiTurn * 180 / Math.PI).toFixed(1)}deg`);
+  const escaladeTurn = corneringResults.escalade?.yawResponse || 0;
+  check('all four vehicles retain steering response under the same cornering test',
+    sportsCarTurn > 0.08 && teslaTurn > 0.08 && bugattiTurn > 0.08 && escaladeTurn > 0.08,
+    `Lamborghini=${(sportsCarTurn * 180 / Math.PI).toFixed(1)}deg Tesla=${(teslaTurn * 180 / Math.PI).toFixed(1)}deg Chiron=${(bugattiTurn * 180 / Math.PI).toFixed(1)}deg Escalade=${(escaladeTurn * 180 / Math.PI).toFixed(1)}deg`);
 
 } catch (e) {
   failures++;
