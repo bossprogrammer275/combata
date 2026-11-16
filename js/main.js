@@ -893,7 +893,15 @@ class Game {
             if (locs && idx >= 0 && idx < locs.length) this.fastTravelTo(locs[idx]);
           }
           break;
-        case 'KeyM': if (e.ctrlKey || e.metaKey) { e.preventDefault(); this.toggleFullMap(); } break;
+        case 'KeyM':
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            this.toggleFullMap();
+          } else if (this.state === 'playing' && this.vehicles?.driver?.kind === 'cybertruck') {
+            const mode = this.vehicles.toggleDriveMode();
+            if (mode) this.hud.toast(mode === 'beast' ? 'DRIVE MODE: CYBERBEAST' : 'DRIVE MODE: DUAL MOTOR AWD');
+          }
+          break;
         case 'KeyY': if (this.state === 'playing') this.input.toRoof = true; break;
         case 'KeyO': if (this.state === 'playing') this.toggleOverview(); break;
         case 'F5': if (this.state === 'playing') this.toggleDrone(); break;
