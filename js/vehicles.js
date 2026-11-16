@@ -1449,6 +1449,7 @@ export class VehicleSystem {
       { x: start.x - 10, z: start.z + 12, ry: start.yaw || 0 },
       { x: start.x + 3, z: start.z + 12, ry: start.yaw || 0 },
       { x: start.x + 16, z: start.z + 12, ry: start.yaw || 0 },
+      { x: start.x - 13, z: start.z, ry: start.yaw || 0 },
     ];
     for (const kind of Object.keys(CAR_MODELS)) {
       if (usedKinds.has(kind) || chosen.length >= Object.keys(CAR_MODELS).length) continue;
