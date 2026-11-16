@@ -20,6 +20,7 @@ export const CAR_MODELS = {
   lambo: { url: './data/models/cars/CAR Model by Ignition Labs - 5zUWP5UsLg-.glb', targetLen: 4.7, color: 0xda2828, nose: 1 },
   cybertruck: { url: './data/models/cars/tesla_cybertruk_low_poly/scene.gltf', targetLen: 5.7, color: 0x888888, nose: 1 },
   bugatti: { url: './data/models/cars/2021_bugatti_chiron_pur_sport/scene.gltf', targetLen: 4.647, color: 0x111820, nose: 1 },
+  escalade: { url: './data/models/cars/cadillac_escalade_2006/scene.gltf', targetLen: 5.624, color: 0x17191c, nose: 1, modelRotation: { x: -Math.PI / 2 } },
 };
 
 // Physical values are tuning baselines, not claims of laboratory measurement.
@@ -268,6 +269,88 @@ export const CAR_PHYSICS = {
     angularDamping: 0.98,
     highSpeedYawDamping: 0.82,
   },
+  escalade: {
+    // 2006 Escalade ESV AWD curb weight and chassis dimensions. The bundled
+    // Sketchfab model's source file identifies the ESV body; the profile uses
+    // the ESV wheelbase and track measurements, not the sports-car defaults.
+    mass: 2613,
+    drivetrain: 'awd',
+    wheelbase: 3.302,
+    trackFront: 1.651,
+    trackRear: 1.676,
+    wheelRadiusFront: 0.401,
+    wheelRadiusRear: 0.401,
+    weightFront: 0.53,
+    centerOfMassHeight: 0.78,
+    inertiaScale: 1.18,
+    brakeBias: 0.62,
+    powertrain: {
+      type: 'automatic',
+      // Hydra-Matic 4L65-E four-speed automatic with AWD transfer case.
+      gearRatios: [3.06, 1.63, 1.00, 0.70],
+      finalDrive: 3.73,
+      wheelRadius: 0.401,
+      idleRpm: 600,
+      redline: 5600,
+      upshiftRpm: 5200,
+      upshiftRpmLowLoad: 2600,
+      upshiftRpmFullLoad: 5100,
+      upshiftThrottleThreshold: 0.15,
+      downshiftRpm: 1800,
+      downshiftRpmLowLoad: 1700,
+      downshiftRpmHighLoad: 3400,
+      downshiftRpmBraking: 3000,
+      downshiftTorqueRetention: 0.45,
+      shiftTime: 0.34,
+      peakTorqueNm: 515,
+      drivetrainEfficiency: 0.86,
+      maxAcceleration: 5.8,
+      torqueCurve: [
+        [600, 275], [1000, 335], [1500, 405], [2000, 445],
+        [2800, 480], [3400, 505], [4000, 515], [4500, 500],
+        [5000, 480], [5200, 472], [5500, 430], [5600, 0],
+      ],
+    },
+    interiorCamera: { height: 1.36, forward: 0.38, side: 0, lookAhead: 20, pitch: 0, fov: 82 },
+    steeringWheel: { axis: 'x', maxAngleDeg: 450, sign: 1, response: 8.5 },
+    engineAcceleration: 6.4,
+    reverseAcceleration: 4.0,
+    brakeAcceleration: 10.5,
+    maxSpeed: 50,
+    maxReverseSpeed: 11,
+    speedometerMaxKmh: 180,
+    aeroDragArea: 1.18,
+    rollingResistance: 0.018,
+    speedSteeringFalloff: 0.009,
+    minSteeringScale: 0.42,
+    steeringResponse: 9.0,
+    antiRollStiffness: 52000,
+    downforceCoefficient: 0,
+    maxDownforceG: 0,
+    frontDriveBias: 0.50,
+    driveGripUsageLimit: 0.82,
+    brakingGripUsageLimit: 0.96,
+    handbrakeGripUsageLimit: 0.70,
+    steeringAngle: 0.45,
+    handbrakeSteerAngle: 0.40,
+    frontGrip: 7.8,
+    rearGrip: 8.4,
+    handbrakeRearGrip: 0.55,
+    frontCorneringStiffness: 85000,
+    rearCorneringStiffness: 90000,
+    tireFriction: 1.14,
+    handbrakeRearFriction: 0.44,
+    suspensionRestLength: 0.26,
+    suspensionTravel: 0.17,
+    springRateFront: 62000,
+    springRateRear: 68000,
+    suspensionDampingRatio: 0.62,
+    suspensionResponse: 20,
+    uprightStrength: 3.8,
+    uprightDamping: 4.8,
+    angularDamping: 1.15,
+    highSpeedYawDamping: 0.92,
+  },
 };
 
 // Rotate a root-space XZ rect by yaw -> world-space AABB extents.
@@ -361,6 +444,16 @@ function boxSize(b, out) {
 // Exported options let the visual calibration harness measure a model before
 // deciding whether it needs a vehicle-specific size allowance.
 export function getWheelClassificationOptions(kind) {
+  if (kind === 'escalade') {
+    return {
+      // Its material-wide tyre/rim meshes are first split into four real corners.
+      // Allow those authored tyre/rim layers to group around the measured hubs.
+      wheelMemberRadius: 0.48,
+      wheelMemberMaxSize: 1.10,
+      wheelMemberHeightTolerance: 0.55,
+      wheelCandidateMaxSize: 1.15,
+    };
+  }
   if (kind === 'bugatti') {
     return {
       // The Chiron asset stores its four road wheels as a single front-left
@@ -801,6 +894,215 @@ function rigWheels(scene, wheelInfos, toLocal) {
   return rigs;
 }
 
+// The Escalade GLTF exports the four tyres and several rim finishes as
+// material-wide meshes. Split their triangles into four spatial wheel assemblies
+// before running the normal wheel classifier. This preserves the authored mesh
+// and materials while allowing each real corner to steer and spin independently.
+function splitEscaladeWheelMeshes(scene) {
+  const wheelSourceMaterials = new Set([
+    'tire', 'blur_rim', 'chrome_blur_lip', 'chrome_rim', 'chrome_blur_rim', 'inner_rim',
+  ]);
+  const sources = [];
+  let tireSource = null;
+  scene.traverse(node => {
+    if (!node.isMesh || !node.geometry?.attributes?.position) return;
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    const names = materials.map(material => String(material?.name || '').toLowerCase());
+    if (!names.some(name => wheelSourceMaterials.has(name))) return;
+    sources.push(node);
+    if (names.includes('tire')) tireSource = node;
+  });
+  if (!tireSource) throw new Error('[escalade] merged tyre material mesh was not found');
+
+  const triangleData = (mesh) => {
+    const geometry = mesh.geometry;
+    const position = geometry.attributes.position;
+    const index = geometry.index;
+    const count = index ? index.count : position.count;
+    const triangles = [];
+    for (let i = 0; i + 2 < count; i += 3) {
+      const ids = index
+        ? [index.getX(i), index.getX(i + 1), index.getX(i + 2)]
+        : [i, i + 1, i + 2];
+      const points = ids.map(id => new THREE.Vector3().fromBufferAttribute(position, id));
+      const center = points[0].clone().add(points[1]).add(points[2]).multiplyScalar(1 / 3);
+      triangles.push({ ids, center, points });
+    }
+    return triangles;
+  };
+
+  const tireTriangles = triangleData(tireSource);
+  if (tireTriangles.length < 24) {
+    throw new Error('[escalade] tyre mesh does not contain enough triangles to split four wheels');
+  }
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const triangle of tireTriangles) {
+    minX = Math.min(minX, triangle.center.x);
+    maxX = Math.max(maxX, triangle.center.x);
+    minY = Math.min(minY, triangle.center.y);
+    maxY = Math.max(maxY, triangle.center.y);
+  }
+  const seed = (x, y) => ({ x, y });
+  let centers = [
+    seed(minX + (maxX - minX) * 0.22, minY + (maxY - minY) * 0.22),
+    seed(maxX - (maxX - minX) * 0.22, minY + (maxY - minY) * 0.22),
+    seed(minX + (maxX - minX) * 0.22, maxY - (maxY - minY) * 0.22),
+    seed(maxX - (maxX - minX) * 0.22, maxY - (maxY - minY) * 0.22),
+  ];
+  let assignments = new Array(tireTriangles.length).fill(0);
+  for (let iteration = 0; iteration < 36; iteration++) {
+    const sums = centers.map(() => ({ x: 0, y: 0, count: 0 }));
+    for (let i = 0; i < tireTriangles.length; i++) {
+      const point = tireTriangles[i].center;
+      let best = 0, bestDistance = Infinity;
+      for (let k = 0; k < centers.length; k++) {
+        const dx = point.x - centers[k].x, dy = point.y - centers[k].y;
+        const distance = dx * dx + dy * dy;
+        if (distance < bestDistance) { bestDistance = distance; best = k; }
+      }
+      assignments[i] = best;
+      sums[best].x += point.x;
+      sums[best].y += point.y;
+      sums[best].count++;
+    }
+    centers = centers.map((old, i) => sums[i].count
+      ? { x: sums[i].x / sums[i].count, y: sums[i].y / sums[i].count }
+      : old);
+  }
+
+  const clusters = centers.map((center, clusterIndex) => {
+    const selected = tireTriangles.filter((triangle, i) => assignments[i] === clusterIndex);
+    if (selected.length < 6) throw new Error('[escalade] unable to isolate all four tyre groups');
+    const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+    let cx = 0, cy = 0, cz = 0;
+    for (const triangle of selected) {
+      cx += triangle.center.x; cy += triangle.center.y; cz += triangle.center.z;
+      for (const point of triangle.points) {
+        min[0] = Math.min(min[0], point.x); max[0] = Math.max(max[0], point.x);
+        min[1] = Math.min(min[1], point.y); max[1] = Math.max(max[1], point.y);
+        min[2] = Math.min(min[2], point.z); max[2] = Math.max(max[2], point.z);
+      }
+    }
+    const count = selected.length;
+    const wheelCenter = new THREE.Vector3(cx / count, cy / count, cz / count);
+    const radius = Math.max(max[1] - min[1], max[2] - min[2]) * 0.5;
+    return {
+      index: clusterIndex,
+      center: wheelCenter,
+      radius,
+      bounds: { min, max },
+      triangles: count,
+      key: (wheelCenter.y < 0 ? 'front' : 'rear') + '-' + (wheelCenter.x > 0 ? 'left' : 'right'),
+    };
+  });
+  const keys = new Set(clusters.map(cluster => cluster.key));
+  if (keys.size !== 4) throw new Error('[escalade] tyre split did not produce front-left, front-right, rear-left and rear-right');
+
+  const makeSubset = (sourceGeometry, triangleList) => {
+    const geometry = new THREE.BufferGeometry();
+    const indexMap = new Map();
+    const output = Object.fromEntries(
+      Object.entries(sourceGeometry.attributes).map(([name, attribute]) => [name, []]),
+    );
+    const outputIndices = [];
+    for (const triangle of triangleList) {
+      for (const sourceIndex of triangle.ids) {
+        let targetIndex = indexMap.get(sourceIndex);
+        if (targetIndex === undefined) {
+          targetIndex = indexMap.size;
+          indexMap.set(sourceIndex, targetIndex);
+          for (const [name, attribute] of Object.entries(sourceGeometry.attributes)) {
+            const values = output[name];
+            for (let component = 0; component < attribute.itemSize; component++) {
+              const value = component === 0 ? attribute.getX(sourceIndex)
+                : component === 1 ? attribute.getY(sourceIndex)
+                  : component === 2 ? attribute.getZ(sourceIndex)
+                    : component === 3 ? attribute.getW(sourceIndex) : 0;
+              values.push(value);
+            }
+          }
+        }
+        outputIndices.push(targetIndex);
+      }
+    }
+    for (const [name, values] of Object.entries(output)) {
+      const sourceAttribute = sourceGeometry.attributes[name];
+      const AttributeArray = sourceAttribute.array.constructor;
+      geometry.setAttribute(name, new THREE.BufferAttribute(
+        new AttributeArray(values), sourceAttribute.itemSize, sourceAttribute.normalized,
+      ));
+    }
+    geometry.setIndex(outputIndices);
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
+    return geometry;
+  };
+
+  const splitRecords = (source, wheelTriangles) => {
+    const parts = clusters.map(() => []);
+    const residual = [];
+    const materialName = String((Array.isArray(source.material) ? source.material[0] : source.material)?.name || '').toLowerCase();
+    const isTire = materialName === 'tire';
+    const triangles = isTire ? tireTriangles : triangleData(source);
+    for (let i = 0; i < triangles.length; i++) {
+      const triangle = triangles[i];
+      if (isTire) {
+        parts[assignments[i]].push(triangle);
+        continue;
+      }
+      let best = -1, bestScore = Infinity;
+      for (const cluster of clusters) {
+        const dx = Math.abs(triangle.center.x - cluster.center.x);
+        const radial = Math.hypot(
+          triangle.center.y - cluster.center.y,
+          triangle.center.z - cluster.center.z,
+        );
+        const axialLimit = Math.max(7, (cluster.bounds.max[0] - cluster.bounds.min[0]) * 0.75 + 3);
+        const radialLimit = Math.max(18, cluster.radius * 1.65);
+        if (dx > axialLimit || radial > radialLimit) continue;
+        const score = radial * radial + dx * dx * 0.6;
+        if (score < bestScore) { best = cluster.index; bestScore = score; }
+      }
+      if (best >= 0) parts[best].push(triangle);
+      else residual.push(triangle);
+    }
+
+    for (const cluster of clusters) {
+      const list = parts[cluster.index];
+      if (!list.length) continue;
+      const part = new THREE.Mesh(makeSubset(source.geometry, list), source.material);
+      part.name = '[Escalade ' + cluster.key + ' ' + materialName + ']';
+      part.position.copy(source.position);
+      part.quaternion.copy(source.quaternion);
+      part.scale.copy(source.scale);
+      part.castShadow = source.castShadow;
+      part.receiveShadow = source.receiveShadow;
+      part.userData.vehicleWheelSource = true;
+      source.parent.add(part);
+    }
+
+    if (residual.length) {
+      source.geometry = makeSubset(source.geometry, residual);
+    } else {
+      source.removeFromParent();
+    }
+  };
+
+  for (const source of sources) {
+    splitRecords(source, tireTriangles);
+  }
+  scene.userData.escaladeWheelSplit = {
+    clusters: clusters.map(cluster => ({
+      corner: cluster.key,
+      center: cluster.center.toArray(),
+      radius: cluster.radius,
+      triangles: cluster.triangles,
+    })),
+    sourceMaterials: sources.length,
+  };
+  return scene.userData.escaladeWheelSplit;
+}
+
 async function _loadCarModelUncached(kind = 'lambo') {
   if (_modelCache[kind]) return _modelCache[kind];
   const def = CAR_MODELS[kind];
@@ -810,6 +1112,14 @@ async function _loadCarModelUncached(kind = 'lambo') {
     const gltf = await new Promise((res, rej) => loader.load(def.url, res, undefined, rej));
     const decodedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const scene = gltf.scene;
+    // The Escalade source GLTF is Z-up with its long axis on Y. Apply this
+    // model-only axis conversion before measuring, scaling, collision and wheels.
+    if (def.modelRotation) {
+      scene.rotation.x += Number(def.modelRotation.x) || 0;
+      scene.rotation.y += Number(def.modelRotation.y) || 0;
+      scene.rotation.z += Number(def.modelRotation.z) || 0;
+      scene.updateMatrixWorld(true);
+    }
     await loadAssetOverrides();
     applyAssetOverrides(scene, def.url); // node transforms are applied before mesh fitting and collision extraction
     const bugattiAssembly = kind === 'bugatti' ? splitBugattiWheelAssembly(scene) : null;
@@ -859,6 +1169,10 @@ async function _loadCarModelUncached(kind = 'lambo') {
     // The Bugatti asset hierarchy already contains all four original wheel
     // positions. Keep those authored meshes in place; the shared detector will
     // build the four independent spin/steer pivots in pass 3.
+
+    // The Escalade asset merges all four tyre/rim objects by material. Separate
+    // those authored triangles into four corner assemblies before classification.
+    if (kind === 'escalade') splitEscaladeWheelMeshes(scene);
 
     // Pass 3: final classification in normalized space. Boxes below are in
     // ROOT space (== world coords here, root identity): the clone keeps the
