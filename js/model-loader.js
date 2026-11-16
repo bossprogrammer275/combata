@@ -92,6 +92,40 @@ export function prefetch(urls) {
   }
 }
 
+let _assetServiceWorkerPromise = null;
+
+// Persist car GLTF files, their .bin buffers and referenced textures between
+// game sessions. The service worker performs the actual downloads off the page
+// thread and the fetch handler serves these same-origin assets cache-first.
+export async function prefetchPersistent(urls = []) {
+  if (typeof window === 'undefined'
+    || !('serviceWorker' in navigator)
+    || !window.isSecureContext
+    || !Array.isArray(urls)
+    || !urls.length) return false;
+  if (!_assetServiceWorkerPromise) {
+    const serviceWorkerUrl = new URL('../service-worker.js', import.meta.url);
+    const scopeUrl = new URL('../', import.meta.url);
+    _assetServiceWorkerPromise = navigator.serviceWorker.register(serviceWorkerUrl, {
+      scope: scopeUrl.pathname,
+    }).then(async registration => {
+      await navigator.serviceWorker.ready;
+      return registration.active || registration.waiting || registration.installing;
+    }).catch(error => {
+      console.warn('[Loader] Persistent vehicle cache unavailable:', error);
+      _assetServiceWorkerPromise = null;
+      return null;
+    });
+  }
+  const worker = await _assetServiceWorkerPromise;
+  if (!worker) return false;
+  worker.postMessage({
+    type: 'PREFETCH_VEHICLE_ASSETS',
+    urls: urls.map(url => new URL(url, document.baseURI).href),
+  });
+  return true;
+}
+
 // ---- Registry ----
 export async function loadRegistry() {
   if (_registry) return _registry;
