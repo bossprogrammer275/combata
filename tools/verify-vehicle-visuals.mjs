@@ -79,6 +79,11 @@ try{
         telemetry: { rpm: 6800, motorRpm: 6800, speed: 17, throttle: 0.7, driveDemand: 0.75, regenLevel: 0, dt: 1 / 60 },
         expected: 6800,
       },
+      {
+        vehicle: { kind: 'escalade' },
+        telemetry: { rpm: 2800, speed: 15, gear: 3, throttle: 0.58, engineLoad: 0.58, shiftTimer: 0, dt: 1 / 60 },
+        expected: 2800,
+      },
     ];
     const results = [];
     for (const fixture of fixtures) {
@@ -164,7 +169,7 @@ try{
     };
   });
   check('all authored vehicle sound graphs build and accept live telemetry',
-    soundSmoke.results.length === 3
+    soundSmoke.results.length === 4
       && soundSmoke.results.every(item => item.ok && item.running && Math.abs(item.stateRpm - item.expected) < 1),
     JSON.stringify(soundSmoke.results));
   check('authored shift, boost/tunnel and regen/cabin sound scenarios respond',
@@ -182,6 +187,7 @@ try{
     {kind:'lambo',expectedHeight:0.98,expectedFov:82,prefix:'lamborghini'},
     {kind:'cybertruck',expectedHeight:1.42,expectedFov:82,prefix:'cybertruck'},
     {kind:'bugatti',expectedHeight:0.94,expectedFov:82,prefix:'bugatti-chiron'},
+    {kind:'escalade',expectedHeight:1.36,expectedFov:82,prefix:'cadillac-escalade'},
   ];
   for(const spec of configs){
     const base=await page.evaluate(async kind=>await window.__vehicleVisualTest.load(kind),spec.kind);
