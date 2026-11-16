@@ -5,6 +5,7 @@ export function createPowertrainState(tune = {}) {
   const p = tune.powertrain || {};
   return {
     gear: 1,
+    driveMode: p.defaultDriveMode || 'beast',
     rpm: p.idleRpm || 850,
     shiftTimer: 0,
     shiftDirection: null,
@@ -32,12 +33,15 @@ function stepElectric(state,spec,tune,throttle,speed,dt) {
   const finalDrive=spec.finalDrive||9;
   const speedAbs=Math.abs(speed);
   const rpm=speedAbs/radius*finalDrive*60/(Math.PI*2);
+  const mode=spec.modes?.[state.driveMode] || spec.modes?.[spec.defaultDriveMode] || null;
+  const modePowerKw=mode?.peakPowerKw || spec.peakPowerKw || 420;
+  const modeDriveForce=mode?.maxDriveForceN || spec.maxDriveForceN || 33500;
   const torque=sampleCurve(spec.torqueCurve,rpm,spec.maxMotorTorque||1400);
   const efficiency=clamp(spec.drivetrainEfficiency??0.92,0.5,1);
   const mass=Math.max(600,tune.mass||1500);
   const motorForce=torque*finalDrive*efficiency/radius;
-  const powerForce=(spec.peakPowerKw||420)*1000*efficiency/Math.max(3,speedAbs);
-  const driveForceLimit=spec.maxDriveForceN||motorForce;
+  const powerForce=modePowerKw*1000*efficiency/Math.max(3,speedAbs);
+  const driveForceLimit=modeDriveForce||motorForce;
   const pedal=clamp(Math.max(0,throttle),0,1);
   // Preserve the Cybertruck prototype's dead-band and progressive pedal curve.
   const drivePedal=pedal>.06?Math.pow((pedal-.06)/.94,1.3):0;
@@ -78,6 +82,7 @@ function stepElectric(state,spec,tune,throttle,speed,dt) {
     engineLoad:state.engineLoad,driveDemand:state.driveDemand,
     regenLevel:state.regenLevel,boost:0,
     shiftTimer:0,shiftDirection:null,revLimiter:false,
+    driveMode:state.driveMode,
     powertrainType:'electric-single-speed'
   };
 }
