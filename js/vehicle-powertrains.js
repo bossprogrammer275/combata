@@ -28,41 +28,55 @@ function sampleCurve(curve, rpm, fallback) {
   return curve[curve.length-1][1];
 }
 function stepElectric(state,spec,tune,throttle,speed,dt) {
-  const radius=Math.max(.2,spec.wheelRadius||.43), finalDrive=spec.finalDrive||9;
-  const rpm=Math.abs(speed)/radius*finalDrive*60/(Math.PI*2);
+  const radius=Math.max(.2,spec.wheelRadius||.43);
+  const finalDrive=spec.finalDrive||9;
+  const speedAbs=Math.abs(speed);
+  const rpm=speedAbs/radius*finalDrive*60/(Math.PI*2);
   const torque=sampleCurve(spec.torqueCurve,rpm,spec.maxMotorTorque||1400);
   const efficiency=clamp(spec.drivetrainEfficiency??0.92,0.5,1);
-  const force=Math.min(torque*finalDrive*efficiency/radius,(spec.peakPowerKw||420)*1000*efficiency/Math.max(3,Math.abs(speed)));
-  const accel=clamp(force/Math.max(600,tune.mass||1500),0,spec.maxAcceleration||11.5);
+  const mass=Math.max(600,tune.mass||1500);
+  const motorForce=torque*finalDrive*efficiency/radius;
+  const powerForce=(spec.peakPowerKw||420)*1000*efficiency/Math.max(3,speedAbs);
+  const driveForceLimit=spec.maxDriveForceN||motorForce;
+  const pedal=clamp(Math.max(0,throttle),0,1);
+  // Preserve the Cybertruck prototype's dead-band and progressive pedal curve.
+  const drivePedal=pedal>.06?Math.pow((pedal-.06)/.94,1.3):0;
+  const regenPedal=pedal<.06?1-pedal/.06:0;
+  let driveForce=drivePedal*Math.min(driveForceLimit,powerForce);
+  if(speedAbs*3.6>(spec.driveCutKmh??Infinity))driveForce=0;
+  const regenForce=regenPedal
+    *Math.min(spec.maxRegenForceN||9000,(spec.maxRegenPowerKw||110)*1000/Math.max(speedAbs,3))
+    *Math.min(1,speedAbs/1.5);
+
   state.motorRpm+=(rpm-state.motorRpm)*(1-Math.exp(-10*dt));
-  state.rpm=state.motorRpm;state.gear=1;state.shiftTimer=0;state.throttle=throttle;state.engineLoad=Math.abs(throttle);
-  let driveAcceleration=0,brakeAcceleration=0,regenLevel=0;
+  state.rpm=state.motorRpm;
+  state.gear=1;
+  state.shiftTimer=0;
+  state.shiftDirection=null;
+  state.throttle=throttle;
+  state.engineLoad=drivePedal;
+  let driveAcceleration=0;
+  let brakeAcceleration=0;
   if(throttle>.01){
     if(speed<-.8)brakeAcceleration=(tune.brakeAcceleration||12)*throttle;
-    else if(Math.abs(speed)*3.6<=(spec.driveCutKmh??Infinity))
-      driveAcceleration=accel*throttle*clamp(1-Math.max(0,speed)/Math.max(1,tune.maxSpeed||50)*.12,.82,1);
+    else driveAcceleration=driveForce*.93/mass;
   } else if(throttle<-.01){
     if(speed>.8){
-      brakeAcceleration=(tune.brakeAcceleration||12)*Math.abs(throttle);
-      regenLevel=.269*Math.abs(throttle);
+      brakeAcceleration=(spec.brakeForceN||16000)*Math.abs(throttle)/mass
+        +regenForce/mass;
     } else driveAcceleration=-(tune.reverseAcceleration||5)*Math.abs(throttle);
-  } else if(speed>1.5){
-    brakeAcceleration=spec.regenDeceleration||.75;
-    regenLevel=.269*clamp(Math.min(1,speed/1.5),0,1);
+  } else if(speed>.2){
+    brakeAcceleration=regenForce/mass;
   }
-  state.regenLevel=regenLevel;
-  const maxDriveForce=spec.maxDriveForceN
-    || ((spec.maxMotorTorque||1400)*finalDrive*efficiency/radius);
-  state.driveDemand=clamp(
-    (Math.max(0,driveAcceleration)*Math.max(600,tune.mass||1500))
-      / (Math.max(1,maxDriveForce)*efficiency),
-    0,1,
-  );
+
+  state.regenLevel=regenForce/Math.max(1,driveForceLimit);
+  state.driveDemand=driveForce/Math.max(1,driveForceLimit);
   state.revLimiter=false;
   return {
     driveAcceleration,brakeAcceleration,maxForward:tune.maxSpeed||40,
     gear:'D',gearNumber:1,rpm:state.rpm,motorRpm:state.motorRpm,
-    engineLoad:state.engineLoad,driveDemand:state.driveDemand,regenLevel:state.regenLevel,boost:0,
+    engineLoad:state.engineLoad,driveDemand:state.driveDemand,
+    regenLevel:state.regenLevel,boost:0,
     shiftTimer:0,shiftDirection:null,revLimiter:false,
     powertrainType:'electric-single-speed'
   };
