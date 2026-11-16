@@ -283,6 +283,7 @@ class Game {
       lambo: { name: 'LAMBORGHINI', className: 'SUPERCAR' },
       cybertruck: { name: 'TESLA CYBERTRUCK', className: 'ELECTRIC PICKUP' },
       bugatti: { name: 'BUGATTI CHIRON PUR SPORT', className: 'HYPERCAR' },
+      escalade: { name: 'CADILLAC ESCALADE ESV', className: 'LUXURY SUV' },
     };
     list.replaceChildren();
     Object.keys(CAR_MODELS).forEach((kind, index) => {
