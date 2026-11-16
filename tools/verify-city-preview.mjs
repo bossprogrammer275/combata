@@ -28,7 +28,8 @@ function checkMapContract() {
   assert.equal(map.spawns?.length || 0, 0, 'enemy/pedestrian spawn list must be empty');
   assert.equal(map.cover?.length || 0, 0, 'no combat cover points should be authored');
   assert.equal(map.loot?.length || 0, 0, 'loot box list must be empty');
-  assert.equal(map.vehicles?.length, 3, 'three vehicle physics test cars should be available');
+  assert.equal(map.vehicles?.length, 4, 'four vehicle physics test cars should be available');
+  assert.ok(map.vehicles.some(vehicle => vehicle.kind === 'escalade'), 'Cadillac Escalade should be in the starter garage');
   for (const asset of map.glbAssets) {
     const local = path.join(root, asset.url.replace(/^\.\//, ''));
     assert.ok(existsSync(local), `missing GLB: ${asset.url}`);
