@@ -104,6 +104,7 @@ try {
   const appSource = await fs.promises.readFile(path.join(ROOT, 'js/main.js'), 'utf8');
   const pageSource = await fs.promises.readFile(path.join(ROOT, 'index.html'), 'utf8');
   const vehicleSource = await fs.promises.readFile(path.join(ROOT, 'js/vehicles.js'), 'utf8');
+  const worldSource = await fs.promises.readFile(path.join(ROOT, 'js/world.js'), 'utf8');
   const modelLoaderSource = await fs.promises.readFile(path.join(ROOT, 'js/model-loader.js'), 'utf8');
   const serviceWorkerSource = await fs.promises.readFile(path.join(ROOT, 'service-worker.js'), 'utf8');
   const cityScene = JSON.parse(await fs.promises.readFile(path.join(ROOT, 'data/worlds/city-a.json'), 'utf8'));
@@ -128,6 +129,19 @@ try {
     vehicleSource.includes('if (!geometry.boundingBox) geometry.computeBoundingBox()')
       && vehicleSource.includes('worldBox.copy(localBox).applyMatrix4(o.matrixWorld)')
       && vehicleSource.includes('node.frustumCulled = true'));
+  check('large car models decode within the device memory budget',
+    vehicleSource.includes('MODEL_DECODE_CONCURRENCY = MODEL_DEVICE_MEMORY_GB <= 4')
+      && vehicleSource.includes('enqueueCarModelLoad(kind)')
+      && vehicleSource.includes('drainCarModelQueue()'));
+  check('city GLBs are not redundantly prefetched into unused worker ArrayBuffers',
+    !worldSource.includes("import { prefetch } from './model-loader.js'")
+      && !worldSource.includes('prefetch(glbUrls)')
+      && !appSource.includes('prefetch(urls)')
+      && appSource.includes('await Promise.all([this.civilians.ready, vehicleStartup])'));
+  check('service worker deduplicates concurrent asset fetches',
+    serviceWorkerSource.includes('pendingAssetFetches.get(key)')
+      && serviceWorkerSource.includes('pendingAssetFetches.set(key, pending)')
+      && serviceWorkerSource.includes('(await pending).clone()'));
   check('service worker persists vehicle GLTFs, binary buffers and referenced textures',
     serviceWorkerSource.includes('caches.open(VEHICLE_CACHE)')
       && serviceWorkerSource.includes('PREFETCH_VEHICLE_ASSETS')
