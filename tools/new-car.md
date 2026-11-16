@@ -66,12 +66,26 @@ mycar: {
   },
   steeringWheel: {
     axis: 'x',          // or 'y', 'z'; use Asset Lab's Auto option to infer
-    maxAngleDeg: 450,   // total lock-to-lock angle, not degrees per side
+    maxAngleDeg: 450,   // interior steering wheel total lock-to-lock angle
     sign: 1,            // change to -1 if the wheel turns the wrong way
     response: 10,
   },
+  steeringControl: {
+    sensitivity: 1.0,   // driver input gain, not physical wheel angle
+    range: 1.0,         // fraction of this car's calibrated safe road-wheel lock
+    digitalHoldTime: 0.75, // seconds to build from a short tap to full requested range
+    digitalHoldCurve: 1.6,  // bounded ease-in; sustained holds become progressively sharper
+    deadzone: 0.02,
+    returnResponse: 12,
+  },
+  // Physical road-wheel response remains separate and car-specific.
+  steeringAngle: 0.5,  // maximum front tyre angle in radians
+  handbrakeSteerAngle: 0.45,
+  steeringResponse: 12,
+  speedSteeringFalloff: 0.008,
+  minSteeringScale: 0.4,
   // Add this vehicle's own braking, grip, suspension, drag,
-  // steering response, anti-roll and drivetrain settings here.
+  // anti-roll and drivetrain settings here.
 },
 ```
 
@@ -166,37 +180,130 @@ The Cybertruck's normalized selected wheel bounds are approximately **0.444 × 0
 
 The CI workflow uploads these temporary screenshots and reports as a one-day artifact. The local run writes them only to `artifacts/vehicle-visual-test/`; delete that folder when the review is complete.
 
-## 6. Find and animate the steering wheel
+## 6. Steering system, driver input, POV and animation
 
-The steering wheel is **not** one of the four road wheels. It must have a separate pivot and must never be placed inside a tyre spinner.
+Steering is not one sensitivity number. Every vehicle must be calibrated as four connected layers:
 
-### Automatic detection
+1. **Driver input** — keyboard, gamepad, touch buttons or a virtual steering control.
+2. **Steering control** — sensitivity, usable steering range, hold-duration curve, deadzone, smoothing and return-to-centre.
+3. **Physical handling** — road-wheel lock, Ackermann geometry, tyre grip, yaw response, suspension and speed-dependent steering authority.
+4. **Visual and camera feedback** — front wheel pivots, the interior steering wheel, the driver's hands when the rig supports them, and the first-person point of view (POV).
 
-The runtime recognises clearly named nodes such as:
+Keep the shared steering controller in the vehicle-control layer (currently `js/vehicle-steering.js` and `js/vehicles.js`). Put each car's calibrated values in its own `CAR_PHYSICS` profile. The steering controller must not be duplicated in individual sound files. The global sound manager may read the resolved steering, speed and slip telemetry for tyre audio, but audio must never drive or override vehicle steering.
 
-- `SteeringWheel`
-- `steering_wheel`
-- `steering-wheel`
-- `wheel_steering`
+### 6.1 Steering values must have separate jobs
 
-The detector uses the complete node hierarchy and keeps the steering assembly out of the road-wheel classifier.
+Do not mix these measurements:
 
-### Manual calibration in Asset Lab
+- **Sensitivity** (`steeringSensitivity`): how strongly the controller responds to the driver's requested input. It controls input gain/feel, not physical geometry.
+- **Usable steering range** (`steeringRange`): the fraction of the car's calibrated safe road-wheel lock available to the current control. A value of 1.0 exposes the full calibrated range; lower values make the controls less aggressive. Clamp it to 0..1.
+- **Road-wheel maximum angle** (`steeringAngle`): the physical maximum front-tyre angle in radians. This is tuned for the actual vehicle, wheelbase, track, tyres and handling. It must not be changed just because a player changes sensitivity.
+- **Steering-wheel lock-to-lock angle** (`steeringWheel.maxAngleDeg`): the visible interior steering wheel's total rotation from full left to full right. It is not the road-wheel angle.
+- **Steering response** (`steeringResponse`): how quickly the physical steering state follows the resolved command.
+- **Return response** (`steeringReturnResponse`): how quickly the controls and visible wheel return to centre after release.
+- **Speed shaping** (`speedSteeringFalloff` and `minSteeringScale`): how steering authority is reduced progressively at speed while preserving useful low-speed manoeuvring.
+- **Handbrake steering** (`handbrakeSteerAngle`): a separate controlled behaviour. Do not silently add handbrake steering lock to normal cornering.
 
-Some GLBs use generic names such as `Object_37` or split the rim, spokes and hub across several unnamed meshes.
+Track width is the measured distance between left and right wheel centres. It is a physical dimension, not a sensitivity or steering-range setting. Never alter wheelbase or track to make steering feel sharper.
 
-1. Select the car and inspect the mesh list.
-2. Choose the actual steering-wheel rim mesh, then press **Use selected mesh**.
-3. Add separate spokes or hub meshes with **Add selected part**. Do not add the dashboard or steering column unless they are physically part of the rotating wheel assembly.
-4. Select the pivot axis. For a normal upright steering wheel, the axis is usually the vehicle's left-to-right axis. Use **Auto** if the wheel's thinnest dimension identifies that axis correctly.
-5. Set the lock-to-lock rotation. 450° means ±225° from centre; tune to the source vehicle and model scale.
-6. Move the preview slider left and right. Check that only the steering wheel assembly rotates around its hub.
-7. Set **Rotation direction** to Reverse if left/right steering is inverted.
-8. Save overrides.
+A useful starting configuration shape is:
 
-The saved configuration is attached to that model's path in `data/asset-overrides.json`. The game builds a pivot around the selected mesh bounds and animates it from the smoothed steering input. Its movement is independent from tyre spin and front-wheel Ackermann steering.
+```js
+steeringControl: {
+  sensitivity: 1.0,
+  range: 1.0,                // fraction of calibrated safe road-wheel lock
+  digitalHoldTime: 0.75,     // seconds to build from a gentle tap to full request
+  digitalHoldCurve: 1.6,     // bounded ease-in curve for keyboard / discrete buttons
+  deadzone: 0.02,
+  returnResponse: 12,
+},
+```
 
-If the preview rotates the wrong part, clear the rig and select the correct mesh. Do not animate the whole dashboard parent.
+Treat these as per-vehicle starting values, not universal final tuning. A heavy pickup, a sports car and a hypercar should not automatically feel identical.
+
+### 6.2 Short taps and long holds must feel different
+
+Keyboard steering and discrete left/right buttons must be duration-aware:
+
+- A short tap requests a small steering angle. It must not jump instantly to full lock.
+- Holding the same direction progressively builds steering angle, making the turn sharper over the configured hold period.
+- The hold curve must be smooth, bounded and frame-rate independent. Use elapsed hold time and `dt`; do not depend on keyboard auto-repeat.
+- Once the requested steering range is reached, the value must plateau. Holding longer must never increase the angle beyond the selected range or the car's physical road-wheel limit.
+- Releasing the key or button smoothly returns the requested angle to centre.
+- Switching from left to right must pass through centre smoothly rather than snapping across.
+- Reset hold timers when input is released, focus is lost, the game pauses, the player exits the vehicle, or the requested direction changes.
+- Pressing throttle and steering together must remain supported. Steering logic must not block simultaneous drive inputs.
+
+Tune `digitalHoldTime` and `digitalHoldCurve` per vehicle. A shorter hold time makes steering build faster; a longer one gives the driver finer control. A stronger ease-in curve keeps the first part of a press gentle and makes a sustained hold progressively sharper. Do not create unbounded accumulation or make the car spin harder simply because a key has been held for several seconds.
+
+### 6.3 Analog steering must stay truly analog
+
+Gamepad sticks and position-based touch/virtual-wheel controls already provide a continuous steering value:
+
+- Map the live axis or pointer position directly to -1..1.
+- Apply sensitivity, usable range and deadzone, then smooth the result.
+- Do not apply the digital hold-duration ramp to an analog input. A small steady stick or drag angle must remain a small steady steering request for as long as it is held.
+- After deadzone removal, remap the remaining range so full stick travel can still reach the selected steering limit.
+- Clamp the final input and preserve the game's established convention: positive `right` input means a right turn.
+
+All input methods must feed one shared, resolved steering command. Avoid separate calculations for keyboard physics, gamepad visuals, tyre angle and steering-wheel animation.
+
+### 6.4 Physical handling and wheel geometry
+
+- Calculate inner and outer front-wheel angles using Ackermann geometry from the measured wheelbase and front track. The inside front wheel must turn more sharply than the outside front wheel in either direction.
+- Only the front axle steers by default. Rear-wheel steering is allowed only for a vehicle whose real configuration and model support it, with its own explicit low/high-speed tuning. Never enable four-wheel steering by default.
+- Keep measured wheelbase, front/rear track and tyre radii tied to GLB wheel hardpoints. Do not move wheel meshes or fake steering by changing dimensions.
+- Feed the same final clamped steering state into physics, wheel visuals, cockpit wheel animation and telemetry. The left and right tyres may have different Ackermann angles, but must share the same central steering request.
+- At parking speeds, allow the vehicle's calibrated safe lock. As speed rises, reduce steering authority smoothly; do not use abrupt speed thresholds.
+- Steering must work with tyre grip, lateral velocity, suspension, mass distribution, yaw damping and drivetrain load. Do not rotate the vehicle heading directly from input while bypassing tyre forces.
+- Do not add automatic drifting, unexplained left/right yaw bias or unstable steering at maximum speed.
+- Test forward and reverse steering against actual vehicle motion.
+
+### 6.5 Animate the interior steering wheel
+
+The steering wheel is a separate rig from the four road-wheel spinners. It must never be included in a tyre spinner or a whole-dashboard transform.
+
+The runtime recognises named nodes such as `SteeringWheel`, `steering_wheel`, `steering-wheel` and `wheel_steering`. If names are generic or the rim is split across meshes, use Asset Lab's manual mesh selection and saved override:
+
+1. Select the actual steering-wheel rim mesh.
+2. Add only the spokes and hub that physically rotate with the rim. Do not include the dashboard, seats or fixed steering-column base.
+3. Set the real pivot at the centre of the steering wheel.
+4. Calibrate the rotation axis, left/right sign and total lock-to-lock angle.
+5. Move the preview left and right and confirm that the correct assembly rotates without wobble, offset or clipping.
+6. Save the model-specific override and verify it again in the running game.
+
+The visible wheel must follow the final smoothed steering state, not raw keydown events. Its animation should have its own calibrated steering ratio and response, smoothly recentre after release, and stay synchronized with the front tyres. Steering rotates the wheel around its steering axis; travel distance spins the tyres. These are two different motions.
+
+If the character model has a usable hand/arm rig, add restrained hand placement or IK so the driver's hands follow the steering wheel without sliding, stretching or clipping. Do not fake steering by rotating the entire player model. If the character rig cannot support reliable hand animation, keep the steering-wheel animation correct instead of adding visibly broken hand motion.
+
+### 6.6 First-person POV and camera response
+
+Test each car in both chase view and cockpit/POV view:
+
+- Calibrate the driver's eye position, seat forward/back, side offset, look-ahead, pitch and FOV to that specific cabin.
+- In POV, the driver must be able to see the road and a useful portion of the steering wheel/dashboard. The wheel must visibly turn in the correct direction and by the correct amount.
+- Steering-wheel and camera updates must use the same resolved steering state as the physics. Do not make the wheel visibly lag far behind the road response.
+- Cornering camera feedback, if used, must be subtle and derived from actual lateral acceleration or chassis roll. Do not fake turning by swinging the camera independently of the vehicle.
+- Keep horizon movement and camera roll restrained. Do not add large screen shake or artificial horizon tilt during ordinary steering.
+- Free-look must remain independent of steering. Mouse look must not be overwritten by steering input, and the camera must not snap back while the player is actively looking around.
+- Verify POV while stationary, turning left/right, changing lanes, braking into a bend, accelerating out of a bend and reversing.
+
+### 6.7 Steering acceptance tests for every car
+
+Record the results for each vehicle:
+
+1. Neutral input holds a straight line without unexplained yaw.
+2. A short left/right tap causes a small correction, not instant full lock.
+3. A longer hold progressively sharpens the turn, reaches a stable cap and never exceeds the calibrated road-wheel limit.
+4. Releasing input smoothly recentres the steering control, front tyres and steering wheel.
+5. Reversing from left to right passes through centre without snapping or a sudden yaw impulse.
+6. A small analog stick/drag input remains a small, steady angle; no digital hold ramp is applied.
+7. Left and right turns are mirrored, and the inner front tyre turns more than the outer tyre.
+8. Steering authority reduces progressively with speed and remains predictable in the high-speed test.
+9. The rear wheels remain straight unless the vehicle has an explicitly calibrated rear-steer system.
+10. The cockpit steering wheel, front tyre angles and physical vehicle response agree in POV and chase views.
+11. Free-look remains controllable during cornering, and camera feedback does not hide the road or destabilize the horizon.
+12. The car remains stable during forward/reverse transitions and does not develop automatic drift or speed-induced steering oscillation.
 
 ## 7. Test before adding the car to the world
 
@@ -224,6 +331,10 @@ Use **F9** in-game to display the fitted chassis collider and four live suspensi
 - [ ] Cabin geometry is present and inspected; lighting is subtle.
 - [ ] Four road-wheel pivots are correct and all tyre components move together.
 - [ ] Steering wheel has a separate pivot, axis, lock-to-lock angle and direction.
+- [ ] Sensitivity, usable steering range, hold duration/curve, deadzone and return response are tuned.
+- [ ] Short taps, long digital holds and analog partial steering behave correctly.
+- [ ] Ackermann, speed-sensitive steering and forward/reverse handling pass the steering tests.
+- [ ] POV steering-wheel animation and camera response are calibrated and verified.
 - [ ] Collision boxes do not include loose tyre or steering-wheel geometry.
 - [ ] Vehicle verification and collision verification pass.
 - [ ] Only then add a spawn entry to a world.
