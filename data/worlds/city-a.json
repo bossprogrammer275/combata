@@ -1773,6 +1773,13 @@
       "ry": 1.57,
       "kind": "bugatti",
       "elevation": 0
+    },
+    {
+      "x": -13,
+      "z": 178,
+      "ry": 1.57,
+      "kind": "escalade",
+      "elevation": 0
     }
   ],
   "spawns": [],
