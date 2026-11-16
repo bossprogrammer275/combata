@@ -994,7 +994,7 @@ try {
     assert.equal(CAR_MODELS.escalade.url, './data/models/cars/cadillac_escalade_2006/scene.gltf');
     assert.equal(CAR_MODELS.escalade.targetLen, 5.624);
     assert.equal(CAR_MODELS.escalade.nose, 1);
-    assert.ok(Math.abs(CAR_MODELS.escalade.modelRotation.x + Math.PI / 2) < 1e-9);
+    assert.equal(CAR_MODELS.escalade.modelRotation, undefined, 'Escalade GLTF already carries its own axis correction');
     assert.equal(p.mass, 2613);
     assert.equal(p.drivetrain, 'awd');
     assert.equal(p.wheelbase, 3.302);
