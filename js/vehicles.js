@@ -20,7 +20,7 @@ export const CAR_MODELS = {
   lambo: { url: './data/models/cars/CAR Model by Ignition Labs - 5zUWP5UsLg-.glb', targetLen: 4.7, color: 0xda2828, nose: 1 },
   cybertruck: { url: './data/models/cars/tesla_cybertruk_low_poly/scene.gltf', targetLen: 5.7, color: 0x888888, nose: 1 },
   bugatti: { url: './data/models/cars/2021_bugatti_chiron_pur_sport/scene.gltf', targetLen: 4.647, color: 0x111820, nose: 1 },
-  escalade: { url: './data/models/cars/cadillac_escalade_2006/scene.gltf', targetLen: 5.624, color: 0x17191c, nose: 1, modelRotation: { x: -Math.PI / 2 } },
+  escalade: { url: './data/models/cars/cadillac_escalade_2006/scene.gltf', targetLen: 5.624, color: 0x17191c, nose: 1 },
 };
 
 // Physical values are tuning baselines, not claims of laboratory measurement.
@@ -1112,8 +1112,8 @@ async function _loadCarModelUncached(kind = 'lambo') {
     const gltf = await new Promise((res, rej) => loader.load(def.url, res, undefined, rej));
     const decodedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const scene = gltf.scene;
-    // The Escalade source GLTF is Z-up with its long axis on Y. Apply this
-    // model-only axis conversion before measuring, scaling, collision and wheels.
+    // Keep any model-specific root correction explicit. The Escalade GLTF's
+    // own Sketchfab_Model matrix already provides the game's axis convention.
     if (def.modelRotation) {
       scene.rotation.x += Number(def.modelRotation.x) || 0;
       scene.rotation.y += Number(def.modelRotation.y) || 0;
