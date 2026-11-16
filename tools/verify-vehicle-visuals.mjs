@@ -134,7 +134,34 @@ try{
       ctx.close().then(() => true, () => false),
       new Promise(resolve => setTimeout(() => resolve(false), 800)),
     ]);
-    return { results, scenarios, contextClosed };
+
+    // Ultra-low keeps music and ordinary effects off, but entering a car must
+    // force-create the shared context so the dedicated engine still plays.
+    const { GameAudio } = await import('/js/audio.js');
+    const ultraLowAudio = new GameAudio('ultra-low');
+    ultraLowAudio.init();
+    const normalUltraLowInitStaysDisabled = ultraLowAudio.ctx === null;
+    ultraLowAudio.resume();
+    const ultraLowTelemetry = {
+      rpm: 3200, speed: 14, gear: 2, throttle: 0.6,
+      shiftTimer: 0, dt: 1 / 60,
+    };
+    const ultraLowStartsVehicle = !!ultraLowAudio.ctx
+      && ultraLowAudio.updateVehicleEngine({ kind: 'lambo' }, ultraLowTelemetry)
+      && !!ultraLowAudio.vehicleSoundEngines?.getActiveState()?.on;
+    ultraLowAudio.stopEngine();
+    const ultraLowContextClosed = await Promise.race([
+      ultraLowAudio.ctx?.close().then(() => true, () => false) || Promise.resolve(false),
+      new Promise(resolve => setTimeout(() => resolve(false), 800)),
+    ]);
+    return {
+      results, scenarios, contextClosed,
+      ultraLow: {
+        normalUltraLowInitStaysDisabled,
+        startsVehicle: ultraLowStartsVehicle,
+        contextClosed: ultraLowContextClosed,
+      },
+    };
   });
   check('all authored vehicle sound graphs build and accept live telemetry',
     soundSmoke.results.length === 3
@@ -145,6 +172,11 @@ try{
     JSON.stringify(soundSmoke.scenarios));
   check('vehicle sound smoke test disposes its AudioContext',
     soundSmoke.contextClosed === true);
+  check('Ultra-low keeps ambient audio disabled but starts the dedicated vehicle engine',
+    soundSmoke.ultraLow.normalUltraLowInitStaysDisabled
+      && soundSmoke.ultraLow.startsVehicle
+      && soundSmoke.ultraLow.contextClosed,
+    JSON.stringify(soundSmoke.ultraLow));
 
   const configs=[
     {kind:'lambo',expectedHeight:0.98,expectedFov:82,prefix:'lamborghini'},
