@@ -134,6 +134,8 @@ try {
       && !vehicleSource.includes('this.audio.engine(')
       && appSource.includes("case 'KeyM':")
       && appSource.includes("this.vehicles.toggleDriveMode()")
+      && appSource.includes("this.audio.resume()")
+      && audioSource.includes("this.ctx.resume()")
       && pageSource.includes("<b>M</b> Cybertruck mode"));
   check('K opens the dynamic vehicle garage and the Bugatti is listed',
     appSource.includes("case 'KeyK':")
