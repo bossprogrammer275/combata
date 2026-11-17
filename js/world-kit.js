@@ -26,7 +26,7 @@ const definitions = [
   // Roads and transport surfaces
   ['roads/concrete_block_low_poly.glb', 'concrete-road-block', 'roadside', 'road-prop', 'atomic', 'preserve-source-scene', 'solid-prop', 'pending-visual'],
   ['roads/road_block/scene.gltf', 'road-barricade', 'roadside', 'barrier', 'atomic', 'preserve-source-scene', 'solid-prop', 'manifest-inspected'],
-  ['roads/road_pack/scene.gltf', 'road-pack-panels', 'road-panels', 'road-panel-set', 'compound', 'six-imported-panels', 'no-collision', 'rendered-preview-verified'],
+  ['roads/road_pack/scene.gltf', 'road-pack', 'road', 'modular-road-kit', 'compound', 'six-imported-road-modules', 'no-collision', 'per-mesh-rendered-verified'],
   ['roads/sidewalks/scene.gltf', 'sidewalk-pack', 'road', 'modular-sidewalk-pack', 'compound', 'semantic-child-pieces', 'walkable-surface-pieces', 'manifest-inspected'],
   ['roads/speed_bump.glb', 'speed-bump', 'roadside', 'traffic-calming', 'atomic', 'preserve-source-scene', 'solid-prop', 'pending-visual'],
   ['roads/street_road/scene.gltf', 'street-road', 'road', 'two-lane-wet-road-source', 'compound', 'preserve-source-scene', 'road-surface', 'rendered-preview-verified'],
@@ -80,6 +80,17 @@ const byUrl = Object.freeze(Object.fromEntries(definitions.map(([path, id, categ
 
 export const WORLD_KIT_ASSET_DEFINITIONS = byUrl;
 
+// Named children from the imported Road Pack, verified from separate renders.
+// Preserve source geometry; these labels are only semantic prefab metadata.
+export const WORLD_KIT_ROAD_PACK_PARTS = Object.freeze({
+  Object_4: Object.freeze({ id: 'road-straight-01', label: 'Straight road · double centre marking', role: 'road-straight-module' }),
+  Object_6: Object.freeze({ id: 'road-straight-02', label: 'Straight road · dashed centre marking', role: 'road-straight-module' }),
+  Object_8: Object.freeze({ id: 'road-straight-long-01', label: 'Long straight road · marking variant A', role: 'road-straight-module' }),
+  Object_10: Object.freeze({ id: 'road-straight-long-02', label: 'Long straight road · marking variant B', role: 'road-straight-module' }),
+  Object_12: Object.freeze({ id: 'road-corner-01', label: 'Curved road corner · marking variant A', role: 'road-corner-module' }),
+  Object_14: Object.freeze({ id: 'road-corner-02', label: 'Curved road corner · marking variant B', role: 'road-corner-module' }),
+});
+
 export const WORLD_KIT_PROCEDURAL_RULES = Object.freeze([
   Object.freeze({ id: 'curved-road-surfaces', use: 'procedural', reason: 'Road ribbons need to follow authored curves and variable widths; use imported road modules only where their geometry fits.' }),
   Object.freeze({ id: 'lane-markings', use: 'procedural', reason: 'Paint, dashed lane lines, stop lines and crosswalks are repeatable thin geometry.' }),
@@ -113,7 +124,7 @@ function meshNames(mesh, root) {
 }
 
 export function classifyWorldKitMesh(mesh, root) {
-  if (root?.userData?.worldKit?.id === 'road-pack-panels') return 'road-panel';
+  if (root?.userData?.worldKit?.id === 'road-pack') return WORLD_KIT_ROAD_PACK_PARTS[mesh.name]?.role || 'road-module';
   const names = meshNames(mesh, root);
   const chain = names.join('/').toLowerCase();
   if (names.some(name => name.toLowerCase().startsWith('col_'))) return 'collision-proxy';
@@ -155,7 +166,12 @@ export function annotateWorldKitInstance(root, placement = {}) {
     roleCounts[role] = (roleCounts[role] || 0) + 1;
     meshCount++;
     node.userData ||= {};
-    node.userData.worldKit = { assetId: id, role };
+    const roadPart = id === 'road-pack' ? WORLD_KIT_ROAD_PACK_PARTS[node.name] : null;
+    node.userData.worldKit = {
+      assetId: id,
+      role: roadPart?.role || role,
+      ...(roadPart ? { componentId: roadPart.id, label: roadPart.label } : {}),
+    };
   });
 
   return {
@@ -166,5 +182,8 @@ export function annotateWorldKitInstance(root, placement = {}) {
     meshCount,
     roleCounts: { ...roleCounts },
     review: root.userData.worldKit.review,
+    subcomponents: root.userData.worldKit.id === 'road-pack'
+      ? Object.values(WORLD_KIT_ROAD_PACK_PARTS).map(part => ({ ...part }))
+      : [],
   };
 }
