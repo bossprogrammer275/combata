@@ -20,6 +20,37 @@ function isBridgeRoadMesh(mesh) {
   return materialNames.some(name => name.includes('bridge_road') || name.includes('bridge road'));
 }
 
+function normalizeBridgeNodeName(name) {
+  return String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function findBridgeSourceNode(sourceScene, requestedName) {
+  const exact = sourceScene.getObjectByName(requestedName);
+  if (exact) return exact;
+
+  // Blender/FBX/glTF exporters can normalize dotted object suffixes while
+  // preserving the same imported hierarchy. Resolve punctuation-only name
+  // differences before declaring a downloaded bridge section missing.
+  const target = normalizeBridgeNodeName(requestedName);
+  let match = null;
+  let matchExtra = Infinity;
+  const prefixMatches = [];
+  sourceScene.traverse(node => {
+    const normalized = normalizeBridgeNodeName(node.name);
+    if (normalized === target) {
+      match = node;
+      matchExtra = 0;
+      return;
+    }
+    if (normalized.startsWith(target)) {
+      prefixMatches.push({ node, extra: normalized.length - target.length });
+    }
+  });
+  if (match) return match;
+  prefixMatches.sort((a, b) => a.extra - b.extra);
+  return prefixMatches[0]?.node || null;
+}
+
 export function extractWorldBridgeKit(sourceScene) {
   if (!sourceScene || typeof sourceScene.getObjectByName !== 'function') {
     throw new TypeError('A loaded bridge GLTF scene is required');
@@ -29,8 +60,17 @@ export function extractWorldBridgeKit(sourceScene) {
   const components = new Map();
 
   for (const definition of WORLD_KIT_BRIDGE_COMPONENTS) {
-    const source = sourceScene.getObjectByName(definition.sourceNode);
-    if (!source) throw new Error('Bridge kit is missing source component ' + definition.sourceNode);
+    const source = findBridgeSourceNode(sourceScene, definition.sourceNode);
+    if (!source) {
+      const available = [];
+      sourceScene.traverse(node => {
+        if (/plane/i.test(node.name || '')) available.push(node.name);
+      });
+      throw new Error(
+        'Bridge kit is missing source component ' + definition.sourceNode +
+        '; available Plane nodes: ' + available.join(', '),
+      );
+    }
 
     const group = new THREE.Group();
     group.name = definition.id;
