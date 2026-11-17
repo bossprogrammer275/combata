@@ -989,6 +989,33 @@ export class World {
       const isRoad = collisionProfile === 'road-surface';
       const hasNoCollision = !!a.noCollision || collisionProfile === 'no-collision';
 
+      // Imported street-road surfaces supply their own detailed tyre-contact
+      // geometry. Only the authored asphalt planes enter the road physics mesh
+      // batch; side textures and edge details remain visual-only.
+      if (isRoad) {
+        let importedRoadMeshes = 0;
+        model.traverse(o => {
+          if (!o.isMesh || !o.geometry) return;
+          const names = [];
+          for (let node = o; node && node !== model; node = node.parent) {
+            if (node.name) names.unshift(node.name);
+          }
+          const sourceName = names.join('/').toLowerCase();
+          if (!sourceName.includes('two_lane_road') || sourceName.includes('side_texture')) return;
+          const geometry = o.geometry.clone();
+          geometry.applyMatrix4(o.matrixWorld);
+          geometry.computeBoundingBox();
+          geometry.computeBoundingSphere();
+          this.roadPhysicsMeshes.push({ kind: 'imported_road', geometry });
+          o.userData.worldKit ||= {};
+          o.userData.worldKit.role = 'road-surface';
+          importedRoadMeshes++;
+        });
+        if (!importedRoadMeshes) {
+          console.warn('[WorldKit] Road-surface asset supplied no recognised road meshes:', a.url);
+        }
+      }
+
       const bbox = new THREE.Box3().setFromObject(model, true);
       // Invert only the placement translation/yaw (not scale) to preserve
       // exact model-local door dimensions for rotated buildings.
@@ -1800,11 +1827,11 @@ export class World {
       // surfaces, so tires sit on asphalt at y=0.06 instead of cutting through it
       // to the lower ground plane.
       const roadY = 0.06;
-      const renderedByBridgeKit = ch.surface === 'modular-bridge';
-      if (!renderedByBridgeKit) this._strokeMitered(pts, ch.W, roadY, roadMat, ch.closed);
+      const renderedByImportedSurface = ch.surface === 'modular-bridge' || ch.surface === 'imported-street-road';
+      if (!renderedByImportedSurface) this._strokeMitered(pts, ch.W, roadY, roadMat, ch.closed);
       this._addRoadSurfaceColliders(pts, ch.W, roadY, ch.closed, 0.05);
-      if (ch.flyover && !renderedByBridgeKit) this._buildFlyoverStructure(pts, ch.W, roadY);
-      if (ch.guardrails && !renderedByBridgeKit) this._buildRoadGuardrails(pts, ch.W, roadY);
+      if (ch.flyover && !renderedByImportedSurface) this._buildFlyoverStructure(pts, ch.W, roadY);
+      if (ch.guardrails && !renderedByImportedSurface) this._buildRoadGuardrails(pts, ch.W, roadY);
 
       this._roadChains.push({ pts, W: ch.W, sidewalk: ch.sidewalk, roadY, closed: ch.closed, surface: ch.surface || 'asphalt' });
     }
@@ -2552,7 +2579,7 @@ export class World {
 
     for (let i = 0; i < chains.length; i++) {
       const chain = chains[i], data = metadata[i], ranges = mergedRanges[i];
-      if (chain.surface === 'modular-bridge') continue;
+      if (chain.surface === 'modular-bridge' || chain.surface === 'imported-street-road') continue;
       const total = data.total;
       if (total < 4 || chain.W < 6.5) continue;
       const roadPts = chain.pts;
