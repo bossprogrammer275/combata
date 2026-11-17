@@ -113,6 +113,7 @@ try {
     const beforeErrors = globalErrors.length;
     const beforeFailed = failedRequests.length;
     const screenshots = [];
+    const componentScreenshots = [];
     let report = null;
     let error = null;
 
@@ -146,8 +147,7 @@ try {
 
       // Road Pack and Sidewalks are compound kits. Capture each imported child
       // mesh independently so its actual shape and scale can be reviewed.
-      const componentScreenshots = [];
-      if (/data\\/models\\/assets\\/roads\\/(road_pack|sidewalks)\\/scene\\.gltf$/i.test(entry.path)) {
+      if (/data\/models\/assets\/roads\/(road_pack|sidewalks)\/scene\.gltf$/i.test(entry.path)) {
         const meshCount = await page.evaluate(() => window.__ASSET_REVIEW__?.getMeshList?.().length || 0);
         for (let meshIndex = 0; meshIndex < meshCount; meshIndex++) {
           await page.evaluate((i) => {
