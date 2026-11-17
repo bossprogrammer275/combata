@@ -5,7 +5,7 @@ import { GLTFLoader } from './lib/GLTFLoader.js';
 import { BVHWorld } from './bvh-collision.js';
 import { Atmosphere } from './atmosphere.js';
 import { loadAssetOverrides, applyAssetOverrides } from './asset-overrides.js';
-import { annotateWorldKitInstance, getWorldKitPlacementOffset } from './world-kit.js';
+import { annotateWorldKitInstance, getWorldKitPlacementOffset, WORLD_KIT_ROAD_PACK_PARTS, WORLD_KIT_ROAD_PACK_SCALE } from './world-kit.js';
 
 function rng(a, b) { return a + Math.random() * (b - a); }
 
@@ -50,6 +50,9 @@ export class World {
     this.vehicleSpawns = [];  // {x,z,ry,kind} parked/drivable vehicles
     this._buildingData = [];  // {url,min,max,x,z,doors[],interior} — auto-detected from GLB
     this.worldKitComponents = []; // imported component instances with semantic role metadata
+    this.roadModuleInstances = []; // imported road-kit pieces placed over authored drivable road paths
+    this._roadPackPrefabs = null;
+    this._roadPackPromise = null;
     this.bounds = sceneData && sceneData.bounds ? sceneData.bounds : (quality === 'ultra-low' ? 1000 : 2000);
     this._quality = quality;
     const requestedAnisotropy = quality === 'ultra' ? 16 : quality === 'high' ? 8 : quality === 'medium' ? 4 : quality === 'low' ? 2 : 1;
@@ -712,6 +715,7 @@ export class World {
       };
     }
     if (sd.roads) await this._buildAuthoredRoads(sd.roads);
+    if (sd.roadModules?.length) await this._spawnRoadModules(sd.roadModules);
     if (sd.spawns) for (const sp of sd.spawns) this.spawnPoints.push(new THREE.Vector3(sp[0], 0, sp[1]));
     if (sd.cover) for (const c of sd.cover) this.coverPoints.push(new THREE.Vector3(c[0], 0, c[1]));
     if (sd.transit) for (const t of sd.transit) this.transitPoints.push({ x: t.x, z: t.z, name: t.name });
@@ -2007,6 +2011,115 @@ export class World {
       return merged;
     });
     return { metadata, hits, ranges };
+  }
+
+  async _loadRoadPackPrefabs() {
+    if (this._roadPackPrefabs) return this._roadPackPrefabs;
+    if (this._roadPackPromise) return this._roadPackPromise;
+
+    this._roadPackPromise = (async () => {
+      const loader = this._gltfLoader || (this._gltfLoader = new GLTFLoader());
+      const gltf = await loader.loadAsync('./data/models/assets/roads/road_pack/scene.gltf');
+      const prefabs = new Map();
+      gltf.scene.updateMatrixWorld(true);
+      gltf.scene.traverse(node => {
+        if (!node.isMesh || !node.geometry) return;
+        const definition = WORLD_KIT_ROAD_PACK_PARTS[node.name];
+        if (!definition) return;
+
+        // Extract the imported child with every source transform applied, then
+        // rebase it around its own centre. The geometry/material stay imported.
+        const geometry = node.geometry.clone().applyMatrix4(node.matrixWorld);
+        geometry.computeBoundingBox();
+        const bounds = geometry.boundingBox;
+        if (!bounds || bounds.isEmpty()) {
+          geometry.dispose();
+          return;
+        }
+        const center = bounds.getCenter(new THREE.Vector3());
+        const sourceSize = bounds.getSize(new THREE.Vector3());
+        geometry.translate(-center.x, -bounds.min.y, -center.z);
+        geometry.scale(WORLD_KIT_ROAD_PACK_SCALE, 1, WORLD_KIT_ROAD_PACK_SCALE);
+        geometry.computeBoundingBox();
+        geometry.computeBoundingSphere();
+
+        const sourceMaterial = Array.isArray(node.material) ? node.material[0] : node.material;
+        const material = sourceMaterial?.clone?.();
+        if (!material) {
+          geometry.dispose();
+          return;
+        }
+        for (const key of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap']) {
+          if (material[key]) material[key].anisotropy = this._maxAnisotropy;
+        }
+        material.needsUpdate = true;
+        prefabs.set(definition.id, {
+          id: definition.id,
+          geometry,
+          material,
+          sourceName: node.name,
+          sourceDimensions: [sourceSize.x, sourceSize.y, sourceSize.z],
+          dimensions: [
+            sourceSize.x * WORLD_KIT_ROAD_PACK_SCALE,
+            sourceSize.y,
+            sourceSize.z * WORLD_KIT_ROAD_PACK_SCALE,
+          ],
+        });
+      });
+
+      for (const required of ['road-straight-long-01', 'road-straight-long-02']) {
+        if (!prefabs.has(required)) throw new Error('Road Pack is missing imported component ' + required);
+      }
+      this._roadPackPrefabs = prefabs;
+      console.info('[WorldKit] Imported road modules:', [...prefabs.keys()].join(', '));
+      return prefabs;
+    })().catch(error => {
+      this._roadPackPromise = null;
+      console.warn('[WorldKit] Road Pack unavailable; authored road ribbons remain active:', error);
+      return null;
+    });
+    return this._roadPackPromise;
+  }
+
+  async _spawnRoadModules(placements = []) {
+    if (!Array.isArray(placements) || !placements.length) return;
+    const prefabs = await this._loadRoadPackPrefabs();
+    if (!prefabs?.size) return;
+
+    for (const placement of placements) {
+      const id = placement.componentId || placement.id;
+      const prefab = prefabs.get(id);
+      if (!prefab) {
+        console.warn('[WorldKit] Unknown road module:', id);
+        continue;
+      }
+      const mesh = new THREE.Mesh(prefab.geometry, prefab.material);
+      mesh.name = 'worldkit_road_module_' + id;
+      mesh.position.set(
+        Number(placement.x) || 0,
+        Number.isFinite(placement.y) ? placement.y : 0.068,
+        Number(placement.z) || 0,
+      );
+      mesh.rotation.y = Number(placement.yaw) || 0;
+      const scale = Number(placement.scale);
+      if (Number.isFinite(scale) && scale > 0) mesh.scale.setScalar(scale);
+      mesh.castShadow = false;
+      mesh.receiveShadow = true;
+      mesh.renderOrder = 1;
+      mesh.userData.worldKit = {
+        id,
+        category: 'road',
+        role: WORLD_KIT_ROAD_PACK_PARTS[prefab.sourceName]?.role || 'road-module',
+        source: './data/models/assets/roads/road_pack/scene.gltf',
+        collision: 'authored-road-ribbon',
+      };
+      this.group.add(mesh);
+      this.roadModuleInstances.push({
+        id,
+        mesh,
+        dimensions: prefab.dimensions.map(value => value * (Number.isFinite(scale) && scale > 0 ? scale : 1)),
+      });
+    }
   }
 
   async _loadSidewalkKit() {
