@@ -1,0 +1,222 @@
+// Visual and structural review of every imported model under data/models/assets.
+// Run with: node tools/verify-asset-review.mjs
+import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+import { glob } from 'glob';
+import { setTimeout as delay } from 'node:timers/promises';
+import { chromium } from 'playwright';
+
+const root = process.cwd();
+const port = Number(process.env.ASSET_REVIEW_PORT || 4180);
+const baseUrl = `http://127.0.0.1:${port}`;
+const assetRoot = path.join(root, 'data', 'models', 'assets');
+const manifestPath = path.join(root, 'tools', 'asset-review-manifest.json');
+const outputDir = path.join(root, 'artifacts', 'asset-review');
+const previewDir = path.join(outputDir, 'previews');
+
+assert.ok(existsSync(assetRoot), 'data/models/assets does not exist');
+
+const candidates = await glob('**/*.{glb,gltf}', { cwd: assetRoot, nodir: true });
+const modelFiles = candidates
+  .filter((file) => file.toLowerCase().endsWith('.glb') || path.basename(file).toLowerCase() === 'scene.gltf')
+  .sort((a, b) => a.localeCompare(b));
+
+assert.ok(modelFiles.length > 0, 'No GLB or scene.gltf model entry points found');
+
+const manifest = modelFiles.map((relative, index) => {
+  const filePath = path.join('data', 'models', 'assets', relative.split(path.sep).join('/'));
+  const parent = path.basename(path.dirname(relative));
+  const base = path.basename(relative, path.extname(relative));
+  const rawName = base.toLowerCase() === 'scene' ? parent : base;
+  const name = rawName.replace(/[+_\\-]+/g, ' ').replace(/\\s+/g, ' ').trim();
+  const slug = relative.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return {
+    index,
+    name: name || relative,
+    path: filePath,
+    url: '/' + filePath,
+    format: relative.toLowerCase().endsWith('.glb') ? 'glb' : 'gltf',
+    slug,
+  };
+});
+
+await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\\n', 'utf8');
+await mkdir(previewDir, { recursive: true });
+
+let server;
+let browser;
+let page;
+const globalErrors = [];
+const failedRequests = [];
+
+try {
+  server = spawn(process.execPath, ['server.js'], {
+    cwd: root,
+    env: { ...process.env, PORT: String(port) },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let serverOutput = '';
+  server.stdout.on('data', (b) => { serverOutput += b.toString(); });
+  server.stderr.on('data', (b) => { serverOutput += b.toString(); });
+
+  let ready = false;
+  for (let i = 0; i < 100; i++) {
+    if (server.exitCode != null) throw new Error('Preview server exited early:\\n' + serverOutput);
+    try {
+      const response = await fetch(baseUrl + '/tools/asset-review.html');
+      if (response.ok) { ready = true; break; }
+    } catch {}
+    await delay(250);
+  }
+  assert.ok(ready, 'Asset review server did not become ready:\\n' + serverOutput);
+
+  browser = await chromium.launch({
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-dev-shm-usage',
+      '--use-gl=angle',
+      '--use-angle=swiftshader',
+      '--enable-webgl',
+      '--ignore-gpu-blocklist',
+      '--disable-gpu-sandbox',
+    ],
+  });
+  page = await browser.newPage({
+    viewport: { width: 1280, height: 800 },
+    deviceScaleFactor: 1,
+  });
+
+  page.on('pageerror', (error) => globalErrors.push(String(error.stack || error)));
+  page.on('requestfailed', (request) => failedRequests.push({
+    url: request.url(),
+    error: request.failure()?.errorText || 'unknown',
+  }));
+  page.on('console', (message) => {
+    if (message.type() === 'error') globalErrors.push(message.text());
+  });
+
+  await page.goto(baseUrl + '/tools/asset-review.html', {
+    waitUntil: 'domcontentloaded',
+    timeout: 30000,
+  });
+  await page.waitForFunction(() => window.__ASSET_REVIEW__?.manifest?.length > 0, { timeout: 30000 });
+
+  const reports = [];
+  for (let index = 0; index < manifest.length; index++) {
+    const entry = manifest[index];
+    const beforeErrors = globalErrors.length;
+    const beforeFailed = failedRequests.length;
+    const screenshots = [];
+    let report = null;
+    let error = null;
+
+    try {
+      report = await page.evaluate(async (i) => {
+        if (!window.__ASSET_REVIEW__?.loadAsset) throw new Error(window.__ASSET_REVIEW__?.error || 'Asset viewer not initialized');
+        return await window.__ASSET_REVIEW__.loadAsset(i);
+      }, index);
+
+      await page.waitForTimeout(350);
+      for (const view of ['iso', 'side']) {
+        await page.evaluate(async (v) => window.__ASSET_REVIEW__.setView(v), view);
+        await page.waitForTimeout(120);
+        const filename = `${String(index + 1).padStart(2, '0')}-${entry.slug}-${view}.png`;
+        await page.locator('#asset-canvas').screenshot({
+          path: path.join(previewDir, filename),
+          timeout: 30000,
+          animations: 'disabled',
+        });
+        screenshots.push('previews/' + filename);
+      }
+      if (report.emptyBounds) error = 'Loaded but has empty or degenerate bounds';
+    } catch (e) {
+      error = String(e?.stack || e);
+      await writeFile(
+        path.join(previewDir, `${String(index + 1).padStart(2, '0')}-${entry.slug}-FAILED.txt`),
+        error + '\\n',
+        'utf8',
+      );
+    }
+
+    reports.push({
+      ...entry,
+      ...(report || {}),
+      error,
+      screenshots,
+      consoleErrors: globalErrors.slice(beforeErrors),
+      failedRequests: failedRequests.slice(beforeFailed),
+      loadStatus: error ? 'failed-or-invalid' : 'rendered',
+    });
+
+    console.log(
+      `[${index + 1}/${manifest.length}] ${entry.path} · ` +
+      (error ? 'FAILED: ' + error.split('\\n')[0] : `${report.meshNodeCount} meshes · ${report.triangleCount} triangles`)
+    );
+  }
+
+  const rendered = reports.filter((r) => r.loadStatus === 'rendered').length;
+  const failed = reports.length - rendered;
+  const totals = reports.reduce((acc, r) => {
+    if (r.loadStatus !== 'rendered') return acc;
+    acc.meshNodes += r.meshNodeCount || 0;
+    acc.triangles += r.triangleCount || 0;
+    acc.vertices += r.vertexCount || 0;
+    acc.materials += r.materialCount || 0;
+    acc.textures += r.textureCount || 0;
+    return acc;
+  }, { meshNodes: 0, triangles: 0, vertices: 0, materials: 0, textures: 0 });
+
+  const report = {
+    generatedAt: new Date().toISOString(),
+    source: 'data/models/assets',
+    entryPointCount: manifest.length,
+    renderedCount: rendered,
+    failedCount: failed,
+    totals,
+    globalErrors,
+    failedRequests,
+    models: reports,
+  };
+
+  await writeFile(path.join(outputDir, 'report.json'), JSON.stringify(report, null, 2) + '\\n', 'utf8');
+
+  const cards = reports.map((r) => {
+    const image = r.screenshots[0] || '';
+    const details = r.loadStatus === 'rendered'
+      ? `${r.meshNodeCount} mesh nodes · ${(r.triangleCount || 0).toLocaleString()} triangles · ${r.dimensions?.join(' × ') || 'unknown'} m`
+      : 'FAILED: ' + String(r.error || 'unknown').split('\\n')[0];
+    return `<article><h2>${r.index + 1}. ${r.name}</h2><p>${r.path}</p>${image ? `<a href="${image}"><img src="${image}" loading="lazy"></a>` : ''}<p>${details}</p><p class="tiny">Meshes: ${(r.meshNames || []).slice(0, 16).join(' · ')}</p>${r.screenshots?.[1] ? `<a href="${r.screenshots[1]}">Side view</a>` : ''}</article>`;
+  }).join('\\n');
+
+  const gallery = `<!doctype html><html><head><meta charset="utf-8"><title>Open World Asset Review</title><style>
+  body{margin:0;padding:24px;background:#111713;color:#edf4ee;font:13px/1.5 system-ui}header{margin-bottom:20px}header strong{font-size:22px}main{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}article{background:#1a241d;border:1px solid #34443a;border-radius:10px;padding:12px;min-width:0}h2{font-size:15px;margin:0 0 5px}p{color:#b8c8bd;overflow-wrap:anywhere;font-size:11px}img{width:100%;height:190px;object-fit:contain;background:#dfe5e8;border-radius:7px}.tiny{max-height:80px;overflow:auto}</style></head><body><header><strong>Open World · Asset Library Review</strong><p>${rendered}/${reports.length} models rendered · ${failed} failed · ${totals.meshNodes} mesh nodes · ${totals.triangles.toLocaleString()} triangles</p><a href="report.json">Full JSON report</a></header><main>${cards}</main></body></html>`;
+  await writeFile(path.join(outputDir, 'index.html'), gallery, 'utf8');
+
+  console.log('[asset review] ' + JSON.stringify({
+    entryPoints: manifest.length,
+    rendered,
+    failed,
+    totals,
+    outputDir,
+  }));
+
+  // Asset issues are recorded for review, but do not fail all repository CI.
+  if (globalErrors.length) console.warn('[asset review] browser errors: ' + globalErrors.length);
+} catch (error) {
+  console.error('[asset review] FAILED', error?.stack || error);
+  process.exitCode = 1;
+} finally {
+  if (browser) await browser.close().catch(() => {});
+  if (server && server.exitCode == null) {
+    server.kill('SIGTERM');
+    await Promise.race([
+      new Promise((resolve) => server.once('exit', resolve)),
+      delay(3000),
+    ]);
+    if (server.exitCode == null) server.kill('SIGKILL');
+  }
+}
