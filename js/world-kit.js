@@ -108,6 +108,18 @@ function normalizeAssetPath(url) {
     .replace(/\\/g, '/');
 }
 
+// World placements are authored by footprint centre for buildings unless
+// a placement explicitly opts out. This keeps source files with off-centre
+// modelling origins aligned to the coordinates in city-a.json.
+export function getWorldKitPlacementOffset(bounds, placement = {}) {
+  const centerXZ = placement.centerXZ ?? !!placement.building;
+  if (!centerXZ || !bounds?.min || !bounds?.max) return { x: 0, z: 0 };
+  return {
+    x: -((Number(bounds.min.x) + Number(bounds.max.x)) * 0.5 || 0),
+    z: -((Number(bounds.min.z) + Number(bounds.max.z)) * 0.5 || 0),
+  };
+}
+
 export function getWorldKitDefinition(url) {
   const normalized = normalizeAssetPath(url);
   const prefix = 'data/models/assets/';
