@@ -1,0 +1,589 @@
+{
+  "accessors": [
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 5080,
+      "max": [
+        2.5925822257995605,
+        14.404250144958496,
+        2.0953383445739746
+      ],
+      "min": [
+        -2.631779432296753,
+        10.02957820892334,
+        0.8363978862762451
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 60960,
+      "componentType": 5126,
+      "count": 5080,
+      "max": [
+        0.9969547986984253,
+        1.0,
+        0.999976396560669
+      ],
+      "min": [
+        -0.995513379573822,
+        -1.0,
+        -0.9999764561653137
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 5080,
+      "max": [
+        0.9995005130767822,
+        0.9995004534721375
+      ],
+      "min": [
+        0.0004902482032775879,
+        0.0004775784909725189
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "componentType": 5125,
+      "count": 11976,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 121920,
+      "componentType": 5126,
+      "count": 2285,
+      "max": [
+        3.0811147689819336,
+        14.20450496673584,
+        2.3542826175689697
+      ],
+      "min": [
+        1.7630724906921387,
+        10.779540061950684,
+        1.0379524230957031
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 149340,
+      "componentType": 5126,
+      "count": 2285,
+      "max": [
+        0.9997445940971375,
+        1.0,
+        0.9881287217140198
+      ],
+      "min": [
+        -0.586280107498169,
+        -1.0,
+        -0.8333417177200317
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 40640,
+      "componentType": 5126,
+      "count": 2285,
+      "max": [
+        0.9960415959358215,
+        0.9980393052101135
+      ],
+      "min": [
+        0.0025752040091902018,
+        0.0018794536590576172
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 47904,
+      "componentType": 5125,
+      "count": 6714,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 176760,
+      "componentType": 5126,
+      "count": 2282,
+      "max": [
+        -1.682636022567749,
+        13.591484069824219,
+        2.4824771881103516
+      ],
+      "min": [
+        -3.0204663276672363,
+        10.166518211364746,
+        1.1442705392837524
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 204144,
+      "componentType": 5126,
+      "count": 2282,
+      "max": [
+        0.7233325242996216,
+        1.0,
+        0.9999799728393555
+      ],
+      "min": [
+        -0.9999957084655762,
+        -1.0,
+        -0.719492495059967
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 58920,
+      "componentType": 5126,
+      "count": 2282,
+      "max": [
+        0.9966520071029663,
+        0.9984782934188843
+      ],
+      "min": [
+        0.004522278439253569,
+        0.0027587413787841797
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 74760,
+      "componentType": 5125,
+      "count": 6714,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 231528,
+      "componentType": 5126,
+      "count": 2811,
+      "max": [
+        1.9003640413284302,
+        15.659724235534668,
+        1.4448879957199097
+      ],
+      "min": [
+        -1.99088716506958,
+        0.007126152515411377,
+        -1.1265053749084473
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 265260,
+      "componentType": 5126,
+      "count": 2811,
+      "max": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "min": [
+        -1.0,
+        -1.0,
+        -1.0
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 77176,
+      "componentType": 5126,
+      "count": 2811,
+      "max": [
+        0.9976382255554199,
+        0.9995003938674927
+      ],
+      "min": [
+        0.00047165603609755635,
+        0.0028390539810061455
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 101616,
+      "componentType": 5125,
+      "count": 7179,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 298992,
+      "componentType": 5126,
+      "count": 2684,
+      "max": [
+        1.8115633726119995,
+        14.564730644226074,
+        1.3275889158248901
+      ],
+      "min": [
+        -1.872298240661621,
+        0.5823858380317688,
+        -0.575596809387207
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 331200,
+      "componentType": 5126,
+      "count": 2684,
+      "max": [
+        0.993481457233429,
+        1.0,
+        0.9999964237213135
+      ],
+      "min": [
+        -0.993526041507721,
+        -1.0,
+        -0.9999962449073792
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 99664,
+      "componentType": 5126,
+      "count": 2684,
+      "max": [
+        0.9783609509468079,
+        0.9995004534721375
+      ],
+      "min": [
+        0.0004889369010925293,
+        0.0004995018243789673
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 130332,
+      "componentType": 5125,
+      "count": 5184,
+      "type": "SCALAR"
+    }
+  ],
+  "asset": {
+    "extras": {
+      "author": "elouisetrewartha (https://sketchfab.com/etrewartha)",
+      "license": "CC-BY-NC-4.0 (http://creativecommons.org/licenses/by-nc/4.0/)",
+      "source": "https://sketchfab.com/3d-models/traffic-lights-ea57a21eb7124457b13b1a9a5bc33625",
+      "title": "Traffic Lights"
+    },
+    "generator": "Sketchfab-12.66.0",
+    "version": "2.0"
+  },
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 151068,
+      "name": "floatBufferViews",
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 121136,
+      "byteOffset": 151068,
+      "byteStride": 8,
+      "name": "floatBufferViews",
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 363408,
+      "byteOffset": 272204,
+      "byteStride": 12,
+      "name": "floatBufferViews",
+      "target": 34962
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 635612,
+      "uri": "scene.bin"
+    }
+  ],
+  "images": [
+    {
+      "uri": "textures/trafficlights_lights_right_all_blinn_baseColor.png"
+    },
+    {
+      "uri": "textures/trafficlights_lights_left_all_blinn_baseColor.png"
+    },
+    {
+      "uri": "textures/trafficlights_stand_blinn_baseColor.png"
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "name": "trafficlights_black_metal_blinn",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.0224215,
+          0.0224215,
+          0.0224215,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.9207483815999999
+      }
+    },
+    {
+      "doubleSided": true,
+      "name": "trafficlights_lights_right_all_blinn",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.15000000000000002
+      }
+    },
+    {
+      "doubleSided": true,
+      "name": "trafficlights_lights_left_all_blinn",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.15000000000000002
+      }
+    },
+    {
+      "doubleSided": true,
+      "name": "trafficlights_stand_blinn",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 2
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.4
+      }
+    },
+    {
+      "doubleSided": true,
+      "name": "trafficlights_bolts_blinn",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.197309,
+          0.197309,
+          0.197309,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.25
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "traffic_lights_all_combined_uvs_mesh_combine_result_trafficlights_black_metal_blinn_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 1,
+            "POSITION": 0,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "traffic_lights_all_combined_uvs_mesh_combine_result_trafficlights_lights_right_all_blinn_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 5,
+            "POSITION": 4,
+            "TEXCOORD_0": 6
+          },
+          "indices": 7,
+          "material": 1,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "traffic_lights_all_combined_uvs_mesh_combine_result_trafficlights_lights_left_all_blinn_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 9,
+            "POSITION": 8,
+            "TEXCOORD_0": 10
+          },
+          "indices": 11,
+          "material": 2,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "traffic_lights_all_combined_uvs_mesh_combine_result_trafficlights_stand_blinn_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 13,
+            "POSITION": 12,
+            "TEXCOORD_0": 14
+          },
+          "indices": 15,
+          "material": 3,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "traffic_lights_all_combined_uvs_mesh_combine_result_trafficlights_bolts_blinn_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 17,
+            "POSITION": 16,
+            "TEXCOORD_0": 18
+          },
+          "indices": 19,
+          "material": 4,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "children": [
+        1
+      ],
+      "matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        2.220446049250313e-16,
+        -1.0,
+        0.0,
+        0.0,
+        1.0,
+        2.220446049250313e-16,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "Sketchfab_model"
+    },
+    {
+      "children": [
+        2
+      ],
+      "matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        -1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "4f3f0fc36118421b93d074cc0d282c14.fbx"
+    },
+    {
+      "children": [
+        3
+      ],
+      "name": "RootNode"
+    },
+    {
+      "children": [
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "name": "traffic_lights_all_combined_uvs_mesh_combine_result"
+    },
+    {
+      "mesh": 0,
+      "name": "traffic_lights_all_combined_uvs_mesh_combine_result_trafficlights_black_metal_blinn_0"
+    },
+    {
+      "mesh": 1,
+      "name": "traffic_lights_all_combined_uvs_mesh_combine_result_trafficlights_lights_right_all_blinn_0"
+    },
+    {
+      "mesh": 2,
+      "name": "traffic_lights_all_combined_uvs_mesh_combine_result_trafficlights_lights_left_all_blinn_0"
+    },
+    {
+      "mesh": 3,
+      "name": "traffic_lights_all_combined_uvs_mesh_combine_result_trafficlights_stand_blinn_0"
+    },
+    {
+      "mesh": 4,
+      "name": "traffic_lights_all_combined_uvs_mesh_combine_result_trafficlights_bolts_blinn_0"
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Sketchfab_Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    },
+    {
+      "sampler": 0,
+      "source": 2
+    }
+  ]
+}

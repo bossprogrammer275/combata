@@ -1,0 +1,11 @@
+Model Information:
+* title:	Road Pack
+* source:	https://sketchfab.com/3d-models/road-pack-fb178f10ee2443baafa0aa8b1db5376b
+* author:	OPREXT (https://sketchfab.com/OPREXT)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Road Pack" (https://sketchfab.com/3d-models/road-pack-fb178f10ee2443baafa0aa8b1db5376b) by OPREXT (https://sketchfab.com/OPREXT) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

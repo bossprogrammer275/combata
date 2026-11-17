@@ -1,0 +1,11 @@
+Model Information:
+* title:	Street road
+* source:	https://sketchfab.com/3d-models/street-road-a01b47f299b24ac99a1dcd8e2111364b
+* author:	saifurrehman (https://sketchfab.com/saifurrehman)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Street road" (https://sketchfab.com/3d-models/street-road-a01b47f299b24ac99a1dcd8e2111364b) by saifurrehman (https://sketchfab.com/saifurrehman) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

@@ -1,0 +1,11 @@
+Model Information:
+* title:	Low Poly  School Building
+* source:	https://sketchfab.com/3d-models/low-poly-school-building-c78ace4136f341e883ba8cdd48375068
+* author:	rikki23 (https://sketchfab.com/rikki23)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Low Poly  School Building" (https://sketchfab.com/3d-models/low-poly-school-building-c78ace4136f341e883ba8cdd48375068) by rikki23 (https://sketchfab.com/rikki23) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
