@@ -143,6 +143,8 @@
       state.report = {
         roadCount: map.roads?.length || 0,
         roadModuleCount: world.roadModuleInstances?.length || 0,
+        bridgeComponentCount: world.bridgeComponentInstances?.length || 0,
+        bridgeDeckPhysicsCount: world.roadPhysicsMeshes?.filter(surface => surface.kind === 'bridge_deck').length || 0,
         glbAssetCount: map.glbAssets?.length || 0,
         uniqueModelCount: uniqueModels,
         buildingCount: buildings,
@@ -154,7 +156,7 @@
         errors: state.errors.slice(),
       };
       status.textContent = 'World ready · real assets loaded';
-      counts.textContent = `${state.report.roadCount} roads · ${state.report.roadModuleCount} imported road modules · ${state.report.glbAssetCount} GLB placements · ${uniqueModels} unique models · ${meshCount} meshes · ${world.colliders.length} colliders`;
+      counts.textContent = `${state.report.roadCount} roads · ${state.report.roadModuleCount} imported road modules · ${state.report.bridgeComponentCount} bridge components · ${state.report.glbAssetCount} GLB placements · ${uniqueModels} unique models · ${meshCount} meshes · ${world.colliders.length} colliders`;
       applyCamera();
       busy.classList.add('hide');
       window.__CITY_PREVIEW__ = {
