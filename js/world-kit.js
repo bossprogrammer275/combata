@@ -24,13 +24,12 @@ const definitions = [
   ['residential/residential_house_3/scene.gltf', 'residential-house-3', 'residential', 'house', 'atomic', 'preserve-source-scene', 'building-shell', 'manifest-inspected'],
 
   // Roads and transport surfaces
-  ['road.glb', 'road-root', 'road', 'road-surface', 'atomic', 'preserve-source-scene', 'road-surface', 'pending-visual'],
   ['roads/concrete_block_low_poly.glb', 'concrete-road-block', 'roadside', 'road-prop', 'atomic', 'preserve-source-scene', 'solid-prop', 'pending-visual'],
   ['roads/road_block/scene.gltf', 'road-barricade', 'roadside', 'barrier', 'atomic', 'preserve-source-scene', 'solid-prop', 'manifest-inspected'],
-  ['roads/road_pack/scene.gltf', 'road-pack', 'road', 'modular-road-pack', 'compound', 'inspect-child-meshes', 'road-surface', 'manifest-inspected'],
+  ['roads/road_pack/scene.gltf', 'road-pack-panels', 'road-detail', 'marked-road-panel-set', 'compound', 'six-authored-road-panels', 'no-collision', 'rendered-preview-verified'],
   ['roads/sidewalks/scene.gltf', 'sidewalk-pack', 'road', 'modular-sidewalk-pack', 'compound', 'semantic-child-pieces', 'walkable-surface-pieces', 'manifest-inspected'],
   ['roads/speed_bump.glb', 'speed-bump', 'roadside', 'traffic-calming', 'atomic', 'preserve-source-scene', 'solid-prop', 'pending-visual'],
-  ['roads/street_road/scene.gltf', 'street-road', 'road', 'road-surface', 'compound', 'preserve-source-scene', 'road-surface', 'manifest-inspected'],
+  ['roads/street_road/scene.gltf', 'street-road', 'road', 'two-lane-wet-road-source', 'compound', 'preserve-source-scene', 'road-surface', 'rendered-preview-verified'],
 
   // Utilities, bridges and roadside infrastructure
   ['others/-dry_type_distribution_transformer/scene.gltf', 'dry-transformer', 'infrastructure', 'electrical-transformer', 'compound', 'preserve-source-scene', 'solid-prop', 'manifest-inspected'],
