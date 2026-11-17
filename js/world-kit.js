@@ -96,6 +96,27 @@ export const WORLD_KIT_ROAD_PACK_PARTS = Object.freeze({
   Object_14: Object.freeze({ id: 'road-corner-02', label: 'Curved road corner · marking variant B', role: 'road-corner-module' }),
 });
 
+export const WORLD_KIT_SIDEWALK_COMPONENTS = Object.freeze({
+  Sidewwalk_Long_SidewalkMat_0: Object.freeze({ id: 'sidewalk-long-display', label: 'Long concrete pavement panel', kind: 'long-pavement' }),
+  SidewalkDrivewayRight_SidewalkMat_0: Object.freeze({ id: 'sidewalk-driveway-right', label: 'Right-hand driveway apron', kind: 'driveway' }),
+  DrivewayMid1_SidewalkMat_0: Object.freeze({ id: 'sidewalk-driveway-middle', label: 'Driveway centre apron', kind: 'driveway' }),
+  SidewalkDrivewayLeft_SidewalkMat_0: Object.freeze({ id: 'sidewalk-driveway-left', label: 'Left-hand driveway apron', kind: 'driveway' }),
+  SidewalkCornerLarge_SidewalkMat_0: Object.freeze({ id: 'sidewalk-corner-large', label: 'Large curved sidewalk corner', kind: 'corner' }),
+  SidewalkCorner1_SidewalkMat_0: Object.freeze({ id: 'sidewalk-corner-small-a', label: 'Small sidewalk corner A', kind: 'corner' }),
+  SidewalkCorner2_SidewalkMat_0: Object.freeze({ id: 'sidewalk-corner-small-b', label: 'Small sidewalk corner B', kind: 'corner' }),
+  SidewalkCornerLargeWalk_SidewalkMat_0: Object.freeze({ id: 'sidewalk-corner-large-walk', label: 'Large walk-through corner', kind: 'corner' }),
+  SidewalkCracked_SidewalkMat_0: Object.freeze({ id: 'sidewalk-cracked', label: 'Cracked concrete pavement', kind: 'worn-pavement' }),
+  Sidewalk1_SidewalkMat_0: Object.freeze({ id: 'sidewalk-panel-01', label: 'Square sidewalk panel 01', kind: 'standard-panel' }),
+  Sidewalk2_SidewalkMat_0: Object.freeze({ id: 'sidewalk-panel-02', label: 'Square sidewalk panel 02', kind: 'standard-panel' }),
+  Sidewalk3_SidewalkMat_0: Object.freeze({ id: 'sidewalk-panel-03', label: 'Square sidewalk panel 03', kind: 'standard-panel' }),
+  Sidewalk4_SidewalkMat_0: Object.freeze({ id: 'sidewalk-panel-04', label: 'Square sidewalk panel 04', kind: 'standard-panel' }),
+  SidewalkBroken_SidewalkMat_0: Object.freeze({ id: 'sidewalk-broken', label: 'Broken concrete pavement', kind: 'worn-pavement' }),
+  Sidewwalk_Long1_SidewalkMat_0: Object.freeze({ id: 'sidewalk-long-01', label: 'Long pavement panel 01', kind: 'long-pavement' }),
+  Sidewwalk_Long2_SidewalkMat_0: Object.freeze({ id: 'sidewalk-long-02', label: 'Long pavement panel 02', kind: 'long-pavement' }),
+  Sidewwalk_Long3_SidewalkMat_0: Object.freeze({ id: 'sidewalk-long-03', label: 'Long pavement panel 03', kind: 'long-pavement' }),
+});
+
+
 export const WORLD_KIT_PROCEDURAL_RULES = Object.freeze([
   Object.freeze({ id: 'curved-road-surfaces', use: 'procedural', reason: 'Road ribbons need to follow authored curves and variable widths; use imported road modules only where their geometry fits.' }),
   Object.freeze({ id: 'lane-markings', use: 'procedural', reason: 'Paint, dashed lane lines, stop lines and crosswalks are repeatable thin geometry.' }),
@@ -184,10 +205,12 @@ export function annotateWorldKitInstance(root, placement = {}) {
     meshCount++;
     node.userData ||= {};
     const roadPart = id === 'road-pack' ? WORLD_KIT_ROAD_PACK_PARTS[node.name] : null;
+    const sidewalkPart = id === 'sidewalk-pack' ? WORLD_KIT_SIDEWALK_COMPONENTS[node.name] : null;
     node.userData.worldKit = {
       assetId: id,
-      role: roadPart?.role || role,
+      role: roadPart?.role || (sidewalkPart ? 'sidewalk-piece' : role),
       ...(roadPart ? { componentId: roadPart.id, label: roadPart.label } : {}),
+      ...(sidewalkPart ? { componentId: sidewalkPart.id, label: sidewalkPart.label, componentKind: sidewalkPart.kind } : {}),
     };
   });
 
