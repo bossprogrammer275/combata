@@ -968,8 +968,10 @@ export class World {
         (collisionProfile === 'placement-default' && (assetUrl.includes('tree') || assetUrl.includes('palm') || assetUrl.includes('coconut') || (a.tags && a.tags.includes('nature'))));
       const isLamp = collisionProfile === 'pole-proxy' ||
         (collisionProfile === 'placement-default' && (assetUrl.includes('street_light') || assetUrl.includes('lamp') || assetUrl.includes('light')));
-      const isRoad = collisionProfile === 'road-surface' ||
-        (collisionProfile === 'placement-default' && (assetUrl.includes('road.glb') || (assetUrl.includes('road') && !assetUrl.includes('barrier'))));
+      // Road collision is assigned only to assets explicitly registered as
+      // drivable road surfaces. A filename containing "road" is not enough:
+      // road barriers, bumps and small marked panels are ordinary props/details.
+      const isRoad = collisionProfile === 'road-surface';
       const hasNoCollision = !!a.noCollision || collisionProfile === 'no-collision';
 
       const bbox = new THREE.Box3().setFromObject(model, true);
@@ -2403,7 +2405,6 @@ export class World {
     return out;
   }
 
-  // Place road.glb model clones along a polyline, adding thin road collision
   // Build the structural pieces of a raised crossing from the same elevated
   // centreline used by the asphalt ribbon. Vertices are in world coordinates,
   // because registerStaticRoadMeshes consumes geometry positions directly.
