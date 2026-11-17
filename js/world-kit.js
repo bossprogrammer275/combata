@@ -120,21 +120,27 @@ export const WORLD_KIT_SIDEWALK_COMPONENTS = Object.freeze({
 // Native unit scale is explicit for models that are not height/length fitted.
 // targetH and vehicle targetLen always describe final metres in the game world.
 export function getWorldKitScalePlan(sourceHeight, placement = {}, definition = null) {
-  const rawUnitScale = Number(placement.unitScale ?? definition?.unitScale ?? 1);
-  const unitScale = Number.isFinite(rawUnitScale) && rawUnitScale > 0 ? rawUnitScale : 1;
+  const sourceUnitValue = placement.unitScale ?? definition?.unitScale;
+  const hasExplicitUnitScale = sourceUnitValue != null
+    && Number.isFinite(Number(sourceUnitValue))
+    && Number(sourceUnitValue) > 0;
+  const unitScale = hasExplicitUnitScale ? Number(sourceUnitValue) : 1;
   const rawHeight = Number(sourceHeight);
   const targetHeight = Number(placement.targetH);
   if (Number.isFinite(targetHeight) && targetHeight > 0 && Number.isFinite(rawHeight) && rawHeight > 1e-7) {
-    const sourceHeightMetres = rawHeight * unitScale;
-    const fitScale = targetHeight / sourceHeightMetres;
+    // A target fit is unit-agnostic: source values are measured, then fitted
+    // directly to the requested final metre height. unitScale is only included
+    // when the source convention is explicitly known for diagnostic purposes.
+    const sourceHeightMetres = hasExplicitUnitScale ? rawHeight * unitScale : null;
+    const fitScale = targetHeight / (hasExplicitUnitScale ? sourceHeightMetres : rawHeight);
     return Object.freeze({
-      unitScale,
+      unitScale: hasExplicitUnitScale ? unitScale : null,
       fitScale,
-      totalScale: unitScale * fitScale,
+      totalScale: hasExplicitUnitScale ? unitScale * fitScale : fitScale,
       sourceHeight: rawHeight,
       sourceHeightMetres,
       targetHeightMetres: targetHeight,
-      mode: 'target-height-metres',
+      mode: hasExplicitUnitScale ? 'target-height-metres' : 'target-height-normalized',
     });
   }
 
@@ -147,7 +153,44 @@ export function getWorldKitScalePlan(sourceHeight, placement = {}, definition = 
     sourceHeight: Number.isFinite(rawHeight) ? rawHeight : 0,
     sourceHeightMetres: Number.isFinite(rawHeight) ? rawHeight * unitScale : 0,
     targetHeightMetres: null,
-    mode: placement.unitScale != null || definition?.unitScale != null ? 'explicit-source-unit' : 'authored-metres',
+    mode: hasExplicitUnitScale ? 'explicit-source-unit' : 'authored-metres',
+  });
+}
+
+// Vehicle targetLen follows the same rule as world targetH: the authored target
+// is always metres, regardless of whether the downloaded model uses cm, mm or
+// arbitrary scene units. Explicit unitScale is retained for known source files.
+export function getWorldKitLengthScalePlan(sourceLength, targetLength, sourceUnitScale = null) {
+  const rawLength = Number(sourceLength);
+  const targetLengthMetres = Number(targetLength);
+  const hasExplicitUnitScale = sourceUnitScale != null
+    && Number.isFinite(Number(sourceUnitScale))
+    && Number(sourceUnitScale) > 0;
+  const unitScale = hasExplicitUnitScale ? Number(sourceUnitScale) : 1;
+
+  if (Number.isFinite(rawLength) && rawLength > 1e-7
+    && Number.isFinite(targetLengthMetres) && targetLengthMetres > 0) {
+    const sourceLengthMetres = hasExplicitUnitScale ? rawLength * unitScale : null;
+    const fitScale = targetLengthMetres / (hasExplicitUnitScale ? sourceLengthMetres : rawLength);
+    return Object.freeze({
+      unitScale: hasExplicitUnitScale ? unitScale : null,
+      fitScale,
+      totalScale: hasExplicitUnitScale ? unitScale * fitScale : fitScale,
+      sourceLength: rawLength,
+      sourceLengthMetres,
+      targetLengthMetres,
+      mode: hasExplicitUnitScale ? 'target-length-metres' : 'target-length-normalized',
+    });
+  }
+
+  return Object.freeze({
+    unitScale,
+    fitScale: 1,
+    totalScale: unitScale,
+    sourceLength: Number.isFinite(rawLength) ? rawLength : 0,
+    sourceLengthMetres: Number.isFinite(rawLength) ? rawLength * unitScale : 0,
+    targetLengthMetres: null,
+    mode: hasExplicitUnitScale ? 'explicit-source-unit' : 'authored-metres',
   });
 }
 
