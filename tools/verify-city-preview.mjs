@@ -119,6 +119,20 @@ try {
   assert.equal(report.glbAssetCount, map.glbAssets.length, 'runtime GLB placement count differs from authored map');
   assert.equal(report.uniqueModelCount, new Set(map.glbAssets.map(a => a.url)).size, 'not all distinct imported model files loaded into cache');
   assert.equal(report.buildingCount, map.glbAssets.filter(a => a.building).length, 'some authored building GLBs did not load');
+  assert.equal(report.buildingInstanceCount, report.buildingCount,
+    'World Kit did not register every placed building instance');
+  assert.equal(report.buildingDoorCoverageCount, report.buildingCount,
+    'every placed building must resolve a native or generated metric doorway');
+  assert.equal(report.buildingCollisionCoverageCount, report.buildingCount,
+    'every placed building must resolve native, sidecar or generated wall collision');
+  assert.ok(report.generatedDoorMarkerCount > 0,
+    'legacy downloaded buildings should receive hidden door_auto_* markers');
+  assert.ok(report.generatedCollisionProxyMeshCount > 0,
+    'legacy downloaded buildings should receive hidden col_auto_* collision proxies');
+  assert.deepEqual(report.missingDoorAssets, [],
+    'buildings missing doorway metadata: ' + report.missingDoorAssets.join(', '));
+  assert.deepEqual(report.missingCollisionAssets, [],
+    'buildings missing collision strategy: ' + report.missingCollisionAssets.join(', '));
   assert.equal(report.spawnPointCount, 0, 'runtime generated enemy/pedestrian spawn points');
   assert.equal(report.lootPointCount, 0, 'runtime generated loot crates');
   assert.equal(report.errors.length, 0, 'preview logged a model/runtime error: ' + report.errors.join('\n'));
