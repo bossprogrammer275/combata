@@ -35,6 +35,9 @@ const loader = new GLTFLoader();
 let current = null;
 let currentEntry = null;
 let manifest = [];
+let currentIndex = -1;
+let currentMeshObjects = [];
+let isolatedMesh = null;
 let resizeObserver;
 
 function resize() {
@@ -51,6 +54,9 @@ resizeObserver.observe(canvas.parentElement);
 window.addEventListener('resize', resize);
 
 function disposeCurrent() {
+  currentMeshObjects = [];
+  isolatedMesh = null;
+  $('mesh-list')?.replaceChildren();
   if (!current) return;
   scene.remove(current);
   const geometries = new Set();
@@ -82,6 +88,7 @@ function inspect(root, gltf) {
   const materials = new Set();
   const textures = new Set();
   const meshNames = [];
+  const meshObjects = [];
   const seen = new Set();
 
   root.traverse((obj) => {
@@ -108,8 +115,10 @@ function inspect(root, gltf) {
       n = n.parent;
     }
     const label = chain.join(' / ') || obj.name || 'unnamed mesh';
+    meshObjects.push({ object: obj, label, visibleAtLoad: obj.visible });
     if (!seen.has(label)) { seen.add(label); meshNames.push(label); }
   });
+  currentMeshObjects = meshObjects;
 
   const bounds = new THREE.Box3().setFromObject(root);
   const size = bounds.getSize(new THREE.Vector3());
@@ -161,6 +170,59 @@ function frame(root) {
   renderer.render(scene, camera);
 }
 
+function showAllMeshes() {
+  currentMeshObjects.forEach((entry) => { entry.object.visible = entry.visibleAtLoad; });
+  isolatedMesh = null;
+  $('mesh-selection-status').textContent = currentMeshObjects.length + ' subcomponents visible';
+  renderMeshList();
+  if (current) frame(current);
+}
+
+function isolateMesh(mesh) {
+  if (isolatedMesh === mesh) {
+    showAllMeshes();
+    return;
+  }
+  currentMeshObjects.forEach((entry) => { entry.object.visible = entry.object === mesh; });
+  isolatedMesh = mesh;
+  const entry = currentMeshObjects.find(item => item.object === mesh);
+  $('mesh-selection-status').textContent = 'Isolated: ' + (entry?.label || mesh.name || 'selected mesh');
+  renderMeshList();
+  frame(mesh);
+}
+
+function renderMeshList() {
+  const list = $('mesh-list');
+  if (!list) return;
+  list.replaceChildren();
+  const query = ($('mesh-filter')?.value || '').trim().toLowerCase();
+  const filtered = currentMeshObjects.filter(entry => !query || entry.label.toLowerCase().includes(query));
+  filtered.forEach((entry) => {
+    const li = document.createElement('li');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'mesh-part' + (isolatedMesh === entry.object ? ' active' : '');
+    button.textContent = entry.label;
+    button.title = 'Click to isolate this imported mesh; click again or Show all to restore the component';
+    button.addEventListener('click', () => isolateMesh(entry.object));
+    li.append(button);
+    list.append(li);
+  });
+  if (!filtered.length) {
+    const li = document.createElement('li');
+    li.textContent = currentMeshObjects.length ? 'No subcomponents match this filter.' : 'No mesh data loaded.';
+    list.append(li);
+  }
+  const status = $('mesh-selection-status');
+  if (status && !isolatedMesh && currentMeshObjects.length) {
+    status.textContent = currentMeshObjects.length + ' subcomponents visible';
+  }
+}
+
+function reportLoadError(error) {
+  $('status').textContent = 'LOAD FAILED: ' + (error?.message || String(error));
+}
+
 function updatePanel(report, index, total, status) {
   $('counter').textContent = total ? `Model ${index + 1} / ${total}` : 'No models found';
   $('asset-name').textContent = report?.name || 'Loading model';
@@ -176,22 +238,15 @@ function updatePanel(report, index, total, status) {
   $('nodes').textContent = report?.nodeCount ?? '—';
   $('geometry').textContent = report?.uniqueGeometryCount ?? '—';
   $('separation').textContent = report ? (report.meshNodeCount === 1 ? 'Single mesh' : report.meshNodeCount + ' renderable mesh nodes') : '—';
-  $('mesh-list').replaceChildren();
-  (report?.meshNames || []).slice(0, 120).forEach((name) => {
-    const li = document.createElement('li');
-    li.textContent = name;
-    $('mesh-list').append(li);
-  });
-  if (!report) {
-    const li = document.createElement('li');
-    li.textContent = 'No mesh data';
-    $('mesh-list').append(li);
-  }
+  renderMeshList();
+  $('asset-prev').disabled = index <= 0;
+  $('asset-next').disabled = index >= total - 1;
 }
 
 async function loadAsset(index) {
   if (!manifest[index]) throw new Error('Asset index out of range: ' + index);
   disposeCurrent();
+  currentIndex = index;
   currentEntry = manifest[index];
   updatePanel(null, index, manifest.length, 'Loading ' + currentEntry.format.toUpperCase() + ' through Three.js GLTFLoader…');
   let timeoutId;
@@ -229,12 +284,28 @@ async function setView(view) {
 }
 
 async function init() {
+  $('mesh-filter').addEventListener('input', renderMeshList);
+  $('mesh-show-all').addEventListener('click', showAllMeshes);
+  $('asset-prev').addEventListener('click', () => {
+    if (currentIndex > 0) loadAsset(currentIndex - 1).catch(reportLoadError);
+  });
+  $('asset-next').addEventListener('click', () => {
+    if (currentIndex < manifest.length - 1) loadAsset(currentIndex + 1).catch(reportLoadError);
+  });
+
   const response = await fetch('/tools/asset-review-manifest.json', { cache: 'no-store' });
   if (!response.ok) throw new Error('Asset manifest missing. Run tools/verify-asset-review.mjs first.');
   manifest = await response.json();
   $('status').textContent = 'Manifest loaded · ' + manifest.length + ' model files queued.';
-  window.__ASSET_REVIEW__ = { manifest, loadAsset, setView, getCurrent: () => currentEntry };
+  window.__ASSET_REVIEW__ = {
+    manifest, loadAsset, setView, showAllMeshes,
+    isolateMesh: (index) => currentMeshObjects[index] && isolateMesh(currentMeshObjects[index].object),
+    getCurrent: () => currentEntry,
+    getMeshList: () => currentMeshObjects.map(({ label, visibleAtLoad }) => ({ label, visibleAtLoad })),
+  };
   updatePanel(null, 0, manifest.length, manifest.length + ' model files ready for inspection.');
+  $('asset-prev').disabled = true;
+  $('asset-next').disabled = manifest.length <= 1;
 }
 
 init().catch((error) => {
