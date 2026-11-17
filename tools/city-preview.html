@@ -36,6 +36,7 @@
       <button data-view="boulevard">Street level</button>
       <button data-view="flyover">Flyovers</button>
       <button data-view="south">Southern blocks</button>
+      <button data-view="roadKit">GRA road kit</button>
     </div>
   </section>
   <div id="foot">Internal visual inspection · drag to orbit · scroll to zoom · no NPCs or loot</div>
@@ -71,6 +72,7 @@
       boulevard: { target: [35, 3, -49], distance: 105, yaw: 0.72, pitch: 0.28 },
       flyover: { target: [15, 4, 20], distance: 205, yaw: 0.65, pitch: 0.49 },
       south: { target: [0, 4, 134], distance: 175, yaw: 0.78, pitch: 0.38 },
+      roadKit: { target: [-88, 0.5, 112], distance: 72, yaw: 0.72, pitch: 0.42 },
     };
     const target = new THREE.Vector3();
     let orbit = { yaw: 0.72, pitch: 0.88, distance: 455 };
