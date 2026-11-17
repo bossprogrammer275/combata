@@ -6,6 +6,7 @@ import { BVHWorld } from './bvh-collision.js';
 import { Atmosphere } from './atmosphere.js';
 import { loadAssetOverrides, applyAssetOverrides } from './asset-overrides.js';
 import { annotateWorldKitInstance, getWorldKitPlacementOffset, WORLD_KIT_ROAD_PACK_PARTS, WORLD_KIT_ROAD_PACK_SCALE, WORLD_KIT_SIDEWALK_COMPONENTS } from './world-kit.js';
+import { extractWorldBridgeKit, WORLD_BRIDGE_KIT_URL } from './world-bridge-kit.js';
 
 function rng(a, b) { return a + Math.random() * (b - a); }
 
@@ -52,6 +53,9 @@ export class World {
     this.worldKitComponents = []; // imported component instances with semantic role metadata
     this.roadModuleInstances = []; // imported road-kit pieces placed over authored drivable road paths
     this.sidewalkModuleInstances = []; // authored driveway, corner and damaged-pavement pieces
+    this.bridgeComponentInstances = []; // modular bridge components extracted from the imported bridge kit
+    this._bridgeKit = null;
+    this._bridgeKitPromise = null;
     this._roadPackPrefabs = null;
     this._roadPackPromise = null;
     this.bounds = sceneData && sceneData.bounds ? sceneData.bounds : (quality === 'ultra-low' ? 1000 : 2000);
@@ -718,6 +722,7 @@ export class World {
     if (sd.roads) await this._buildAuthoredRoads(sd.roads);
     if (sd.roadModules?.length) await this._spawnRoadModules(sd.roadModules);
     if (sd.sidewalkModules?.length) await this._spawnSidewalkModules(sd.sidewalkModules);
+    if (sd.bridgeAssemblies?.length) await this._spawnBridgeAssemblies(sd.bridgeAssemblies);
     if (sd.spawns) for (const sp of sd.spawns) this.spawnPoints.push(new THREE.Vector3(sp[0], 0, sp[1]));
     if (sd.cover) for (const c of sd.cover) this.coverPoints.push(new THREE.Vector3(c[0], 0, c[1]));
     if (sd.transit) for (const t of sd.transit) this.transitPoints.push({ x: t.x, z: t.z, name: t.name });
@@ -1795,10 +1800,11 @@ export class World {
       // surfaces, so tires sit on asphalt at y=0.06 instead of cutting through it
       // to the lower ground plane.
       const roadY = 0.06;
-      this._strokeMitered(pts, ch.W, roadY, roadMat, ch.closed);
+      const renderedByBridgeKit = ch.surface === 'modular-bridge';
+      if (!renderedByBridgeKit) this._strokeMitered(pts, ch.W, roadY, roadMat, ch.closed);
       this._addRoadSurfaceColliders(pts, ch.W, roadY, ch.closed, 0.05);
-      if (ch.flyover) this._buildFlyoverStructure(pts, ch.W, roadY);
-      if (ch.guardrails) this._buildRoadGuardrails(pts, ch.W, roadY);
+      if (ch.flyover && !renderedByBridgeKit) this._buildFlyoverStructure(pts, ch.W, roadY);
+      if (ch.guardrails && !renderedByBridgeKit) this._buildRoadGuardrails(pts, ch.W, roadY);
 
       this._roadChains.push({ pts, W: ch.W, sidewalk: ch.sidewalk, roadY, closed: ch.closed, surface: ch.surface || 'asphalt' });
     }
@@ -2121,6 +2127,89 @@ export class World {
         mesh,
         dimensions: prefab.dimensions.map(value => value * (Number.isFinite(scale) && scale > 0 ? scale : 1)),
       });
+    }
+  }
+
+  async _loadBridgeKit() {
+    if (this._bridgeKit) return this._bridgeKit;
+    if (this._bridgeKitPromise) return this._bridgeKitPromise;
+
+    this._bridgeKitPromise = (async () => {
+      const loader = this._gltfLoader || (this._gltfLoader = new GLTFLoader());
+      const gltf = await loader.loadAsync(WORLD_BRIDGE_KIT_URL);
+      this._bridgeKit = extractWorldBridgeKit(gltf.scene);
+      console.info('[WorldKit] Imported bridge components:', [...this._bridgeKit.keys()].join(', '));
+      return this._bridgeKit;
+    })().catch(error => {
+      this._bridgeKitPromise = null;
+      console.warn('[WorldKit] Bridge component kit unavailable:', error);
+      return null;
+    });
+    return this._bridgeKitPromise;
+  }
+
+  async _spawnBridgeAssemblies(assemblies = []) {
+    if (!Array.isArray(assemblies) || !assemblies.length) return;
+    const kit = await this._loadBridgeKit();
+    if (!kit?.size) return;
+
+    for (const assemblyData of assemblies) {
+      const id = assemblyData.id || 'bridge-assembly-' + this.bridgeComponentInstances.length;
+      const assembly = new THREE.Group();
+      assembly.name = 'worldkit_bridge_' + id;
+      assembly.position.set(
+        Number(assemblyData.x) || 0,
+        Number(assemblyData.y) || 0,
+        Number(assemblyData.z) || 0,
+      );
+      assembly.rotation.y = Number(assemblyData.yaw) || 0;
+      this.group.add(assembly);
+
+      const placements = Array.isArray(assemblyData.pieces) ? assemblyData.pieces : [];
+      for (const placement of placements) {
+        const componentId = placement.componentId || placement.part || placement.id;
+        const prefab = kit.get(componentId);
+        if (!prefab) {
+          console.warn('[WorldKit] Unknown bridge component:', componentId);
+          continue;
+        }
+
+        const part = prefab.group.clone(true);
+        part.name = 'worldkit_bridge_part_' + componentId;
+        part.position.set(
+          Number(placement.x) || 0,
+          Number(placement.y) || 0,
+          Number(placement.z) || 0,
+        );
+        part.rotation.y = Number(placement.yaw) || 0;
+        const uniformScale = Number.isFinite(placement.scale) && placement.scale > 0 ? placement.scale : 1;
+        const sx = Number.isFinite(placement.scaleX) && placement.scaleX > 0 ? placement.scaleX : uniformScale;
+        const sy = Number.isFinite(placement.scaleY) && placement.scaleY > 0 ? placement.scaleY : uniformScale;
+        const sz = Number.isFinite(placement.scaleZ) && placement.scaleZ > 0 ? placement.scaleZ : uniformScale;
+        part.scale.set(sx, sy, sz);
+        assembly.add(part);
+
+        this.bridgeComponentInstances.push({
+          assemblyId: id,
+          componentId,
+          sourceNode: prefab.sourceNode,
+          kind: prefab.kind,
+          dimensions: [prefab.dimensions[0] * sx, prefab.dimensions[1] * sy, prefab.dimensions[2] * sz],
+          deckHeight: prefab.deckHeight * sy,
+        });
+      }
+
+      assembly.updateMatrixWorld(true);
+      if (assemblyData.registerRoadPhysics !== false) {
+        assembly.traverse(node => {
+          if (!node.isMesh || node.userData.worldKit?.role !== 'bridge-road-surface') return;
+          const geometry = node.geometry.clone();
+          geometry.applyMatrix4(node.matrixWorld);
+          geometry.computeBoundingBox();
+          geometry.computeBoundingSphere();
+          this.roadPhysicsMeshes.push({ kind: 'bridge_deck', geometry });
+        });
+      }
     }
   }
 
@@ -2463,6 +2552,7 @@ export class World {
 
     for (let i = 0; i < chains.length; i++) {
       const chain = chains[i], data = metadata[i], ranges = mergedRanges[i];
+      if (chain.surface === 'modular-bridge') continue;
       const total = data.total;
       if (total < 4 || chain.W < 6.5) continue;
       const roadPts = chain.pts;
