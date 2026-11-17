@@ -45,6 +45,8 @@ let server;
 let browser;
 let page;
 const pageErrors = [];
+const failedResponses = [];
+const failedRequests = [];
 try {
   server = spawn(process.execPath, ['server.js'], {
     cwd: root,
@@ -71,8 +73,17 @@ try {
     deviceScaleFactor: 1,
   });
   page.on('pageerror', e => pageErrors.push(String(e.stack || e)));
-  page.on('console', msg => { if (msg.type() === 'error') pageErrors.push(msg.text()); });
-  page.on('requestfailed', req => pageErrors.push('Request failed: ' + req.url() + ' — ' + (req.failure()?.errorText || 'unknown')));
+  page.on('console', msg => {
+    if (msg.type() !== 'error') return;
+    const message = msg.text();
+    // The generic 404 console line omits its URL. Capture it from responses
+    // and let the world finish loading before deciding the resource is fatal.
+    if (!/Failed to load resource: the server responded with a status of 404/i.test(message)) pageErrors.push(message);
+  });
+  page.on('response', response => {
+    if (response.status() >= 400) failedResponses.push({ status: response.status(), url: response.url() });
+  });
+  page.on('requestfailed', req => failedRequests.push({ url: req.url(), error: req.failure()?.errorText || 'unknown' }));
 
   await page.goto(baseUrl + '/tools/city-preview.html', { waitUntil: 'domcontentloaded', timeout: 30000 });
   let preview = null;
@@ -98,6 +109,8 @@ try {
   assert.equal(report.lootPointCount, 0, 'runtime generated loot crates');
   assert.equal(report.errors.length, 0, 'preview logged a model/runtime error: ' + report.errors.join('\n'));
   assert.equal(pageErrors.length, 0, 'browser emitted errors:\n' + pageErrors.join('\n'));
+  assert.equal(failedResponses.length, 0, 'HTTP resources failed while loading the city: ' + JSON.stringify(failedResponses, null, 2));
+  assert.equal(failedRequests.length, 0, 'network requests failed while loading the city: ' + JSON.stringify(failedRequests, null, 2));
 
   await mkdir(outputDir, { recursive: true });
   const shots = [
@@ -133,7 +146,7 @@ try {
         status: document.querySelector('#status')?.textContent || '',
         preview: window.__CITY_PREVIEW__ ? { ready: window.__CITY_PREVIEW__.ready, error: window.__CITY_PREVIEW__.error, report: window.__CITY_PREVIEW__.report } : null,
       })).catch(() => null);
-      await writeFile(path.join(outputDir, 'debug.json'), JSON.stringify({ diagnostics, pageErrors }, null, 2) + '\\n');
+      await writeFile(path.join(outputDir, 'debug.json'), JSON.stringify({ diagnostics, pageErrors, failedResponses, failedRequests }, null, 2) + '\\n');
     } catch (diagnosticError) { console.error('[city preview] diagnostic capture failed', String(diagnosticError)); }
   }
   process.exitCode = 1;
