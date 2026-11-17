@@ -117,6 +117,107 @@ export const WORLD_KIT_SIDEWALK_COMPONENTS = Object.freeze({
 });
 
 
+// Native unit scale is explicit for models that are not height/length fitted.
+// targetH and vehicle targetLen always describe final metres in the game world.
+export function getWorldKitScalePlan(sourceHeight, placement = {}, definition = null) {
+  const rawUnitScale = Number(placement.unitScale ?? definition?.unitScale ?? 1);
+  const unitScale = Number.isFinite(rawUnitScale) && rawUnitScale > 0 ? rawUnitScale : 1;
+  const rawHeight = Number(sourceHeight);
+  const targetHeight = Number(placement.targetH);
+  if (Number.isFinite(targetHeight) && targetHeight > 0 && Number.isFinite(rawHeight) && rawHeight > 1e-7) {
+    const sourceHeightMetres = rawHeight * unitScale;
+    const fitScale = targetHeight / sourceHeightMetres;
+    return Object.freeze({
+      unitScale,
+      fitScale,
+      totalScale: unitScale * fitScale,
+      sourceHeight: rawHeight,
+      sourceHeightMetres,
+      targetHeightMetres: targetHeight,
+      mode: 'target-height-metres',
+    });
+  }
+
+  const rawPlacementScale = Number(placement.scale);
+  const placementScale = Number.isFinite(rawPlacementScale) && rawPlacementScale > 0 ? rawPlacementScale : 1;
+  return Object.freeze({
+    unitScale,
+    fitScale: placementScale,
+    totalScale: unitScale * placementScale,
+    sourceHeight: Number.isFinite(rawHeight) ? rawHeight : 0,
+    sourceHeightMetres: Number.isFinite(rawHeight) ? rawHeight * unitScale : 0,
+    targetHeightMetres: null,
+    mode: placement.unitScale != null || definition?.unitScale != null ? 'explicit-source-unit' : 'authored-metres',
+  });
+}
+
+// These doors are authoring metadata for source assets that were not exported
+// with door_* nodes. Coordinates are relative to the scaled model footprint.
+// They create the same doorway/portal behaviour without rewriting or replacing
+// the imported GLB/glTF geometry.
+export const WORLD_KIT_DOOR_MARKERS = Object.freeze({
+  'brooklyn-twin-buildings': Object.freeze([
+    Object.freeze({ name: 'door_shop_left', side: 'south', u: 0.28, width: 1.25, height: 2.15, depth: 0.24 }),
+    Object.freeze({ name: 'door_shop_right', side: 'south', u: 0.73, width: 1.25, height: 2.15, depth: 0.24 }),
+  ]),
+  'building-generic': Object.freeze([
+    Object.freeze({ name: 'door_main', side: 'south', u: 0.5, width: 1.2, height: 2.15, depth: 0.24 }),
+  ]),
+  'car-workshop': Object.freeze([
+    Object.freeze({ name: 'door_workshop_bay', side: 'south', u: 0.5, width: 2.8, height: 3.0, depth: 0.3 }),
+  ]),
+  'gas-station-5': Object.freeze([
+    Object.freeze({ name: 'door_station_shop', side: 'south', u: 0.58, width: 1.25, height: 2.2, depth: 0.24 }),
+  ]),
+  'industrial-warehouse': Object.freeze([
+    Object.freeze({ name: 'door_warehouse_bay', side: 'south', u: 0.5, width: 3.0, height: 3.2, depth: 0.3 }),
+  ]),
+  'school-building': Object.freeze([
+    Object.freeze({ name: 'door_school_main', side: 'south', u: 0.5, width: 1.8, height: 2.35, depth: 0.28 }),
+  ]),
+  'old-brick-shop': Object.freeze([
+    Object.freeze({ name: 'door_shop_main', side: 'south', u: 0.5, width: 1.25, height: 2.2, depth: 0.24 }),
+  ]),
+  'nigeria-duplex': Object.freeze([
+    Object.freeze({ name: 'door_duplex_main', side: 'south', u: 0.5, width: 1.1, height: 2.15, depth: 0.24 }),
+  ]),
+  'residential-family-house': Object.freeze([
+    Object.freeze({ name: 'door_family_main', side: 'south', u: 0.52, width: 1.1, height: 2.15, depth: 0.24 }),
+  ]),
+  'residential-house-3': Object.freeze([
+    Object.freeze({ name: 'door_residential_main', side: 'south', u: 0.5, width: 1.1, height: 2.15, depth: 0.24 }),
+  ]),
+  'ilorin-innovation-hub': Object.freeze([
+    Object.freeze({ name: 'door_innovation_main', side: 'south', u: 0.5, width: 2.6, height: 2.8, depth: 0.3 }),
+  ]),
+  'low-poly-skyscraper': Object.freeze([
+    Object.freeze({ name: 'door_office_lobby', side: 'south', u: 0.5, width: 2.0, height: 2.8, depth: 0.3 }),
+  ]),
+  'power-transformer-building': Object.freeze([
+    Object.freeze({ name: 'door_transformer_service', side: 'south', u: 0.5, width: 1.25, height: 2.15, depth: 0.24 }),
+  ]),
+});
+
+export function getWorldKitDoorMarkers(assetId) {
+  return (WORLD_KIT_DOOR_MARKERS[String(assetId || '')] || []).map(marker => ({ ...marker }));
+}
+
+// Only request collision manifests that are actually present in the repository.
+// Models without a sidecar use authored col_* meshes or the per-asset fallback
+// collision strategy; this avoids noisy 404 fetches for every imported prop.
+export const WORLD_KIT_COLLISION_SIDECARS = Object.freeze({
+  'kwara-revenue-house': './data/models/assets/kwara_revenue_house_col.json',
+  'ilorin-innovation-hub': './data/models/assets/ilorin_innovation_hub_col.json',
+  'low-poly-skyscraper': './data/models/assets/low_poly_skyscraper_col.json',
+});
+
+export function getWorldKitCollisionManifest(url, placement = {}) {
+  if (placement.collisionManifest === false) return null;
+  if (typeof placement.collisionManifest === 'string' && placement.collisionManifest) return placement.collisionManifest;
+  const id = getWorldKitDefinition(url)?.id;
+  return id ? (WORLD_KIT_COLLISION_SIDECARS[id] || null) : null;
+}
+
 export const WORLD_KIT_PROCEDURAL_RULES = Object.freeze([
   Object.freeze({ id: 'curved-road-surfaces', use: 'procedural', reason: 'Road ribbons need to follow authored curves and variable widths; use imported road modules only where their geometry fits.' }),
   Object.freeze({ id: 'lane-markings', use: 'procedural', reason: 'Paint, dashed lane lines, stop lines and crosswalks are repeatable thin geometry.' }),
@@ -166,6 +267,7 @@ export function classifyWorldKitMesh(mesh, root) {
   const names = meshNames(mesh, root);
   const chain = names.join('/').toLowerCase();
   if (names.some(name => name.toLowerCase().startsWith('col_'))) return 'collision-proxy';
+  if (/door[_ -]handle|doorhandle/.test(chain)) return 'door-hardware';
   if (names.some(name => name.toLowerCase().startsWith('door_')) || /(^|[/_. -])(?:garage)?door([/_. -]|$)|garagedoor/.test(chain)) return 'door';
   if (names.some(name => name.toLowerCase().startsWith('window_')) || /window|glazing/.test(chain)) return 'window-glazing';
   if (names.some(name => name.toLowerCase().startsWith('floor_')) || /(^|[/_. -])floor([/_. -]|$)/.test(chain)) return 'walkable-floor';
