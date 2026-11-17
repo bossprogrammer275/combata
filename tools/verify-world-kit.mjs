@@ -22,6 +22,19 @@ assert.equal(
   'licence-restricted',
 );
 assert.equal(getWorldKitDefinition('data/models/assets/not-in-catalogue.glb'), null);
+assert.equal(
+  getWorldKitDefinition('data/models/assets/roads/road_block/scene.gltf')?.collisionProfile,
+  'solid-prop',
+  'road barricades must collide as props, not be mistaken for drivable road surfaces',
+);
+assert.equal(
+  getWorldKitDefinition('data/models/assets/roads/speed_bump.glb')?.collisionProfile,
+  'solid-prop',
+);
+assert.equal(
+  getWorldKitDefinition('data/models/assets/others/low_poly_shrub.glb')?.collisionProfile,
+  'no-collision',
+);
 
 const root = new THREE.Group();
 root.name = 'test-building';
