@@ -5,6 +5,7 @@ import { GLTFLoader } from './lib/GLTFLoader.js';
 import { BVHWorld } from './bvh-collision.js';
 import { Atmosphere } from './atmosphere.js';
 import { loadAssetOverrides, applyAssetOverrides } from './asset-overrides.js';
+import { annotateWorldKitInstance } from './world-kit.js';
 
 function rng(a, b) { return a + Math.random() * (b - a); }
 
@@ -48,6 +49,7 @@ export class World {
     this.npcInteractables = []; // semantic seats, phones, counters and other civilian-use nodes
     this.vehicleSpawns = [];  // {x,z,ry,kind} parked/drivable vehicles
     this._buildingData = [];  // {url,min,max,x,z,doors[],interior} — auto-detected from GLB
+    this.worldKitComponents = []; // imported component instances with semantic role metadata
     this.bounds = sceneData && sceneData.bounds ? sceneData.bounds : (quality === 'ultra-low' ? 1000 : 2000);
     this._quality = quality;
     const requestedAnisotropy = quality === 'ultra' ? 16 : quality === 'high' ? 8 : quality === 'medium' ? 4 : quality === 'low' ? 2 : 1;
@@ -871,6 +873,7 @@ export class World {
         baseScene = await pending;
       }
       const model = baseScene.clone(true);
+      const worldKitReport = annotateWorldKitInstance(model, a);
       await loadAssetOverrides();
       const assetEdit = applyAssetOverrides(model, a.url);
       const rootEdit = assetEdit.root || {};
@@ -904,6 +907,15 @@ export class World {
       const yOffset = -afterScaleBBox.min.y + (a.elevation || 0);
       model.position.set(a.x, yOffset, a.z);
       this.group.add(model);
+      this.worldKitComponents.push({
+        root: model,
+        id: worldKitReport.id,
+        category: worldKitReport.category,
+        role: worldKitReport.role,
+        meshCount: worldKitReport.meshCount,
+        roleCounts: worldKitReport.roleCounts,
+        position: { x: a.x, y: yOffset, z: a.z },
+      });
       model.updateMatrixWorld(true);
       this._registerAssetNpcInteractables(model);
 
