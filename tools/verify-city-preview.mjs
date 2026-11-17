@@ -18,7 +18,7 @@ const map = JSON.parse(await readFile(mapPath, 'utf8'));
 function checkMapContract() {
   assert.equal(map.id, 'city-a', 'wrong map id');
   assert.equal(map.disableAutoSpawns, true, 'compact exploration map must disable all automatic spawns');
-  assert.equal(map.roads?.length, 17, 'expected the authored city and GRA residential lane network');
+  assert.equal(map.roads?.length, 21, 'expected the authored city, GRA lanes and split flyover approaches');
   assert.equal(map.roadModules?.length, 2, 'expected two imported long road-pack pieces in the residential lane');
   assert.deepEqual(map.roadModules.map(module => module.componentId), ['road-straight-long-01', 'road-straight-long-02']);
   assert.equal(map.glbAssets?.length, 88, 'unexpected GLB placement count for the Ilorin district block');
@@ -30,7 +30,15 @@ function checkMapContract() {
   for (const required of ['nigeria_duplex', 'mosque.glb', 'low_poly__school_building', 'gas_station_5', 'meed_grocery_store']) {
     assert.ok(map.glbAssets.some(a => a.url.includes(required)), 'missing district asset: ' + required);
   }
-  assert.equal(map.roads.filter(r => r.flyover || r.bridge).length, 2, 'expected two rideable elevated crossings');
+  assert.equal(map.roads.filter(r => r.surface === 'modular-bridge').length, 2,
+    'the two central bridge decks must use imported modular bridge geometry');
+  assert.equal(map.bridgeAssemblies?.length, 2, 'both elevated crossings must assemble from the imported bridge kit');
+  assert.equal(map.bridgeAssemblies.reduce((sum, assembly) => sum + assembly.pieces.length, 0), 21,
+    'expected 21 imported bridge spans, short modules and abutments across the two crossings');
+  assert.ok(map.bridgeAssemblies.every(assembly => assembly.pieces.every(piece =>
+    piece.componentId && Number.isFinite(piece.deckY) && Number.isFinite(piece.scaleX)
+      && Number.isFinite(piece.scaleZ))),
+    'bridge pieces must use metric deckY and explicit dimensionless component scales');
   assert.equal(map.spawns?.length || 0, 0, 'enemy/pedestrian spawn list must be empty');
   assert.equal(map.cover?.length || 0, 0, 'no combat cover points should be authored');
   assert.equal(map.loot?.length || 0, 0, 'loot box list must be empty');
@@ -103,7 +111,9 @@ try {
   if (!preview?.ready) throw new Error('Timed out waiting for the real GLB scene; status=' + await page.locator('#status').textContent());
   const report = preview.report;
 
-  assert.equal(report.roadCount, 17, 'runtime road count differs from authored map');
+  assert.equal(report.roadCount, 21, 'runtime road count differs from authored map');
+  assert.equal(report.bridgeComponentCount, 21, 'not all imported bridge-kit sections reached the world');
+  assert.equal(report.bridgeDeckPhysicsCount, 21, 'every imported bridge deck must register its matching road physics mesh');
   assert.equal(report.roadModuleCount, 2, 'both imported road-kit pieces must render');
   assert.equal(report.glbAssetCount, map.glbAssets.length, 'runtime GLB placement count differs from authored map');
   assert.equal(report.uniqueModelCount, new Set(map.glbAssets.map(a => a.url)).size, 'not all distinct imported model files loaded into cache');
