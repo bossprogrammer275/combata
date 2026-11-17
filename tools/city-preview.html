@@ -143,8 +143,13 @@
       state.report = {
         roadCount: map.roads?.length || 0,
         roadModuleCount: world.roadModuleInstances?.length || 0,
+        bridgeAssemblyInputCount: map.bridgeAssemblies?.length || 0,
+        bridgeKitLoaded: !!world._bridgeKit,
+        bridgeKitParts: world._bridgeKit ? [...world._bridgeKit.keys()] : [],
+        bridgeKitError: world._bridgeKitError || null,
         bridgeComponentCount: world.bridgeComponentInstances?.length || 0,
         bridgeDeckPhysicsCount: world.roadPhysicsMeshes?.filter(surface => surface.kind === 'bridge_deck').length || 0,
+        warnings: state.warnings.filter(message => /bridge|WorldKit/i.test(message)).slice(0, 40),
         glbAssetCount: map.glbAssets?.length || 0,
         uniqueModelCount: uniqueModels,
         buildingCount: buildings,
