@@ -23,6 +23,25 @@ assert.equal(
 );
 assert.equal(getWorldKitDefinition('data/models/assets/not-in-catalogue.glb'), null);
 assert.equal(
+  getWorldKitDefinition('data/models/assets/road.glb'),
+  null,
+  'the standalone road.glb is intentionally excluded from the World Kit',
+);
+assert.equal(
+  getWorldKitDefinition('data/models/assets/roads/road_pack/scene.gltf')?.id,
+  'road-pack-panels',
+);
+assert.equal(
+  getWorldKitDefinition('data/models/assets/roads/road_pack/scene.gltf')?.collisionProfile,
+  'no-collision',
+  'the six thin road-marked panel meshes are visual pieces, not physics road surfaces',
+);
+assert.equal(
+  getWorldKitDefinition('data/models/assets/roads/street_road/scene.gltf')?.role,
+  'two-lane-wet-road-source',
+);
+
+assert.equal(
   getWorldKitDefinition('data/models/assets/roads/road_block/scene.gltf')?.collisionProfile,
   'solid-prop',
   'road barricades must collide as props, not be mistaken for drivable road surfaces',
