@@ -25,7 +25,8 @@ for (const definition of WORLD_KIT_BRIDGE_COMPONENTS) {
 const fixture = new THREE.Group();
 for (const definition of WORLD_KIT_BRIDGE_COMPONENTS) {
   const section = new THREE.Group();
-  section.name = definition.sourceNode;
+  // The actual GLTFLoader may normalize punctuation in Blender node suffixes.
+  section.name = definition.sourceNode.replace(/\./g, '_');
   const concrete = new THREE.Mesh(new THREE.BoxGeometry(12, 2, 5), new THREE.MeshStandardMaterial({ color: 0x888888 }));
   concrete.material.name = 'Concrete';
   const road = new THREE.Mesh(new THREE.BoxGeometry(12, 0.04, 5), new THREE.MeshStandardMaterial({ color: 0x222222 }));
