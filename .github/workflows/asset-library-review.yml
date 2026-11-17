@@ -1,0 +1,40 @@
+name: Asset library visual review
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'data/models/assets/**'
+      - 'tools/asset-review.html'
+      - 'tools/asset-review.js'
+      - 'tools/verify-asset-review.mjs'
+      - '.github/workflows/asset-library-review.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install project dependencies
+        run: npm install --no-audit --no-fund
+      - name: Install headless Chromium
+        run: npx playwright install chromium
+      - name: Load every GLB/glTF through the real Three.js loader and render previews
+        run: node tools/verify-asset-review.mjs
+      - name: Upload complete model gallery, screenshots and structural report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: open-world-asset-library-review
+          path: artifacts/asset-review/
+          if-no-files-found: warn
+          retention-days: 30
