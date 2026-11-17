@@ -5,7 +5,7 @@ import { GLTFLoader } from './lib/GLTFLoader.js';
 import { BVHWorld } from './bvh-collision.js';
 import { Atmosphere } from './atmosphere.js';
 import { loadAssetOverrides, applyAssetOverrides } from './asset-overrides.js';
-import { annotateWorldKitInstance, getWorldKitPlacementOffset, getWorldKitScalePlan, getWorldKitDoorMarkers, getWorldKitCollisionManifest, getWorldKitDefinition, WORLD_KIT_ROAD_PACK_PARTS, WORLD_KIT_ROAD_PACK_SCALE, WORLD_KIT_SIDEWALK_COMPONENTS } from './world-kit.js';
+import { annotateWorldKitInstance, classifyWorldKitMesh, getWorldKitPlacementOffset, getWorldKitScalePlan, getWorldKitDoorMarkers, getWorldKitDoorGroups, getWorldKitCollisionManifest, getWorldKitDefinition, WORLD_KIT_ROAD_PACK_PARTS, WORLD_KIT_ROAD_PACK_SCALE, WORLD_KIT_SIDEWALK_COMPONENTS } from './world-kit.js';
 import { extractWorldBridgeKit, WORLD_BRIDGE_KIT_URL } from './world-bridge-kit.js';
 
 function rng(a, b) { return a + Math.random() * (b - a); }
@@ -1039,7 +1039,7 @@ export class World {
         // Support both a mesh named col_wall and a mesh nested inside a node
         // named col_wall (common after Blender/glTF export).
         const isProxy = this._hasAncestorPrefix(o, 'col_');
-        const isDoor = this._hasAncestorPrefix(o, 'door_') || o.userData?.worldKit?.role === 'door';
+        const isDoor = classifyWorldKitMesh(o, model) === 'door';
         const isFloor = this._hasAncestorPrefix(o, 'floor_');
         const isStair = this._hasAncestorPrefix(o, 'stairs_');
         if (!isProxy && !isDoor && !isFloor && !isStair) return;
@@ -1066,9 +1066,41 @@ export class World {
         if (isFloor) floorCollisionBoxes.push(record);
         if (isStair) stairMeshes.push(o);
       });
+      // Some source models group a complete entrance under a descriptive
+      // node instead of exposing one door_* mesh. Collapse that hierarchy into
+      // one doorway marker using the group's actual imported bounds.
+      if (a.building && doorMeshes.length === 0) {
+        const groupNames = getWorldKitDoorGroups(worldKitReport.id);
+        if (groupNames.length) {
+          model.traverse(node => {
+            if (!groupNames.includes(node.name) || node.isMesh) return;
+            node.updateWorldMatrix(true, false);
+            const groupBounds = new THREE.Box3().setFromObject(node);
+            if (groupBounds.isEmpty()) return;
+            const worldCenter = groupBounds.getCenter(new THREE.Vector3());
+            const worldSize = groupBounds.getSize(new THREE.Vector3());
+            if (worldSize.x < 0.25 || worldSize.y < 1.2 || worldSize.z < 0.08) return;
+            const localBounds = groupBounds.clone().applyMatrix4(placementInverse);
+            const localCenter = localBounds.getCenter(new THREE.Vector3());
+            const localSize = localBounds.getSize(new THREE.Vector3());
+            doorMeshes.push({
+              name: node.name,
+              center: worldCenter,
+              size: worldSize,
+              min: groupBounds.min.clone(),
+              max: groupBounds.max.clone(),
+              localCenter,
+              localSize,
+              side: null,
+              source: 'world-kit-door-group',
+            });
+          });
+        }
+      }
+
       // Older downloaded models have no door_* marker nodes. Add authoring
-      // markers from the World Kit metadata only when no real imported door mesh
-      // was found. They are metre-space records, not replacement visible meshes.
+      // markers from the World Kit metadata only when no imported doorway was
+      // found. These metre-space records never replace or rewrite source meshes.
       if (a.building && doorMeshes.length === 0) {
         const markers = Array.isArray(a.doorMarkers)
           ? a.doorMarkers
