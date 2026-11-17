@@ -1,0 +1,73 @@
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import {
+  WORLD_KIT_ASSET_DEFINITIONS,
+  WORLD_KIT_PROCEDURAL_RULES,
+  annotateWorldKitInstance,
+  classifyWorldKitMesh,
+  getWorldKitDefinition,
+} from '../js/world-kit.js';
+
+assert.ok(Object.keys(WORLD_KIT_ASSET_DEFINITIONS).length >= 50, 'catalogue should cover the imported asset library');
+assert.equal(
+  getWorldKitDefinition('./data/models/assets/residential/nigeria_duplex/scene.gltf')?.id,
+  'nigeria-duplex',
+);
+assert.equal(
+  getWorldKitDefinition('/data/models/assets/roads/sidewalks/scene.gltf')?.meshPolicy,
+  'semantic-child-pieces',
+);
+assert.equal(
+  getWorldKitDefinition('data/models/assets/others/traffic_lights/scene.gltf')?.review,
+  'licence-restricted',
+);
+assert.equal(getWorldKitDefinition('data/models/assets/not-in-catalogue.glb'), null);
+
+const root = new THREE.Group();
+root.name = 'test-building';
+const doorGroup = new THREE.Group();
+doorGroup.name = 'door_main';
+const door = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.1), new THREE.MeshBasicMaterial());
+door.name = 'DoorMesh';
+doorGroup.add(door);
+root.add(doorGroup);
+
+const windowGroup = new THREE.Group();
+windowGroup.name = 'window_front';
+const windowMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.05), new THREE.MeshBasicMaterial());
+windowGroup.add(windowMesh);
+root.add(windowGroup);
+
+const collisionGroup = new THREE.Group();
+collisionGroup.name = 'col_wall';
+const collisionMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 0.2), new THREE.MeshBasicMaterial());
+collisionGroup.add(collisionMesh);
+root.add(collisionGroup);
+
+assert.equal(classifyWorldKitMesh(door, root), 'door');
+assert.equal(classifyWorldKitMesh(windowMesh, root), 'window-glazing');
+assert.equal(classifyWorldKitMesh(collisionMesh, root), 'collision-proxy');
+
+const sourceDoorGeometry = door.geometry;
+const result = annotateWorldKitInstance(root, {
+  url: './data/models/assets/residential/nigeria_duplex/scene.gltf',
+});
+assert.equal(result.id, 'nigeria-duplex');
+assert.equal(result.category, 'residential');
+assert.equal(result.meshCount, 3);
+assert.equal(result.roleCounts.door, 1);
+assert.equal(result.roleCounts['window-glazing'], 1);
+assert.equal(result.roleCounts['collision-proxy'], 1);
+assert.equal(door.geometry, sourceDoorGeometry, 'annotation must not replace or procedurally rebuild imported geometry');
+assert.equal(root.children.length, 3, 'annotation must preserve the imported hierarchy');
+assert.equal(root.userData.worldKit.id, 'nigeria-duplex');
+
+const proceduralIds = new Set(WORLD_KIT_PROCEDURAL_RULES.map(rule => rule.id));
+for (const required of ['curved-road-surfaces', 'lane-markings', 'collision-proxies']) {
+  assert.ok(proceduralIds.has(required), 'missing procedural support rule: ' + required);
+}
+
+console.log(
+  '[world-kit] PASS: ' + Object.keys(WORLD_KIT_ASSET_DEFINITIONS).length +
+  ' registered assets; semantic mesh roles and non-destructive annotation verified.',
+);
