@@ -82,6 +82,11 @@ export const WORLD_KIT_ASSET_DEFINITIONS = byUrl;
 
 // Named children from the imported Road Pack, verified from separate renders.
 // Preserve source geometry; these labels are only semantic prefab metadata.
+// The imported Road Pack was authored at decimetre-like scale. Its long
+// carriageway panel measures 0.426 × 2.987 in source space; a 10× horizontal
+// conversion produces a practical ~4.26 m × 29.87 m single two-way street.
+export const WORLD_KIT_ROAD_PACK_SCALE = 10;
+
 export const WORLD_KIT_ROAD_PACK_PARTS = Object.freeze({
   Object_4: Object.freeze({ id: 'road-straight-01', label: 'Straight road · double centre marking', role: 'road-straight-module' }),
   Object_6: Object.freeze({ id: 'road-straight-02', label: 'Straight road · dashed centre marking', role: 'road-straight-module' }),
