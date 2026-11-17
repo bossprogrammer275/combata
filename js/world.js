@@ -5,7 +5,7 @@ import { GLTFLoader } from './lib/GLTFLoader.js';
 import { BVHWorld } from './bvh-collision.js';
 import { Atmosphere } from './atmosphere.js';
 import { loadAssetOverrides, applyAssetOverrides } from './asset-overrides.js';
-import { annotateWorldKitInstance } from './world-kit.js';
+import { annotateWorldKitInstance, getWorldKitPlacementOffset } from './world-kit.js';
 
 function rng(a, b) { return a + Math.random() * (b - a); }
 
@@ -905,7 +905,10 @@ export class World {
       model.updateMatrixWorld(true);
       const afterScaleBBox = new THREE.Box3().setFromObject(model);
       const yOffset = -afterScaleBBox.min.y + (a.elevation || 0);
-      model.position.set(a.x, yOffset, a.z);
+      const anchorOffset = getWorldKitPlacementOffset(afterScaleBBox, a);
+      const worldX = a.x + anchorOffset.x;
+      const worldZ = a.z + anchorOffset.z;
+      model.position.set(worldX, yOffset, worldZ);
       this.group.add(model);
       this.worldKitComponents.push({
         root: model,
@@ -914,7 +917,7 @@ export class World {
         role: worldKitReport.role,
         meshCount: worldKitReport.meshCount,
         roleCounts: worldKitReport.roleCounts,
-        position: { x: a.x, y: yOffset, z: a.z },
+        position: { x: worldX, y: yOffset, z: worldZ },
       });
       model.updateMatrixWorld(true);
       this._registerAssetNpcInteractables(model);
