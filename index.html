@@ -244,6 +244,95 @@
     .pause-shell{gap:12px}
     .pause-actions .btn{flex:1;padding:11px 14px}
   }
+  /* Live game HUD: location, pause action and interaction hints */
+  #hud-location{
+    position:fixed;left:50%;top:18px;transform:translateX(-50%);
+    display:flex;align-items:center;gap:12px;padding:8px 13px;
+    background:rgba(9,14,12,.74);border:1px solid rgba(226,232,224,.16);
+    border-radius:5px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    pointer-events:none;white-space:nowrap
+  }
+  #hud-location .mark{width:3px;height:25px;background:var(--accent)}
+  #hud-location .eyebrow{font:600 8px/1.3 "Segoe UI",Arial,sans-serif;letter-spacing:2px;color:#aab4aa}
+  #hud-location .place{font:700 13px/1.35 "Segoe UI",Arial,sans-serif;letter-spacing:1.5px;color:#f4f6f1}
+  #hud-menu-button{
+    position:fixed;right:16px;top:16px;z-index:15;display:flex;align-items:center;gap:9px;
+    min-height:39px;padding:7px 12px;background:rgba(9,14,12,.82);
+    border:1px solid rgba(226,232,224,.22);border-radius:5px;color:#eef2ed;
+    font:700 10px/1 "Segoe UI",Arial,sans-serif;letter-spacing:1.8px;cursor:pointer;
+    pointer-events:auto;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)
+  }
+  #hud-menu-button:hover,#hud-menu-button:focus-visible{outline:none;border-color:var(--accent);background:rgba(27,35,29,.94)}
+  #hud-menu-button .key{padding:4px 5px;border:1px solid rgba(255,255,255,.25);border-radius:3px;color:var(--accent);font-size:9px}
+  #hud-menu-button .pause-icon{font-size:17px;line-height:10px}
+  #hud-control-hint{
+    position:fixed;left:50%;bottom:16px;transform:translateX(-50%);
+    padding:7px 11px;background:rgba(8,12,10,.65);border:1px solid rgba(226,232,224,.12);
+    border-radius:4px;color:rgba(232,238,232,.72);font:600 9px/1.2 "Segoe UI",Arial,sans-serif;
+    letter-spacing:1.1px;white-space:nowrap;pointer-events:none
+  }
+  #hud-control-hint b{color:#fff}
+
+  /* Pause menu */
+  #pause-screen{background:rgba(4,8,7,.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+  .pause-shell{width:min(1000px,96vw);gap:20px}
+  .pause-heading{align-items:flex-end;border-bottom-color:rgba(255,255,255,.14);padding-bottom:18px}
+  .pause-kicker{color:var(--accent);font-family:"Segoe UI",Arial,sans-serif}
+  .pause-title{font:700 clamp(25px,4vw,38px)/1.05 "Segoe UI",Arial,sans-serif;letter-spacing:2px}
+  .pause-subtitle{font:500 10px/1.4 "Segoe UI",Arial,sans-serif;letter-spacing:1.6px}
+  .pause-heading .pause-note{padding:8px 11px;border:1px solid rgba(255,255,255,.14);border-radius:4px}
+  .pause-panel{gap:16px}
+  .pause-main-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(230px,.7fr);gap:14px}
+  .pause-primary-card,.pause-secondary-card,.pause-info-card{
+    min-width:0;padding:18px;background:rgba(255,255,255,.035);
+    border:1px solid rgba(255,255,255,.13);border-radius:6px
+  }
+  .pause-primary-card{display:flex;flex-direction:column;justify-content:center;gap:12px}
+  .pause-secondary-card{display:flex;flex-direction:column;gap:9px}
+  .pause-card-kicker{font:700 9px/1.3 "Segoe UI",Arial,sans-serif;letter-spacing:2px;color:var(--accent)}
+  .pause-card-title{font:700 22px/1.2 "Segoe UI",Arial,sans-serif;letter-spacing:.5px;color:#fff}
+  .pause-card-copy{font:400 11px/1.65 "Segoe UI",Arial,sans-serif;color:#aab4ab}
+  .pause-menu-btn{
+    width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;
+    min-height:42px;padding:10px 12px;background:rgba(255,255,255,.035);
+    border:1px solid rgba(255,255,255,.14);border-radius:4px;color:#edf2ed;
+    font:700 10px/1.2 "Segoe UI",Arial,sans-serif;letter-spacing:1.5px;text-align:left;cursor:pointer
+  }
+  .pause-menu-btn:hover,.pause-menu-btn:focus-visible{outline:none;border-color:var(--accent);background:rgba(201,162,39,.09)}
+  .pause-menu-btn .arrow{color:var(--accent);font-size:15px}
+  .pause-menu-btn.primary{background:var(--accent);border-color:var(--accent);color:#10140f}
+  .pause-menu-btn.primary:hover{background:#e0c05a}
+  .pause-menu-btn.danger{border-color:rgba(192,57,43,.42);color:#e7a49d}
+  .pause-menu-btn.danger:hover{background:rgba(192,57,43,.12);border-color:#c0392b}
+  .pause-section-title{font:700 10px/1.4 "Segoe UI",Arial,sans-serif;letter-spacing:1.7px;color:var(--accent);margin-bottom:10px}
+  .control-groups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+  .control-group{padding:14px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.12);border-radius:5px;min-width:0}
+  .control-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.07);font:500 11px/1.35 "Segoe UI",Arial,sans-serif;color:#c7d0c8}
+  .control-row:last-child{border-bottom:0}
+  .control-row kbd{min-width:36px;padding:4px 6px;background:#202820;border:1px solid rgba(255,255,255,.18);border-radius:3px;color:#fff;text-align:center;font:700 9px/1 "Segoe UI",Arial,sans-serif;white-space:nowrap}
+  .pause-settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .pause-setting{display:flex;flex-direction:column;gap:9px;padding:14px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.12);border-radius:5px}
+  .pause-setting label{display:flex;justify-content:space-between;gap:12px;color:#d4ddd5;font:600 10px/1.3 "Segoe UI",Arial,sans-serif;letter-spacing:1px}
+  .pause-setting output{color:var(--accent);font-variant-numeric:tabular-nums}
+  .pause-setting input[type=range]{width:100%;accent-color:var(--accent)}
+  .pause-setting select{width:100%;padding:8px;background:#111914;border:1px solid rgba(255,255,255,.17);border-radius:4px;color:#eef2ed;font:600 11px "Segoe UI",Arial,sans-serif}
+  .pause-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.12)}
+  .pause-footer .pause-note{text-align:left}
+  .pause-back-btn{padding:9px 14px;background:transparent;border:1px solid rgba(255,255,255,.2);border-radius:4px;color:#dce4dc;font:700 9px "Segoe UI",Arial,sans-serif;letter-spacing:1.3px;cursor:pointer}
+  .pause-back-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .pause-actions{gap:9px}
+  @media(max-width:720px){
+    #hud-location{top:12px;left:50%;padding:6px 9px}
+    #hud-location .place{font-size:11px}
+    #hud-menu-button{right:10px;top:10px;min-height:36px;padding:6px 9px}
+    #minimap-wrap{left:10px;top:60px}
+    #minimap{width:126px;height:126px}
+    #coins-hud{right:10px;top:56px}
+    #hud-control-hint{display:none}
+    .pause-main-grid,.control-groups,.pause-settings-grid{grid-template-columns:1fr}
+    .pause-shell{max-height:92vh;overflow:auto}
+    .pause-heading{align-items:flex-start}
+  }
   #match-screen{display:none}
 
   /* Loading */
@@ -332,16 +421,8 @@
 <body>
 <div id="app"></div>
 
-<!-- NAME PROMPT -->
-<div id="name-prompt">
-  <div class="title">OPEN <span class="ac">WORLD</span></div>
-  <div class="subtitle">ENTER YOUR CALLSIGN</div>
-  <input id="name-input" type="text" maxlength="16" placeholder="YOUR NAME" autocomplete="off">
-  <button class="btn" id="name-confirm">CONFIRM</button>
-</div>
-
 <!-- LOGO -->
-<div id="logo-screen">
+<div id="logo-screen" class="hidden">
   <div class="lg">OPEN <span class="ac">WORLD</span></div>
   <div class="tag">OPEN WORLD</div>
   <div class="bar"></div>
@@ -363,6 +444,14 @@
 <!-- HUD -->
 <div id="hud">
   <div id="minimap-wrap" class="hud-box"><canvas id="minimap" width="160" height="160"></canvas></div>
+  <div id="hud-location">
+    <div class="mark"></div>
+    <div><div class="eyebrow">OPEN WORLD / FREE ROAM</div><div class="place">ILORIN CITY</div></div>
+  </div>
+  <button id="hud-menu-button" type="button" aria-label="Open pause menu">
+    <span class="key">ESC</span><span>MENU</span><span class="pause-icon">Ⅱ</span>
+  </button>
+  <div id="hud-control-hint"><b>WASD</b> MOVE &nbsp;·&nbsp; <b>E</b> INTERACT &nbsp;·&nbsp; <b>K</b> GARAGE &nbsp;·&nbsp; <b>ESC</b> MENU</div>
   <div id="fullmap-wrap" class="hidden"><canvas id="fullmap" width="600" height="600"></canvas></div>
 
   <div id="coins-hud" class="hud-box">◈ <span id="coins-hud-v">0</span></div>
@@ -523,7 +612,7 @@
     <div class="stat"><div class="v" id="d-kills">0</div><div class="l">ELIMINATIONS</div></div>
     <div class="stat"><div class="v" id="d-acc">0%</div><div class="l">ACCURACY</div></div>
   </div>
-  <button class="btn" id="respawn-btn">RESPAWN</button>
+  <div class="pause-actions"><button class="btn" id="respawn-btn">RESPAWN</button><button class="btn sm ghost" id="death-menu-btn">MAIN MENU</button></div>
 </div>
 
 <!-- PAUSE -->
@@ -531,19 +620,98 @@
   <div class="pause-shell">
     <div class="pause-heading">
       <div>
-        <div class="pause-kicker">STRIKE COMMAND · SYSTEM MENU</div>
-        <div class="pause-title">OPERATION PAUSED</div>
-        <div class="pause-subtitle">THE SIMULATION IS SUSPENDED</div>
+        <div class="pause-kicker">OPEN WORLD / GAME MENU</div>
+        <div class="pause-title">PAUSED</div>
+        <div class="pause-subtitle">YOUR SESSION IS SAVED LOCALLY · THE CITY IS ON HOLD</div>
       </div>
-      <div class="pause-note">PRESS ESC TO RESUME</div>
+      <div class="pause-note">ESC · RESUME GAME</div>
     </div>
 
     <section class="pause-panel" id="pause-main-panel">
-      <div class="pause-actions">
-        <button class="btn" id="resume-btn">RESUME GAME</button>
-        <button class="btn sm ghost" id="open-cockpit-settings">COCKPIT ADJUSTMENTS</button>
+      <div class="pause-main-grid">
+        <div class="pause-primary-card">
+          <div class="pause-card-kicker">ILORIN CITY · FREE ROAM</div>
+          <div class="pause-card-title">Take a break.</div>
+          <div class="pause-card-copy">Your current world remains loaded while you adjust settings, review controls or return to the main menu.</div>
+          <button class="pause-menu-btn primary" id="resume-btn" type="button"><span>CONTINUE EXPLORING</span><span class="arrow">→</span></button>
+          <button class="pause-menu-btn danger" id="return-to-menu-btn" type="button"><span>EXIT TO MAIN MENU</span><span class="arrow">↗</span></button>
+        </div>
+        <div class="pause-secondary-card">
+          <div class="pause-section-title">SESSION</div>
+          <button class="pause-menu-btn" id="open-pause-controls" type="button"><span>CONTROLS & KEY BINDINGS</span><span class="arrow">→</span></button>
+          <button class="pause-menu-btn" id="open-pause-settings" type="button"><span>GAME SETTINGS</span><span class="arrow">→</span></button>
+          <button class="pause-menu-btn" id="open-cockpit-settings" type="button"><span>VEHICLE / COCKPIT</span><span class="arrow">→</span></button>
+          <div class="pause-note" style="text-align:left;margin-top:auto">Cockpit camera adjustments are saved separately for each vehicle.</div>
+        </div>
       </div>
-      <div class="pause-note">Cockpit adjustments are saved separately for each vehicle.</div>
+    </section>
+
+    <section class="pause-panel hidden" id="pause-controls-panel">
+      <div class="control-groups">
+        <div class="control-group">
+          <div class="pause-section-title">ON FOOT</div>
+          <div class="control-row"><span>Move</span><kbd>W A S D</kbd></div>
+          <div class="control-row"><span>Look / aim</span><kbd>MOUSE</kbd></div>
+          <div class="control-row"><span>Sprint</span><kbd>SHIFT</kbd></div>
+          <div class="control-row"><span>Jump</span><kbd>SPACE</kbd></div>
+          <div class="control-row"><span>Crouch</span><kbd>C</kbd></div>
+          <div class="control-row"><span>Interact / vehicle</span><kbd>E</kbd></div>
+          <div class="control-row"><span>Climb / loot</span><kbd>F</kbd></div>
+        </div>
+        <div class="control-group">
+          <div class="pause-section-title">COMBAT</div>
+          <div class="control-row"><span>Fire</span><kbd>LMB</kbd></div>
+          <div class="control-row"><span>Aim</span><kbd>RMB</kbd></div>
+          <div class="control-row"><span>Reload</span><kbd>R</kbd></div>
+          <div class="control-row"><span>Weapon select</span><kbd>1 · 2 · 3</kbd></div>
+          <div class="control-row"><span>Swap weapon</span><kbd>Q</kbd></div>
+          <div class="control-row"><span>Throw grenade</span><kbd>X</kbd></div>
+          <div class="control-row"><span>Change view</span><kbd>V</kbd></div>
+        </div>
+        <div class="control-group">
+          <div class="pause-section-title">DRIVING & WORLD</div>
+          <div class="control-row"><span>Drive / steer</span><kbd>W A S D</kbd></div>
+          <div class="control-row"><span>Enter / exit vehicle</span><kbd>E</kbd></div>
+          <div class="control-row"><span>Vehicle garage</span><kbd>K</kbd></div>
+          <div class="control-row"><span>Fast travel</span><kbd>U</kbd></div>
+          <div class="control-row"><span>Full map</span><kbd>CTRL + M</kbd></div>
+          <div class="control-row"><span>Overview camera</span><kbd>O</kbd></div>
+          <div class="control-row"><span>Pause / resume</span><kbd>ESC</kbd></div>
+        </div>
+      </div>
+      <div class="pause-footer">
+        <div class="pause-note">Some actions are available only when you're on foot or inside a vehicle.</div>
+        <button class="pause-back-btn" id="pause-controls-back" type="button">← BACK TO MENU</button>
+      </div>
+    </section>
+
+    <section class="pause-panel hidden" id="pause-settings-panel">
+      <div class="pause-settings-grid">
+        <div class="pause-setting">
+          <label for="pause-sens"><span>MOUSE SENSITIVITY</span><output id="pause-sens-value">1.0×</output></label>
+          <input id="pause-sens" type="range" min="0.2" max="3" step="0.1" value="1">
+        </div>
+        <div class="pause-setting">
+          <label for="pause-vol"><span>MASTER VOLUME</span><output id="pause-vol-value">70%</output></label>
+          <input id="pause-vol" type="range" min="0" max="1" step="0.05" value="0.7">
+        </div>
+        <div class="pause-setting">
+          <label for="pause-quality"><span>GRAPHICS QUALITY</span></label>
+          <select id="pause-quality">
+            <option value="ultra">ULTRA</option><option value="high">HIGH</option>
+            <option value="medium">MEDIUM</option><option value="low">LOW</option>
+            <option value="ultra-low">ULTRA LOW</option>
+          </select>
+        </div>
+        <div class="pause-setting">
+          <div class="pause-section-title">DISPLAY</div>
+          <div class="pause-card-copy">Graphics changes rebuild the world so terrain, lighting and asset budgets stay consistent.</div>
+        </div>
+      </div>
+      <div class="pause-footer">
+        <div class="pause-note">Settings are saved to this browser profile.</div>
+        <button class="pause-back-btn" id="pause-settings-back" type="button">← BACK TO MENU</button>
+      </div>
     </section>
 
     <section class="pause-panel hidden" id="pause-cockpit-panel">
