@@ -181,6 +181,9 @@ export const WORLD_KIT_DOOR_MARKERS = Object.freeze({
   'nigeria-duplex': Object.freeze([
     Object.freeze({ name: 'door_duplex_main', side: 'south', u: 0.5, width: 1.1, height: 2.15, depth: 0.24 }),
   ]),
+  'american-style-house': Object.freeze([
+    Object.freeze({ name: 'door_american_house_main', side: 'south', u: 0.5, width: 1.15, height: 2.15, depth: 0.24 }),
+  ]),
   'residential-family-house': Object.freeze([
     Object.freeze({ name: 'door_family_main', side: 'south', u: 0.52, width: 1.1, height: 2.15, depth: 0.24 }),
   ]),
@@ -208,7 +211,6 @@ export function getWorldKitDoorMarkers(assetId) {
 // as a separate door leaf.
 export const WORLD_KIT_DOOR_GROUPS = Object.freeze({
   'ilorin-innovation-hub': Object.freeze(['entrance-doors-portal']),
-  'american-style-house': Object.freeze(['Door']),
 });
 
 export function getWorldKitDoorGroups(assetId) {
