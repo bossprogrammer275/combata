@@ -6,10 +6,15 @@ import {
   WORLD_KIT_ROAD_PACK_SCALE,
   WORLD_KIT_ROAD_PACK_PARTS,
   WORLD_KIT_SIDEWALK_COMPONENTS,
+  WORLD_KIT_DOOR_GROUPS,
   annotateWorldKitInstance,
   classifyWorldKitMesh,
   getWorldKitDefinition,
   getWorldKitPlacementOffset,
+  getWorldKitScalePlan,
+  getWorldKitDoorMarkers,
+  getWorldKitDoorGroups,
+  getWorldKitCollisionManifest,
 } from '../js/world-kit.js';
 
 assert.ok(Object.keys(WORLD_KIT_ASSET_DEFINITIONS).length >= 50, 'catalogue should cover the imported asset library');
@@ -26,6 +31,29 @@ assert.equal(
   'licence-restricted',
 );
 assert.equal(getWorldKitDefinition('data/models/assets/not-in-catalogue.glb'), null);
+
+const cmPlan = getWorldKitScalePlan(2000, { unitScale: 0.01, targetH: 10 });
+assert.equal(cmPlan.mode, 'target-height-metres');
+assert.equal(cmPlan.sourceHeightMetres, 20);
+assert.equal(cmPlan.targetHeightMetres, 10);
+assert.equal(cmPlan.totalScale, 0.005,
+  'a 2000-unit centimetre-authored model must finish exactly 10 metres tall');
+const metrePlan = getWorldKitScalePlan(4, { targetH: 12 });
+assert.equal(metrePlan.totalScale, 3);
+const rawUnitPlan = getWorldKitScalePlan(250, { unitScale: 0.01 });
+assert.equal(rawUnitPlan.totalScale, 0.01,
+  'explicit source-unit conversion must apply when no targetH fit is authored');
+
+assert.ok(getWorldKitDoorMarkers('nigeria-duplex').length > 0,
+  'downloaded residential assets without door_* names need authored door metadata');
+assert.ok(getWorldKitDoorGroups('ilorin-innovation-hub').includes('entrance-doors-portal'),
+  'the Innovation Hub entrance hierarchy must resolve as one imported door group');
+assert.ok(WORLD_KIT_DOOR_GROUPS['american-style-house'].includes('Door'),
+  'the American house imported door assembly must be recognized');
+assert.equal(getWorldKitCollisionManifest('./data/models/assets/kwara_revenue_house.glb'),
+  './data/models/assets/kwara_revenue_house_col.json');
+assert.equal(getWorldKitCollisionManifest('./data/models/assets/residential/nigeria_duplex/scene.gltf'), null,
+  'models without a generated sidecar must use the authored building-wall fallback, not request a 404');
 assert.deepEqual(
   getWorldKitPlacementOffset(
     { min: { x: -11, z: -7 }, max: { x: 9, z: 13 } },
@@ -117,6 +145,24 @@ const garageDoor = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.1), new THREE.Me
 garageDoor.name = 'GarageDoor';
 garageDoorRoot.add(garageDoor);
 assert.equal(classifyWorldKitMesh(garageDoor, garageDoorRoot), 'door');
+const revenueDoorRoot = new THREE.Group();
+const revenueDoor = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.1), new THREE.MeshBasicMaterial());
+revenueDoor.name = 'door_main_left_leaf__door_glass';
+revenueDoorRoot.add(revenueDoor);
+assert.equal(classifyWorldKitMesh(revenueDoor, revenueDoorRoot), 'door');
+const handleRoot = new THREE.Group();
+const handle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.2, 0.05), new THREE.MeshBasicMaterial());
+handle.name = 'door_handle_1_2';
+handleRoot.add(handle);
+assert.equal(classifyWorldKitMesh(handle, handleRoot), 'door-hardware',
+  'door handles must not become independent walk-through portals');
+const plainDoorGroup = new THREE.Group();
+plainDoorGroup.name = 'Door';
+const doorDetail = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), new THREE.MeshBasicMaterial());
+doorDetail.name = 'Cylinder_1';
+plainDoorGroup.add(doorDetail);
+assert.equal(classifyWorldKitMesh(doorDetail, plainDoorGroup), 'static-visual',
+  'unmarked imported door groups should be handled once by aggregate group metadata');
 
 const sidewalkRoot = new THREE.Group();
 sidewalkRoot.name = 'Sidewwalk_Long';
