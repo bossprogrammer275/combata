@@ -217,6 +217,13 @@ export function getWorldKitDoorGroups(assetId) {
   return [...(WORLD_KIT_DOOR_GROUPS[String(assetId || '')] || [])];
 }
 
+export const WORLD_KIT_NATIVE_DOOR_ASSETS = Object.freeze([
+  'kwara-revenue-house',
+  'meed-grocery-store',
+  'mosque',
+  'building-04',
+]);
+
 // Only request collision manifests that are actually present in the repository.
 // Models without a sidecar use authored col_* meshes or the per-asset fallback
 // collision strategy; this avoids noisy 404 fetches for every imported prop.
