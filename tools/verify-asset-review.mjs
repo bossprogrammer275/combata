@@ -121,13 +121,13 @@ try {
       }, index);
 
       await page.waitForTimeout(350);
-      for (const view of ['iso', 'side']) {
+      for (const view of ['iso']) {
         await page.evaluate(async (v) => window.__ASSET_REVIEW__.setView(v), view);
-        await page.waitForTimeout(120);
+        await page.waitForTimeout(80);
         const filename = `${String(index + 1).padStart(2, '0')}-${entry.slug}-${view}.png`;
         await page.locator('#asset-canvas').screenshot({
           path: path.join(previewDir, filename),
-          timeout: 30000,
+          timeout: 10000,
           animations: 'disabled',
         });
         screenshots.push('previews/' + filename);
