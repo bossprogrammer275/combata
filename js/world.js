@@ -723,6 +723,7 @@ export class World {
     if (sd.roadModules?.length) await this._spawnRoadModules(sd.roadModules);
     if (sd.sidewalkModules?.length) await this._spawnSidewalkModules(sd.sidewalkModules);
     if (sd.bridgeAssemblies?.length) await this._spawnBridgeAssemblies(sd.bridgeAssemblies);
+    if (sd.waterways?.length) this._buildWaterways(sd.waterways);
     if (sd.spawns) for (const sp of sd.spawns) this.spawnPoints.push(new THREE.Vector3(sp[0], 0, sp[1]));
     if (sd.cover) for (const c of sd.cover) this.coverPoints.push(new THREE.Vector3(c[0], 0, c[1]));
     if (sd.transit) for (const t of sd.transit) this.transitPoints.push({ x: t.x, z: t.z, name: t.name });
@@ -2157,7 +2158,947 @@ export class World {
     }
   }
 
+  _buildWaterways(channels = []) {
+    for (const channel of channels) {
+      const start = channel.start || [];
+      const end = channel.end || [];
+      const dx = Number(end[0]) - Number(start[0]);
+      const dz = Number(end[1]) - Number(start[1]);
+      const length = Math.hypot(dx, dz);
+      const width = Number(channel.width) || 6;
+      if (length < 2 || width < 1) continue;
+
+      const ux = dx / length, uz = dz / length;
+      const nx = -uz, nz = ux;
+      const halfWidth = width * 0.5;
+      const waterY = Number.isFinite(channel.waterY) ? channel.waterY : -0.55;
+      const point = (x, z, side) => ({
+        x: x + nx * side,
+        y: waterY,
+        z: z + nz * side,
+      });
+      const a = { x: Number(start[0]), z: Number(start[1]) };
+      const b = { x: Number(end[0]), z: Number(end[1]) };
+      const al = point(a.x, a.z, halfWidth);
+      const bl = point(b.x, b.z, halfWidth);
+      const ar = point(a.x, a.z, -halfWidth);
+      const br = point(b.x, b.z, -halfWidth);
+
+      const positions = [
+        al.x, al.y, al.z,
+        bl.x, bl.y, bl.z,
+        ar.x, ar.y, ar.z,
+        br.x, br.y, br.z,
+      ];
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geometry.setIndex([0, 1, 2, 2, 1, 3]);
+      geometry.computeVertexNormals();
+
+      const waterMaterial = new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color(channel.color || 0x456c73),
+        roughness: 0.28,
+        metalness: 0.04,
+        clearcoat: 0.35,
+        transparent: true,
+        opacity: 0.92,
+        side: THREE.DoubleSide,
+      });
+      const water = new THREE.Mesh(geometry, waterMaterial);
+      water.name = 'world_waterway_' + String(channel.name || 'channel').toLowerCase().replace(/[^a-z0-9]+/g, '_');
+      water.receiveShadow = false;
+      water.castShadow = false;
+      water.frustumCulled = false;
+      this.group.add(water);
+
+      const bankWidth = Number(channel.bankWidth) || 0.7;
+      const bankHeight = Number(channel.bankHeight) || 1.25;
+      const bankBottom = Number.isFinite(channel.bankBottom) ? channel.bankBottom : -1.05;
+      const bankMaterial = this.mConcrete([118, 122, 120]);
+      const bankYaw = Math.atan2(dx, dz);
+      for (const side of [-1, 1]) {
+        const cx = (a.x + b.x) * 0.5 + nx * side * (halfWidth + bankWidth * 0.5);
+        const cz = (a.z + b.z) * 0.5 + nz * side * (halfWidth + bankWidth * 0.5);
+        this.box(cx, bankBottom, cz, bankWidth, bankHeight, length, bankMaterial, true, bankYaw);
+      }
+    }
+  }
+
   async _loadBridgeKit() {
+    if (this._bridgeKit) return this._bridgeKit;
+    if (this._bridgeKitPromise) return this._bridgeKitPromise;
+
+    this._bridgeKitPromise = (async () => {
+      const loader = this._gltfLoader || (this._gltfLoader = new GLTFLoader());
+      const gltf = await loader.loadAsync(WORLD_BRIDGE_KIT_URL);
+      this._bridgeKit = extractWorldBridgeKit(gltf.scene);
+      console.info('[WorldKit] Imported bridge components:', [...this._bridgeKit.keys()].join(', '));
+      return this._bridgeKit;
+    })().catch(error => {
+      this._bridgeKitPromise = null;
+      console.warn('[WorldKit] Bridge component kit unavailable:', error);
+      return null;
+    });
+    return this._bridgeKitPromise;
+  }
+
+  async _spawnBridgeAssemblies(assemblies = []) {
+    if (!Array.isArray(assemblies) || !assemblies.length) return;
+    const kit = await this._loadBridgeKit();
+    if (!kit?.size) return;
+
+    for (const assemblyData of assemblies) {
+      const id = assemblyData.id || 'bridge-assembly-' + this.bridgeComponentInstances.length;
+      const assembly = new THREE.Group();
+      assembly.name = 'worldkit_bridge_' + id;
+      assembly.position.set(
+        Number(assemblyData.x) || 0,
+        Number(assemblyData.y) || 0,
+        Number(assemblyData.z) || 0,
+      );
+      assembly.rotation.y = Number(assemblyData.yaw) || 0;
+      this.group.add(assembly);
+
+      const placements = Array.isArray(assemblyData.pieces) ? assemblyData.pieces : [];
+      for (const placement of placements) {
+        const componentId = placement.componentId || placement.part || placement.id;
+        const prefab = kit.get(componentId);
+        if (!prefab) {
+          console.warn('[WorldKit] Unknown bridge component:', componentId);
+          continue;
+        }
+
+        const part = prefab.group.clone(true);
+        part.name = 'worldkit_bridge_part_' + componentId;
+        part.position.set(
+          Number(placement.x) || 0,
+          Number(placement.y) || 0,
+          Number(placement.z) || 0,
+        );
+        part.rotation.y = Number(placement.yaw) || 0;
+        const uniformScale = Number.isFinite(placement.scale) && placement.scale > 0 ? placement.scale : 1;
+        const sx = Number.isFinite(placement.scaleX) && placement.scaleX > 0 ? placement.scaleX : uniformScale;
+        const sy = Number.isFinite(placement.scaleY) && placement.scaleY > 0 ? placement.scaleY : uniformScale;
+        const sz = Number.isFinite(placement.scaleZ) && placement.scaleZ > 0 ? placement.scaleZ : uniformScale;
+        part.scale.set(sx, sy, sz);
+        assembly.add(part);
+
+        this.bridgeComponentInstances.push({
+          assemblyId: id,
+          componentId,
+          sourceNode: prefab.sourceNode,
+          kind: prefab.kind,
+          dimensions: [prefab.dimensions[0] * sx, prefab.dimensions[1] * sy, prefab.dimensions[2] * sz],
+          deckHeight: prefab.deckHeight * sy,
+        });
+      }
+
+      assembly.updateMatrixWorld(true);
+      if (assemblyData.registerRoadPhysics !== false) {
+        assembly.traverse(node => {
+          if (!node.isMesh || node.userData.worldKit?.role !== 'bridge-road-surface') return;
+          const geometry = node.geometry.clone();
+          geometry.applyMatrix4(node.matrixWorld);
+          geometry.computeBoundingBox();
+          geometry.computeBoundingSphere();
+          this.roadPhysicsMeshes.push({ kind: 'bridge_deck', geometry });
+        });
+      }
+    }
+  }
+
+  async _loadSidewalkKit() {
+    if (this._sidewalkKit) return this._sidewalkKit;
+    if (this._sidewalkKitPromise) return this._sidewalkKitPromise;
+
+    this._sidewalkKitPromise = (async () => {
+      const loader = this._gltfLoader || (this._gltfLoader = new GLTFLoader());
+      const gltf = await loader.loadAsync('./data/models/assets/roads/sidewalks/scene.gltf');
+      const kit = new Map();
+      gltf.scene.updateMatrixWorld(true);
+
+      gltf.scene.traverse(node => {
+        if (!node.isMesh || !node.geometry) return;
+        const definition = WORLD_KIT_SIDEWALK_COMPONENTS[node.name];
+        if (!definition || kit.has(definition.id)) return;
+
+        // Extract each named source surface from the original display layout.
+        // Curb meshes remain separate because the road edge is procedurally
+        // joined around arbitrary curves and junctions.
+        const geometry = node.geometry.clone().applyMatrix4(node.matrixWorld);
+        geometry.computeBoundingBox();
+        const bounds = geometry.boundingBox;
+        if (!bounds || bounds.isEmpty()) {
+          geometry.dispose();
+          return;
+        }
+        const sourceSize = bounds.getSize(new THREE.Vector3());
+        const center = bounds.getCenter(new THREE.Vector3());
+        geometry.translate(-center.x, -bounds.min.y, -center.z);
+        geometry.computeBoundingBox();
+        geometry.computeBoundingSphere();
+
+        const sourceMaterial = Array.isArray(node.material) ? node.material[0] : node.material;
+        const material = sourceMaterial?.clone?.();
+        if (!material) {
+          geometry.dispose();
+          return;
+        }
+        for (const key of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap']) {
+          if (material[key]) material[key].anisotropy = this._maxAnisotropy;
+        }
+        material.needsUpdate = true;
+        kit.set(definition.id, {
+          ...definition,
+          geometry,
+          material,
+          sourceName: node.name,
+          dimensions: [sourceSize.x, sourceSize.y, sourceSize.z],
+        });
+      });
+
+      for (const id of ['sidewalk-panel-01', 'sidewalk-panel-02', 'sidewalk-panel-03', 'sidewalk-panel-04', 'sidewalk-cracked']) {
+        if (!kit.has(id)) throw new Error('Sidewalk pack is missing imported tile ' + id);
+      }
+      this._sidewalkKit = kit;
+      console.info('[WorldKit] Imported sidewalk components:', [...kit.keys()].join(', '));
+      return kit;
+    })().catch(error => {
+      this._sidewalkKitPromise = null;
+      console.warn('[WorldKit] Sidewalk pack unavailable; using curved ribbon fallback:', error);
+      return null;
+    });
+    return this._sidewalkKitPromise;
+  }
+
+  async _spawnSidewalkModules(placements = []) {
+    if (!Array.isArray(placements) || !placements.length) return;
+    const kit = await this._loadSidewalkKit();
+    if (!kit?.size) return;
+
+    for (const placement of placements) {
+      const id = placement.componentId || placement.id;
+      const prefab = kit.get(id);
+      if (!prefab) {
+        console.warn('[WorldKit] Unknown sidewalk component:', id);
+        continue;
+      }
+      const mesh = new THREE.Mesh(prefab.geometry, prefab.material);
+      mesh.name = 'worldkit_sidewalk_module_' + id;
+      mesh.position.set(
+        Number(placement.x) || 0,
+        Number.isFinite(placement.y) ? placement.y : 0.12,
+        Number(placement.z) || 0,
+      );
+      mesh.rotation.y = Number(placement.yaw) || 0;
+      const scale = Number.isFinite(placement.scale) && placement.scale > 0 ? placement.scale : 1;
+      const scaleX = Number.isFinite(placement.scaleX) && placement.scaleX > 0 ? placement.scaleX : scale;
+      const scaleZ = Number.isFinite(placement.scaleZ) && placement.scaleZ > 0 ? placement.scaleZ : scale;
+      mesh.scale.set(scaleX, 1, scaleZ);
+      mesh.castShadow = false;
+      mesh.receiveShadow = true;
+      mesh.renderOrder = 1;
+      mesh.userData.worldKit = {
+        id,
+        category: 'road',
+        role: 'sidewalk-piece',
+        componentKind: prefab.kind,
+        source: './data/models/assets/roads/sidewalks/scene.gltf',
+        collision: 'authored-sidewalk-ribbon',
+      };
+      this.group.add(mesh);
+      this.sidewalkModuleInstances.push({
+        id,
+        mesh,
+        dimensions: [prefab.dimensions[0] * scaleX, prefab.dimensions[1], prefab.dimensions[2] * scaleZ],
+      });
+    }
+  }
+
+  _createSidewalkInstances(chains) {
+    const kit = this._sidewalkKit;
+    if (!kit?.size || this._sidewalkInstances) return;
+    const totalLength = chains.reduce((sum, chain) => {
+      if (!chain.sidewalk || chain.pts.length < 2) return sum;
+      const lengths = this._roadPolylineLengths(chain.pts);
+      return sum + (lengths[lengths.length - 1] || 0);
+    }, 0);
+    const capacity = Math.max(64, Math.ceil(totalLength * 1.12));
+    this._sidewalkInstances = new Map();
+    const autoTileIds = ['sidewalk-panel-01', 'sidewalk-panel-02', 'sidewalk-panel-03', 'sidewalk-panel-04', 'sidewalk-cracked'];
+    for (const id of autoTileIds) {
+      const prefab = kit.get(id);
+      if (!prefab) continue;
+      const batch = new THREE.InstancedMesh(prefab.geometry, prefab.material, capacity);
+      batch.name = 'worldkit_sidewalk_' + id;
+      batch.count = 0;
+      batch.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+      batch.castShadow = false;
+      batch.receiveShadow = true;
+      batch.frustumCulled = false;
+      this.group.add(batch);
+      this._sidewalkInstances.set(id, batch);
+    }
+  }
+
+  _placeImportedSidewalkTiles(centerPts, offsetPts, cumulative, start, end, side, roadIndex) {
+    if (!this._sidewalkInstances || end - start < 0.6) return false;
+    const sample = (points, distance) => {
+      const last = cumulative.length - 1;
+      let index = 0;
+      const d = THREE.MathUtils.clamp(distance, 0, cumulative[last]);
+      while (index < last - 1 && cumulative[index + 1] < d) index++;
+      const segment = Math.max(1e-6, cumulative[index + 1] - cumulative[index]);
+      const t = THREE.MathUtils.clamp((d - cumulative[index]) / segment, 0, 1);
+      const a = points[index], b = points[index + 1];
+      return {
+        x: THREE.MathUtils.lerp(a.x, b.x, t),
+        z: THREE.MathUtils.lerp(a.z, b.z, t),
+      };
+    };
+    const temp = new THREE.Object3D();
+    const tileLength = 2.01;
+    const innerOffset = 1.0;
+    let cursor = start;
+    let tileIndex = 0;
+    while (cursor < end - 0.05) {
+      const length = Math.min(tileLength, end - cursor);
+      if (length < 0.6) break;
+      const distance = cursor + length * 0.5;
+      const position = sample(offsetPts, distance);
+      const before = sample(centerPts, Math.max(start, distance - 0.2));
+      const after = sample(centerPts, Math.min(end, distance + 0.2));
+      const dx = after.x - before.x, dz = after.z - before.z;
+      const dirLength = Math.hypot(dx, dz);
+      if (dirLength > 1e-5) {
+        // Local X follows the road tangent. Each imported square prefab is
+        // about 2 m × 2 m and is compressed only along the street for short
+        // leftover runs at a junction or road end.
+        const yaw = Math.atan2(-dz / dirLength, dx / dirLength);
+        const variant = tileIndex % 29 === 17
+          ? 'sidewalk-cracked'
+          : 'sidewalk-panel-0' + (1 + ((tileIndex + roadIndex * 3 + (side > 0 ? 1 : 0)) % 4));
+        const key = this._sidewalkInstances.has(variant) ? variant : 'sidewalk-panel-01';
+        const batch = this._sidewalkInstances.get(key);
+        if (batch.count < batch.instanceMatrix.count) {
+          temp.position.set(position.x, 0.12, position.z);
+          temp.rotation.set(0, yaw, 0);
+          temp.scale.set(length / tileLength, 1, 1);
+          temp.updateMatrix();
+          batch.setMatrixAt(batch.count, temp.matrix);
+          batch.count++;
+        }
+      }
+      cursor += tileLength;
+      tileIndex++;
+    }
+    return true;
+  }
+
+  _buildRoadSidewalks(chains, walkMat = this._sceneMat('walk'), curbMat = this.mCurb()) {
+    if (!chains?.length) return;
+    this._createSidewalkInstances(chains);
+    const useImportedKit = !!this._sidewalkInstances?.size;
+    const { metadata, ranges } = this._roadJunctionData(chains);
+    const drawRuns = (centerPts, offsetPts, data, blocked, width, y, mat, colliderWidth, thickness, side, chainIndex, imported = false) => {
+      let cursor = 0;
+      const draw = (start, end) => {
+        if (end - start < 0.08) return;
+        // Slice by the centreline's arc-length so pavement/collision runs end
+        // at exactly the same junction boundaries as the curb.
+        const run = this._sliceOffsetRoadPolyline(
+          centerPts, offsetPts, data.cumulative, start, end,
+        );
+        if (run.length < 2) return;
+        if (imported && useImportedKit) {
+          this._placeImportedSidewalkTiles(centerPts, offsetPts, data.cumulative, start, end, side, chainIndex);
+          // A short procedural cap closes sub-tile gaps at junctions without
+          // replacing the imported sidewalk surface along the street.
+          const used = Math.floor((end - start) / 2.01) * 2.01;
+          if (end - start - used > 0.6) {
+            const cap = this._sliceOffsetRoadPolyline(
+              centerPts, offsetPts, data.cumulative,
+              start + used, end,
+            );
+            if (cap.length >= 2) this._strokeMitered(cap, width, y, mat, false);
+          }
+        } else {
+          this._strokeMitered(run, width, y, mat, false);
+        }
+        this._addRoadSurfaceColliders(run, colliderWidth, y, false, thickness);
+      };
+      for (const [start, end] of blocked) {
+        if (start > cursor + 0.05) draw(cursor, start);
+        cursor = Math.max(cursor, end);
+        if (cursor >= data.total) break;
+      }
+      if (cursor < data.total - 0.05) draw(cursor, data.total);
+    };
+
+    for (let i = 0; i < chains.length; i++) {
+      const chain = chains[i];
+      if (!chain.sidewalk || chain.pts.length < 2) continue;
+      const data = metadata[i];
+      const blocked = chain.closed ? [] : ranges[i];
+      const edge = chain.W / 2;
+      for (const side of [-1, 1]) {
+        const pavement = this._offsetRoadPolyline(chain.pts, side * (edge + 1.0));
+        if (chain.closed) {
+          if (useImportedKit) {
+            this._placeImportedSidewalkTiles(chain.pts, pavement, data.cumulative, 0, data.total, side, i);
+          } else {
+            this._strokeMitered(pavement, 2.4, 0.12, walkMat, true);
+          }
+          this._addRoadSurfaceColliders(pavement, 2.0, 0.12, true, 0.04);
+        } else {
+          drawRuns(chain.pts, pavement, data, blocked, 2.0, 0.12, walkMat, 2.0, 0.04, side, i, true);
+        }
+      }
+      // Curbs remain procedurally joined: this creates a continuous road-edge
+      // transition around arbitrary bends and junctions where rectangular
+      // imported curb pieces would otherwise leave seams.
+      for (const side of [-1, 1]) {
+        const curb = this._offsetRoadPolyline(chain.pts, side * (edge + 0.12));
+        if (chain.closed) {
+          this._strokeMitered(curb, 0.36, 0.10, curbMat, true);
+          this._addRoadSurfaceColliders(curb, 0.36, 0.12, true, 0.06);
+        } else {
+          drawRuns(chain.pts, curb, data, blocked, 0.36, 0.10, curbMat, 0.36, 0.06, side, i, false);
+        }
+      }
+    }
+    for (const batch of this._sidewalkInstances?.values() || []) {
+      batch.instanceMatrix.needsUpdate = true;
+      batch.computeBoundingBox();
+      batch.computeBoundingSphere();
+    }
+  }
+
+  _buildRoadMarkings(chains) {
+    if (!chains?.length) return;
+    const yellow = this._mat('lane-center-mark', () => new THREE.MeshStandardMaterial({
+      color: 0xd7bd62, roughness: 0.96, metalness: 0, side: THREE.DoubleSide,
+      polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+    }));
+    const white = this._mat('lane-white-mark', () => new THREE.MeshStandardMaterial({
+      color: 0xd8d9d4, roughness: 0.96, metalness: 0, side: THREE.DoubleSide,
+      polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+    }));
+    const crosswalk = this._mat('crosswalk-mark', () => new THREE.MeshStandardMaterial({
+      color: 0xe4e4dc, roughness: 0.96, metalness: 0, side: THREE.DoubleSide,
+      polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+    }));
+
+    const { metadata, hits, ranges: mergedRanges } = this._roadJunctionData(chains);
+
+    const blocked = (ranges, start, end) => ranges.some(r => start < r[1] && end > r[0]);
+    const drawDashed = (chain, data, offsetPts, ranges, startDistance, endDistance, dash, period, width, mat) => {
+      for (let d = startDistance; d + dash <= endDistance; d += period) {
+        if (blocked(ranges, d, d + dash)) continue;
+        const line = this._sliceRoadPolyline(offsetPts, data.cumulative, d, d + dash);
+        if (line.length >= 2) this._strokeMitered(line, width, chain.roadY + 0.008, mat, false);
+      }
+    };
+    const drawSolid = (chain, data, offsetPts, ranges, startDistance, endDistance, width, mat) => {
+      let cursor = startDistance;
+      for (const [a, b] of ranges) {
+        if (b <= cursor || a >= endDistance) continue;
+        if (a > cursor + 0.05) {
+          const line = this._sliceRoadPolyline(offsetPts, data.cumulative, cursor, Math.min(a, endDistance));
+          if (line.length >= 2) this._strokeMitered(line, width, chain.roadY + 0.008, mat, false);
+        }
+        cursor = Math.max(cursor, b);
+        if (cursor >= endDistance) break;
+      }
+      if (cursor < endDistance - 0.05) {
+        const line = this._sliceRoadPolyline(offsetPts, data.cumulative, cursor, endDistance);
+        if (line.length >= 2) this._strokeMitered(line, width, chain.roadY + 0.008, mat, false);
+      }
+    };
+
+    const drawCrosswalk = (chain, data, centerDistance) => {
+      const total = data.total;
+      const halfBand = 1.45;
+      const span = Math.max(1.2, chain.W - 1.0);
+      const transverseHalf = span / 2;
+      for (let offset = -1.2; offset <= 1.21; offset += 0.6) {
+        const d = centerDistance + offset;
+        if (d < 0.15 || d > total - 0.15) continue;
+        const tangent = this._sliceRoadPolyline(
+          chain.pts, data.cumulative,
+          Math.max(0, d - 0.15), Math.min(total, d + 0.15),
+        );
+        if (tangent.length < 2) continue;
+        const dx = tangent[tangent.length - 1].x - tangent[0].x;
+        const dz = tangent[tangent.length - 1].z - tangent[0].z;
+        const len = Math.hypot(dx, dz);
+        if (len < 1e-5) continue;
+        const nx = -dz / len, nz = dx / len;
+        const center = tangent[Math.floor(tangent.length / 2)];
+        const roadY = Number(center.y) || 0;
+        const ends = [
+          { x: center.x - nx * transverseHalf, y: roadY, z: center.z - nz * transverseHalf },
+          { x: center.x + nx * transverseHalf, y: roadY, z: center.z + nz * transverseHalf },
+        ];
+        this._strokeMitered(ends, 0.14, chain.roadY + 0.008, crosswalk, false);
+      }
+    };
+
+    for (let i = 0; i < chains.length; i++) {
+      const chain = chains[i], data = metadata[i], ranges = mergedRanges[i];
+      if (chain.surface === 'modular-bridge' || chain.surface === 'imported-street-road') continue;
+      const total = data.total;
+      if (total < 4 || chain.W < 6.5) continue;
+      const roadPts = chain.pts;
+      // Broken yellow centre line; dash gaps are removed entirely around junctions.
+      drawDashed(chain, data, roadPts, ranges, 1.0, total - 1.0, 2.7, 5.8, Math.min(0.13, chain.W * 0.014), yellow);
+
+      // Solid white edge lines sit inside the curb, not on the pavement edge.
+      const edgeOffset = Math.max(0.5, chain.W / 2 - 0.55);
+      for (const side of [-1, 1]) {
+        const edgePts = this._offsetRoadPolyline(roadPts, side * edgeOffset);
+        drawSolid(chain, data, edgePts, ranges, 0.2, total - 0.2, 0.10, white);
+      }
+
+      // Wider boulevards get dashed white lane separators in each direction.
+      const lanesPerSide = Math.max(1, Math.floor(edgeOffset / 3.5));
+      for (let side of [-1, 1]) {
+        for (let lane = 1; lane < lanesPerSide; lane++) {
+          const offset = side * edgeOffset * lane / lanesPerSide;
+          const lanePts = this._offsetRoadPolyline(roadPts, offset);
+          drawDashed(chain, data, lanePts, ranges, 1.0, total - 1.0, 2.7, 5.8, 0.085, white);
+        }
+      }
+
+      // Paint a zebra crossing on both approaches of junctions on streets wide
+      // enough to read as a proper pedestrian crossing. Every stripe is separate
+      // geometry, so no paint is stretched across curved segments or into the junction.
+      if (chain.W >= 8 && total > 18) {
+        const proposed = [];
+        for (const hit of hits[i]) {
+          const offset = hit.radius + 2.75;
+          if (hit.distance - offset > 4.2) proposed.push(hit.distance - offset);
+          if (hit.distance + offset < total - 4.2) proposed.push(hit.distance + offset);
+        }
+        proposed.sort((a, b) => a - b);
+        let last = -Infinity;
+        for (const d of proposed) {
+          if (d - last < 4.8) continue;
+          drawCrosswalk(chain, data, d);
+          last = d;
+        }
+      }
+    }
+  }
+
+  // Distance from point p to a segment of chain `other` — if < ~4m it's a shared junction point.
+  _nearAnyEnd(p, other) {
+    const n = other.pts.length;
+    if (n < 2) return false;
+    return this._dist2(p, other.pts[0]) < 4 || this._dist2(p, other.pts[n - 1]) < 4;
+  }
+  _dist2(a, b) { const dx = a.x - b.x, dz = a.z - b.z; return dx * dx + dz * dz; }
+
+  // How far back from endpoint p (heading `dir`) the road must trim so its end face sits
+  // just inside the far edge of segment a->b (road of width wOther). 0 when unrelated.
+  _tCut(p, dir, a, b, wOther, wMine) {
+    const abx = b.x - a.x, abz = b.z - a.z;
+    const l = Math.hypot(abx, abz);
+    if (!l) return 0;
+    const abUx = abx / l, abUz = abz / l;
+    const tRaw = ((p.x - a.x) * abx + (p.z - a.z) * abz) / (l * l);
+    // endpoint must be longitudinally within this segment — otherwise it's off
+    // the far side of the road (a point can sit on a segment's EXTENDED line
+    // while being hundreds of metres from the actual segment).
+    if (tRaw < -0.01 || tRaw > 1.01) return 0;
+    const t = Math.max(0, Math.min(1, tRaw));
+    const px = p.x - (a.x + abx * t), pz = p.z - (a.z + abz * t);
+    const perp = Math.abs(px * -abUz + pz * abUx);
+    if (perp > wOther / 2 + 4) return 0; // endpoint not near this road
+    const dl = Math.hypot(dir.x, dir.z) || 1;
+    const ux = dir.x / dl, uz = dir.z / dl;
+    const sinT = Math.max(Math.abs(ux * abUz - uz * abUx), 0.35);
+    return (wOther / 2 + 0.5 + (wMine / 2) * sinT * 0.9) / sinT;
+  }
+
+  // Trim cutStart / cutEnd (metres) off the ends of an open polyline.
+  _trimChain(pts, cutStart, cutEnd) {
+    if (cutStart <= 0 && cutEnd <= 0) return pts;
+    const L = pts.length;
+    const segLens = [];
+    let total = 0;
+    for (let i = 0; i < L - 1; i++) {
+      const l = Math.hypot(pts[i + 1].x - pts[i].x, pts[i + 1].z - pts[i].z);
+      segLens.push(l); total += l;
+    }
+    const s = Math.min(cutStart, total * 0.8), e = Math.min(cutEnd, total * 0.8);
+    const out = [];
+    let acc = 0, i0 = 0;
+    for (let i = 0; i < segLens.length; i++) {
+      if (acc + segLens[i] >= s) { i0 = i; break; }
+      acc += segLens[i];
+    }
+    const ax = pts[i0].x, az = pts[i0].z;
+    let ddx = pts[i0 + 1].x - ax, ddz = pts[i0 + 1].z - az;
+    const dl = Math.hypot(ddx, ddz) || 1;
+    const startT = segLens[i0] > 1e-6 ? THREE.MathUtils.clamp((s - acc) / segLens[i0], 0, 1) : 0;
+    out.push({
+      x: ax + ddx / dl * (s - acc), z: az + ddz / dl * (s - acc),
+      y: THREE.MathUtils.lerp(pts[i0].y || 0, pts[i0 + 1].y || 0, startT),
+    });
+    for (let i = i0 + 1; i < L; i++) out.push(pts[i]);
+    let rem = e;
+    while (out.length > 1) {
+      const last = out[out.length - 1], prev = out[out.length - 2];
+      const l = Math.hypot(last.x - prev.x, last.z - prev.z);
+      if (l <= rem) { out.pop(); rem -= l; }
+      else {
+        const f = 1 - rem / l;
+        out[out.length - 1] = {
+          x: prev.x + (last.x - prev.x) * f,
+          z: prev.z + (last.z - prev.z) * f,
+          y: THREE.MathUtils.lerp(prev.y || 0, last.y || 0, f),
+        };
+        break;
+      }
+    }
+    return out;
+  }
+
+  // Build the structural pieces of a raised crossing from the same elevated
+  // centreline used by the asphalt ribbon. Vertices are in world coordinates,
+  // because registerStaticRoadMeshes consumes geometry positions directly.
+  _buildFlyoverStructure(pts, width, roadOffset = 0.06, slabThickness = 0.48, pierSpacing = 18) {
+    if (!pts || pts.length < 2) return;
+    const deckPositions = [], deckIndices = [];
+    const addQuad = (positions, indices, a, b, c, d) => {
+      const base = positions.length / 3;
+      for (const p of [a, b, c, d]) positions.push(p.x, p.y, p.z);
+      indices.push(base, base + 1, base + 2, base + 2, base + 1, base + 3);
+    };
+    const profileY = p => Number.isFinite(p.y) ? p.y : 0;
+    const pointY = p => profileY(p) + roadOffset;
+    // Taper the underside thickness near ground-level ramp ends so the concrete
+    // does not bury itself into the terrain; full slab depth is used aloft.
+    const thicknessAt = p => Math.min(slabThickness, Math.max(0.035, profileY(p) + roadOffset - 0.04));
+    const crossSection = (p, nx, nz, side, bottom = false) => ({
+      x: p.x + nx * side,
+      y: pointY(p) - 0.035 - (bottom ? thicknessAt(p) : 0),
+      z: p.z + nz * side,
+    });
+
+    // Continuous concrete box deck: asphalt remains the tyre-contact surface;
+    // the slab supplies a visible underside and solid sides beneath it.
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1];
+      const dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz);
+      if (len < 0.05) continue;
+      const nx = -dz / len, nz = dx / len, half = width * 0.5;
+      const ltA = crossSection(a, nx, nz, half), rtA = crossSection(a, nx, nz, -half);
+      const ltB = crossSection(b, nx, nz, half), rtB = crossSection(b, nx, nz, -half);
+      const lbA = crossSection(a, nx, nz, half, true), rbA = crossSection(a, nx, nz, -half, true);
+      const lbB = crossSection(b, nx, nz, half, true), rbB = crossSection(b, nx, nz, -half, true);
+      addQuad(deckPositions, deckIndices, ltA, ltB, rtA, rtB);
+      addQuad(deckPositions, deckIndices, rbA, rbB, lbA, lbB);
+      addQuad(deckPositions, deckIndices, ltA, lbA, ltB, lbB);
+      addQuad(deckPositions, deckIndices, rtA, rtB, rbA, rbB);
+      if (i === 0) addQuad(deckPositions, deckIndices, ltA, rtA, lbA, rbA);
+      if (i === pts.length - 2) addQuad(deckPositions, deckIndices, rtB, ltB, rbB, lbB);
+    }
+    const deckGeometry = new THREE.BufferGeometry();
+    deckGeometry.setAttribute('position', new THREE.Float32BufferAttribute(deckPositions, 3));
+    deckGeometry.setIndex(deckIndices);
+    deckGeometry.computeVertexNormals();
+    const deckMaterial = this.mConcrete([128, 130, 132]);
+    deckMaterial.side = THREE.DoubleSide;
+    deckMaterial.needsUpdate = true;
+    const deckMesh = new THREE.Mesh(deckGeometry, deckMaterial);
+    deckMesh.castShadow = true;
+    deckMesh.receiveShadow = true;
+    this.group.add(deckMesh);
+    this.roadPhysicsMeshes.push({ kind: 'bridge_deck', geometry: deckGeometry });
+
+    // Paired tapered columns and a crosshead beam every 18m where the road
+    // deck is high enough. Ground-height portions remain ramp-only.
+    const lengths = this._roadPolylineLengths(pts);
+    const totalLength = lengths[lengths.length - 1] || 0;
+    if (totalLength < pierSpacing) return;
+    const supportPositions = [], supportIndices = [];
+    const appendGeometry = geometry => {
+      const attr = geometry.attributes.position;
+      const base = supportPositions.length / 3;
+      for (let i = 0; i < attr.count; i++) supportPositions.push(attr.getX(i), attr.getY(i), attr.getZ(i));
+      if (geometry.index) for (const index of geometry.index.array) supportIndices.push(base + index);
+      else for (let i = 0; i < attr.count; i++) supportIndices.push(base + i);
+      geometry.dispose();
+    };
+    const sampleAt = distance => {
+      let i = 0;
+      while (i < lengths.length - 2 && lengths[i + 1] < distance) i++;
+      const segmentLength = Math.max(1e-6, lengths[i + 1] - lengths[i]);
+      const t = THREE.MathUtils.clamp((distance - lengths[i]) / segmentLength, 0, 1);
+      const a = pts[i], b = pts[i + 1];
+      const dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz) || 1;
+      return {
+        x: THREE.MathUtils.lerp(a.x, b.x, t), z: THREE.MathUtils.lerp(a.z, b.z, t),
+        y: THREE.MathUtils.lerp(a.y || 0, b.y || 0, t),
+        nx: -dz / len, nz: dx / len, dx, dz,
+      };
+    };
+    for (let distance = pierSpacing; distance < totalLength - 5; distance += pierSpacing) {
+      const s = sampleAt(distance);
+      const deckBottom = s.y + roadOffset - 0.035 - slabThickness;
+      const capHeight = 0.52;
+      const columnHeight = deckBottom - capHeight;
+      if (columnHeight < 1.9) continue;
+      for (const side of [-1, 1]) {
+        const x = s.x + s.nx * side * (width * 0.5 + 1.1);
+        const z = s.z + s.nz * side * (width * 0.5 + 1.1);
+        const column = new THREE.CylinderGeometry(0.54, 0.76, columnHeight, 8, 1, false);
+        column.translate(x, columnHeight * 0.5, z);
+        appendGeometry(column);
+      }
+      const cap = new THREE.BoxGeometry(width + 2.8, capHeight, 1.55);
+      const transform = new THREE.Object3D();
+      transform.position.set(s.x, deckBottom - capHeight * 0.5, s.z);
+      transform.rotation.y = Math.atan2(s.dx, s.dz);
+      transform.updateMatrix();
+      cap.applyMatrix4(transform.matrix);
+      appendGeometry(cap);
+    }
+    if (supportPositions.length) {
+      const supportGeometry = new THREE.BufferGeometry();
+      supportGeometry.setAttribute('position', new THREE.Float32BufferAttribute(supportPositions, 3));
+      supportGeometry.setIndex(supportIndices);
+      supportGeometry.computeVertexNormals();
+      const supportMaterial = this.mConcrete([116, 119, 121]);
+      supportMaterial.side = THREE.DoubleSide;
+      supportMaterial.needsUpdate = true;
+      const supportMesh = new THREE.Mesh(supportGeometry, supportMaterial);
+      supportMesh.castShadow = true;
+      supportMesh.receiveShadow = true;
+      this.group.add(supportMesh);
+      this.roadPhysicsMeshes.push({ kind: 'bridge_support', geometry: supportGeometry });
+    }
+  }
+
+  _buildRoadGuardrails(pts, width, yOffset = 0.06, height = 0.78, thickness = 0.22) {
+    if (!pts || pts.length < 2) return;
+    const positions = [], indices = [];
+    const quad = (a,b,c,d) => { const i=positions.length/3; for(const p of [a,b,c,d]) positions.push(p.x,p.y,p.z); indices.push(i,i+1,i+2,i+2,i+1,i+3); };
+    for(const side of [-1,1]) for(let i=0;i<pts.length-1;i++) {
+      const a=pts[i],b=pts[i+1],dx=b.x-a.x,dz=b.z-a.z,len=Math.hypot(dx,dz); if(len<0.05)continue;
+      const nx=-dz/len,nz=dx/len,p=(v,o,h=0)=>({x:v.x+nx*o,y:(v.y||0)+yOffset+h,z:v.z+nz*o});
+      const inner=side*(width/2-thickness),outer=side*width/2;
+      const ai=p(a,inner),bi=p(b,inner),ao=p(a,outer),bo=p(b,outer),ait=p(a,inner,height),bit=p(b,inner,height),aot=p(a,outer,height),bot=p(b,outer,height);
+      quad(ai,bi,ait,bit); quad(ao,aot,bo,bot); quad(ait,bit,aot,bot);
+    }
+    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.setIndex(indices);geo.computeVertexNormals();
+    const mat=this.mCurb();mat.side=THREE.DoubleSide;mat.needsUpdate=true;
+    const mesh=new THREE.Mesh(geo,mat);mesh.castShadow=true;mesh.receiveShadow=true;this.group.add(mesh);
+    this.roadPhysicsMeshes.push({kind:'barrier',geometry:geo});
+  }
+
+  // Stroke a polyline as a solid mitered polygon (correct corners, no gaps) into _ribbonBatch.
+  _strokeMitered(pts, w, y, mat, closed = false) {
+    const L = pts.length;
+    if (L < 2) return;
+    const hw = w / 2;
+    const left = [], right = [];
+    for (let i = 0; i < L; i++) {
+      const p = pts[i];
+      const prev = pts[closed ? (i - 1 + L) % L : Math.max(0, i - 1)];
+      const next = pts[closed ? (i + 1) % L : Math.min(L - 1, i + 1)];
+      const px = p.x - prev.x, pz = p.z - prev.z;
+      const nx = next.x - p.x, nz = next.z - p.z;
+      const pl = Math.hypot(px, pz), nl = Math.hypot(nx, nz);
+      let mx, mz;
+      // Open endpoints have a zero-length adjacent segment. Use the one valid
+      // normal instead of collapsing the road width to a single vertex.
+      if (!closed && i === 0 && nl > 1e-6) {
+        mx = -nz / nl; mz = nx / nl;
+      } else if (!closed && i === L - 1 && pl > 1e-6) {
+        mx = -pz / pl; mz = px / pl;
+      } else if (pl > 1e-6 && nl > 1e-6) {
+        const nux = -pz / pl, nuz = px / pl;
+        const nvx = -nz / nl, nvz = nx / nl;
+        const dot = nux * nvx + nuz * nvz;
+        const denom = Math.max(0.3, 1 + dot);
+        mx = (nux + nvx) / denom;
+        mz = (nuz + nvz) / denom;
+        const ml = Math.hypot(mx, mz);
+        if (ml > 2.5) { mx = mx / ml * 2.5; mz = mz / ml * 2.5; }
+      } else {
+        mx = 0; mz = 0;
+      }
+      const y = Number(p.y) || 0;
+      left.push({ x: p.x + mx * hw, y, z: p.z + mz * hw });
+      right.push({ x: p.x - mx * hw, y, z: p.z - mz * hw });
+    }
+    this._ribbonBatch.push({ left, right, y, mat, closed });
+  }
+  _removeWorldCollider(col) {
+    if (!col) return;
+    let i = this.colliders.indexOf(col);
+    if (i >= 0) this.colliders.splice(i, 1);
+    i = this.climbables.indexOf(col);
+    if (i >= 0) this.climbables.splice(i, 1);
+    if (this.bvhWorld) this.bvhWorld.removeAABB(col);
+    if (col.physicsCollider && this._physics) this._physics.removeCollider(col.physicsCollider);
+    col.physicsCollider = null;
+  }
+
+  removeLoot(idx) {
+    const L = this.lootPoints[idx];
+    if (!L || L.looted) return;
+    L.looted = true;
+    if (L.mesh) this.group.remove(L.mesh);
+    this._removeWorldCollider(L.col);
+    const r = L.mesh && this.reactiveObjects.find(o => o.mesh === L.mesh);
+    if (r) {
+      r.dead = true;
+      r.mesh.visible = false;
+      this._removeWorldCollider(r.col);
+    }
+  }
+
+
+  // ===== SPAWN POINTS FALLBACK =====
+  _finishSpawnPoints() {
+    if (this.sceneData?.disableAutoSpawns) return;
+    if (!this.spawnPoints.length) {
+      const P = (x, z) => this.spawnPoints.push(new THREE.Vector3(x, 0, z));
+      for (let i = 0; i < 80; i++) {
+        const a = rng(0, Math.PI * 2);
+        const r = rng(50, this.bounds - 30);
+        P(Math.cos(a) * r, Math.sin(a) * r);
+      }
+    }
+  }
+
+  // ===== COLLISION QUERIES =====
+  losBlocked(a, b) {
+    if (this.grid) return this.grid.losBlocked(a, b);
+    for (const c of this.colliders) {
+      if (c.max.y < 1.2) continue;
+      if (segmentAABB(a, b, c)) return true;
+    }
+    return false;
+  }
+
+  colliderAt(x, z, r = 0.4) {
+    const radius = r + 0.05;
+    const near = this.grid
+      ? this.grid.queryPoint(x, z, radius)
+      : this.colliders;
+    for (const c of near) {
+      // Road/sidewalk proxy boxes are height-sampling metadata only. Their broad
+      // AABBs can extend beyond the visible strip and must never block walking.
+      if (c.surfaceOnly || c.type === 'road_surface') continue;
+      if (c.max.y < 0.3) continue;
+      if (c.orientedBox) {
+        // Road/sidewalk AABBs are broadphase only. Use a circle-vs-oriented
+        // rectangle test so their empty corners never become invisible walls.
+        const o = c.orientedBox;
+        const dx = x - o.center.x, dz = z - o.center.z;
+        const cs = Math.cos(o.yaw), sn = Math.sin(o.yaw);
+        const lx = dx * cs - dz * sn, lz = dx * sn + dz * cs;
+        const cx = THREE.MathUtils.clamp(lx, -o.halfExtents.x, o.halfExtents.x);
+        const cz = THREE.MathUtils.clamp(lz, -o.halfExtents.z, o.halfExtents.z);
+        if ((lx - cx) ** 2 + (lz - cz) ** 2 <= radius * radius) return true;
+        continue;
+      }
+      if (x + radius > c.min.x && x - radius < c.max.x &&
+          z + radius > c.min.z && z - radius < c.max.z) return true;
+    }
+    return false;
+  }
+
+  raycast(origin, dir, maxDist) {
+    let best = null;
+    if (this.grid) {
+      best = this.grid.raycast(origin, dir, maxDist);
+    } else {
+      for (const c of this.colliders) {
+        const hit = rayAABB(origin, dir, c, maxDist);
+        if (hit && (!best || hit.dist < best.dist)) best = hit;
+      }
+    }
+    if (dir.y < -1e-5) {
+      const t = -origin.y / dir.y;
+      if (t > 0 && t < maxDist && (!best || t < best.dist)) {
+        best = { dist: t, point: origin.clone().addScaledVector(dir, t), ground: true };
+      }
+    }
+    return best;
+  }
+
+  raycastSolids(origin, dir, maxDist) {
+    if (this.grid) return this.grid.raycast(origin, dir, maxDist);
+    let best = null;
+    for (const c of this.colliders) {
+      const hit = rayAABB(origin, dir, c, maxDist);
+      if (hit && (!best || hit.dist < best.dist)) best = hit;
+    }
+    return best;
+  }
+
+  climbableAt(p, range = 1.4) {
+    for (const c of this.climbables) {
+      const cx = (c.min.x + c.max.x) / 2, cz = (c.min.z + c.max.z) / 2;
+      if (Math.abs(p.x - cx) < range && Math.abs(p.z - cz) < range) return c;
+    }
+    return null;
+  }
+
+  // GTA-style: find any wall/surface within reach by casting a ray forward.
+  // Returns the first climbable wall hit (height 0.5m to 2.8m, within maxDist).
+  findClimbWall(pos, yaw, maxDist = 1.8, minH = 0.5, maxH = 2.8) {
+    const dir = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+    const origin = new THREE.Vector3(pos.x, pos.y + 0.9, pos.z);
+    const candidates = this.grid
+      ? this.grid.queryRadius(pos.x, pos.z, maxDist + 1)
+      : this.colliders;
+    let best = null, bestDist = maxDist;
+    for (const c of candidates) {
+      if (c.max.y - c.min.y < minH || c.max.y - c.min.y > maxH) continue;
+      const hit = rayAABB(origin, dir, c, maxDist + 0.5);
+      if (hit && hit.dist < bestDist) {
+        const wallH = c.max.y - c.min.y;
+        if (wallH >= minH && wallH <= maxH) {
+          bestDist = hit.dist;
+          best = c;
+        }
+      }
+    }
+    return best;
+  }
+}
+
+export function rayAABB(o, d, box, maxDist) {
+  let tmin = 0, tmax = maxDist, axis = -1, sign = 0;
+  for (const ax of ['x', 'y', 'z']) {
+    const inv = 1 / d[ax];
+    let t0 = (box.min[ax] - o[ax]) * inv, t1 = (box.max[ax] - o[ax]) * inv;
+    let s = -1;
+    if (inv < 0) { [t0, t1] = [t1, t0]; s = 1; }
+    if (t0 > tmin) { tmin = t0; axis = ax; sign = s; }
+    tmax = Math.min(tmax, t1);
+    if (tmax < tmin) return null;
+  }
+  const point = o.clone().addScaledVector(d, tmin);
+  const normal = new THREE.Vector3();
+  if (axis !== -1) normal[axis] = sign;
+  return { dist: tmin, point, normal };
+}
+
+function segmentAABB(a, b, box) {
+  const d = b.clone().sub(a);
+  const len = d.length();
+  if (len < 1e-6) return false;
+  d.divideScalar(len);
+  return rayAABB(a, d, box, len) !== null;
+}
     if (this._bridgeKit) return this._bridgeKit;
     if (this._bridgeKitPromise) return this._bridgeKitPromise;
 
