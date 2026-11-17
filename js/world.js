@@ -928,15 +928,18 @@ export class World {
       a = { ...a, x: a.x + anchorOffset.x, z: a.z + anchorOffset.z };
       model.position.set(a.x, yOffset, a.z);
       this.group.add(model);
-      this.worldKitComponents.push({
+      const worldKitInstance = {
         root: model,
         id: worldKitReport.id,
         category: worldKitReport.category,
         role: worldKitReport.role,
         meshCount: worldKitReport.meshCount,
         roleCounts: worldKitReport.roleCounts,
+        building: !!a.building,
         position: { x: a.x, y: yOffset, z: a.z },
-      });
+        scalePlan,
+      };
+      this.worldKitComponents.push(worldKitInstance);
       model.updateMatrixWorld(true);
       this._registerAssetNpcInteractables(model);
 
@@ -1062,7 +1065,10 @@ export class World {
           localCenter, localSize,
         };
         if (isProxy) collisionProxyBoxes.push(record);
-        if (isDoor) doorMeshes.push(record);
+        if (isDoor) {
+          record.source = 'native-door-mesh';
+          doorMeshes.push(record);
+        }
         if (isFloor) floorCollisionBoxes.push(record);
         if (isStair) stairMeshes.push(o);
       });
@@ -1094,6 +1100,9 @@ export class World {
               side: null,
               source: 'world-kit-door-group',
             });
+            this._addWorldKitDoorProxyMarker(
+              model, node.name, localCenter, localSize, 'world-kit-door-group',
+            );
           });
         }
       }
@@ -1147,6 +1156,9 @@ export class World {
             max: center.clone().add(size.clone().multiplyScalar(0.5)),
             source: 'world-kit-door-marker',
           });
+          this._addWorldKitDoorProxyMarker(
+            model, marker.name || 'door_main', localCenter, localSize, 'world-kit-door-marker',
+          );
         }
       }
 
@@ -1172,6 +1184,9 @@ export class World {
       // a per-world collisionSize/collisionH override takes priority.
       let usesCollisionManifest = false;
 
+      let collisionSource = hasNoCollision ? 'no-collision' : isRoad ? 'road-surface' : 'unresolved';
+      let generatedCollisionProxyCount = 0;
+
       if (!hasNoCollision && !isRoad && !bbox.isEmpty()) {
         const size = bbox.getSize(new THREE.Vector3());
         const center = bbox.getCenter(new THREE.Vector3());
@@ -1180,44 +1195,68 @@ export class World {
           // hidden visuals but become solid gameplay colliders, for buildings
           // as well as climbable props.
           if (usableCollisionProxyBoxes.length) {
+            collisionSource = 'authored-col-proxies';
             for (const p of usableCollisionProxyBoxes) {
               this.addCollider(p.center.x, p.min.y, p.center.z, p.size.x, p.size.y, p.size.z, !!a.climbable, a.type || null);
             }
           } else if (isTree) {
-            // Avoid blocking the road with foliage: trees collide at the trunk.
+            collisionSource = 'trunk-only';
             this.addCollider(a.x, bbox.min.y, a.z, 0.5, size.y, 0.5);
           } else if (isLamp) {
+            collisionSource = 'pole-proxy';
             this.addCollider(a.x, bbox.min.y, a.z, 0.35, size.y, 0.35);
           } else if (a.collisionSize) {
+            collisionSource = 'placement-override';
             const yaw = a.ry || 0;
             const cs = Math.abs(Math.cos(yaw)), sn = Math.abs(Math.sin(yaw));
             const collisionW = cs * a.collisionSize[0] + sn * a.collisionSize[1];
             const collisionD = sn * a.collisionSize[0] + cs * a.collisionSize[1];
             this.addCollider(a.x, bbox.min.y, a.z, collisionW, a.collisionH || size.y, collisionD, !!a.climbable, a.type || null);
           } else if (a.collisionH) {
+            collisionSource = 'placement-override';
             this.addCollider(center.x, bbox.min.y, center.z, size.x, a.collisionH, size.z, !!a.climbable, a.type || null);
           } else if (collisionManifest?.boxes?.length) {
             const injected = this._injectManifestColliders(collisionManifest, a, scaleFactor, yOffset, doorMeshes, bbox);
             usesCollisionManifest = injected > 0;
-            if (!injected) {
-              if (a.building) this._addBuildingWallColliders(bbox, doorMeshes, {
-                localBBox: modelLocalBBox, x: a.x || 0, z: a.z || 0,
-                yOffset, yaw: a.ry || 0,
+            if (injected) {
+              collisionSource = 'collision-sidecar';
+            } else if (a.building) {
+              generatedCollisionProxyCount = this._addBuildingWallColliders(bbox, doorMeshes, {
+                localBBox: modelLocalBBox,
+                x: a.x || 0,
+                z: a.z || 0,
+                yOffset,
+                yaw: a.ry || 0,
+                modelRoot: model,
               });
-              else this.addCollider(center.x, bbox.min.y, center.z, size.x, size.y, size.z, !!a.climbable, a.type || null);
+              collisionSource = 'generated-building-wall-proxies';
+            } else {
+              collisionSource = 'solid-bounds';
+              this.addCollider(center.x, bbox.min.y, center.z, size.x, size.y, size.z, !!a.climbable, a.type || null);
             }
-            console.log(`[World] Injected ${injected} collision boxes from ${a.collisionManifest || a.url.replace(/\.(glb|gltf)(?:[?#].*)?$/i, '_col.json')}`);
+            console.log(`[World] Injected ${injected} collision boxes from ${collisionManifestUrl}`);
           } else if (a.building) {
-            // Safe fallback when no authored proxies or generated sidecar exists.
-            this._addBuildingWallColliders(bbox, doorMeshes, {
-                localBBox: afterScaleBBox, x: a.x || 0, z: a.z || 0,
-                yOffset, yaw: a.ry || 0,
-              });
+            generatedCollisionProxyCount = this._addBuildingWallColliders(bbox, doorMeshes, {
+              localBBox: modelLocalBBox,
+              x: a.x || 0,
+              z: a.z || 0,
+              yOffset,
+              yaw: a.ry || 0,
+              modelRoot: model,
+            });
+            collisionSource = 'generated-building-wall-proxies';
           } else {
+            collisionSource = 'solid-bounds';
             this.addCollider(center.x, bbox.min.y, center.z, size.x, size.y, size.z, !!a.climbable, a.type || null);
           }
         }
       }
+
+      worldKitInstance.doorCount = doorMeshes.length;
+      worldKitInstance.doorSources = [...new Set(doorMeshes.map(door => door.source || 'native-door-mesh'))];
+      worldKitInstance.doorSource = worldKitInstance.doorSources[0] || 'missing';
+      worldKitInstance.collisionSource = collisionSource;
+      worldKitInstance.generatedCollisionProxyCount = generatedCollisionProxyCount;
 
       // A floor_* mesh is an actual walkable slab. The GLB manifest normally
       // provides finer per-cell boxes; when none exists, create a thin slab at
@@ -1290,6 +1329,31 @@ export class World {
     }
   }
 
+  _addWorldKitDoorProxyMarker(model, markerName, localCenter, localSize, source = 'world-kit-metadata') {
+    if (!model || !localCenter || !localSize) return null;
+    const safeName = String(markerName || 'main').replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '');
+    const geometry = new THREE.BoxGeometry(
+      Math.max(0.05, localSize.x),
+      Math.max(0.05, localSize.y),
+      Math.max(0.05, localSize.z),
+    );
+    const marker = new THREE.Mesh(geometry, this._getWorldKitProxyMaterial());
+    marker.name = 'door_auto_' + (safeName || 'main');
+    marker.visible = false;
+    marker.castShadow = false;
+    marker.receiveShadow = false;
+    marker.position.copy(localCenter);
+    marker.userData.worldKit = { role: 'door', source, generated: true };
+    model.add(marker);
+    model.updateWorldMatrix(true, false);
+    return marker;
+  }
+
+  _getWorldKitProxyMaterial() {
+    if (!this._worldKitProxyMaterial) this._worldKitProxyMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    return this._worldKitProxyMaterial;
+  }
+
   _addBuildingWallColliders(bbox, doors = [], transform = null) {
     const localBBox = transform?.localBBox;
     if (!localBBox) return;
@@ -1301,6 +1365,8 @@ export class World {
     const yaw = transform.yaw || 0;
     const c = Math.cos(yaw), sn = Math.sin(yaw);
     const yOffset = transform.yOffset || 0;
+    const proxyMatrices = [];
+    const proxyDummy = new THREE.Object3D();
     const thickness = THREE.MathUtils.clamp(Math.min(width, depth) * 0.025, 0.22, 0.45);
     const doorHeight = Math.min(height, 2.2);
     const toWorld = (x, z) => ({
@@ -1320,6 +1386,13 @@ export class World {
       const worldW = Math.abs(c) * w + Math.abs(sn) * d;
       const worldD = Math.abs(sn) * w + Math.abs(c) * d;
       this.addCollider(p.x, yOffset + y, p.z, worldW, h, worldD);
+      if (transform.modelRoot) {
+        proxyDummy.position.set(x, y + h / 2, z);
+        proxyDummy.rotation.set(0, 0, 0);
+        proxyDummy.scale.set(w, h, d);
+        proxyDummy.updateMatrix();
+        proxyMatrices.push(proxyDummy.matrix.clone());
+      }
     };
 
     const sideOpenings = { west: [], east: [], north: [], south: [] };
@@ -1398,6 +1471,33 @@ export class World {
     addWallRuns('east');
     addWallRuns('north');
     addWallRuns('south');
+
+    // The generated proxy is a single hidden InstancedMesh named col_auto_*.
+    // Movement keeps the separate wall AABBs above, preserving every doorway.
+    if (transform.modelRoot && proxyMatrices.length) {
+      const proxy = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(1, 1, 1),
+        this._getWorldKitProxyMaterial(),
+        proxyMatrices.length,
+      );
+      proxy.name = 'col_auto_building_shell';
+      proxy.count = proxyMatrices.length;
+      proxy.visible = false;
+      proxy.castShadow = false;
+      proxy.receiveShadow = false;
+      proxy.frustumCulled = false;
+      for (let i = 0; i < proxyMatrices.length; i++) proxy.setMatrixAt(i, proxyMatrices[i]);
+      proxy.instanceMatrix.needsUpdate = true;
+      proxy.userData.worldKit = {
+        role: 'collision-proxy',
+        source: 'generated-perimeter-wall',
+        boxCount: proxyMatrices.length,
+      };
+      transform.modelRoot.add(proxy);
+      transform.modelRoot.updateWorldMatrix(true, false);
+    }
+
+    return proxyMatrices.length;
   }
 
   _hasAncestorPrefix(object, prefix) {
