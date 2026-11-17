@@ -75,6 +75,7 @@ function disposeCurrent() {
 function inspect(root, gltf) {
   let nodes = 0;
   let meshNodes = 0;
+  let groupNodes = 0;
   let vertices = 0;
   let triangles = 0;
   const geometries = new Set();
@@ -85,6 +86,7 @@ function inspect(root, gltf) {
 
   root.traverse((obj) => {
     nodes++;
+    if (obj.isGroup) groupNodes++;
     if (!obj.isMesh) return;
     meshNodes++;
     if (obj.geometry) {
@@ -125,6 +127,7 @@ function inspect(root, gltf) {
     name: currentEntry.name,
     format: currentEntry.format,
     nodeCount: nodes,
+    groupNodeCount: groupNodes,
     meshNodeCount: meshNodes,
     visibleMeshCount: visibleCount,
     uniqueGeometryCount: geometries.size,
@@ -191,7 +194,13 @@ async function loadAsset(index) {
   disposeCurrent();
   currentEntry = manifest[index];
   updatePanel(null, index, manifest.length, 'Loading ' + currentEntry.format.toUpperCase() + ' through Three.js GLTFLoader…');
-  const gltf = await loader.loadAsync(currentEntry.url);
+  let timeoutId;
+  const gltf = await Promise.race([
+    loader.loadAsync(currentEntry.url),
+    new Promise((_, reject) => {
+      timeoutId = window.setTimeout(() => reject(new Error('GLTF load timed out after 25 seconds')), 25000);
+    }),
+  ]).finally(() => window.clearTimeout(timeoutId));
   current = gltf.scene || gltf.scenes?.[0];
   if (!current) throw new Error('No scene returned by GLTFLoader');
   current.name = currentEntry.name;
@@ -225,7 +234,7 @@ async function init() {
   manifest = await response.json();
   $('status').textContent = 'Manifest loaded · ' + manifest.length + ' model files queued.';
   window.__ASSET_REVIEW__ = { manifest, loadAsset, setView, getCurrent: () => currentEntry };
-  if (manifest.length) await loadAsset(0);
+  updatePanel(null, 0, manifest.length, manifest.length + ' model files ready for inspection.');
 }
 
 init().catch((error) => {
