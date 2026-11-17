@@ -1706,6 +1706,7 @@ export class World {
   }
 
   async _buildAuthoredRoads(roads) {
+    if (roads.some(road => road.sidewalk)) await this._loadSidewalkKit();
     const roadMat = this.mRoad();
     const walkMat = this._sceneMat('walk');
     const curbMat = this.mCurb();
@@ -2002,21 +2003,167 @@ export class World {
     return { metadata, hits, ranges };
   }
 
+  async _loadSidewalkKit() {
+    if (this._sidewalkKit) return this._sidewalkKit;
+    if (this._sidewalkKitPromise) return this._sidewalkKitPromise;
+
+    this._sidewalkKitPromise = (async () => {
+      const loader = this._gltfLoader || (this._gltfLoader = new GLTFLoader());
+      const gltf = await loader.loadAsync('./data/models/assets/roads/sidewalks/scene.gltf');
+      const kit = new Map();
+      const wanted = [
+        ['Sidewalk1', /^Sidewalk1_/],
+        ['Sidewalk2', /^Sidewalk2_/],
+        ['Sidewalk3', /^Sidewalk3_/],
+        ['Sidewalk4', /^Sidewalk4_/],
+        ['SidewalkCracked', /^SidewalkCracked_/],
+      ];
+      gltf.scene.updateMatrixWorld(true);
+      gltf.scene.traverse(node => {
+        if (!node.isMesh || !node.geometry) return;
+        const match = wanted.find(([, pattern]) => pattern.test(node.name));
+        if (!match || kit.has(match[0])) return;
+        const geometry = node.geometry.clone().applyMatrix4(node.matrixWorld);
+        geometry.computeBoundingBox();
+        const bounds = geometry.boundingBox;
+        if (!bounds || bounds.isEmpty()) {
+          geometry.dispose();
+          return;
+        }
+        const center = bounds.getCenter(new THREE.Vector3());
+        // Imported pack pieces are positioned in a display layout. Rebase the
+        // vertices around their own footprint so each one is a clean prefab.
+        geometry.translate(-center.x, -bounds.min.y, -center.z);
+        geometry.computeBoundingBox();
+        geometry.computeBoundingSphere();
+        const material = Array.isArray(node.material)
+          ? node.material[0].clone()
+          : node.material.clone();
+        for (const key of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap']) {
+          if (material[key]) material[key].anisotropy = this._maxAnisotropy;
+        }
+        material.needsUpdate = true;
+        kit.set(match[0], { geometry, material, sourceName: node.name });
+      });
+      if (!kit.has('Sidewalk1')) throw new Error('Sidewalk pack did not contain the Sidewalk1 prefab');
+      this._sidewalkKit = kit;
+      console.info('[WorldKit] Imported sidewalk prefabs:', [...kit.keys()].join(', '));
+      return kit;
+    })().catch(error => {
+      this._sidewalkKitPromise = null;
+      console.warn('[WorldKit] Imported sidewalk pack unavailable; using curved ribbon fallback:', error);
+      return null;
+    });
+    return this._sidewalkKitPromise;
+  }
+
+  _createSidewalkInstances(chains) {
+    const kit = this._sidewalkKit;
+    if (!kit?.size || this._sidewalkInstances) return;
+    const totalLength = chains.reduce((sum, chain) => {
+      if (!chain.sidewalk || chain.pts.length < 2) return sum;
+      const lengths = this._roadPolylineLengths(chain.pts);
+      return sum + (lengths[lengths.length - 1] || 0);
+    }, 0);
+    const capacity = Math.max(64, Math.ceil(totalLength * 1.12));
+    this._sidewalkInstances = new Map();
+    for (const [id, prefab] of kit) {
+      const batch = new THREE.InstancedMesh(prefab.geometry, prefab.material, capacity);
+      batch.name = 'worldkit_sidewalk_' + id;
+      batch.count = 0;
+      batch.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+      batch.castShadow = false;
+      batch.receiveShadow = true;
+      batch.frustumCulled = false;
+      this.group.add(batch);
+      this._sidewalkInstances.set(id, batch);
+    }
+  }
+
+  _placeImportedSidewalkTiles(centerPts, offsetPts, cumulative, start, end, side, roadIndex) {
+    if (!this._sidewalkInstances || end - start < 0.6) return false;
+    const sample = (points, distance) => {
+      const last = cumulative.length - 1;
+      let index = 0;
+      const d = THREE.MathUtils.clamp(distance, 0, cumulative[last]);
+      while (index < last - 1 && cumulative[index + 1] < d) index++;
+      const segment = Math.max(1e-6, cumulative[index + 1] - cumulative[index]);
+      const t = THREE.MathUtils.clamp((d - cumulative[index]) / segment, 0, 1);
+      const a = points[index], b = points[index + 1];
+      return {
+        x: THREE.MathUtils.lerp(a.x, b.x, t),
+        z: THREE.MathUtils.lerp(a.z, b.z, t),
+      };
+    };
+    const temp = new THREE.Object3D();
+    const tileLength = 2.01;
+    const innerOffset = 1.0;
+    let cursor = start;
+    let tileIndex = 0;
+    while (cursor < end - 0.05) {
+      const length = Math.min(tileLength, end - cursor);
+      if (length < 0.6) break;
+      const distance = cursor + length * 0.5;
+      const position = sample(offsetPts, distance);
+      const before = sample(centerPts, Math.max(start, distance - 0.2));
+      const after = sample(centerPts, Math.min(end, distance + 0.2));
+      const dx = after.x - before.x, dz = after.z - before.z;
+      const dirLength = Math.hypot(dx, dz);
+      if (dirLength > 1e-5) {
+        // Local X follows the road tangent. Each imported square prefab is
+        // about 2 m × 2 m and is compressed only along the street for short
+        // leftover runs at a junction or road end.
+        const yaw = Math.atan2(-dz / dirLength, dx / dirLength);
+        const variant = tileIndex % 29 === 17
+          ? 'SidewalkCracked'
+          : 'Sidewalk' + (1 + ((tileIndex + roadIndex * 3 + (side > 0 ? 1 : 0)) % 4));
+        const key = this._sidewalkInstances.has(variant) ? variant : 'Sidewalk1';
+        const batch = this._sidewalkInstances.get(key);
+        if (batch.count < batch.instanceMatrix.count) {
+          temp.position.set(position.x, 0.12, position.z);
+          temp.rotation.set(0, yaw, 0);
+          temp.scale.set(length / tileLength, 1, 1);
+          temp.updateMatrix();
+          batch.setMatrixAt(batch.count, temp.matrix);
+          batch.count++;
+        }
+      }
+      cursor += tileLength;
+      tileIndex++;
+    }
+    return true;
+  }
+
   _buildRoadSidewalks(chains, walkMat = this._sceneMat('walk'), curbMat = this.mCurb()) {
     if (!chains?.length) return;
+    this._createSidewalkInstances(chains);
+    const useImportedKit = !!this._sidewalkInstances?.size;
     const { metadata, ranges } = this._roadJunctionData(chains);
-    const drawRuns = (centerPts, offsetPts, data, blocked, width, y, mat, colliderWidth, thickness) => {
+    const drawRuns = (centerPts, offsetPts, data, blocked, width, y, mat, colliderWidth, thickness, side, chainIndex, imported = false) => {
       let cursor = 0;
       const draw = (start, end) => {
         if (end - start < 0.08) return;
-        // Offset curves have slightly different arc lengths from the centreline.
-        // Slice by the centreline's segment/t coordinates so an intersection cut
-        // lands at the same cross-street on the pavement and curb.
+        // Slice by the centreline's arc-length so pavement/collision runs end
+        // at exactly the same junction boundaries as the curb.
         const run = this._sliceOffsetRoadPolyline(
           centerPts, offsetPts, data.cumulative, start, end,
         );
         if (run.length < 2) return;
-        this._strokeMitered(run, width, y, mat, false);
+        if (imported && useImportedKit) {
+          this._placeImportedSidewalkTiles(centerPts, offsetPts, data.cumulative, start, end, side, chainIndex);
+          // A short procedural cap closes sub-tile gaps at junctions without
+          // replacing the imported sidewalk surface along the street.
+          const used = Math.floor((end - start) / 2.01) * 2.01;
+          if (end - start - used > 0.6) {
+            const cap = this._sliceOffsetRoadPolyline(
+              centerPts, offsetPts, data.cumulative,
+              start + used, end,
+            );
+            if (cap.length >= 2) this._strokeMitered(cap, width, y, mat, false);
+          }
+        } else {
+          this._strokeMitered(run, width, y, mat, false);
+        }
         this._addRoadSurfaceColliders(run, colliderWidth, y, false, thickness);
       };
       for (const [start, end] of blocked) {
@@ -2034,25 +2181,35 @@ export class World {
       const blocked = chain.closed ? [] : ranges[i];
       const edge = chain.W / 2;
       for (const side of [-1, 1]) {
-        const pavement = this._offsetRoadPolyline(chain.pts, side * (edge + 1.2));
+        const pavement = this._offsetRoadPolyline(chain.pts, side * (edge + 1.0));
         if (chain.closed) {
-          this._strokeMitered(pavement, 2.4, 0.12, walkMat, true);
-          this._addRoadSurfaceColliders(pavement, 2.4, 0.12, true, 0.04);
+          if (useImportedKit) {
+            this._placeImportedSidewalkTiles(chain.pts, pavement, data.cumulative, 0, data.total, side, i);
+          } else {
+            this._strokeMitered(pavement, 2.4, 0.12, walkMat, true);
+          }
+          this._addRoadSurfaceColliders(pavement, 2.0, 0.12, true, 0.04);
         } else {
-          drawRuns(chain.pts, pavement, data, blocked, 2.4, 0.12, walkMat, 2.4, 0.04);
+          drawRuns(chain.pts, pavement, data, blocked, 2.0, 0.12, walkMat, 2.0, 0.04, side, i, true);
         }
       }
+      // Curbs remain procedurally joined: this creates a continuous road-edge
+      // transition around arbitrary bends and junctions where rectangular
+      // imported curb pieces would otherwise leave seams.
       for (const side of [-1, 1]) {
         const curb = this._offsetRoadPolyline(chain.pts, side * (edge + 0.12));
         if (chain.closed) {
           this._strokeMitered(curb, 0.36, 0.10, curbMat, true);
           this._addRoadSurfaceColliders(curb, 0.36, 0.12, true, 0.06);
         } else {
-          // The curb is narrow; keep its collision strip cut with the visual
-          // pavement so the player controller never meets a hidden junction wall.
-          drawRuns(chain.pts, curb, data, blocked, 0.36, 0.10, curbMat, 0.36, 0.06);
+          drawRuns(chain.pts, curb, data, blocked, 0.36, 0.10, curbMat, 0.36, 0.06, side, i, false);
         }
       }
+    }
+    for (const batch of this._sidewalkInstances?.values() || []) {
+      batch.instanceMatrix.needsUpdate = true;
+      batch.computeBoundingBox();
+      batch.computeBoundingSphere();
     }
   }
 
