@@ -31,7 +31,7 @@ const manifest = modelFiles.map((relative, index) => {
   const parent = path.basename(path.dirname(relative));
   const base = path.basename(relative, path.extname(relative));
   const rawName = base.toLowerCase() === 'scene' ? parent : base;
-  const name = rawName.replace(/[+_\\-]+/g, ' ').replace(/\\s+/g, ' ').trim();
+  const name = rawName.split(/[+_-]+/).filter(Boolean).join(' ').trim();
   const slug = relative.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   return {
     index,
@@ -43,7 +43,7 @@ const manifest = modelFiles.map((relative, index) => {
   };
 });
 
-await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\\n', 'utf8');
+await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + String.fromCharCode(10), 'utf8');
 await mkdir(previewDir, { recursive: true });
 
 let server;
@@ -64,14 +64,14 @@ try {
 
   let ready = false;
   for (let i = 0; i < 100; i++) {
-    if (server.exitCode != null) throw new Error('Preview server exited early:\\n' + serverOutput);
+    if (server.exitCode != null) throw new Error('Preview server exited early:' + String.fromCharCode(10) + serverOutput);
     try {
       const response = await fetch(baseUrl + '/tools/asset-review.html');
       if (response.ok) { ready = true; break; }
     } catch {}
     await delay(250);
   }
-  assert.ok(ready, 'Asset review server did not become ready:\\n' + serverOutput);
+  assert.ok(ready, 'Asset review server did not become ready:' + String.fromCharCode(10) + serverOutput);
 
   browser = await chromium.launch({
     headless: true,
@@ -137,7 +137,7 @@ try {
       error = String(e?.stack || e);
       await writeFile(
         path.join(previewDir, `${String(index + 1).padStart(2, '0')}-${entry.slug}-FAILED.txt`),
-        error + '\\n',
+        error + String.fromCharCode(10),
         'utf8',
       );
     }
@@ -154,7 +154,7 @@ try {
 
     console.log(
       `[${index + 1}/${manifest.length}] ${entry.path} · ` +
-      (error ? 'FAILED: ' + error.split('\\n')[0] : `${report.meshNodeCount} meshes · ${report.triangleCount} triangles`)
+      (error ? 'FAILED: ' + error.split(String.fromCharCode(10))[0] : `${report.meshNodeCount} meshes · ${report.triangleCount} triangles`)
     );
   }
 
@@ -182,7 +182,7 @@ try {
     models: reports,
   };
 
-  await writeFile(path.join(outputDir, 'report.json'), JSON.stringify(report, null, 2) + '\\n', 'utf8');
+  await writeFile(path.join(outputDir, 'report.json'), JSON.stringify(report, null, 2) + String.fromCharCode(10), 'utf8');
 
   const cards = reports.map((r) => {
     const image = r.screenshots[0] || '';
