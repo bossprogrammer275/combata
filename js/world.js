@@ -2360,16 +2360,18 @@ export class World {
 
         const part = prefab.group.clone(true);
         part.name = 'worldkit_bridge_part_' + componentId;
-        part.position.set(
-          Number(placement.x) || 0,
-          Number(placement.y) || 0,
-          Number(placement.z) || 0,
-        );
-        part.rotation.y = Number(placement.yaw) || 0;
         const uniformScale = Number.isFinite(placement.scale) && placement.scale > 0 ? placement.scale : 1;
         const sx = Number.isFinite(placement.scaleX) && placement.scaleX > 0 ? placement.scaleX : uniformScale;
         const sy = Number.isFinite(placement.scaleY) && placement.scaleY > 0 ? placement.scaleY : uniformScale;
         const sz = Number.isFinite(placement.scaleZ) && placement.scaleZ > 0 ? placement.scaleZ : uniformScale;
+        // deckY is the required top-of-asphalt height in world metres. The
+        // component's real road-deck offset is measured from its imported bounds,
+        // so all visible modules and their Rapier road meshes share one datum.
+        const partY = Number.isFinite(placement.deckY)
+          ? placement.deckY - assembly.position.y - prefab.deckHeight * sy
+          : (Number(placement.y) || 0);
+        part.position.set(Number(placement.x) || 0, partY, Number(placement.z) || 0);
+        part.rotation.y = Number(placement.yaw) || 0;
         part.scale.set(sx, sy, sz);
         assembly.add(part);
 
