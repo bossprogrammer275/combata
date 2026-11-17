@@ -2326,7 +2326,8 @@ export class World {
       return this._bridgeKit;
     })().catch(error => {
       this._bridgeKitPromise = null;
-      console.warn('[WorldKit] Bridge component kit unavailable:', error);
+      this._bridgeKitError = String(error?.stack || error);
+      console.error('[WorldKit] Bridge component kit unavailable:', error);
       return null;
     });
     return this._bridgeKitPromise;
