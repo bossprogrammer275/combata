@@ -22,6 +22,8 @@ assert.ok(existsSync(assetRoot), 'data/models/assets does not exist');
 const candidates = await glob('**/*.{glb,gltf}', { cwd: assetRoot, nodir: true });
 const modelFiles = candidates
   .filter((file) => file.toLowerCase().endsWith('.glb') || path.basename(file).toLowerCase() === 'scene.gltf')
+  // The standalone root road.glb was explicitly excluded from this project.
+  .filter((file) => file.replace(/\\/g, '/').toLowerCase() !== 'road.glb')
   .sort((a, b) => a.localeCompare(b));
 
 assert.ok(modelFiles.length > 0, 'No GLB or scene.gltf model entry points found');
@@ -125,14 +127,53 @@ try {
         await page.evaluate(async (v) => window.__ASSET_REVIEW__.setView(v), view);
         await page.waitForTimeout(80);
         const filename = `${String(index + 1).padStart(2, '0')}-${entry.slug}-${view}.png`;
-        await page.locator('#asset-canvas').screenshot({
+        const canvasBox = await page.locator('#asset-canvas').boundingBox();
+        if (!canvasBox) throw new Error('Asset canvas is not visible for screenshot capture');
+        await page.screenshot({
           path: path.join(previewDir, filename),
+          clip: {
+            x: Math.max(0, canvasBox.x),
+            y: Math.max(0, canvasBox.y),
+            width: canvasBox.width,
+            height: canvasBox.height,
+          },
           timeout: 10000,
           animations: 'disabled',
         });
         screenshots.push('previews/' + filename);
       }
       if (report.emptyBounds) error = 'Loaded but has empty or degenerate bounds';
+
+      // Road Pack and Sidewalks are compound kits. Capture each imported child
+      // mesh independently so its actual shape and scale can be reviewed.
+      const componentScreenshots = [];
+      if (/data\\/models\\/assets\\/roads\\/(road_pack|sidewalks)\\/scene\\.gltf$/i.test(entry.path)) {
+        const meshCount = await page.evaluate(() => window.__ASSET_REVIEW__?.getMeshList?.().length || 0);
+        for (let meshIndex = 0; meshIndex < meshCount; meshIndex++) {
+          await page.evaluate((i) => {
+            window.__ASSET_REVIEW__?.showAllMeshes?.();
+            window.__ASSET_REVIEW__?.isolateMesh?.(i);
+          }, meshIndex);
+          await page.waitForTimeout(60);
+          const suffix = String(meshIndex + 1).padStart(2, '0');
+          const partFilename = String(index + 1).padStart(2, '0') + '-' + entry.slug + '-part-' + suffix + '.png';
+          const partBox = await page.locator('#asset-canvas').boundingBox();
+          if (!partBox) throw new Error('Asset canvas disappeared while capturing component ' + (meshIndex + 1));
+          await page.screenshot({
+            path: path.join(previewDir, partFilename),
+            clip: {
+              x: Math.max(0, partBox.x),
+              y: Math.max(0, partBox.y),
+              width: partBox.width,
+              height: partBox.height,
+            },
+            timeout: 10000,
+            animations: 'disabled',
+          });
+          componentScreenshots.push('previews/' + partFilename);
+        }
+        await page.evaluate(() => window.__ASSET_REVIEW__?.showAllMeshes?.());
+      }
     } catch (e) {
       error = String(e?.stack || e);
       await writeFile(
@@ -149,6 +190,7 @@ try {
       screenshots,
       consoleErrors: globalErrors.slice(beforeErrors),
       failedRequests: failedRequests.slice(beforeFailed),
+      componentScreenshots: typeof componentScreenshots !== 'undefined' ? componentScreenshots : [],
       loadStatus: error ? 'failed-or-invalid' : 'rendered',
     });
 
