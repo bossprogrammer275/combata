@@ -2401,6 +2401,7 @@ export class World {
           // transform as their rendered component.
           this.roadPhysicsMeshes.push({
             kind: role === 'bridge-road-surface' ? 'bridge_deck' : 'bridge_support',
+            source: 'imported-bridge-component',
             geometry,
           });
         });
