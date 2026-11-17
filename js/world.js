@@ -5,7 +5,7 @@ import { GLTFLoader } from './lib/GLTFLoader.js';
 import { BVHWorld } from './bvh-collision.js';
 import { Atmosphere } from './atmosphere.js';
 import { loadAssetOverrides, applyAssetOverrides } from './asset-overrides.js';
-import { annotateWorldKitInstance, getWorldKitPlacementOffset, WORLD_KIT_ROAD_PACK_PARTS, WORLD_KIT_ROAD_PACK_SCALE, WORLD_KIT_SIDEWALK_COMPONENTS } from './world-kit.js';
+import { annotateWorldKitInstance, getWorldKitPlacementOffset, getWorldKitScalePlan, getWorldKitDoorMarkers, getWorldKitCollisionManifest, getWorldKitDefinition, WORLD_KIT_ROAD_PACK_PARTS, WORLD_KIT_ROAD_PACK_SCALE, WORLD_KIT_SIDEWALK_COMPONENTS } from './world-kit.js';
 import { extractWorldBridgeKit, WORLD_BRIDGE_KIT_URL } from './world-bridge-kit.js';
 
 function rng(a, b) { return a + Math.random() * (b - a); }
@@ -896,24 +896,29 @@ export class World {
       const rootTilted = Math.abs(rootRot.x || 0)>1e-5 || Math.abs(rootRot.z || 0)>1e-5;
       a = { ...a, x:(a.x||0)+(Number(rootPos.x)||0), z:(a.z||0)+(Number(rootPos.z)||0), elevation:(a.elevation||0)+(Number(rootPos.y)||0), ry:(a.ry||0)+(Number(rootRot.y)||0) };
 
-      // Measure raw bbox BEFORE any transforms
+      // Every imported world asset is brought into the same metre space.
+      // targetH is the final vertical size in metres; unitScale is only needed
+      // for assets authored without a targetH fit. The cumulative scale is also
+      // used for collision sidecars, so visual and physics geometry cannot drift.
       const rawBBox = new THREE.Box3().setFromObject(model);
       const rawH = rawBBox.max.y - rawBBox.min.y;
-
-      // Keep the sidecar's collision boxes on the exact same scale as the GLB.
-      let scaleFactor = 1;
-      if (a.targetH && rawH > 0.01) {
-        scaleFactor = a.targetH / rawH;
-        model.scale.setScalar(scaleFactor);
-      } else if (a.scale) {
-        scaleFactor = a.scale;
-        model.scale.setScalar(scaleFactor);
-      }
-      model.scale.set(model.scale.x*sx, model.scale.y*sy, model.scale.z*sz);
+      const scalePlan = getWorldKitScalePlan(rawH, a, getWorldKitDefinition(a.url));
+      let scaleFactor = scalePlan.totalScale;
+      model.scale.setScalar(scaleFactor);
+      model.scale.set(model.scale.x * sx, model.scale.y * sy, model.scale.z * sz);
       if (uniformRootScale) scaleFactor *= sx;
       model.rotation.set(Number(rootRot.x)||0, a.ry||0, Number(rootRot.z)||0);
 
-      // Position: snap model's bottom to ground (y=0), plus any elevation offset.
+      // Keep an unrotated, scaled local footprint for collision walls, interiors
+      // and doorway placement. afterScaleBBox is the yaw-rotated placement box.
+      model.updateMatrixWorld(true);
+      const authoredRotation = model.rotation.clone();
+      const authoredPosition = model.position.clone();
+      model.rotation.y = 0;
+      model.updateMatrixWorld(true);
+      const modelLocalBBox = new THREE.Box3().setFromObject(model);
+      model.rotation.copy(authoredRotation);
+      model.position.copy(authoredPosition);
       model.updateMatrixWorld(true);
       const afterScaleBBox = new THREE.Box3().setFromObject(model);
       const yOffset = -afterScaleBBox.min.y + (a.elevation || 0);
@@ -1034,7 +1039,7 @@ export class World {
         // Support both a mesh named col_wall and a mesh nested inside a node
         // named col_wall (common after Blender/glTF export).
         const isProxy = this._hasAncestorPrefix(o, 'col_');
-        const isDoor = this._hasAncestorPrefix(o, 'door_');
+        const isDoor = this._hasAncestorPrefix(o, 'door_') || o.userData?.worldKit?.role === 'door';
         const isFloor = this._hasAncestorPrefix(o, 'floor_');
         const isStair = this._hasAncestorPrefix(o, 'stairs_');
         if (!isProxy && !isDoor && !isFloor && !isStair) return;
@@ -1061,6 +1066,58 @@ export class World {
         if (isFloor) floorCollisionBoxes.push(record);
         if (isStair) stairMeshes.push(o);
       });
+      // Older downloaded models have no door_* marker nodes. Add authoring
+      // markers from the World Kit metadata only when no real imported door mesh
+      // was found. They are metre-space records, not replacement visible meshes.
+      if (a.building && doorMeshes.length === 0) {
+        const markers = Array.isArray(a.doorMarkers)
+          ? a.doorMarkers
+          : getWorldKitDoorMarkers(worldKitReport.id);
+        const min = modelLocalBBox.min, max = modelLocalBBox.max;
+        const width = max.x - min.x, depth = max.z - min.z;
+        const c = Math.cos(a.ry || 0), sn = Math.sin(a.ry || 0);
+        for (const marker of markers) {
+          const side = ['north', 'south', 'east', 'west'].includes(marker.side) ? marker.side : 'south';
+          const u = THREE.MathUtils.clamp(Number.isFinite(marker.u) ? marker.u : 0.5, 0.06, 0.94);
+          const doorWidth = THREE.MathUtils.clamp(Number(marker.width) || 1.2, 0.7, 4.5);
+          const doorHeight = THREE.MathUtils.clamp(Number(marker.height) || 2.15, 1.7, 3.6);
+          const doorDepth = THREE.MathUtils.clamp(Number(marker.depth) || 0.24, 0.12, 0.65);
+          const localCenter = new THREE.Vector3(
+            side === 'west' ? min.x + doorDepth / 2
+              : side === 'east' ? max.x - doorDepth / 2
+              : min.x + width * u,
+            min.y + doorHeight / 2,
+            side === 'north' ? min.z + doorDepth / 2
+              : side === 'south' ? max.z - doorDepth / 2
+              : min.z + depth * u,
+          );
+          const localSize = side === 'west' || side === 'east'
+            ? new THREE.Vector3(doorDepth, doorHeight, doorWidth)
+            : new THREE.Vector3(doorWidth, doorHeight, doorDepth);
+          const center = new THREE.Vector3(
+            (a.x || 0) + localCenter.x * c + localCenter.z * sn,
+            yOffset + localCenter.y,
+            (a.z || 0) - localCenter.x * sn + localCenter.z * c,
+          );
+          const size = new THREE.Vector3(
+            Math.abs(c) * localSize.x + Math.abs(sn) * localSize.z,
+            localSize.y,
+            Math.abs(sn) * localSize.x + Math.abs(c) * localSize.z,
+          );
+          doorMeshes.push({
+            name: marker.name || 'door_main',
+            side,
+            center,
+            size,
+            localCenter,
+            localSize,
+            min: center.clone().sub(size.clone().multiplyScalar(0.5)),
+            max: center.clone().add(size.clone().multiplyScalar(0.5)),
+            source: 'world-kit-door-marker',
+          });
+        }
+      }
+
       // Hide collision proxy geometry after recording its world-space bounds,
       // including child meshes nested beneath a col_* node.
       model.traverse((o) => { if (o.isMesh && this._hasAncestorPrefix(o, 'col_')) o.visible = false; });
@@ -1073,9 +1130,10 @@ export class World {
 
       // Prefer usable authored col_* meshes. Avoid fetching a manifest when a
       // dedicated proxy type or explicit per-world collision dimensions win.
-      const collisionManifest = !usableCollisionProxyBoxes.length && !isTree && !isLamp && !hasNoCollision &&
+      const collisionManifestUrl = getWorldKitCollisionManifest(a.url, a);
+      const collisionManifest = collisionManifestUrl && !usableCollisionProxyBoxes.length && !isTree && !isLamp && !hasNoCollision &&
         !a.collisionSize && !a.collisionH && !hasMeshEdits && uniformRootScale && !rootTilted
-        ? await this._loadCollisionManifest(a)
+        ? await this._loadCollisionManifest({ ...a, collisionManifest: collisionManifestUrl })
         : null;
       // True only if this loading path actually injected sidecar colliders.
       // Merely finding a sidecar must not suppress floor_/stairs_ fallbacks when
@@ -1111,7 +1169,7 @@ export class World {
             usesCollisionManifest = injected > 0;
             if (!injected) {
               if (a.building) this._addBuildingWallColliders(bbox, doorMeshes, {
-                localBBox: afterScaleBBox, x: a.x || 0, z: a.z || 0,
+                localBBox: modelLocalBBox, x: a.x || 0, z: a.z || 0,
                 yOffset, yaw: a.ry || 0,
               });
               else this.addCollider(center.x, bbox.min.y, center.z, size.x, size.y, size.z, !!a.climbable, a.type || null);
@@ -1172,7 +1230,7 @@ export class World {
         // colliders can leave an opening at the entrance.
         if (doorMeshes.length > 0) {
           this._registerBuildingDoors(a, model, doorMeshes, buildingIdx, {
-            localBBox: afterScaleBBox, x: a.x || 0, z: a.z || 0, yaw: a.ry || 0,
+            localBBox: modelLocalBBox, x: a.x || 0, z: a.z || 0, yaw: a.ry || 0,
           });
         }
 
@@ -1235,7 +1293,7 @@ export class World {
     const sideOpenings = { west: [], east: [], north: [], south: [] };
     for (const door of doors) {
       const p = door.localCenter || toLocal(door.center.x, door.center.z);
-      const side = [
+      const side = door.side || [
         ['west', Math.abs(p.x - min.x)],
         ['east', Math.abs(p.x - max.x)],
         ['north', Math.abs(p.z - min.z)],
@@ -1498,8 +1556,8 @@ export class World {
 
     for (const door of doorMeshes) {
       const local = door.localCenter || toLocal(door.center.x, door.center.z);
-      let side;
-      if (localBBox) {
+      let side = door.side || null;
+      if (!side && localBBox) {
         const min = localBBox.min, max = localBBox.max;
         side = [
           ['west', Math.abs(local.x - min.x)],
@@ -1507,7 +1565,7 @@ export class World {
           ['north', Math.abs(local.z - min.z)],
           ['south', Math.abs(local.z - max.z)],
         ].sort((p, q) => p[1] - q[1])[0][0];
-      } else {
+      } else if (!side) {
         const bCenterX = (bd.min.x + bd.max.x) / 2;
         const bCenterZ = (bd.min.z + bd.max.z) / 2;
         side = [
