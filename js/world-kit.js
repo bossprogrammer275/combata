@@ -208,6 +208,7 @@ export function getWorldKitDoorMarkers(assetId) {
 // as a separate door leaf.
 export const WORLD_KIT_DOOR_GROUPS = Object.freeze({
   'ilorin-innovation-hub': Object.freeze(['entrance-doors-portal']),
+  'american-style-house': Object.freeze(['Door']),
 });
 
 export function getWorldKitDoorGroups(assetId) {
@@ -280,7 +281,8 @@ export function classifyWorldKitMesh(mesh, root) {
   const chain = names.join('/').toLowerCase();
   if (names.some(name => name.toLowerCase().startsWith('col_'))) return 'collision-proxy';
   if (/door[_ -]handle|doorhandle/.test(chain)) return 'door-hardware';
-  if (names.some(name => name.toLowerCase().startsWith('door_')) || /(^|[/_. -])(?:garage)?door([/_. -]|$)|garagedoor/.test(chain)) return 'door';
+  const ownName = String(mesh.name || '').toLowerCase();
+  if (names.some(name => name.toLowerCase().startsWith('door_')) || /^(?:garage)?door(?:[_ .-].*)?$/.test(ownName)) return 'door';
   if (names.some(name => name.toLowerCase().startsWith('window_')) || /window|glazing/.test(chain)) return 'window-glazing';
   if (names.some(name => name.toLowerCase().startsWith('floor_')) || /(^|[/_. -])floor([/_. -]|$)/.test(chain)) return 'walkable-floor';
   if (names.some(name => name.toLowerCase().startsWith('stairs_')) || /stair|steps/.test(chain)) return 'stairs';
