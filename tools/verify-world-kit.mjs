@@ -61,6 +61,24 @@ assert.equal(classifyWorldKitMesh(door, root), 'door');
 assert.equal(classifyWorldKitMesh(windowMesh, root), 'window-glazing');
 assert.equal(classifyWorldKitMesh(collisionMesh, root), 'collision-proxy');
 
+const garageDoorRoot = new THREE.Group();
+const garageDoor = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.1), new THREE.MeshBasicMaterial());
+garageDoor.name = 'GarageDoor';
+garageDoorRoot.add(garageDoor);
+assert.equal(classifyWorldKitMesh(garageDoor, garageDoorRoot), 'door');
+
+const sidewalkRoot = new THREE.Group();
+sidewalkRoot.name = 'Sidewwalk_Long';
+const sidewalkMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 0.1, 0.5), new THREE.MeshBasicMaterial());
+sidewalkRoot.add(sidewalkMesh);
+assert.equal(classifyWorldKitMesh(sidewalkMesh, new THREE.Group().add(sidewalkRoot)), 'sidewalk-piece');
+
+const poleRoot = new THREE.Group();
+poleRoot.name = 'Pole_0';
+const poleMesh = new THREE.Mesh(new THREE.BoxGeometry(0.1, 3, 0.1), new THREE.MeshBasicMaterial());
+poleRoot.add(poleMesh);
+assert.equal(classifyWorldKitMesh(poleMesh, new THREE.Group().add(poleRoot)), 'infrastructure-piece');
+
 const sourceDoorGeometry = door.geometry;
 const result = annotateWorldKitInstance(root, {
   url: './data/models/assets/residential/nigeria_duplex/scene.gltf',
