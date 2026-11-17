@@ -114,6 +114,7 @@ try {
     const beforeFailed = failedRequests.length;
     const screenshots = [];
     const componentScreenshots = [];
+    const componentTopScreenshots = [];
     let report = null;
     let error = null;
 
@@ -147,7 +148,7 @@ try {
 
       // Road Pack and Sidewalks are compound kits. Capture each imported child
       // mesh independently so its actual shape and scale can be reviewed.
-      if (/data\/models\/assets\/roads\/(road_pack|sidewalks|street_road)\/scene\.gltf$/i.test(entry.path)) {
+      if (/data\/models\/assets\/(roads\/(road_pack|sidewalks|street_road)|others\/modular_bridge__low_poly__game_ready_)\/scene\.gltf$/i.test(entry.path)) {
         const meshCount = await page.evaluate(() => window.__ASSET_REVIEW__?.getMeshList?.().length || 0);
         for (let meshIndex = 0; meshIndex < meshCount; meshIndex++) {
           await page.evaluate((i) => {
@@ -171,6 +172,23 @@ try {
             animations: 'disabled',
           });
           componentScreenshots.push('previews/' + partFilename);
+          if (/road_pack|modular_bridge/i.test(entry.path)) {
+            await page.evaluate(async () => window.__ASSET_REVIEW__?.setView('top'));
+            await page.waitForTimeout(70);
+            const topFilename = String(index + 1).padStart(2, '0') + '-' + entry.slug + '-part-' + suffix + '-top.png';
+            await page.screenshot({
+              path: path.join(previewDir, topFilename),
+              clip: {
+                x: Math.max(0, partBox.x),
+                y: Math.max(0, partBox.y),
+                width: partBox.width,
+                height: partBox.height,
+              },
+              timeout: 10000,
+              animations: 'disabled',
+            });
+            componentTopScreenshots.push('previews/' + topFilename);
+          }
         }
         await page.evaluate(() => window.__ASSET_REVIEW__?.showAllMeshes?.());
       }
@@ -190,7 +208,8 @@ try {
       screenshots,
       consoleErrors: globalErrors.slice(beforeErrors),
       failedRequests: failedRequests.slice(beforeFailed),
-      componentScreenshots: typeof componentScreenshots !== 'undefined' ? componentScreenshots : [],
+      componentScreenshots,
+      componentTopScreenshots,
       loadStatus: error ? 'failed-or-invalid' : 'rendered',
     });
 
@@ -232,7 +251,8 @@ try {
       ? `${r.meshNodeCount} mesh nodes · ${(r.triangleCount || 0).toLocaleString()} triangles · ${r.dimensions?.join(' × ') || 'unknown'} m`
       : 'FAILED: ' + String(r.error || 'unknown').split('\\n')[0];
     const partLinks = (r.componentScreenshots || []).map((src, i) => '<a href="' + src + '">Part ' + (i + 1) + '</a>').join(' · ');
-    return `<article><h2>${r.index + 1}. ${r.name}</h2><p>${r.path}</p>${image ? `<a href="${image}"><img src="${image}" loading="lazy"></a>` : ''}<p>${details}</p><p class="tiny">Meshes: ${(r.meshNames || []).slice(0, 16).join(' · ')}</p>${partLinks ? `<p class="tiny">SUBCOMPONENTS: ${partLinks}</p>` : ''}${r.screenshots?.[1] ? `<a href="${r.screenshots[1]}">Side view</a>` : ''}</article>`;
+    const topLinks = (r.componentTopScreenshots || []).map((src, i) => '<a href="' + src + '">Top ' + (i + 1) + '</a>').join(' · ');
+    return `<article><h2>${r.index + 1}. ${r.name}</h2><p>${r.path}</p>${image ? `<a href="${image}"><img src="${image}" loading="lazy"></a>` : ''}<p>${details}</p><p class="tiny">Meshes: ${(r.meshNames || []).slice(0, 16).join(' · ')}</p>${partLinks ? `<p class="tiny">SUBCOMPONENTS: ${partLinks}</p>` : ''}${topLinks ? `<p class="tiny">TOP VIEWS: ${topLinks}</p>` : ''}${r.screenshots?.[1] ? `<a href="${r.screenshots[1]}">Side view</a>` : ''}</article>`;
   }).join('\\n');
 
   const gallery = `<!doctype html><html><head><meta charset="utf-8"><title>Open World Asset Review</title><style>
