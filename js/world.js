@@ -5,7 +5,7 @@ import { GLTFLoader } from './lib/GLTFLoader.js';
 import { BVHWorld } from './bvh-collision.js';
 import { Atmosphere } from './atmosphere.js';
 import { loadAssetOverrides, applyAssetOverrides } from './asset-overrides.js';
-import { annotateWorldKitInstance, getWorldKitPlacementOffset, WORLD_KIT_ROAD_PACK_PARTS, WORLD_KIT_ROAD_PACK_SCALE } from './world-kit.js';
+import { annotateWorldKitInstance, getWorldKitPlacementOffset, WORLD_KIT_ROAD_PACK_PARTS, WORLD_KIT_ROAD_PACK_SCALE, WORLD_KIT_SIDEWALK_COMPONENTS } from './world-kit.js';
 
 function rng(a, b) { return a + Math.random() * (b - a); }
 
@@ -51,6 +51,7 @@ export class World {
     this._buildingData = [];  // {url,min,max,x,z,doors[],interior} — auto-detected from GLB
     this.worldKitComponents = []; // imported component instances with semantic role metadata
     this.roadModuleInstances = []; // imported road-kit pieces placed over authored drivable road paths
+    this.sidewalkModuleInstances = []; // authored driveway, corner and damaged-pavement pieces
     this._roadPackPrefabs = null;
     this._roadPackPromise = null;
     this.bounds = sceneData && sceneData.bounds ? sceneData.bounds : (quality === 'ultra-low' ? 1000 : 2000);
@@ -716,6 +717,7 @@ export class World {
     }
     if (sd.roads) await this._buildAuthoredRoads(sd.roads);
     if (sd.roadModules?.length) await this._spawnRoadModules(sd.roadModules);
+    if (sd.sidewalkModules?.length) await this._spawnSidewalkModules(sd.sidewalkModules);
     if (sd.spawns) for (const sp of sd.spawns) this.spawnPoints.push(new THREE.Vector3(sp[0], 0, sp[1]));
     if (sd.cover) for (const c of sd.cover) this.coverPoints.push(new THREE.Vector3(c[0], 0, c[1]));
     if (sd.transit) for (const t of sd.transit) this.transitPoints.push({ x: t.x, z: t.z, name: t.name });
@@ -2130,18 +2132,16 @@ export class World {
       const loader = this._gltfLoader || (this._gltfLoader = new GLTFLoader());
       const gltf = await loader.loadAsync('./data/models/assets/roads/sidewalks/scene.gltf');
       const kit = new Map();
-      const wanted = [
-        ['Sidewalk1', /^Sidewalk1_/],
-        ['Sidewalk2', /^Sidewalk2_/],
-        ['Sidewalk3', /^Sidewalk3_/],
-        ['Sidewalk4', /^Sidewalk4_/],
-        ['SidewalkCracked', /^SidewalkCracked_/],
-      ];
       gltf.scene.updateMatrixWorld(true);
+
       gltf.scene.traverse(node => {
         if (!node.isMesh || !node.geometry) return;
-        const match = wanted.find(([, pattern]) => pattern.test(node.name));
-        if (!match || kit.has(match[0])) return;
+        const definition = WORLD_KIT_SIDEWALK_COMPONENTS[node.name];
+        if (!definition || kit.has(definition.id)) return;
+
+        // Extract each named source surface from the original display layout.
+        // Curb meshes remain separate because the road edge is procedurally
+        // joined around arbitrary curves and junctions.
         const geometry = node.geometry.clone().applyMatrix4(node.matrixWorld);
         geometry.computeBoundingBox();
         const bounds = geometry.boundingBox;
@@ -2149,31 +2149,87 @@ export class World {
           geometry.dispose();
           return;
         }
+        const sourceSize = bounds.getSize(new THREE.Vector3());
         const center = bounds.getCenter(new THREE.Vector3());
-        // Imported pack pieces are positioned in a display layout. Rebase the
-        // vertices around their own footprint so each one is a clean prefab.
         geometry.translate(-center.x, -bounds.min.y, -center.z);
         geometry.computeBoundingBox();
         geometry.computeBoundingSphere();
-        const material = Array.isArray(node.material)
-          ? node.material[0].clone()
-          : node.material.clone();
+
+        const sourceMaterial = Array.isArray(node.material) ? node.material[0] : node.material;
+        const material = sourceMaterial?.clone?.();
+        if (!material) {
+          geometry.dispose();
+          return;
+        }
         for (const key of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap']) {
           if (material[key]) material[key].anisotropy = this._maxAnisotropy;
         }
         material.needsUpdate = true;
-        kit.set(match[0], { geometry, material, sourceName: node.name });
+        kit.set(definition.id, {
+          ...definition,
+          geometry,
+          material,
+          sourceName: node.name,
+          dimensions: [sourceSize.x, sourceSize.y, sourceSize.z],
+        });
       });
-      if (!kit.has('Sidewalk1')) throw new Error('Sidewalk pack did not contain the Sidewalk1 prefab');
+
+      for (const id of ['sidewalk-panel-01', 'sidewalk-panel-02', 'sidewalk-panel-03', 'sidewalk-panel-04', 'sidewalk-cracked']) {
+        if (!kit.has(id)) throw new Error('Sidewalk pack is missing imported tile ' + id);
+      }
       this._sidewalkKit = kit;
-      console.info('[WorldKit] Imported sidewalk prefabs:', [...kit.keys()].join(', '));
+      console.info('[WorldKit] Imported sidewalk components:', [...kit.keys()].join(', '));
       return kit;
     })().catch(error => {
       this._sidewalkKitPromise = null;
-      console.warn('[WorldKit] Imported sidewalk pack unavailable; using curved ribbon fallback:', error);
+      console.warn('[WorldKit] Sidewalk pack unavailable; using curved ribbon fallback:', error);
       return null;
     });
     return this._sidewalkKitPromise;
+  }
+
+  async _spawnSidewalkModules(placements = []) {
+    if (!Array.isArray(placements) || !placements.length) return;
+    const kit = await this._loadSidewalkKit();
+    if (!kit?.size) return;
+
+    for (const placement of placements) {
+      const id = placement.componentId || placement.id;
+      const prefab = kit.get(id);
+      if (!prefab) {
+        console.warn('[WorldKit] Unknown sidewalk component:', id);
+        continue;
+      }
+      const mesh = new THREE.Mesh(prefab.geometry, prefab.material);
+      mesh.name = 'worldkit_sidewalk_module_' + id;
+      mesh.position.set(
+        Number(placement.x) || 0,
+        Number.isFinite(placement.y) ? placement.y : 0.12,
+        Number(placement.z) || 0,
+      );
+      mesh.rotation.y = Number(placement.yaw) || 0;
+      const scale = Number.isFinite(placement.scale) && placement.scale > 0 ? placement.scale : 1;
+      const scaleX = Number.isFinite(placement.scaleX) && placement.scaleX > 0 ? placement.scaleX : scale;
+      const scaleZ = Number.isFinite(placement.scaleZ) && placement.scaleZ > 0 ? placement.scaleZ : scale;
+      mesh.scale.set(scaleX, 1, scaleZ);
+      mesh.castShadow = false;
+      mesh.receiveShadow = true;
+      mesh.renderOrder = 1;
+      mesh.userData.worldKit = {
+        id,
+        category: 'road',
+        role: 'sidewalk-piece',
+        componentKind: prefab.kind,
+        source: './data/models/assets/roads/sidewalks/scene.gltf',
+        collision: 'authored-sidewalk-ribbon',
+      };
+      this.group.add(mesh);
+      this.sidewalkModuleInstances.push({
+        id,
+        mesh,
+        dimensions: [prefab.dimensions[0] * scaleX, prefab.dimensions[1], prefab.dimensions[2] * scaleZ],
+      });
+    }
   }
 
   _createSidewalkInstances(chains) {
@@ -2186,7 +2242,10 @@ export class World {
     }, 0);
     const capacity = Math.max(64, Math.ceil(totalLength * 1.12));
     this._sidewalkInstances = new Map();
-    for (const [id, prefab] of kit) {
+    const autoTileIds = ['sidewalk-panel-01', 'sidewalk-panel-02', 'sidewalk-panel-03', 'sidewalk-panel-04', 'sidewalk-cracked'];
+    for (const id of autoTileIds) {
+      const prefab = kit.get(id);
+      if (!prefab) continue;
       const batch = new THREE.InstancedMesh(prefab.geometry, prefab.material, capacity);
       batch.name = 'worldkit_sidewalk_' + id;
       batch.count = 0;
@@ -2234,9 +2293,9 @@ export class World {
         // leftover runs at a junction or road end.
         const yaw = Math.atan2(-dz / dirLength, dx / dirLength);
         const variant = tileIndex % 29 === 17
-          ? 'SidewalkCracked'
-          : 'Sidewalk' + (1 + ((tileIndex + roadIndex * 3 + (side > 0 ? 1 : 0)) % 4));
-        const key = this._sidewalkInstances.has(variant) ? variant : 'Sidewalk1';
+          ? 'sidewalk-cracked'
+          : 'sidewalk-panel-0' + (1 + ((tileIndex + roadIndex * 3 + (side > 0 ? 1 : 0)) % 4));
+        const key = this._sidewalkInstances.has(variant) ? variant : 'sidewalk-panel-01';
         const batch = this._sidewalkInstances.get(key);
         if (batch.count < batch.instanceMatrix.count) {
           temp.position.set(position.x, 0.12, position.z);
