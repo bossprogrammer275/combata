@@ -1,7 +1,7 @@
 {
   "id": "city-a",
   "name": "Ilorin City — Civic Core, GRA & Market District",
-  "version": 5,
+  "version": 6,
   "bounds": 228,
   "disableAutoSpawns": true,
   "startPoint": {
@@ -768,7 +768,7 @@
     {
       "name": "GRA Residential Lane",
       "w": 4.26,
-      "sidewalk": false,
+      "sidewalk": true,
       "smooth": false,
       "surface": "asphalt",
       "points": [
