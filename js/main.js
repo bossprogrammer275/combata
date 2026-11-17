@@ -71,7 +71,10 @@ class Game {
     this.planeTimer = 12 + Math.random() * 20;
     this.skipIntro = false;
     this.applyProfileSettings();
-    this.showNamePrompt();
+    // Boot straight into the loading sequence. No callsign/name form is needed.
+    this.playerName = 'PLAYER';
+    this.ismailg = false;
+    this.bootLoader();
   }
 
   showNamePrompt() {
@@ -222,7 +225,7 @@ class Game {
     }, 250);
   }
 
-  openMenu() {
+  openMenu({ skipAutoStart = false } = {}) {
     this.state = 'menu';
     this.hud && this.hud.hide && this.hud.hide();
     document.getElementById('death-screen').style.display = 'none';
@@ -231,7 +234,40 @@ class Game {
     document.getElementById('coins-menu').textContent = this.profile.coins;
     this.audio.init();
     this.audio.startMusic(false);
-    if (location.search.includes('autostart')) { this.startFreeRoam(); }
+    if (!skipAutoStart && location.search.includes('autostart')) this.startFreeRoam();
+  }
+
+  returnToMainMenu() {
+    if (!['playing', 'paused', 'dead'].includes(this.state)) return false;
+    if (this.vehicleSpawnMenuOpen) this.toggleVehicleSpawnMenu(false, false);
+    if (this.transitMenuOpen) {
+      this.transitMenuOpen = false;
+      this.hud.hideTransitMenu();
+    }
+    if (this.tools && this.tools.isOpen()) this.tools.close();
+    if (this.vehicles?.driver && this.player) this.vehicles.exit(this.player);
+    if (this.audio?.stopEngine) this.audio.stopEngine();
+    if (this._driveKeys) this._driveKeys.clear();
+    if (this._crouchKeys) this._crouchKeys.clear();
+    Object.assign(this.input, {
+      forward: 0, right: 0, sprint: false, crouch: false, jump: false,
+      climb: false, fire: false, ads: false, throwGrenade: false,
+      mouseDX: 0, mouseDY: 0, toRoof: false,
+    });
+    this.lookDrag = false;
+    this.drone = null;
+    this.overview = null;
+    this.fullMapOpen = false;
+    document.getElementById('fullmap-wrap')?.classList.add('hidden');
+    document.getElementById('pause-screen').style.display = 'none';
+    document.getElementById('death-screen').style.display = 'none';
+    document.getElementById('vehicle-spawn-menu')?.classList.add('hidden');
+    document.getElementById('intro-screen').style.display = 'none';
+    document.getElementById('damage-vignette').style.opacity = '0';
+    document.exitPointerLock();
+    this.openMenu({ skipAutoStart: true });
+    this.audio?.startMusic(false);
+    return true;
   }
 
   refreshMenu() {
@@ -274,6 +310,12 @@ class Game {
     const s = this.profile.data.settings;
     this.player && (this.player.sensitivity = s.sens);
     this._pendingQuality = s.quality;
+    const sens = document.getElementById('sens');
+    const vol = document.getElementById('vol');
+    const quality = document.getElementById('quality');
+    if (sens) sens.value = String(s.sens ?? 1);
+    if (vol) vol.value = String(s.vol ?? 0.7);
+    if (quality) quality.value = s.quality || 'high';
   }
 
   buildVehicleSpawnMenu() {
@@ -388,6 +430,7 @@ class Game {
 
   // ===== FREE ROAM =====
   startFreeRoam() {
+    if (this.vehicles?.driver && this.player) this.vehicles.exit(this.player);
     this.match = { mode: 'freeroam', running: true };
     this.audio.init();
     this.audio.setVolume(parseFloat(document.getElementById('vol').value));
@@ -708,6 +751,13 @@ class Game {
     };
     $('respawn-btn').onclick = () => { this.audio.click(); this.respawn(); };
     $('resume-btn').onclick = () => { this.audio.click(); this.resume(); };
+    $('hud-menu-button').onclick = () => { this.audio.click(); this.pause(); };
+    $('open-pause-controls').onclick = () => { this.audio.click(); this.showPausePanel('controls'); };
+    $('open-pause-settings').onclick = () => { this.audio.click(); this.showPausePanel('settings'); };
+    $('pause-controls-back').onclick = () => { this.audio.click(); this.showPausePanel('main'); };
+    $('pause-settings-back').onclick = () => { this.audio.click(); this.showPausePanel('main'); };
+    $('return-to-menu-btn').onclick = () => { this.audio.click(); this.returnToMainMenu(); };
+    $('death-menu-btn').onclick = () => { this.audio.click(); this.returnToMainMenu(); };
     $('open-cockpit-settings').onclick = () => { this.audio.click(); this.showPausePanel('cockpit'); };
     $('cockpit-back').onclick = () => { this.audio.click(); this.showPausePanel('main'); };
     $('cockpit-resume-btn').onclick = () => { this.audio.click(); this.resume(); };
@@ -732,6 +782,29 @@ class Game {
     });
     $('sens').oninput = (e) => { this.player.sensitivity = parseFloat(e.target.value); this.profile.data.settings.sens = parseFloat(e.target.value); this.profile.save(); };
     $('vol').oninput = (e) => { this.audio.setVolume(parseFloat(e.target.value)); this.profile.data.settings.vol = parseFloat(e.target.value); this.profile.save(); };
+    $('pause-sens').oninput = (e) => {
+      const value = parseFloat(e.target.value);
+      if (this.player) this.player.sensitivity = value;
+      this.profile.data.settings.sens = value;
+      document.getElementById('sens').value = String(value);
+      document.getElementById('pause-sens-value').textContent = value.toFixed(1) + '×';
+      this.profile.save();
+    };
+    $('pause-vol').oninput = (e) => {
+      const value = parseFloat(e.target.value);
+      this.audio.setVolume(value);
+      this.profile.data.settings.vol = value;
+      document.getElementById('vol').value = String(value);
+      document.getElementById('pause-vol-value').textContent = Math.round(value * 100) + '%';
+      this.profile.save();
+    };
+    $('pause-quality').onchange = (e) => {
+      const next = this.resolveGraphicsQuality(e.target.value);
+      if (next === this.profile.data.settings.quality) return;
+      this.profile.data.settings.quality = next;
+      this.profile.save();
+      location.reload();
+    };
     $('quality').onchange = (e) => {
       const next = this.resolveGraphicsQuality(e.target.value);
       if (next === this.profile.data.settings.quality) return;
@@ -984,6 +1057,7 @@ class Game {
       }
     });
     addEventListener('mousedown', (e) => {
+      if (e.target?.closest?.('.hud-interactive, #hud-menu-button, #vehicle-spawn-menu, #pause-screen, #menu-screen')) return;
       if (!this.vehicleSpawnMenuOpen && this.state === 'playing' && !this.player.skydive && document.pointerLockElement !== this.renderer.domElement && !(this.tools && this.tools.isOpen())) this.lookDrag = true;
     });
     addEventListener('mouseup', () => { this.lookDrag = false; });
@@ -1025,9 +1099,34 @@ class Game {
   }
 
   showPausePanel(panel = 'main') {
-    document.getElementById('pause-main-panel').classList.toggle('hidden', panel !== 'main');
-    document.getElementById('pause-cockpit-panel').classList.toggle('hidden', panel !== 'cockpit');
+    const panels = {
+      main: 'pause-main-panel',
+      controls: 'pause-controls-panel',
+      settings: 'pause-settings-panel',
+      cockpit: 'pause-cockpit-panel',
+    };
+    for (const [key, id] of Object.entries(panels)) {
+      document.getElementById(id)?.classList.toggle('hidden', panel !== key);
+    }
     if (panel === 'cockpit') this.refreshCockpitSettingsUI();
+    if (panel === 'settings') this.refreshPauseSettingsUI();
+  }
+
+  refreshPauseSettingsUI() {
+    const settings = this.profile.data.settings || {};
+    const values = [
+      ['pause-sens', settings.sens ?? 1],
+      ['pause-vol', settings.vol ?? 0.7],
+      ['pause-quality', settings.quality || 'high'],
+    ];
+    for (const [id, value] of values) {
+      const input = document.getElementById(id);
+      if (input) input.value = String(value);
+    }
+    const sensOut = document.getElementById('pause-sens-value');
+    const volOut = document.getElementById('pause-vol-value');
+    if (sensOut) sensOut.textContent = Number(settings.sens ?? 1).toFixed(1) + '×';
+    if (volOut) volOut.textContent = Math.round(Number(settings.vol ?? 0.7) * 100) + '%';
   }
 
   pause() {
