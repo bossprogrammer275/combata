@@ -80,6 +80,13 @@ assert.equal(classifyWorldKitMesh(door, root), 'door');
 assert.equal(classifyWorldKitMesh(windowMesh, root), 'window-glazing');
 assert.equal(classifyWorldKitMesh(collisionMesh, root), 'collision-proxy');
 
+const roadPackRoot = new THREE.Group();
+roadPackRoot.userData.worldKit = { id: 'road-pack-panels' };
+const roadPanel = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial());
+roadPanel.name = 'Object_4';
+roadPackRoot.add(roadPanel);
+assert.equal(classifyWorldKitMesh(roadPanel, roadPackRoot), 'road-panel');
+
 const garageDoorRoot = new THREE.Group();
 const garageDoor = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.1), new THREE.MeshBasicMaterial());
 garageDoor.name = 'GarageDoor';
