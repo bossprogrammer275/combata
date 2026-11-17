@@ -1332,17 +1332,23 @@ export class World {
   _addWorldKitDoorProxyMarker(model, markerName, localCenter, localSize, source = 'world-kit-metadata') {
     if (!model || !localCenter || !localSize) return null;
     const safeName = String(markerName || 'main').replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '');
+    // Marker bounds are measured after model normalization. Divide by the
+    // parent root scale before attaching so the node is not scaled a second time.
+    const rootScale = model.scale;
+    const sx = Math.abs(rootScale.x) > 1e-8 ? rootScale.x : 1;
+    const sy = Math.abs(rootScale.y) > 1e-8 ? rootScale.y : 1;
+    const sz = Math.abs(rootScale.z) > 1e-8 ? rootScale.z : 1;
     const geometry = new THREE.BoxGeometry(
-      Math.max(0.05, localSize.x),
-      Math.max(0.05, localSize.y),
-      Math.max(0.05, localSize.z),
+      Math.max(0.05, localSize.x / Math.abs(sx)),
+      Math.max(0.05, localSize.y / Math.abs(sy)),
+      Math.max(0.05, localSize.z / Math.abs(sz)),
     );
     const marker = new THREE.Mesh(geometry, this._getWorldKitProxyMaterial());
     marker.name = 'door_auto_' + (safeName || 'main');
     marker.visible = false;
     marker.castShadow = false;
     marker.receiveShadow = false;
-    marker.position.copy(localCenter);
+    marker.position.set(localCenter.x / sx, localCenter.y / sy, localCenter.z / sz);
     marker.userData.worldKit = { role: 'door', source, generated: true };
     model.add(marker);
     model.updateWorldMatrix(true, false);
@@ -1387,9 +1393,15 @@ export class World {
       const worldD = Math.abs(sn) * w + Math.abs(c) * d;
       this.addCollider(p.x, yOffset + y, p.z, worldW, h, worldD);
       if (transform.modelRoot) {
-        proxyDummy.position.set(x, y + h / 2, z);
+        // Wall extents are already in normalized metres. Convert them back to
+        // the model root's local source coordinates before adding the child.
+        const rootScale = transform.modelRoot.scale;
+        const sx = Math.abs(rootScale.x) > 1e-8 ? rootScale.x : 1;
+        const sy = Math.abs(rootScale.y) > 1e-8 ? rootScale.y : 1;
+        const sz = Math.abs(rootScale.z) > 1e-8 ? rootScale.z : 1;
+        proxyDummy.position.set(x / sx, (y + h / 2) / sy, z / sz);
         proxyDummy.rotation.set(0, 0, 0);
-        proxyDummy.scale.set(w, h, d);
+        proxyDummy.scale.set(w / Math.abs(sx), h / Math.abs(sy), d / Math.abs(sz));
         proxyDummy.updateMatrix();
         proxyMatrices.push(proxyDummy.matrix.clone());
       }
