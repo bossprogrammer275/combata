@@ -19,11 +19,15 @@ function checkMapContract() {
   assert.equal(map.id, 'city-a', 'wrong map id');
   assert.equal(map.disableAutoSpawns, true, 'compact exploration map must disable all automatic spawns');
   assert.equal(map.roads?.length, 16, 'expected the compact authored 16-road network');
-  assert.equal(map.glbAssets?.length, 82, 'unexpected GLB placement count');
-  assert.equal(new Set(map.glbAssets.map(a => a.url)).size, 6, 'all placements should reuse the six bundled GLB models');
-  assert.equal(map.glbAssets.filter(a => a.building).length, 22, 'expected 22 building models');
+  assert.equal(map.glbAssets?.length, 88, 'unexpected GLB placement count for the Ilorin district block');
+  const uniqueModelCount = new Set(map.glbAssets.map(a => a.url)).size;
+  assert.equal(uniqueModelCount, 26, 'expected 26 distinct imported model assets in the district');
+  assert.equal(map.glbAssets.filter(a => a.building).length, 18, 'expected the civic, commercial, school and residential building set');
   assert.equal(map.glbAssets.filter(a => a.url.includes('street_light')).length, 32, 'expected 32 streetlights');
-  assert.equal(map.glbAssets.filter(a => a.tags?.includes('vegetation')).length, 28, 'expected 28 tree instances');
+  assert.equal(map.glbAssets.filter(a => a.tags?.includes('vegetation')).length, 27, 'expected 27 trees and landscape assets');
+  for (const required of ['nigeria_duplex', 'mosque.glb', 'low_poly__school_building', 'gas_station_5', 'meed_grocery_store']) {
+    assert.ok(map.glbAssets.some(a => a.url.includes(required)), 'missing district asset: ' + required);
+  }
   assert.equal(map.roads.filter(r => r.flyover || r.bridge).length, 2, 'expected two rideable elevated crossings');
   assert.equal(map.spawns?.length || 0, 0, 'enemy/pedestrian spawn list must be empty');
   assert.equal(map.cover?.length || 0, 0, 'no combat cover points should be authored');
@@ -87,9 +91,9 @@ try {
   const report = preview.report;
 
   assert.equal(report.roadCount, 16, 'runtime road count differs from authored map');
-  assert.equal(report.glbAssetCount, 82, 'runtime GLB placement count differs from authored map');
-  assert.equal(report.uniqueModelCount, 6, 'not all unique GLB files loaded into cache');
-  assert.equal(report.buildingCount, 22, 'some building GLBs did not load');
+  assert.equal(report.glbAssetCount, map.glbAssets.length, 'runtime GLB placement count differs from authored map');
+  assert.equal(report.uniqueModelCount, new Set(map.glbAssets.map(a => a.url)).size, 'not all distinct imported model files loaded into cache');
+  assert.equal(report.buildingCount, map.glbAssets.filter(a => a.building).length, 'some authored building GLBs did not load');
   assert.equal(report.spawnPointCount, 0, 'runtime generated enemy/pedestrian spawn points');
   assert.equal(report.lootPointCount, 0, 'runtime generated loot crates');
   assert.equal(report.errors.length, 0, 'preview logged a model/runtime error: ' + report.errors.join('\n'));
