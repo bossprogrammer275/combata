@@ -139,6 +139,26 @@
       world.group.traverse(o => { if (o.isMesh) meshCount++; });
       const uniqueModels = world._glbModelCache?.size || 0;
       const buildings = world._buildingData?.length || 0;
+      const buildingInstances = world.worldKitComponents.filter(component => component.building);
+      let generatedDoorMarkerCount = 0;
+      let generatedCollisionProxyMeshCount = 0;
+      for (const component of buildingInstances) {
+        component.root.traverse(node => {
+          if (!node.isMesh) return;
+          if ((node.name || '').startsWith('door_auto_')) generatedDoorMarkerCount++;
+          if ((node.name || '').startsWith('col_auto_')) generatedCollisionProxyMeshCount++;
+        });
+      }
+      const buildingDoorCoverageCount = buildingInstances.filter(component =>
+        component.doorCount > 0 && component.doorSource && component.doorSource !== 'missing'
+      ).length;
+      const buildingCollisionCoverageCount = buildingInstances.filter(component =>
+        component.collisionSource && !['unresolved', 'no-collision', 'road-surface'].includes(component.collisionSource)
+      ).length;
+      const missingDoorAssets = buildingInstances.filter(component => !component.doorCount).map(component => component.id);
+      const missingCollisionAssets = buildingInstances.filter(component =>
+        !component.collisionSource || ['unresolved', 'no-collision'].includes(component.collisionSource)
+      ).map(component => component.id);
       state.ready = true;
       state.report = {
         roadCount: map.roads?.length || 0,
@@ -155,6 +175,13 @@
         glbAssetCount: map.glbAssets?.length || 0,
         uniqueModelCount: uniqueModels,
         buildingCount: buildings,
+        buildingInstanceCount: buildingInstances.length,
+        buildingDoorCoverageCount,
+        buildingCollisionCoverageCount,
+        generatedDoorMarkerCount,
+        generatedCollisionProxyMeshCount,
+        missingDoorAssets,
+        missingCollisionAssets,
         meshCount,
         spawnPointCount: world.spawnPoints.length,
         lootPointCount: world.lootPoints.length,
