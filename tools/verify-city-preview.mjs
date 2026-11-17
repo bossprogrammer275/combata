@@ -113,7 +113,8 @@ try {
 
   assert.equal(report.roadCount, 21, 'runtime road count differs from authored map');
   assert.equal(report.bridgeComponentCount, 21, 'not all imported bridge-kit sections reached the world');
-  assert.equal(report.bridgeDeckPhysicsCount, 21, 'every imported bridge deck must register its matching road physics mesh');
+  assert.equal(report.bridgeImportedDeckCount, 21, 'every imported bridge road deck must register its exact road physics mesh');
+  assert.equal(report.bridgeImportedSupportCount, 21, 'every imported bridge concrete structure must register solid static collision');
   assert.equal(report.roadModuleCount, 2, 'both imported road-kit pieces must render');
   assert.equal(report.glbAssetCount, map.glbAssets.length, 'runtime GLB placement count differs from authored map');
   assert.equal(report.uniqueModelCount, new Set(map.glbAssets.map(a => a.url)).size, 'not all distinct imported model files loaded into cache');
