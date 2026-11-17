@@ -231,7 +231,8 @@ try {
     const details = r.loadStatus === 'rendered'
       ? `${r.meshNodeCount} mesh nodes · ${(r.triangleCount || 0).toLocaleString()} triangles · ${r.dimensions?.join(' × ') || 'unknown'} m`
       : 'FAILED: ' + String(r.error || 'unknown').split('\\n')[0];
-    return `<article><h2>${r.index + 1}. ${r.name}</h2><p>${r.path}</p>${image ? `<a href="${image}"><img src="${image}" loading="lazy"></a>` : ''}<p>${details}</p><p class="tiny">Meshes: ${(r.meshNames || []).slice(0, 16).join(' · ')}</p>${r.screenshots?.[1] ? `<a href="${r.screenshots[1]}">Side view</a>` : ''}</article>`;
+    const partLinks = (r.componentScreenshots || []).map((src, i) => '<a href="' + src + '">Part ' + (i + 1) + '</a>').join(' · ');
+    return `<article><h2>${r.index + 1}. ${r.name}</h2><p>${r.path}</p>${image ? `<a href="${image}"><img src="${image}" loading="lazy"></a>` : ''}<p>${details}</p><p class="tiny">Meshes: ${(r.meshNames || []).slice(0, 16).join(' · ')}</p>${partLinks ? `<p class="tiny">SUBCOMPONENTS: ${partLinks}</p>` : ''}${r.screenshots?.[1] ? `<a href="${r.screenshots[1]}">Side view</a>` : ''}</article>`;
   }).join('\\n');
 
   const gallery = `<!doctype html><html><head><meta charset="utf-8"><title>Open World Asset Review</title><style>
