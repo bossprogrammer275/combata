@@ -117,15 +117,15 @@ export function classifyWorldKitMesh(mesh, root) {
   const names = meshNames(mesh, root);
   const chain = names.join('/').toLowerCase();
   if (names.some(name => name.toLowerCase().startsWith('col_'))) return 'collision-proxy';
-  if (names.some(name => name.toLowerCase().startsWith('door_')) || /(^|[/_. -])door([/_. -]|$)/.test(chain)) return 'door';
+  if (names.some(name => name.toLowerCase().startsWith('door_')) || /(^|[/_. -])(?:garage)?door([/_. -]|$)|garagedoor/.test(chain)) return 'door';
   if (names.some(name => name.toLowerCase().startsWith('window_')) || /window|glazing/.test(chain)) return 'window-glazing';
   if (names.some(name => name.toLowerCase().startsWith('floor_')) || /(^|[/_. -])floor([/_. -]|$)/.test(chain)) return 'walkable-floor';
   if (names.some(name => name.toLowerCase().startsWith('stairs_')) || /stair|steps/.test(chain)) return 'stairs';
-  if (/sidewalk|curb|driveway/.test(chain)) return 'sidewalk-piece';
+  if (/sidew{1,2}alk|curb|driveway/.test(chain)) return 'sidewalk-piece';
   if (/road|asphalt|lane/.test(chain)) return 'road-piece';
   if (/billboard|advertising|sign/.test(chain)) return 'sign-piece';
   if (/traffic.?light|signal.?head/.test(chain)) return 'traffic-signal-piece';
-  if (/street.?light|streetlamp|lamp|electricity.?pole|transformer|guardrail|fence/.test(chain)) return 'infrastructure-piece';
+  if (/pole|street.?light|streetlamp|lamp|electricity.?pole|transformer|guardrail|fence|post/.test(chain)) return 'infrastructure-piece';
   if (/tree|bush|shrub|hedge|foliage|leaf/.test(chain)) return 'vegetation-piece';
   return 'static-visual';
 }
