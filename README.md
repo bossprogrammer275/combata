@@ -81,6 +81,8 @@ Vehicle `targetLen` values in `js/vehicles.js` are also final metres. The car lo
 
 The vehicle verification suite checks each loaded car's final body length, centred origin, ground contact and four-wheel geometry.
 
+`getWorldKitScalePlan` and `getWorldKitLengthScalePlan` are the shared normalization paths. A supplied `targetH` or `targetLen` fits the raw model dimensions directly to final metres, without first assuming the download was authored in metres. `unitScale` is applied when source units are explicitly known or when an asset has no target fit. Vehicle hardpoints, wheel radii, collision bounds and cockpit offsets are measured only after this normalization, so centimetre-scale source geometry cannot leak into metre-based physics.
+
 ---
 
 ### Special Mesh Naming Conventions
@@ -104,6 +106,8 @@ Downloaded marketplace assets do not all follow these naming rules. Do **not** r
 - Assets with no usable door group receive a per-asset metric doorway marker. This leaves the corresponding gap in fallback building-wall collision and registers an enter/exit portal.
 - Door handles and decorative hardware are not treated as separate portals.
 - `col_*` meshes remain preferred for exact collision. Buildings without them use the registered collision sidecar when one exists, otherwise segmented perimeter-wall collision with the authored doorway openings. This avoids a single solid box sealing every room.
+
+For older downloaded buildings that have no usable native markers, the runtime adds hidden `door_auto_*` marker meshes and a hidden `col_auto_building_shell` InstancedMesh to the loaded clone. The matching wall AABBs are generated from the same unrotated, scaled local footprint and preserve each doorway gap after the building is rotated into the city. This is non-destructive: the original marketplace GLB/glTF and its visible geometry are not rewritten. The City A preview verifies doorway and collision coverage for every placed building.
 
 ---
 
