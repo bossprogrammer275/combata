@@ -906,9 +906,10 @@ export class World {
       const afterScaleBBox = new THREE.Box3().setFromObject(model);
       const yOffset = -afterScaleBBox.min.y + (a.elevation || 0);
       const anchorOffset = getWorldKitPlacementOffset(afterScaleBBox, a);
-      const worldX = a.x + anchorOffset.x;
-      const worldZ = a.z + anchorOffset.z;
-      model.position.set(worldX, yOffset, worldZ);
+      // Apply the pivot correction to the placement itself before collision,
+      // door, interior and building registries consume the same x/z values.
+      a = { ...a, x: a.x + anchorOffset.x, z: a.z + anchorOffset.z };
+      model.position.set(a.x, yOffset, a.z);
       this.group.add(model);
       this.worldKitComponents.push({
         root: model,
@@ -917,7 +918,7 @@ export class World {
         role: worldKitReport.role,
         meshCount: worldKitReport.meshCount,
         roleCounts: worldKitReport.roleCounts,
-        position: { x: worldX, y: yOffset, z: worldZ },
+        position: { x: a.x, y: yOffset, z: a.z },
       });
       model.updateMatrixWorld(true);
       this._registerAssetNpcInteractables(model);
