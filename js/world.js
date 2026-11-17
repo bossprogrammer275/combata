@@ -2389,12 +2389,20 @@ export class World {
       assembly.updateMatrixWorld(true);
       if (assemblyData.registerRoadPhysics !== false) {
         assembly.traverse(node => {
-          if (!node.isMesh || node.userData.worldKit?.role !== 'bridge-road-surface') return;
+          if (!node.isMesh) return;
+          const role = node.userData.worldKit?.role;
+          if (role !== 'bridge-road-surface' && role !== 'bridge-concrete-structure') return;
           const geometry = node.geometry.clone();
           geometry.applyMatrix4(node.matrixWorld);
           geometry.computeBoundingBox();
           geometry.computeBoundingSphere();
-          this.roadPhysicsMeshes.push({ kind: 'bridge_deck', geometry });
+          // The visible deck and its imported concrete support mesh become
+          // separate Rapier triangle surfaces, both using the same final metre
+          // transform as their rendered component.
+          this.roadPhysicsMeshes.push({
+            kind: role === 'bridge-road-surface' ? 'bridge_deck' : 'bridge_support',
+            geometry,
+          });
         });
       }
     }
