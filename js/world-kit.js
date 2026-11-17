@@ -196,7 +196,7 @@ export const WORLD_KIT_DOOR_MARKERS = Object.freeze({
   'low-poly-skyscraper': Object.freeze([
     Object.freeze({ name: 'door_office_lobby', side: 'south', u: 0.5, width: 2.0, height: 2.8, depth: 0.3 }),
   ]),
-  'power-transformer-building': Object.freeze([
+  'transformer-building': Object.freeze([
     Object.freeze({ name: 'door_transformer_service', side: 'south', u: 0.5, width: 1.25, height: 2.15, depth: 0.24 }),
   ]),
 });
