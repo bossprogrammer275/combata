@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import {
   WORLD_KIT_ASSET_DEFINITIONS,
   WORLD_KIT_PROCEDURAL_RULES,
+  WORLD_KIT_ROAD_PACK_SCALE,
+  WORLD_KIT_ROAD_PACK_PARTS,
   annotateWorldKitInstance,
   classifyWorldKitMesh,
   getWorldKitDefinition,
@@ -57,6 +59,11 @@ assert.equal(
   getWorldKitDefinition('data/models/assets/roads/street_road/scene.gltf')?.role,
   'two-lane-wet-road-source',
 );
+assert.equal(WORLD_KIT_ROAD_PACK_SCALE, 10, 'road pack source geometry needs the measured 10× horizontal scale');
+assert.equal(WORLD_KIT_ROAD_PACK_PARTS.Object_8.id, 'road-straight-long-01');
+assert.equal(WORLD_KIT_ROAD_PACK_PARTS.Object_10.id, 'road-straight-long-02');
+assert.equal(WORLD_KIT_ROAD_PACK_PARTS.Object_12.role, 'road-corner-module');
+assert.equal(WORLD_KIT_ROAD_PACK_PARTS.Object_14.role, 'road-corner-module');
 
 assert.equal(
   getWorldKitDefinition('data/models/assets/roads/road_block/scene.gltf')?.collisionProfile,
