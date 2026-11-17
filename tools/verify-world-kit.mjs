@@ -6,6 +6,7 @@ import {
   annotateWorldKitInstance,
   classifyWorldKitMesh,
   getWorldKitDefinition,
+  getWorldKitPlacementOffset,
 } from '../js/world-kit.js';
 
 assert.ok(Object.keys(WORLD_KIT_ASSET_DEFINITIONS).length >= 50, 'catalogue should cover the imported asset library');
@@ -22,6 +23,22 @@ assert.equal(
   'licence-restricted',
 );
 assert.equal(getWorldKitDefinition('data/models/assets/not-in-catalogue.glb'), null);
+assert.deepEqual(
+  getWorldKitPlacementOffset(
+    { min: { x: -11, z: -7 }, max: { x: 9, z: 13 } },
+    { building: true },
+  ),
+  { x: 1, z: -3 },
+  'building placements must centre off-origin imported models on authored x/z coordinates',
+);
+assert.deepEqual(
+  getWorldKitPlacementOffset(
+    { min: { x: -11, z: -7 }, max: { x: 9, z: 13 } },
+    { building: false },
+  ),
+  { x: 0, z: 0 },
+  'non-building assets retain their authored pivot unless centreXZ is requested',
+);
 assert.equal(
   getWorldKitDefinition('data/models/assets/road.glb'),
   null,
