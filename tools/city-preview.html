@@ -149,6 +149,8 @@
         bridgeKitError: world._bridgeKitError || null,
         bridgeComponentCount: world.bridgeComponentInstances?.length || 0,
         bridgeDeckPhysicsCount: world.roadPhysicsMeshes?.filter(surface => surface.kind === 'bridge_deck').length || 0,
+        bridgeImportedDeckCount: world.roadPhysicsMeshes?.filter(surface => surface.source === 'imported-bridge-component' && surface.kind === 'bridge_deck').length || 0,
+        bridgeImportedSupportCount: world.roadPhysicsMeshes?.filter(surface => surface.source === 'imported-bridge-component' && surface.kind === 'bridge_support').length || 0,
         warnings: state.warnings.filter(message => /bridge|WorldKit/i.test(message)).slice(0, 40),
         glbAssetCount: map.glbAssets?.length || 0,
         uniqueModelCount: uniqueModels,
