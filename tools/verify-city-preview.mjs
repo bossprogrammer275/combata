@@ -127,6 +127,7 @@ try {
     ['boulevard', 'city-a-street-level.png'],
     ['flyover', 'city-a-flyovers.png'],
     ['south', 'city-a-southern-blocks.png'],
+    ['roadKit', 'city-a-gra-road-kit.png'],
   ];
   for (const [view, filename] of shots) {
     await page.evaluate(viewName => window.__CITY_PREVIEW__.setView(viewName), view);
