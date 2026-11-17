@@ -5,6 +5,7 @@ import {
   WORLD_KIT_PROCEDURAL_RULES,
   WORLD_KIT_ROAD_PACK_SCALE,
   WORLD_KIT_ROAD_PACK_PARTS,
+  WORLD_KIT_SIDEWALK_COMPONENTS,
   annotateWorldKitInstance,
   classifyWorldKitMesh,
   getWorldKitDefinition,
@@ -142,6 +143,25 @@ assert.equal(result.roleCounts['collision-proxy'], 1);
 assert.equal(door.geometry, sourceDoorGeometry, 'annotation must not replace or procedurally rebuild imported geometry');
 assert.equal(root.children.length, 3, 'annotation must preserve the imported hierarchy');
 assert.equal(root.userData.worldKit.id, 'nigeria-duplex');
+
+
+assert.equal(Object.keys(WORLD_KIT_ROAD_PACK_PARTS).length, 6, 'all six road pack meshes must have explicit component definitions');
+assert.equal(WORLD_KIT_ROAD_PACK_PARTS.Object_12.role, 'road-corner-module');
+assert.equal(WORLD_KIT_ROAD_PACK_PARTS.Object_8.role, 'road-straight-module');
+
+assert.equal(Object.keys(WORLD_KIT_SIDEWALK_COMPONENTS).length, 17, 'all imported sidewalk surface pieces must be catalogued');
+assert.equal(WORLD_KIT_SIDEWALK_COMPONENTS.SidewalkCornerLarge_SidewalkMat_0.kind, 'corner');
+assert.equal(WORLD_KIT_SIDEWALK_COMPONENTS.SidewalkDrivewayLeft_SidewalkMat_0.kind, 'driveway');
+assert.equal(WORLD_KIT_SIDEWALK_COMPONENTS.SidewalkBroken_SidewalkMat_0.kind, 'worn-pavement');
+assert.ok(!Object.keys(WORLD_KIT_SIDEWALK_COMPONENTS).some(name => /curb/i.test(name)), 'curb strips remain outside pavement surface prefabs');
+
+const sidewalkAssetRoot = new THREE.Group();
+const drivewaySurface = new THREE.Mesh(new THREE.BoxGeometry(2, 0.12, 2), new THREE.MeshBasicMaterial());
+drivewaySurface.name = 'SidewalkDrivewayLeft_SidewalkMat_0';
+sidewalkAssetRoot.add(drivewaySurface);
+annotateWorldKitInstance(sidewalkAssetRoot, { url: 'data/models/assets/roads/sidewalks/scene.gltf' });
+assert.equal(drivewaySurface.userData.worldKit.componentId, 'sidewalk-driveway-left');
+assert.equal(drivewaySurface.userData.worldKit.componentKind, 'driveway');
 
 const proceduralIds = new Set(WORLD_KIT_PROCEDURAL_RULES.map(rule => rule.id));
 for (const required of ['curved-road-surfaces', 'lane-markings', 'collision-proxies']) {
