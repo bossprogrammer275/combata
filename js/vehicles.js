@@ -1,6 +1,7 @@
 // VehicleSystem — GTA-style arcade driving with real physics feel + speedometer.
 import * as THREE from 'three';
 import { GLTFLoader } from './lib/GLTFLoader.js';
+import { getWorldKitLengthScalePlan } from './world-kit.js';
 import { loadAssetOverrides, applyAssetOverrides } from './asset-overrides.js';
 import {
   VEHICLE_COORDINATES,
@@ -1143,16 +1144,17 @@ async function _loadCarModelUncached(kind = 'lambo') {
       }
     });
 
-    // Pass 1: find the body shell, scale longest HORIZONTAL body axis to targetLen.
+    // Pass 1: find the body shell, scale its longest HORIZONTAL axis to the
+    // final targetLen in metres. The shared World Kit helper handles explicit
+    // source units where known and normalizes arbitrary source units otherwise.
     let cls = classifyCarMeshes(meshWorldBoxes(scene), wheelClassificationOptions);
     const bodySize = cls.hasBody
       ? cls.bodyBox.getSize(new THREE.Vector3())
       : cls.total.clone();
     const longestH = Math.max(bodySize.x, bodySize.z, 0.001);
-    // Keep startup logs lean; detailed mesh diagnostics remain available in
-    // the dedicated visual verification tool rather than serializing mesh data
-    // on the user's main thread during ordinary game loading.
-    scene.scale.multiplyScalar(def.targetLen / longestH);
+    const scalePlan = getWorldKitLengthScalePlan(longestH, def.targetLen, def.unitScale);
+    scene.scale.multiplyScalar(scalePlan.totalScale);
+    scene.userData.worldKitScale = scalePlan;
     scene.updateMatrixWorld(true);
 
     // Pass 2 (final space): recenter XZ on the body, ground the bottom at y=0.
