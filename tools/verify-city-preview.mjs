@@ -110,7 +110,7 @@ try {
   assert.equal(report.errors.length, 0, 'preview logged a model/runtime error: ' + report.errors.join('\n'));
   assert.equal(pageErrors.length, 0, 'browser emitted errors:\n' + pageErrors.join('\n'));
   const optionalCollisionSidecars = failedResponses.filter(response =>
-    response.status === 404 && /_col\\.json(?:$|[?#])/i.test(response.url)
+    response.status === 404 && /_col\.json(?:$|[?#])/i.test(response.url)
   );
   const unexpectedHttpFailures = failedResponses.filter(response => !optionalCollisionSidecars.includes(response));
   assert.equal(unexpectedHttpFailures.length, 0,
