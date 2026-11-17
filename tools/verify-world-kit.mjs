@@ -29,7 +29,7 @@ assert.equal(
 );
 assert.equal(
   getWorldKitDefinition('data/models/assets/roads/road_pack/scene.gltf')?.id,
-  'road-pack-panels',
+  'road-pack',
 );
 assert.equal(
   getWorldKitDefinition('data/models/assets/roads/road_pack/scene.gltf')?.collisionProfile,
@@ -81,11 +81,11 @@ assert.equal(classifyWorldKitMesh(windowMesh, root), 'window-glazing');
 assert.equal(classifyWorldKitMesh(collisionMesh, root), 'collision-proxy');
 
 const roadPackRoot = new THREE.Group();
-roadPackRoot.userData.worldKit = { id: 'road-pack-panels' };
+roadPackRoot.userData.worldKit = { id: 'road-pack' };
 const roadPanel = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial());
 roadPanel.name = 'Object_4';
 roadPackRoot.add(roadPanel);
-assert.equal(classifyWorldKitMesh(roadPanel, roadPackRoot), 'road-panel');
+assert.equal(classifyWorldKitMesh(roadPanel, roadPackRoot), 'road-straight-module');
 
 const garageDoorRoot = new THREE.Group();
 const garageDoor = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.1), new THREE.MeshBasicMaterial());
