@@ -125,10 +125,14 @@ jobs:
           node --check js/npc-config.js
           node --check js/npc-character.js
           node --check tools/verify-npcs.mjs
+          node --check js/world-kit.js
+          node --check tools/verify-world-kit.mjs
           node --check js/main.js
           node --check js/textures.js
           node --check tools/process-glbs.js
           node --check tools/verify-collisions.mjs
+      - name: Verify World Kit component metadata
+        run: node tools/verify-world-kit.mjs
       - name: Verify GLB collision pipeline
         run: node tools/verify-collisions.mjs
       - name: Verify vehicle models and Rapier basics
