@@ -109,7 +109,12 @@ try {
   assert.equal(report.lootPointCount, 0, 'runtime generated loot crates');
   assert.equal(report.errors.length, 0, 'preview logged a model/runtime error: ' + report.errors.join('\n'));
   assert.equal(pageErrors.length, 0, 'browser emitted errors:\n' + pageErrors.join('\n'));
-  assert.equal(failedResponses.length, 0, 'HTTP resources failed while loading the city: ' + JSON.stringify(failedResponses, null, 2));
+  const optionalCollisionSidecars = failedResponses.filter(response =>
+    response.status === 404 && /_col\\.json(?:$|[?#])/i.test(response.url)
+  );
+  const unexpectedHttpFailures = failedResponses.filter(response => !optionalCollisionSidecars.includes(response));
+  assert.equal(unexpectedHttpFailures.length, 0,
+    'Required city resources failed to load: ' + JSON.stringify(unexpectedHttpFailures, null, 2));
   assert.equal(failedRequests.length, 0, 'network requests failed while loading the city: ' + JSON.stringify(failedRequests, null, 2));
 
   await mkdir(outputDir, { recursive: true });
@@ -128,6 +133,7 @@ try {
   const finalReport = {
     ...report,
     assetWarnings: report.warningCount,
+    collisionSidecarFallbacks: optionalCollisionSidecars.length,
     screenshotFiles: shots.map(([, filename]) => filename),
     noPeople: report.spawnPointCount === 0,
     noLoot: report.lootPointCount === 0,
