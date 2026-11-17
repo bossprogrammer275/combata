@@ -39,7 +39,7 @@ const definitions = [
   ['others/game-ready_modular_metal_guardrail.glb', 'metal-guardrail', 'infrastructure', 'guardrail', 'compound', 'preserve-source-scene', 'solid-prop', 'pending-visual'],
   ['others/low_poly_electricity_pole/scene.gltf', 'electricity-pole', 'infrastructure', 'power-pole', 'compound', 'preserve-source-scene', 'pole-proxy', 'manifest-inspected'],
   ['others/metal_billboard_advertising_single_sided_free/scene.gltf', 'billboard', 'roadside', 'advertising-board', 'compound', 'semantic-child-pieces', 'pole-and-panel', 'manifest-inspected'],
-  ['others/modular_bridge__low_poly__game_ready_/scene.gltf', 'modular-bridge', 'infrastructure', 'bridge', 'compound', 'inspect-child-meshes', 'bridge-collision', 'manifest-inspected'],
+  ['others/modular_bridge__low_poly__game_ready_/scene.gltf', 'modular-bridge', 'infrastructure', 'bridge-component-kit', 'compound', 'extract-authored-bridge-parts', 'no-collision', 'component-review-passed'],
   ['others/power_transformer_building__electricity.glb', 'transformer-building', 'infrastructure', 'electrical-facility', 'compound', 'preserve-source-scene', 'building-shell', 'pending-visual'],
   ['others/standard_bus_stop.glb', 'bus-stop', 'transport', 'bus-stop', 'compound', 'preserve-source-scene', 'solid-prop', 'pending-visual'],
   ['others/traffic_lights/scene.gltf', 'traffic-lights-noncommercial', 'roadside', 'traffic-signal', 'compound', 'semantic-child-pieces', 'pole-proxy', 'licence-restricted'],
