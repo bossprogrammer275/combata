@@ -961,9 +961,16 @@ export class World {
       // Add solid collision for GLB asset
       const assetUrl = (a.url || '').toLowerCase();
       const assetName = a.url.split('/').pop();
-      const isTree = assetUrl.includes('tree') || assetUrl.includes('palm') || assetUrl.includes('coconut') || (a.tags && a.tags.includes('nature'));
-      const isLamp = assetUrl.includes('street_light') || assetUrl.includes('lamp') || assetUrl.includes('light');
-      const isRoad = assetUrl.includes('road.glb') || (assetUrl.includes('road') && !assetUrl.includes('barrier'));
+      const collisionProfile = a.collisionProfile || worldKitReport.collisionProfile;
+      // Prefer explicit World Kit semantics. Keep filename fallbacks only for
+      // older unregistered assets while the catalogue is being completed.
+      const isTree = collisionProfile === 'trunk-only' ||
+        (collisionProfile === 'placement-default' && (assetUrl.includes('tree') || assetUrl.includes('palm') || assetUrl.includes('coconut') || (a.tags && a.tags.includes('nature'))));
+      const isLamp = collisionProfile === 'pole-proxy' ||
+        (collisionProfile === 'placement-default' && (assetUrl.includes('street_light') || assetUrl.includes('lamp') || assetUrl.includes('light')));
+      const isRoad = collisionProfile === 'road-surface' ||
+        (collisionProfile === 'placement-default' && (assetUrl.includes('road.glb') || (assetUrl.includes('road') && !assetUrl.includes('barrier'))));
+      const hasNoCollision = !!a.noCollision || collisionProfile === 'no-collision';
 
       const bbox = new THREE.Box3().setFromObject(model, true);
       // Invert only the placement translation/yaw (not scale) to preserve
@@ -1021,7 +1028,7 @@ export class World {
 
       // Prefer usable authored col_* meshes. Avoid fetching a manifest when a
       // dedicated proxy type or explicit per-world collision dimensions win.
-      const collisionManifest = !usableCollisionProxyBoxes.length && !isTree && !isLamp &&
+      const collisionManifest = !usableCollisionProxyBoxes.length && !isTree && !isLamp && !hasNoCollision &&
         !a.collisionSize && !a.collisionH && !hasMeshEdits && uniformRootScale && !rootTilted
         ? await this._loadCollisionManifest(a)
         : null;
@@ -1030,7 +1037,7 @@ export class World {
       // a per-world collisionSize/collisionH override takes priority.
       let usesCollisionManifest = false;
 
-      if (!a.noCollision && !isRoad && !bbox.isEmpty()) {
+      if (!hasNoCollision && !isRoad && !bbox.isEmpty()) {
         const size = bbox.getSize(new THREE.Vector3());
         const center = bbox.getCenter(new THREE.Vector3());
         if (size.x > 0.1 && size.y > 0.1 && size.z > 0.1) {
@@ -1080,7 +1087,7 @@ export class World {
       // A floor_* mesh is an actual walkable slab. The GLB manifest normally
       // provides finer per-cell boxes; when none exists, create a thin slab at
       // the mesh's real top height rather than leaving the visible floor ghosted.
-      if (!a.noCollision && !isRoad && !usesCollisionManifest) {
+      if (!hasNoCollision && !isRoad && !usesCollisionManifest) {
         for (const floor of floorCollisionBoxes) {
           const h = Math.max(floor.size.y, 0.12);
           const bottomY = floor.max.y - h;
