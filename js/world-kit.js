@@ -202,6 +202,18 @@ export function getWorldKitDoorMarkers(assetId) {
   return (WORLD_KIT_DOOR_MARKERS[String(assetId || '')] || []).map(marker => ({ ...marker }));
 }
 
+// Some user-authored landmarks use a descriptive group name around a complete
+// doorway instead of the door_* mesh prefix. Keep that group intact and use its
+// aggregate bounds as one portal marker rather than treating every child mesh
+// as a separate door leaf.
+export const WORLD_KIT_DOOR_GROUPS = Object.freeze({
+  'ilorin-innovation-hub': Object.freeze(['entrance-doors-portal']),
+});
+
+export function getWorldKitDoorGroups(assetId) {
+  return [...(WORLD_KIT_DOOR_GROUPS[String(assetId || '')] || [])];
+}
+
 // Only request collision manifests that are actually present in the repository.
 // Models without a sidecar use authored col_* meshes or the per-asset fallback
 // collision strategy; this avoids noisy 404 fetches for every imported prop.
