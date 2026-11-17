@@ -13,6 +13,7 @@ import {
   getWorldKitDefinition,
   getWorldKitPlacementOffset,
   getWorldKitScalePlan,
+  getWorldKitLengthScalePlan,
   getWorldKitDoorMarkers,
   getWorldKitDoorGroups,
   getWorldKitCollisionManifest,
@@ -44,6 +45,20 @@ assert.equal(metrePlan.totalScale, 3);
 const rawUnitPlan = getWorldKitScalePlan(250, { unitScale: 0.01 });
 assert.equal(rawUnitPlan.totalScale, 0.01,
   'explicit source-unit conversion must apply when no targetH fit is authored');
+
+const cmCarPlan = getWorldKitLengthScalePlan(500, 5, 0.01);
+assert.equal(cmCarPlan.mode, 'target-length-metres');
+assert.equal(cmCarPlan.sourceLengthMetres, 5);
+assert.equal(cmCarPlan.totalScale, 0.01,
+  'a 500cm car must normalize to a final 5m body length');
+
+const arbitraryUnitCarPlan = getWorldKitLengthScalePlan(800, 5);
+assert.equal(arbitraryUnitCarPlan.mode, 'target-length-normalized');
+assert.equal(arbitraryUnitCarPlan.totalScale, 0.00625,
+  'targetLen must normalize unknown source units without assuming they are metres');
+assert.equal(arbitraryUnitCarPlan.targetLengthMetres, 5);
+assert.ok(getWorldKitDoorMarkers('transformer-building').length > 0,
+  'the transformer facility must have a metric service doorway fallback');
 
 assert.ok(getWorldKitDoorMarkers('nigeria-duplex').length > 0,
   'downloaded residential assets without door_* names need authored door metadata');
