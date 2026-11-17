@@ -50,12 +50,18 @@ The physics debug overlay is available in-game with **F9** (the existing F8 cont
 ## 2. GLB Model Authoring Specifications
 
 ### Coordinate System & Scale
-- **Unit**: 1 unit = 1 meter.
+
+The **game world always uses metres**. Imported source files are not guaranteed to use metres: some marketplace models are authored in centimetres, millimetres, decimetres, or arbitrary scene units. Never assume a raw GLB dimension is already a metre measurement.
+
+- **Runtime unit**: 1 world unit = 1 metre.
 - **Axes**: `+Y` is Up, `+X` is East / Right, `-Z` is North / Forward.
-- **Origin (Pivot)**: Model pivot should be placed at the **horizontal center** and at the **ground level** (`Y = 0`). The game engine automatically calculates bounding boxes and snaps the lowest vertex to `Y = 0` (or `Y = elevation`).
+- **Origin**: the preferred asset pivot is the horizontal centre at ground level. The loader can centre building footprints and snap the lowest point to `Y = 0` or the authored elevation.
+- **Source-unit conversion**: set `unitScale` when a model is used without a target fit. Use `1` for metres, `0.01` for centimetres, `0.001` for millimetres and `0.1` for decimetres.
 
 ### Height Normalization (`targetH`)
-The loader normalizes any imported model's height using `targetH` in `city-a.json`:
+
+`targetH` is always the **final height in metres**, not a raw source-unit value. The loader measures the imported model, applies its source-unit conversion and proportionally fits the model to the requested final metric height. The same cumulative transform is applied to collision sidecars and doorway bounds.
+
 ```json
 {
   "url": "./data/models/assets/low_poly_skyscraper.glb",
@@ -66,7 +72,14 @@ The loader normalizes any imported model's height using `targetH` in `city-a.jso
   "building": true
 }
 ```
-If `targetH` is set to `42`, the engine scales the entire model proportionally so its vertical height is exactly 42 meters.
+
+This model will be exactly 42 metres tall in the world. A centimetre-authored model can still use `targetH: 42`; the runtime fits it in metric space instead of treating its raw centimetre values as metres. Use `unitScale` to state the source convention explicitly when the model has no target fit or when its raw scale is needed by another tool.
+
+### Vehicle Metric Scale (`targetLen`)
+
+Vehicle `targetLen` values in `js/vehicles.js` are also final metres. The car loader measures the imported **body** length, normalizes the model to that value, then extracts the four wheel hardpoints, wheel radii, chassis collision and cockpit offsets from the normalized model. Vehicle physics profiles use metres, seconds and kilograms. Never copy raw Sketchfab dimensions directly into wheelbase, track, tyre radius, camera height or collision values.
+
+The vehicle verification suite checks each loaded car's final body length, centred origin, ground contact and four-wheel geometry.
 
 ---
 
@@ -83,6 +96,14 @@ When exporting models from Blender, 3ds Max, or Maya, use specific mesh prefixes
 | `window_*` | **Glass / Fenestration** | Excluded from collision-manifest generation and mesh raycast BVHs; wall/proxy collision still blocks movement. |
 | `room_<n>_marker` | **Room Marker** | Records a named room marker on the building. It is not a physical collider. |
 | `trim_*`, `sign_*`, `awning_*`, `roof_detail_*` | **Visual Accents** | Excluded from collision-manifest cells and mesh raycast BVHs. |
+
+Downloaded marketplace assets do not all follow these naming rules. Do **not** rename or destructively rewrite a good source model just to force the convention. World Kit supplies per-asset metadata for assets that lack authoring markers:
+
+- Real `door_*` meshes are used directly as doorway markers.
+- Named entrance groups (for example the Innovation Hub's `entrance-doors-portal`) are measured as one imported doorway assembly.
+- Assets with no usable door group receive a per-asset metric doorway marker. This leaves the corresponding gap in fallback building-wall collision and registers an enter/exit portal.
+- Door handles and decorative hardware are not treated as separate portals.
+- `col_*` meshes remain preferred for exact collision. Buildings without them use the registered collision sidecar when one exists, otherwise segmented perimeter-wall collision with the authored doorway openings. This avoids a single solid box sealing every room.
 
 ---
 
@@ -101,7 +122,7 @@ When exporting models from Blender, 3ds Max, or Maya, use specific mesh prefixes
 }
 ```
 - Building collision can come from usable `col_*` proxies, an explicit per-world `collisionSize`/`collisionH` override, or a sibling `*_col.json` sidecar. If none supplies usable collision, the engine creates segmented perimeter walls rather than a solid box.
-- Scans nested child nodes for `door_*` markers and leaves a walkable opening in fallback wall colliders.
+- Scans nested `door_*` meshes, registered imported entrance groups and per-asset doorway metadata. Fallback wall collision leaves the matching walkable opening and registers an enter/exit portal.
 - Registers visible structural meshes into `three-mesh-bvh` for raycasts. Collision-only proxies, room/door markers and visual accents are excluded.
 
 #### 2. Climbable Walls & Fences (`climbable: true`)
@@ -182,6 +203,10 @@ Draws asphalt ribbons with raised curbs and sidewalks:
 - **`transit`**: `{ "x": 0, "z": 36, "name": "Station Name" }`. Fast-travel network destinations accessible via `[T]`.
 
 ---
+
+### Bridge component assemblies
+
+The downloaded modular bridge is extracted into its real curved spans, straight spans, short spans and abutments. Assemblies are authored in `bridgeAssemblies` in `city-a.json`. Each piece uses dimensionless `scaleX`/`scaleY`/`scaleZ`, and `deckY` is the required absolute top-of-road height in metres. The runtime measures the imported piece's own road-deck offset and derives its placement from `deckY`; the exact placed road mesh is also registered for Rapier collision. Use imported bridge modules for suitable spans, procedural geometry only for ramps, custom piers, retaining transitions and invisible physics proxies. Do not guess the bridge deck offset or treat centimetres as metres.
 
 ## 4. Model Pre-Processing Tool
 
