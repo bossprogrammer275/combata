@@ -1,7 +1,7 @@
 {
   "id": "city-a",
   "name": "Ilorin City — Civic Core, GRA & Market District",
-  "version": 6,
+  "version": 7,
   "bounds": 228,
   "disableAutoSpawns": true,
   "startPoint": {
@@ -639,7 +639,7 @@
       ]
     },
     {
-      "name": "Main City Flyover — North South",
+      "name": "Main City Flyover · South Approach",
       "w": 10,
       "sidewalk": false,
       "smooth": true,
@@ -671,6 +671,24 @@
           -17,
           60,
           7
+        ]
+      ]
+    },
+    {
+      "name": "Main City Flyover · Imported Central Spans",
+      "w": 10,
+      "sidewalk": false,
+      "smooth": true,
+      "flyover": true,
+      "guardrails": true,
+      "keepEnds": true,
+      "surface": "modular-bridge",
+      "markings": false,
+      "points": [
+        [
+          -17,
+          60,
+          7
         ],
         [
           -15,
@@ -687,6 +705,22 @@
           -60,
           7
         ],
+        [
+          -7,
+          -100,
+          7
+        ]
+      ]
+    },
+    {
+      "name": "Main City Flyover · North Approach",
+      "w": 10,
+      "sidewalk": false,
+      "smooth": true,
+      "flyover": true,
+      "guardrails": true,
+      "keepEnds": true,
+      "points": [
         [
           -7,
           -100,
@@ -710,7 +744,7 @@
       ]
     },
     {
-      "name": "Fate Drainage Bridge — East Edge",
+      "name": "Fate Drainage Bridge · North Approach",
       "w": 8,
       "sidewalk": false,
       "smooth": true,
@@ -732,6 +766,24 @@
           194,
           -90,
           3.6
+        ]
+      ]
+    },
+    {
+      "name": "Fate Drainage Bridge · Imported Central Spans",
+      "w": 8,
+      "sidewalk": false,
+      "smooth": true,
+      "flyover": true,
+      "guardrails": true,
+      "keepEnds": true,
+      "surface": "modular-bridge",
+      "markings": false,
+      "points": [
+        [
+          194,
+          -90,
+          3.6
         ],
         [
           194,
@@ -748,6 +800,22 @@
           45,
           3.6
         ],
+        [
+          194,
+          90,
+          3.6
+        ]
+      ]
+    },
+    {
+      "name": "Fate Drainage Bridge · South Approach",
+      "w": 8,
+      "sidewalk": false,
+      "smooth": true,
+      "flyover": true,
+      "guardrails": true,
+      "keepEnds": true,
+      "points": [
         [
           194,
           90,
@@ -2086,6 +2154,236 @@
       "z": 126.875,
       "y": 0.068,
       "yaw": 0
+    }
+  ],
+  "bridgeAssemblies": [
+    {
+      "id": "main-city-flyover",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "registerRoadPhysics": true,
+      "pieces": [
+        {
+          "componentId": "bridge-abutment",
+          "x": -16.873,
+          "z": 57.96,
+          "yaw": 1.508378,
+          "scaleX": 1.021819,
+          "scaleY": 1,
+          "scaleZ": 2.133561,
+          "deckY": 7.06
+        },
+        {
+          "componentId": "bridge-span-long",
+          "x": -16.108,
+          "z": 45.722,
+          "yaw": 1.508378,
+          "scaleX": 1.021819,
+          "scaleY": 1,
+          "scaleZ": 2.133561,
+          "deckY": 7.06
+        },
+        {
+          "componentId": "bridge-span-long",
+          "x": -14.833,
+          "z": 25.326,
+          "yaw": 1.508378,
+          "scaleX": 1.021819,
+          "scaleY": 1,
+          "scaleZ": 2.133561,
+          "deckY": 7.06
+        },
+        {
+          "componentId": "bridge-span-long",
+          "x": -13.558,
+          "z": 4.929,
+          "yaw": 1.508378,
+          "scaleX": 1.021819,
+          "scaleY": 1,
+          "scaleZ": 2.133561,
+          "deckY": 7.06
+        },
+        {
+          "componentId": "bridge-span-long",
+          "x": -12.283,
+          "z": -15.467,
+          "yaw": 1.508378,
+          "scaleX": 1.021819,
+          "scaleY": 1,
+          "scaleZ": 2.133561,
+          "deckY": 7.06
+        },
+        {
+          "componentId": "bridge-span-long",
+          "x": -11.009,
+          "z": -35.864,
+          "yaw": 1.508378,
+          "scaleX": 1.021819,
+          "scaleY": 1,
+          "scaleZ": 2.133561,
+          "deckY": 7.06
+        },
+        {
+          "componentId": "bridge-span-long",
+          "x": -9.734,
+          "z": -56.261,
+          "yaw": 1.508378,
+          "scaleX": 1.021819,
+          "scaleY": 1,
+          "scaleZ": 2.133561,
+          "deckY": 7.06
+        },
+        {
+          "componentId": "bridge-span-long",
+          "x": -8.459,
+          "z": -76.657,
+          "yaw": 1.508378,
+          "scaleX": 1.021819,
+          "scaleY": 1,
+          "scaleZ": 2.133561,
+          "deckY": 7.06
+        },
+        {
+          "componentId": "bridge-span-short",
+          "x": -7.538,
+          "z": -91.388,
+          "yaw": 1.508378,
+          "scaleX": 1.021819,
+          "scaleY": 1,
+          "scaleZ": 2.133561,
+          "deckY": 7.06
+        },
+        {
+          "componentId": "bridge-abutment",
+          "x": -7.127,
+          "z": -97.96,
+          "yaw": 1.508378,
+          "scaleX": 1.021819,
+          "scaleY": 1,
+          "scaleZ": 2.133561,
+          "deckY": 7.06
+        }
+      ]
+    },
+    {
+      "id": "fate-drainage-bridge",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "registerRoadPhysics": true,
+      "pieces": [
+        {
+          "componentId": "bridge-abutment",
+          "x": 194,
+          "z": -87.965,
+          "yaw": -1.570796,
+          "scaleX": 1.017587,
+          "scaleY": 1,
+          "scaleZ": 1.706849,
+          "deckY": 3.66
+        },
+        {
+          "componentId": "bridge-span-long",
+          "x": 194,
+          "z": -75.754,
+          "yaw": -1.570796,
+          "scaleX": 1.017587,
+          "scaleY": 1,
+          "scaleZ": 1.706849,
+          "deckY": 3.66
+        },
+        {
+          "componentId": "bridge-span-long",
+          "x": 194,
+          "z": -55.402,
+          "yaw": -1.570796,
+          "scaleX": 1.017587,
+          "scaleY": 1,
+          "scaleZ": 1.706849,
+          "deckY": 3.66
+        },
+        {
+          "componentId": "bridge-span-long",
+          "x": 194,
+          "z": -35.05,
+          "yaw": -1.570796,
+          "scaleX": 1.017587,
+          "scaleY": 1,
+          "scaleZ": 1.706849,
+          "deckY": 3.66
+        },
+        {
+          "componentId": "bridge-span-long",
+          "x": 194,
+          "z": -14.699,
+          "yaw": -1.570796,
+          "scaleX": 1.017587,
+          "scaleY": 1,
+          "scaleZ": 1.706849,
+          "deckY": 3.66
+        },
+        {
+          "componentId": "bridge-span-long",
+          "x": 194,
+          "z": 5.653,
+          "yaw": -1.570796,
+          "scaleX": 1.017587,
+          "scaleY": 1,
+          "scaleZ": 1.706849,
+          "deckY": 3.66
+        },
+        {
+          "componentId": "bridge-span-long",
+          "x": 194,
+          "z": 26.005,
+          "yaw": -1.570796,
+          "scaleX": 1.017587,
+          "scaleY": 1,
+          "scaleZ": 1.706849,
+          "deckY": 3.66
+        },
+        {
+          "componentId": "bridge-span-long",
+          "x": 194,
+          "z": 46.357,
+          "yaw": -1.570796,
+          "scaleX": 1.017587,
+          "scaleY": 1,
+          "scaleZ": 1.706849,
+          "deckY": 3.66
+        },
+        {
+          "componentId": "bridge-span-long",
+          "x": 194,
+          "z": 66.708,
+          "yaw": -1.570796,
+          "scaleX": 1.017587,
+          "scaleY": 1,
+          "scaleZ": 1.706849,
+          "deckY": 3.66
+        },
+        {
+          "componentId": "bridge-span-short",
+          "x": 194,
+          "z": 81.407,
+          "yaw": -1.570796,
+          "scaleX": 1.017587,
+          "scaleY": 1,
+          "scaleZ": 1.706849,
+          "deckY": 3.66
+        },
+        {
+          "componentId": "bridge-abutment",
+          "x": 194,
+          "z": 87.965,
+          "yaw": -1.570796,
+          "scaleX": 1.017587,
+          "scaleY": 1,
+          "scaleZ": 1.706849,
+          "deckY": 3.66
+        }
+      ]
     }
   ]
 }
