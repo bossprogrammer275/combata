@@ -219,7 +219,7 @@ export function getWorldKitDoorGroups(assetId) {
 
 export const WORLD_KIT_NATIVE_DOOR_ASSETS = Object.freeze([
   'kwara-revenue-house',
-  'meed-grocery-store',
+  'grocery-store',
   'mosque',
   'building-04',
 ]);
