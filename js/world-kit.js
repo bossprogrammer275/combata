@@ -26,7 +26,7 @@ const definitions = [
   // Roads and transport surfaces
   ['roads/concrete_block_low_poly.glb', 'concrete-road-block', 'roadside', 'road-prop', 'atomic', 'preserve-source-scene', 'solid-prop', 'pending-visual'],
   ['roads/road_block/scene.gltf', 'road-barricade', 'roadside', 'barrier', 'atomic', 'preserve-source-scene', 'solid-prop', 'manifest-inspected'],
-  ['roads/road_pack/scene.gltf', 'road-pack-panels', 'road-detail', 'marked-road-panel-set', 'compound', 'six-authored-road-panels', 'no-collision', 'rendered-preview-verified'],
+  ['roads/road_pack/scene.gltf', 'road-pack-panels', 'road-panels', 'road-panel-set', 'compound', 'six-imported-panels', 'no-collision', 'rendered-preview-verified'],
   ['roads/sidewalks/scene.gltf', 'sidewalk-pack', 'road', 'modular-sidewalk-pack', 'compound', 'semantic-child-pieces', 'walkable-surface-pieces', 'manifest-inspected'],
   ['roads/speed_bump.glb', 'speed-bump', 'roadside', 'traffic-calming', 'atomic', 'preserve-source-scene', 'solid-prop', 'pending-visual'],
   ['roads/street_road/scene.gltf', 'street-road', 'road', 'two-lane-wet-road-source', 'compound', 'preserve-source-scene', 'road-surface', 'rendered-preview-verified'],
@@ -113,6 +113,7 @@ function meshNames(mesh, root) {
 }
 
 export function classifyWorldKitMesh(mesh, root) {
+  if (root?.userData?.worldKit?.id === 'road-pack-panels') return 'road-panel';
   const names = meshNames(mesh, root);
   const chain = names.join('/').toLowerCase();
   if (names.some(name => name.toLowerCase().startsWith('col_'))) return 'collision-proxy';
