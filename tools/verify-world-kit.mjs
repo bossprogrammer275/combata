@@ -7,6 +7,7 @@ import {
   WORLD_KIT_ROAD_PACK_PARTS,
   WORLD_KIT_SIDEWALK_COMPONENTS,
   WORLD_KIT_DOOR_GROUPS,
+  WORLD_KIT_NATIVE_DOOR_ASSETS,
   annotateWorldKitInstance,
   classifyWorldKitMesh,
   getWorldKitDefinition,
@@ -48,8 +49,17 @@ assert.ok(getWorldKitDoorMarkers('nigeria-duplex').length > 0,
   'downloaded residential assets without door_* names need authored door metadata');
 assert.ok(getWorldKitDoorGroups('ilorin-innovation-hub').includes('entrance-doors-portal'),
   'the Innovation Hub entrance hierarchy must resolve as one imported door group');
-assert.ok(WORLD_KIT_DOOR_GROUPS['american-style-house'].includes('Door'),
-  'the American house imported door assembly must be recognized');
+assert.ok(getWorldKitDoorMarkers('american-style-house').length > 0,
+  'the American house requires a metric fallback doorway marker');
+for (const definition of Object.values(WORLD_KIT_ASSET_DEFINITIONS)
+  .filter(item => item.collisionProfile.startsWith('building-shell'))) {
+  const hasDoorMetadata =
+    getWorldKitDoorMarkers(definition.id).length > 0 ||
+    getWorldKitDoorGroups(definition.id).length > 0 ||
+    WORLD_KIT_NATIVE_DOOR_ASSETS.includes(definition.id);
+  assert.ok(hasDoorMetadata,
+    definition.id + ' needs native door markers, a registered door group or explicit doorway metadata');
+}
 assert.equal(getWorldKitCollisionManifest('./data/models/assets/kwara_revenue_house.glb'),
   './data/models/assets/kwara_revenue_house_col.json');
 assert.equal(getWorldKitCollisionManifest('./data/models/assets/residential/nigeria_duplex/scene.gltf'), null,
