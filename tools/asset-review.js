@@ -88,6 +88,7 @@ function inspect(root, gltf) {
   const materials = new Set();
   const textures = new Set();
   const meshNames = [];
+  const meshDetails = [];
   const meshObjects = [];
   const seen = new Set();
 
@@ -115,6 +116,19 @@ function inspect(root, gltf) {
       n = n.parent;
     }
     const label = chain.join(' / ') || obj.name || 'unnamed mesh';
+    obj.updateWorldMatrix(true, false);
+    const meshBounds = new THREE.Box3().setFromObject(obj);
+    const meshSize = meshBounds.getSize(new THREE.Vector3());
+    const meshCenter = meshBounds.getCenter(new THREE.Vector3());
+    meshDetails.push({
+      name: label,
+      dimensions: [meshSize.x, meshSize.y, meshSize.z].map(v => Number(v.toFixed(3))),
+      center: [meshCenter.x, meshCenter.y, meshCenter.z].map(v => Number(v.toFixed(3))),
+      triangles: obj.geometry?.index?.count
+        ? Math.floor(obj.geometry.index.count / 3)
+        : Math.floor((obj.geometry?.getAttribute('position')?.count || 0) / 3),
+      materials: mats.map(material => material?.name || 'unnamed'),
+    });
     meshObjects.push({ object: obj, label, visibleAtLoad: obj.visible });
     if (!seen.has(label)) { seen.add(label); meshNames.push(label); }
   });
@@ -149,6 +163,7 @@ function inspect(root, gltf) {
     boundsMin: [bounds.min.x, bounds.min.y, bounds.min.z].map((v) => Number(v.toFixed(3))),
     boundsMax: [bounds.max.x, bounds.max.y, bounds.max.z].map((v) => Number(v.toFixed(3))),
     meshNames,
+    meshDetails,
     emptyBounds: !Number.isFinite(center.x) || size.length() < 0.0001,
   };
 }
