@@ -1,7 +1,7 @@
 {
   "id": "city-a",
   "name": "Ilorin City — Civic Core, GRA & Market District",
-  "version": 9,
+  "version": 10,
   "bounds": 228,
   "disableAutoSpawns": true,
   "startPoint": {
@@ -11,7 +11,7 @@
   },
   "ground": {
     "size": 540,
-    "color": "0x30342c"
+    "color": "0x6c6758"
   },
   "roads": [
     {
@@ -2714,6 +2714,183 @@
         }
       ],
       "sectionCount": 11
+    }
+  ],
+  "districtPlots": [
+    {
+      "id": "gra-american-villa",
+      "type": "residential-compound",
+      "x": -143,
+      "z": 128,
+      "width": 26,
+      "depth": 22,
+      "yaw": 0.3,
+      "surface": "lawn",
+      "front": "south",
+      "wallHeight": 1.5,
+      "wallThickness": 0.18,
+      "gateWidth": 4.2,
+      "driveway": {
+        "width": 4.2,
+        "depth": 5,
+        "pathWidth": 1.8,
+        "pathDepth": 3
+      }
+    },
+    {
+      "id": "gra-nigeria-duplex-west",
+      "type": "residential-compound",
+      "x": -105,
+      "z": 128,
+      "width": 24,
+      "depth": 22,
+      "yaw": 0.3,
+      "surface": "lawn",
+      "front": "south",
+      "wallHeight": 1.5,
+      "wallThickness": 0.18,
+      "gateWidth": 4.2,
+      "driveway": {
+        "width": 4.2,
+        "depth": 5,
+        "pathWidth": 1.8,
+        "pathDepth": 3
+      }
+    },
+    {
+      "id": "gra-nigeria-duplex-east",
+      "type": "residential-compound",
+      "x": -74,
+      "z": 153,
+      "width": 24,
+      "depth": 22,
+      "yaw": 2.6,
+      "surface": "lawn",
+      "front": "south",
+      "wallHeight": 1.5,
+      "wallThickness": 0.18,
+      "gateWidth": 4.2,
+      "driveway": {
+        "width": 4.2,
+        "depth": 5,
+        "pathWidth": 1.8,
+        "pathDepth": 3
+      }
+    },
+    {
+      "id": "gra-bungalow",
+      "type": "residential-compound",
+      "x": -143,
+      "z": 160,
+      "width": 28,
+      "depth": 24,
+      "yaw": 0.8,
+      "surface": "lawn",
+      "front": "south",
+      "wallHeight": 1.4,
+      "wallThickness": 0.18,
+      "gateWidth": 4.2,
+      "driveway": {
+        "width": 4.2,
+        "depth": 5,
+        "pathWidth": 1.8,
+        "pathDepth": 3
+      }
+    },
+    {
+      "id": "gra-family-home",
+      "type": "residential-compound",
+      "x": -24,
+      "z": 146,
+      "width": 28,
+      "depth": 24,
+      "yaw": 1,
+      "surface": "lawn",
+      "front": "south",
+      "wallHeight": 1.45,
+      "wallThickness": 0.18,
+      "gateWidth": 4.2,
+      "driveway": {
+        "width": 4.2,
+        "depth": 5,
+        "pathWidth": 1.8,
+        "pathDepth": 3
+      }
+    },
+    {
+      "id": "gra-two-storey-home",
+      "type": "residential-compound",
+      "x": 44,
+      "z": 143,
+      "width": 34,
+      "depth": 24,
+      "yaw": 0,
+      "surface": "lawn",
+      "front": "south",
+      "wallHeight": 1.55,
+      "wallThickness": 0.2,
+      "gateWidth": 4.6,
+      "driveway": {
+        "width": 4.6,
+        "depth": 6,
+        "pathWidth": 2,
+        "pathDepth": 3
+      }
+    },
+    {
+      "id": "mosque-forecourt",
+      "type": "religious-forecourt",
+      "x": 20,
+      "z": 116,
+      "width": 32,
+      "depth": 30,
+      "yaw": 0,
+      "surface": "concrete",
+      "front": "south"
+    },
+    {
+      "id": "market-plaza",
+      "type": "market-plaza",
+      "x": 57,
+      "z": 105,
+      "width": 42,
+      "depth": 28,
+      "yaw": 0,
+      "surface": "concrete",
+      "front": "south"
+    },
+    {
+      "id": "takeaway-shop-pad",
+      "type": "commercial-pad",
+      "x": -11,
+      "z": 95,
+      "width": 23,
+      "depth": 18,
+      "yaw": 0,
+      "surface": "concrete",
+      "front": "south"
+    },
+    {
+      "id": "grocery-store-pad",
+      "type": "commercial-pad",
+      "x": 101,
+      "z": 110,
+      "width": 20,
+      "depth": 20,
+      "yaw": 1.57,
+      "surface": "concrete",
+      "front": "south"
+    },
+    {
+      "id": "twin-shopfront-pad",
+      "type": "commercial-pad",
+      "x": 143,
+      "z": 90,
+      "width": 26,
+      "depth": 24,
+      "yaw": 0,
+      "surface": "concrete",
+      "front": "south"
     }
   ]
 }
