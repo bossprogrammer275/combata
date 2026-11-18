@@ -32,6 +32,9 @@ jobs:
       - name: Install project dependencies
         run: npm install --no-audit --no-fund
 
+      - name: Install headless Chromium for model inspection
+        run: npx playwright install --with-deps chromium
+
       - name: Validate selected asset manifest
         id: manifest
         shell: bash
