@@ -1,0 +1,225 @@
+name: Selected asset collision inspection and processing
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".selected-collision-manifest.json"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: selected-asset-collision
+  cancel-in-progress: false
+
+jobs:
+  inspect-and-process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install project dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Validate selected asset manifest
+        id: manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const manifest = JSON.parse(fs.readFileSync('.selected-collision-manifest.json', 'utf8'));
+          if (!['inspect', 'apply'].includes(manifest.stage)) throw new Error('stage must be inspect or apply');
+          if (!Array.isArray(manifest.assets) || manifest.assets.length === 0) throw new Error('assets must be a non-empty array');
+          const seen = new Set();
+          for (const item of manifest.assets) {
+            if (!item || typeof item.path !== 'string') throw new Error('Each asset needs a path');
+            if (seen.has(item.path)) throw new Error('Duplicate selected path: ' + item.path);
+            seen.add(item.path);
+            if (!/^data\/models\/assets\/.+\.(?:glb|gltf)$/i.test(item.path)) throw new Error('Path outside supported asset library: ' + item.path);
+            if (!fs.existsSync(item.path)) throw new Error('Selected file is missing: ' + item.path);
+            const stat = fs.statSync(item.path);
+            if (!stat.isFile() || stat.size < 100) throw new Error('Selected file is invalid: ' + item.path);
+            if (manifest.stage === 'apply' && !['building', 'small-prop', 'fence', 'pole', 'trunk'].includes(item.profile)) {
+              throw new Error('Unsupported/missing profile for ' + item.path);
+            }
+          }
+          console.log(JSON.stringify({ stage: manifest.stage, selected: manifest.assets.length, paths: [...seen] }, null, 2));
+          NODE
+          echo "stage=$(node -p "JSON.parse(require('fs').readFileSync('.selected-collision-manifest.json','utf8')).stage")" >> "$GITHUB_OUTPUT"
+          echo "count=$(node -p "JSON.parse(require('fs').readFileSync('.selected-collision-manifest.json','utf8')).assets.length")" >> "$GITHUB_OUTPUT"
+
+      - name: Capture actual selected models before collision changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t ASSET_PATHS < <(node --input-type=module -e "import fs from 'node:fs'; const m=JSON.parse(fs.readFileSync('.selected-collision-manifest.json','utf8')); for (const a of m.assets) console.log(a.path);")
+          node tools/capture-asset-calibration.mjs "${ASSET_PATHS[@]}"
+
+      - name: Upload before-change model captures
+        uses: actions/upload-artifact@v4
+        with:
+          name: selected-models-before-collision-${{ github.run_id }}
+          path: artifacts/asset-calibration/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Stop after inspection captures
+        if: steps.manifest.outputs.stage == 'inspect'
+        run: echo "Inspection-only stage complete. No model files were changed."
+
+      - name: Archive source assets and supporting files
+        if: steps.manifest.outputs.stage == 'apply'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { fileURLToPath } from 'node:url';
+          const manifest = JSON.parse(fs.readFileSync('.selected-collision-manifest.json', 'utf8'));
+          const root = process.cwd();
+          const archiveRoot = path.join(root, 'data/models/_archive/originals');
+          function copyFile(source, relative) {
+            const destination = path.join(archiveRoot, relative);
+            fs.mkdirSync(path.dirname(destination), { recursive: true });
+            if (!fs.existsSync(destination)) fs.copyFileSync(source, destination, fs.constants.COPYFILE_EXCL);
+          }
+          function safeExternal(baseDir, uri) {
+            if (typeof uri !== 'string' || !uri || uri.startsWith('data:')) return null;
+            const decoded = decodeURIComponent(uri.split(/[?#]/, 1)[0]);
+            const resolved = path.resolve(baseDir, decoded);
+            const rel = path.relative(baseDir, resolved);
+            if (rel.startsWith('..') || path.isAbsolute(rel)) throw new Error('External resource escapes model folder: ' + uri);
+            return resolved;
+          }
+          for (const item of manifest.assets) {
+            const source = path.resolve(root, item.path);
+            const relative = path.relative(path.join(root, 'data/models'), source).split(path.sep).join('/');
+            if (relative.startsWith('../') || path.isAbsolute(relative)) throw new Error('Refusing to archive path outside data/models: ' + item.path);
+            copyFile(source, relative);
+            if (/\.gltf$/i.test(source)) {
+              const gltf = JSON.parse(fs.readFileSync(source, 'utf8'));
+              const resources = [
+                ...(gltf.buffers || []).map(x => x.uri),
+                ...(gltf.images || []).map(x => x.uri),
+              ];
+              for (const uri of resources) {
+                const external = safeExternal(path.dirname(source), uri);
+                if (!external || !fs.existsSync(external) || !fs.statSync(external).isFile()) {
+                  if (external) throw new Error('Missing referenced file ' + uri + ' in ' + item.path);
+                  continue;
+                }
+                const externalRelative = path.relative(path.join(root, 'data/models'), external).split(path.sep).join('/');
+                copyFile(external, externalRelative);
+              }
+            }
+          }
+          console.log('Archived all selected originals and every referenced external buffer/texture.');
+          NODE
+
+      - name: Generate selected collision proxies and replace only selected files
+        if: steps.manifest.outputs.stage == 'apply'
+        shell: bash
+        run: |
+          set -euo pipefail
+          TMP_ROOT="$RUNNER_TEMP/selected-collision"
+          mkdir -p "$TMP_ROOT"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { spawnSync } from 'node:child_process';
+          const root = process.cwd();
+          const tempRoot = process.env.RUNNER_TEMP + '/selected-collision';
+          const manifest = JSON.parse(fs.readFileSync('.selected-collision-manifest.json', 'utf8'));
+          const results = [];
+          for (const [index, item] of manifest.assets.entries()) {
+            const source = path.resolve(root, item.path);
+            const output = path.join(tempRoot, item.path);
+            const report = path.join(tempRoot, 'reports', String(index + 1).padStart(2, '0') + '.json');
+            fs.mkdirSync(path.dirname(output), { recursive: true });
+            fs.mkdirSync(path.dirname(report), { recursive: true });
+            const args = [path.join(root, 'js/utils/make-collision.js'), source,
+              '--profile', item.profile, '--replace', '--out', output, '--report', report];
+            if (item.profile === 'building') args.push('--rename');
+            if (item.profile === 'pole' || item.profile === 'trunk') {
+              if (!(Number(item.targetHeight) > 0)) throw new Error('Verified targetHeight required for ' + item.profile + ': ' + item.path);
+              args.push('--target-height', String(item.targetHeight));
+              if (Number(item.poleWidth) > 0) args.push('--pole-width', String(item.poleWidth));
+            }
+            const result = spawnSync(process.execPath, args, { cwd: root, encoding: 'utf8', maxBuffer: 30 * 1024 * 1024 });
+            if (result.status !== 0) {
+              throw new Error('Collision generation failed for ' + item.path + '\n' + result.stdout + '\n' + result.stderr);
+            }
+            if (!fs.existsSync(output) || fs.statSync(output).size < 100) throw new Error('Missing generated output for ' + item.path);
+            if (/\.gltf$/i.test(source)) {
+              const generatedBin = output.replace(/\.gltf$/i, '.bin');
+              const targetBin = source.replace(/\.gltf$/i, '.bin');
+              if (!fs.existsSync(generatedBin)) throw new Error('Generated GLTF buffer missing for ' + item.path);
+              fs.copyFileSync(generatedBin, targetBin);
+            }
+            fs.copyFileSync(output, source);
+            const summary = JSON.parse(fs.readFileSync(report, 'utf8'));
+            results.push({ path: item.path, profile: item.profile, proxies: summary.boxes?.length || 0, modelSize: summary.modelSize, metresPerUnit: summary.metresPerUnit });
+            console.log(JSON.stringify(results.at(-1)));
+          }
+          fs.mkdirSync('data/models/_archive', { recursive: true });
+          fs.writeFileSync('data/models/_archive/selected-collision-report.json', JSON.stringify({
+            generatedAt: new Date().toISOString(), selected: results.length, results
+          }, null, 2) + '\n');
+          NODE
+
+      - name: Validate modified model files and collision proxies
+        if: steps.manifest.outputs.stage == 'apply'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { execFileSync } from 'node:child_process';
+          const manifest = JSON.parse(fs.readFileSync('.selected-collision-manifest.json', 'utf8'));
+          for (const item of manifest.assets) {
+            execFileSync(process.execPath, ['js/utils/make-collision.js', item.path, '--no-proxies', '--out', process.env.RUNNER_TEMP + '/validate-' + Buffer.from(item.path).toString('hex') + (item.path.toLowerCase().endsWith('.glb') ? '.glb' : '.gltf')], { stdio: 'pipe' });
+            const reportPath = 'data/models/_archive/selected-collision-report.json';
+            const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+            const row = report.results.find(x => x.path === item.path);
+            if (!row || row.proxies < 1) throw new Error('No collision proxies recorded for ' + item.path);
+          }
+          console.log('All selected sources parsed successfully and have generated proxies.');
+          NODE
+
+      - name: Commit only selected model files, their supporting files, archive and report
+        if: steps.manifest.outputs.stage == 'apply'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+users.noreply.github.com"
+          git add -- data/models
+          git add -- .selected-collision-manifest.json .github/workflows/selected-asset-collision.yml
+          if git diff --cached --quiet; then echo "No changes to commit."; exit 0; fi
+          git commit -m "Generate selected asset collision proxies"
+          git push origin HEAD:main
+
+      - name: Upload selected collision reports
+        if: always() && steps.manifest.outputs.stage == 'apply'
+        uses: actions/upload-artifact@v4
+        with:
+          name: selected-collision-results-${{ github.run_id }}
+          path: |
+            data/models/_archive/selected-collision-report.json
+            ${{ runner.temp }}/selected-collision/reports/
+          if-no-files-found: warn
+          retention-days: 30
