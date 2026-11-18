@@ -36,8 +36,14 @@ Usage: node make-collision.js <input.glb|input.gltf> [options]
                           --glb embeds buffers and textures into one file)
       --mode <solid|shell>  solid (default) fills sealed volumes; shell = thin walls
       --resolution <n>    Voxel cells along the longest axis (default 64)
+      --min-axis-resolution <n>
+                           Minimum cells on every non-zero axis (default 16)
       --max-boxes <n>     Auto-coarsen until at most n proxies (default 300)
       --max-span <m>      Largest proxy size in metres (default 5)
+      --profile <name>    auto | small-prop | fence | pole | trunk
+                           fence = thin surface collision; pole/trunk = one
+                           narrow upright box; small-prop = higher detail
+      --pole-width <m>    Diameter for pole/trunk profiles (default 0.35 m)
       --scale <m/unit>    Metres per model unit (default 1)
       --target-height <m> Derive --scale so the model is this tall in metres
       --rename            Clean up / classify mesh names (window_, roof_, ...)
@@ -49,7 +55,8 @@ Usage: node make-collision.js <input.glb|input.gltf> [options]
   -h, --help
 `;
 function parseArgs(argv) {
-  const o = { mode: 'solid', resolution: 64, maxBoxes: 300, maxSpan: 5, scale: null, targetHeight: null,
+  const o = { mode: 'solid', modeExplicit: false, profile: 'auto', resolution: 64, minAxisResolution: 16,
+    maxBoxes: 300, maxSpan: 5, poleWidth: 0.35, poleWidthExplicit: false, scale: null, targetHeight: null,
     rename: false, sealDoors: false, keepDecor: false, replace: false, noProxies: false,
     format: null, out: null, report: null, input: null };
   for (let i = 0; i < argv.length; i++) {
@@ -59,10 +66,13 @@ function parseArgs(argv) {
       case '-o': case '--out': o.out = next(); break;
       case '--glb': o.format = 'glb'; break;
       case '--gltf': o.format = 'gltf'; break;
-      case '--mode': o.mode = next(); if (!['solid', 'shell'].includes(o.mode)) die('--mode must be solid or shell'); break;
+      case '--mode': o.mode = next(); o.modeExplicit = true; if (!['solid', 'shell'].includes(o.mode)) die('--mode must be solid or shell'); break;
+      case '--profile': o.profile = next(); if (!['auto', 'small-prop', 'fence', 'pole', 'trunk'].includes(o.profile)) die('--profile must be auto, small-prop, fence, pole or trunk'); break;
       case '--resolution': o.resolution = parseInt(next(), 10); break;
+      case '--min-axis-resolution': o.minAxisResolution = parseInt(next(), 10); break;
       case '--max-boxes': o.maxBoxes = parseInt(next(), 10); break;
       case '--max-span': o.maxSpan = parseFloat(next()); break;
+      case '--pole-width': o.poleWidth = parseFloat(next()); o.poleWidthExplicit = true; break;
       case '--scale': o.scale = parseFloat(next()); break;
       case '--target-height': o.targetHeight = parseFloat(next()); break;
       case '--rename': o.rename = true; break;
@@ -76,6 +86,17 @@ function parseArgs(argv) {
         if (o.input) die('Only one input file is supported'); o.input = a;
     }
   }
+  if (o.profile === 'fence' && !o.modeExplicit) o.mode = 'shell';
+  if (o.profile === 'small-prop' || o.profile === 'fence') {
+    o.resolution = Math.max(o.resolution, 96);
+    o.minAxisResolution = Math.max(o.minAxisResolution, 24);
+    o.maxBoxes = Math.max(o.maxBoxes, 600);
+  }
+  if (!Number.isInteger(o.resolution) || o.resolution < 8 || o.resolution > 512) die('--resolution must be an integer from 8 to 512');
+  if (!Number.isInteger(o.minAxisResolution) || o.minAxisResolution < 2 || o.minAxisResolution > 256) die('--min-axis-resolution must be an integer from 2 to 256');
+  if (!Number.isInteger(o.maxBoxes) || o.maxBoxes < 1) die('--max-boxes must be a positive integer');
+  if (!(o.maxSpan > 0) || !Number.isFinite(o.maxSpan)) die('--max-span must be greater than zero');
+  if (!(o.poleWidth > 0) || !Number.isFinite(o.poleWidth)) die('--pole-width must be greater than zero');
   if (!o.input) { console.log(HELP); process.exit(1); }
   return o;
 }
@@ -268,12 +289,20 @@ function triBox(cx, cy, cz, hx, hy, hz, a, b, c) {
   const d = n[0] * v0[0] + n[1] * v0[1] + n[2] * v0[2], r = h[0] * Math.abs(n[0]) + h[1] * Math.abs(n[1]) + h[2] * Math.abs(n[2]);
   return Math.abs(d) <= r;
 }
-function voxelise(solidInst, B, res) {
+function voxelise(solidInst, B, res, minAxisResolution) {
   const ext = B.max.map((v, i) => v - B.min[i]);
-  const cell = Math.max(...ext) / res;
-  const dims = ext.map(e => Math.ceil(e / cell) + 3), org = B.min.map(v => v - cell);
+  const longest = Math.max(...ext);
+  const baseCell = longest / res;
+  // Keep the requested resolution on the longest axis, but never let a narrow
+  // axis collapse to one or two cells. This is the key for poles, rails,
+  // fence slats and other thin geometry.
+  const axisCells = ext.map(e => e > 1e-9
+    ? Math.min(res, Math.max(Math.min(minAxisResolution, res), Math.ceil(e / baseCell)))
+    : 1);
+  const cell = ext.map((e, k) => axisCells[k] > 1 ? e / axisCells[k] : baseCell);
+  const dims = axisCells.map(n => n + 3), org = B.min.map((v, k) => v - cell[k]);
   const [dx, dy, dz] = dims, occ = new Uint8Array(dx * dy * dz), id = (x, y, z) => x + dx * (y + dy * z);
-  const ha = cell * 0.5 * 1.001, a = [0, 0, 0], b = [0, 0, 0], c = [0, 0, 0];
+  const ha = cell.map(v => v * 0.5 * 1.001), a = [0, 0, 0], b = [0, 0, 0], c = [0, 0, 0];
   for (const it of solidInst) {
     const M = it.M;
     for (const p of it.prims) {
@@ -291,7 +320,12 @@ function voxelise(solidInst, B, res) {
         const single = lo[0] === hi[0] && lo[1] === hi[1] && lo[2] === hi[2];
         for (let z = lo[2]; z <= hi[2]; z++) for (let y = lo[1]; y <= hi[1]; y++) for (let x = lo[0]; x <= hi[0]; x++) {
           const i = id(x, y, z); if (occ[i]) continue;
-          if (single || triBox(org[0] + (x + 0.5) * cell, org[1] + (y + 0.5) * cell, org[2] + (z + 0.5) * cell, ha, ha, ha, a, b, c)) occ[i] = 1;
+          if (single || triBox(
+            org[0] + (x + 0.5) * cell[0],
+            org[1] + (y + 0.5) * cell[1],
+            org[2] + (z + 0.5) * cell[2],
+            ha[0], ha[1], ha[2], a, b, c
+          )) occ[i] = 1;
         }
       }
     }
@@ -315,9 +349,9 @@ function greedy(s, g, maxCells) {
   const [dx, dy, dz] = g.dims, id = g.id, boxes = [];
   for (let y = 0; y < dy; y++) for (let z = 0; z < dz; z++) for (let x = 0; x < dx; x++) {
     if (!s[id(x, y, z)]) continue;
-    let ex = 1; while (ex < maxCells && x + ex < dx && s[id(x + ex, y, z)]) ex++;
-    let ez = 1; o1: while (ez < maxCells && z + ez < dz) { for (let k = 0; k < ex; k++) if (!s[id(x + k, y, z + ez)]) break o1; ez++; }
-    let ey = 1; o2: while (ey < maxCells && y + ey < dy) { for (let kz = 0; kz < ez; kz++) for (let kx = 0; kx < ex; kx++) if (!s[id(x + kx, y + ey, z + kz)]) break o2; ey++; }
+    let ex = 1; while (ex < maxCells[0] && x + ex < dx && s[id(x + ex, y, z)]) ex++;
+    let ez = 1; o1: while (ez < maxCells[2] && z + ez < dz) { for (let k = 0; k < ex; k++) if (!s[id(x + k, y, z + ez)]) break o1; ez++; }
+    let ey = 1; o2: while (ey < maxCells[1] && y + ey < dy) { for (let kz = 0; kz < ez; kz++) for (let kx = 0; kx < ex; kx++) if (!s[id(x + kx, y + ey, z + kz)]) break o2; ey++; }
     for (let kz = 0; kz < ez; kz++) for (let ky = 0; ky < ey; ky++) for (let kx = 0; kx < ex; kx++) s[id(x + kx, y + ky, z + kz)] = 0;
     boxes.push([x, y, z, ex, ey, ez]);
   }
@@ -326,19 +360,22 @@ function greedy(s, g, maxCells) {
 function buildBoxes(solidInst, B, o, scale, scaleKnown, height) {
   let res = o.resolution, last = null;
   for (;;) {
-    const g = voxelise(solidInst, B, res);
+    const g = voxelise(solidInst, B, res, o.minAxisResolution);
     const s = o.mode === 'solid' ? floodSolid(g) : g.occ;
-    // Span limit: exact when the scale is known; otherwise only enforce it for models that look metre-sized.
-    const maxCells = (scaleKnown || height <= 40) ? Math.max(2, Math.floor((o.maxSpan / scale) / g.cell)) : Math.max(2, Math.round(res / 3));
+    // Cap each axis independently so narrow rails and posts keep their detail.
+    const maxCells = (scaleKnown || height <= 40)
+      ? g.cell.map(c => Math.max(1, Math.floor((o.maxSpan / scale) / c)))
+      : g.cell.map(() => Math.max(1, Math.round(res / 3)));
     const raw = greedy(s, g, maxCells);
     last = { g, raw, res };
     if (raw.length <= o.maxBoxes || res <= 10) break;
     res = Math.max(10, Math.floor(res * 0.8));
   }
-  const { g, raw } = last, eps = g.cell * 0.04;
+  const { g, raw } = last;
+  const eps = g.cell.map(c => c * 0.04);
   const boxes = raw.map(([x, y, z, ex, ey, ez]) => ({
-    min: [g.org[0] + x * g.cell - eps, g.org[1] + y * g.cell - eps, g.org[2] + z * g.cell - eps],
-    max: [g.org[0] + (x + ex) * g.cell + eps, g.org[1] + (y + ey) * g.cell + eps, g.org[2] + (z + ez) * g.cell + eps]
+    min: [g.org[0] + x * g.cell[0] - eps[0], g.org[1] + y * g.cell[1] - eps[1], g.org[2] + z * g.cell[2] - eps[2]],
+    max: [g.org[0] + (x + ex) * g.cell[0] + eps[0], g.org[1] + (y + ey) * g.cell[1] + eps[1], g.org[2] + (z + ez) * g.cell[2] + eps[2]]
   }));
   return { boxes, cell: g.cell, res: last.res };
 }
@@ -489,18 +526,49 @@ function main() {
     if (!solid.length) die('Nothing left to build collision from (everything was excluded).');
     const B = { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] };
     solid.forEach(i => { for (let k = 0; k < 3; k++) { B.min[k] = Math.min(B.min[k], i.bounds.min[k]); B.max[k] = Math.max(B.max[k], i.bounds.max[k]); } });
-    const r = buildBoxes(solid, B, o, scale, !!(o.scale || o.targetHeight), height);
+    let r;
+    if (o.profile === 'pole' || o.profile === 'trunk') {
+      // Poles and trunks need one narrow, full-height collider, not boxes around
+      // the lamp head, wires or foliage. Find the base footprint to retain an
+      // authored offset instead of assuming the model origin is centred.
+      const cutoff = VB.min[1] + height * 0.2;
+      const baseParts = solid.filter(i => i.bounds.min[1] <= cutoff);
+      const footprint = baseParts.length ? baseParts : solid;
+      const xMin = Math.min(...footprint.map(i => i.bounds.min[0]));
+      const xMax = Math.max(...footprint.map(i => i.bounds.max[0]));
+      const zMin = Math.min(...footprint.map(i => i.bounds.min[2]));
+      const zMax = Math.max(...footprint.map(i => i.bounds.max[2]));
+      const cx = (xMin + xMax) * 0.5, cz = (zMin + zMax) * 0.5;
+      const widthMetres = o.poleWidthExplicit ? o.poleWidth : (o.profile === 'trunk' ? 0.5 : 0.35);
+      const widthUnits = widthMetres / scale;
+      r = { boxes: [{
+        min: [cx - widthUnits * 0.5, VB.min[1], cz - widthUnits * 0.5],
+        max: [cx + widthUnits * 0.5, VB.max[1], cz + widthUnits * 0.5],
+      }], cell: [0, 0, 0], res: 0 };
+    } else {
+      r = buildBoxes(solid, B, o, scale, !!(o.scale || o.targetHeight), height);
+    }
     if (!r.boxes.length) die('No collision boxes were produced.');
     nameBoxes(r.boxes, VB);
     bin = addBoxes(json, bin, r.boxes);
     const cnt = {}; r.boxes.forEach(b => { const k = b.name.split('_')[1]; cnt[k] = (cnt[k] || 0) + 1; });
     const bigD = Math.max(...r.boxes.map(b => Math.max(b.max[0] - b.min[0], b.max[1] - b.min[1], b.max[2] - b.min[2]))) * scale;
-    Object.assign(report, { mode: o.mode, resolutionUsed: r.res, voxelSizeUnits: r.cell, voxelSizeMetres: r.cell * scale, excludedMeshes: excluded.map(i => ({ name: json.nodes[i.node].name, reason: i.why })), boxes: r.boxes.map(b => ({ name: b.name, min: b.min, max: b.max })) });
+    const cellMax = Math.max(...r.cell);
+    const cellByAxis = r.cell.map(c => +(c * scale).toFixed(5));
+    Object.assign(report, {
+      profile: o.profile, mode: o.profile === 'pole' || o.profile === 'trunk' ? o.profile : o.mode,
+      resolutionUsed: r.res, voxelSizeUnits: cellMax,
+      voxelSizeByAxisUnits: r.cell, voxelSizeMetres: cellMax * scale,
+      voxelSizeByAxisMetres: cellByAxis,
+      excludedMeshes: excluded.map(i => ({ name: json.nodes[i.node].name, reason: i.why })),
+      boxes: r.boxes.map(b => ({ name: b.name, min: b.min, max: b.max })),
+    });
     console.log(`Collision: ${r.boxes.length} proxies  ${JSON.stringify(cnt)}`);
     const u = (o.scale || o.targetHeight || height <= 40) ? 'm' : 'units';
-    console.log(`  mode=${o.mode}  grid=${r.res} cells  voxel=${(r.cell * scale).toFixed(3)} ${u}  largest proxy=${bigD.toFixed(2)} ${u}`);
+    const voxelLabel = r.res ? cellByAxis.map(v => v.toFixed(3)).join(' × ') : 'direct profile';
+    console.log(`  profile=${o.profile}  mode=${o.profile === 'pole' || o.profile === 'trunk' ? o.profile : o.mode}  grid=${r.res || '—'}  voxel=${voxelLabel} ${u}  largest proxy=${bigD.toFixed(2)} ${u}`);
     if (excluded.length) console.log(`  excluded from collision: ${excluded.length} mesh(es) (door_/decor/col_)`);
-    if (r.res < o.resolution) console.log(`  (resolution auto-reduced from ${o.resolution} to keep <= ${o.maxBoxes} proxies; raise --max-boxes for more detail)`);
+    if (r.res && r.res < o.resolution) console.log(`  (resolution auto-reduced from ${o.resolution} to keep <= ${o.maxBoxes} proxies; raise --max-boxes for more detail)`);
   }
   if (!o.scale && !o.targetHeight) console.log(height > 40 ? 'Note: model is not obviously in metres; proxies are limited to about 1/3 of the model size. Pass --target-height <m> (or --scale) for an exact --max-span.' : 'Note: assuming 1 unit = 1 metre.');
   console.log(`Model height: ${height.toFixed(3)} units${o.targetHeight || o.scale ? `  (= ${(height * scale).toFixed(2)} m)` : ''}`);
