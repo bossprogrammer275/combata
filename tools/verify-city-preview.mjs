@@ -200,6 +200,7 @@ try {
     ['fateBridgeSide', 'city-a-fate-bridge-side.png'],
     ['bridgeTop', 'city-a-bridge-top.png'],
     ['south', 'city-a-southern-blocks.png'],
+    ['graMarket', 'city-a-first-district.png'],
     ['roadKit', 'city-a-gra-road-kit.png'],
   ];
   for (const [view, filename] of shots) {
