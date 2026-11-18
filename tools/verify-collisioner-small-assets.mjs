@@ -129,7 +129,7 @@ try {
     { name: 'shaft', min: [0.37, 0.1, -0.03], max: [0.43, 7.8, 0.03] },
     { name: 'lamp_arm_and_head', min: [0.4, 7.6, -0.3], max: [1.3, 8, 0.3] },
   ]);
-  const pole = run(poleInput, poleOutput, poleReport, ['--profile', 'pole', '--target-height', '8', '--replace']);
+  const pole = run(poleInput, poleOutput, poleReport, ['--profile', 'pole', '--target-height', '8', '--pole-width', '0.35', '--replace']);
   assert.equal(pole.profile, 'pole');
   assert.equal(pole.boxes.length, 1, 'streetlight should use one upright proxy');
   const [proxy] = pole.boxes;
