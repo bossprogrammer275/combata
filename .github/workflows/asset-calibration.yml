@@ -17,6 +17,10 @@ on:
         required: false
         type: string
 
+concurrency:
+  group: internal-asset-calibration-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -31,6 +35,10 @@ jobs:
           node-version: 24
       - name: Install project dependencies
         run: npm install --no-audit --no-fund
+      - name: Syntax-check calibration tools
+        run: |
+          node --check tools/asset-calibration-preview.js
+          node --check tools/capture-asset-calibration.mjs
       - name: Install headless Chromium
         run: npx playwright install --with-deps chromium
       - name: Capture internal calibration views
