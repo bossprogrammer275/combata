@@ -1,16 +1,16 @@
 {
-  "generatedAt": "2026-11-18T23:44:42.307Z",
+  "generatedAt": "2026-11-18T23:55:26.932Z",
   "selected": 39,
   "files": [
     {
       "source": "data/models/assets/buildings/brooklyn_street_twin_buildings_low_poly/scene.gltf",
-      "backup": "data/models/_archive/originals/assets/buildings/brooklyn_street_twin_buildings_low_poly/scene.gltf",
-      "sha256": "184fc834a8bedf798970d8bd4c99f93303b67a2c5e0cba5d55cc38be8c6d5b54"
+      "backup": "data/models/_archive/originals/assets/buildings/brooklyn_street_twin_buildings_low_poly/scene.gltf.pre-collision-2b336d0aa538",
+      "sha256": "2b336d0aa53888caf033a19f343c8243671b0d73ffd804fad1097155854f3360"
     },
     {
       "source": "data/models/assets/buildings/brooklyn_street_twin_buildings_low_poly/scene.bin",
-      "backup": "data/models/_archive/originals/assets/buildings/brooklyn_street_twin_buildings_low_poly/scene.bin",
-      "sha256": "8c7867ef75c81718db77d8a371ccdec88ce238abd6f13cb9162e47051ee22a8e"
+      "backup": "data/models/_archive/originals/assets/buildings/brooklyn_street_twin_buildings_low_poly/scene.bin.pre-collision-d417b0e307ba",
+      "sha256": "d417b0e307bad064996d4faec9d7a26185b9ff3c8346bd1b35aa73ec8a30c427"
     },
     {
       "source": "data/models/assets/buildings/brooklyn_street_twin_buildings_low_poly/textures/Material.008_baseColor.png",
@@ -29,13 +29,13 @@
     },
     {
       "source": "data/models/assets/buildings/building/scene.gltf",
-      "backup": "data/models/_archive/originals/assets/buildings/building/scene.gltf",
-      "sha256": "83e279cdef55df7fb818d9ef0355397896c4c7450339516851aca75b2d3dbb0f"
+      "backup": "data/models/_archive/originals/assets/buildings/building/scene.gltf.pre-collision-4898e57a0cbd",
+      "sha256": "4898e57a0cbd5fa3d2ac2fd96d9a17273f47c6280d51f6b39335dbc2e403b1d6"
     },
     {
       "source": "data/models/assets/buildings/building/scene.bin",
-      "backup": "data/models/_archive/originals/assets/buildings/building/scene.bin",
-      "sha256": "178d78b70857c73ac42dbac906a60bc22397e8955afd8c7ee063341fdf2e95a6"
+      "backup": "data/models/_archive/originals/assets/buildings/building/scene.bin.pre-collision-ffe8cb9567a4",
+      "sha256": "ffe8cb9567a4042933765d478af78ccad4c1d0741b8916b73556299b688f158b"
     },
     {
       "source": "data/models/assets/buildings/building/textures/Material.006_baseColor.jpeg",
@@ -84,18 +84,18 @@
     },
     {
       "source": "data/models/assets/buildings/car_workshop.glb",
-      "backup": "data/models/_archive/originals/assets/buildings/car_workshop.glb",
-      "sha256": "e1a6a2a09bf823fcac93bc5a5147385af7865fc852b47052a929e99624cad16b"
+      "backup": "data/models/_archive/originals/assets/buildings/car_workshop.glb.pre-collision-eba7a24aeb9a",
+      "sha256": "eba7a24aeb9ae9ceb4a99847aecdb37087c15602d1e5f48889016818fb95192c"
     },
     {
       "source": "data/models/assets/buildings/gas_station_5/scene.gltf",
-      "backup": "data/models/_archive/originals/assets/buildings/gas_station_5/scene.gltf",
-      "sha256": "8fca746d0e733da6c75782022ed2d131fe78d73133c75a25e5d3c36be5340f51"
+      "backup": "data/models/_archive/originals/assets/buildings/gas_station_5/scene.gltf.pre-collision-9fd38e788606",
+      "sha256": "9fd38e7886062c4b5ce6c7bdcf570325a8df06509d0a66b3513ebbe4953fe10b"
     },
     {
       "source": "data/models/assets/buildings/gas_station_5/scene.bin",
-      "backup": "data/models/_archive/originals/assets/buildings/gas_station_5/scene.bin",
-      "sha256": "a8fd9d96fdfda76b77ac60faa74557d1a565b564462f87cfbc0012cfe6f0f976"
+      "backup": "data/models/_archive/originals/assets/buildings/gas_station_5/scene.bin.pre-collision-14bcf30396f7",
+      "sha256": "14bcf30396f754a59e1a39939ee95af7dd44b43198bee049498565c6caf424c1"
     },
     {
       "source": "data/models/assets/buildings/gas_station_5/license.txt",
@@ -104,13 +104,13 @@
     },
     {
       "source": "data/models/assets/buildings/low-poly_old_american_brick_building_with_shop_/scene.gltf",
-      "backup": "data/models/_archive/originals/assets/buildings/low-poly_old_american_brick_building_with_shop_/scene.gltf",
-      "sha256": "c61b036941ddadb6ca915b5afd765c97daa2d78b5f7c0cb291d0cded990579a4"
+      "backup": "data/models/_archive/originals/assets/buildings/low-poly_old_american_brick_building_with_shop_/scene.gltf.pre-collision-3d450646c022",
+      "sha256": "3d450646c022e0bedcdbca8910e963e73935cb94c0c47f787e5b9e752f71747e"
     },
     {
       "source": "data/models/assets/buildings/low-poly_old_american_brick_building_with_shop_/scene.bin",
-      "backup": "data/models/_archive/originals/assets/buildings/low-poly_old_american_brick_building_with_shop_/scene.bin",
-      "sha256": "4a232e66fbd6bf1b281c273dc12c3855abbf66489c2dce90bdfa31d37af5a7cb"
+      "backup": "data/models/_archive/originals/assets/buildings/low-poly_old_american_brick_building_with_shop_/scene.bin.pre-collision-02f90ed7fe15",
+      "sha256": "02f90ed7fe15232539b799c12adf307afd1c6d6d861eb699eabc9cab089c8d1d"
     },
     {
       "source": "data/models/assets/buildings/low-poly_old_american_brick_building_with_shop_/textures/MainBuilding_baseColor.jpeg",
@@ -134,18 +134,18 @@
     },
     {
       "source": "data/models/assets/buildings/low_poly_-_industrial_warehouse.glb",
-      "backup": "data/models/_archive/originals/assets/buildings/low_poly_-_industrial_warehouse.glb",
-      "sha256": "f85430b203ccb1acc021008a0a335eed3e5791cd0cb287b81419ae667ee9d7c5"
+      "backup": "data/models/_archive/originals/assets/buildings/low_poly_-_industrial_warehouse.glb.pre-collision-8e75a782f849",
+      "sha256": "8e75a782f84959c260d5ffc32028911fcc51d42b0941195d8cf73c9de841b82a"
     },
     {
       "source": "data/models/assets/buildings/low_poly__school_building/scene.gltf",
-      "backup": "data/models/_archive/originals/assets/buildings/low_poly__school_building/scene.gltf",
-      "sha256": "db8635900b04a19582c71375e00dea7c4815f2612616c4ac2a4626029e3f83fb"
+      "backup": "data/models/_archive/originals/assets/buildings/low_poly__school_building/scene.gltf.pre-collision-1448ff0d3fe3",
+      "sha256": "1448ff0d3fe366a17c5dcece4b654c73a11ef4e5f27df2d3c255ee9151370e43"
     },
     {
       "source": "data/models/assets/buildings/low_poly__school_building/scene.bin",
-      "backup": "data/models/_archive/originals/assets/buildings/low_poly__school_building/scene.bin",
-      "sha256": "d41b41d49d7579e736bcd4d434dd0456380c96d0865c4b628215748ee9bc79dc"
+      "backup": "data/models/_archive/originals/assets/buildings/low_poly__school_building/scene.bin.pre-collision-73c5bc041020",
+      "sha256": "73c5bc041020f548ae453845b8bd74778035b6e3e8e71627ecf5bb3d0ba66929"
     },
     {
       "source": "data/models/assets/buildings/low_poly__school_building/textures/phong1SG_baseColor.png",
@@ -164,18 +164,18 @@
     },
     {
       "source": "data/models/assets/buildings/meed_grocery_store.glb",
-      "backup": "data/models/_archive/originals/assets/buildings/meed_grocery_store.glb",
-      "sha256": "6e372cbf1dc77631f959484e5b27d1947f20e89013fae65d77ebf30cf7551763"
+      "backup": "data/models/_archive/originals/assets/buildings/meed_grocery_store.glb.pre-collision-841ef98636bf",
+      "sha256": "841ef98636bf69921286c476747797d23c61814da42466629202352c14404203"
     },
     {
       "source": "data/models/assets/residential/nigeria_duplex/scene.gltf",
-      "backup": "data/models/_archive/originals/assets/residential/nigeria_duplex/scene.gltf",
-      "sha256": "faf40a10c80b0fa30d30653ab013dee2e2bfc3dea6047ebe93ffc8f3f480f87a"
+      "backup": "data/models/_archive/originals/assets/residential/nigeria_duplex/scene.gltf.pre-collision-c7754dc060aa",
+      "sha256": "c7754dc060aa4465acfa4f0d04479096c171f4342ddaa52d08d859bdc8d65297"
     },
     {
       "source": "data/models/assets/residential/nigeria_duplex/scene.bin",
-      "backup": "data/models/_archive/originals/assets/residential/nigeria_duplex/scene.bin",
-      "sha256": "f220217ab5d246e1e7d33f2591bea38a9d39dbabd74c0f7518b874d6a5d75d48"
+      "backup": "data/models/_archive/originals/assets/residential/nigeria_duplex/scene.bin.pre-collision-f3010f9c399b",
+      "sha256": "f3010f9c399b5072b653b638bba68a81938ce540379ba1a7cf249c20cd2022de"
     },
     {
       "source": "data/models/assets/residential/nigeria_duplex/textures/tripo_mat_5bee1386-670d-45e0-96f4-d7ebcdbe7bb3_baseColor.jpeg",
@@ -199,13 +199,13 @@
     },
     {
       "source": "data/models/assets/residential/residential_family_house/scene.gltf",
-      "backup": "data/models/_archive/originals/assets/residential/residential_family_house/scene.gltf",
-      "sha256": "29a0fc427fb7ed1dbf13bc16742d3541ff8108c92c5dac6a52fdb47a4c2d8827"
+      "backup": "data/models/_archive/originals/assets/residential/residential_family_house/scene.gltf.pre-collision-243253ff95fa",
+      "sha256": "243253ff95fac373704ad7a129f09fa777e641677a297dd08607713751143f79"
     },
     {
       "source": "data/models/assets/residential/residential_family_house/scene.bin",
-      "backup": "data/models/_archive/originals/assets/residential/residential_family_house/scene.bin",
-      "sha256": "16a50c8aa627152ed7c767b6da07356080449699bb5206df422e6690289ad381"
+      "backup": "data/models/_archive/originals/assets/residential/residential_family_house/scene.bin.pre-collision-5f57194ca8d9",
+      "sha256": "5f57194ca8d96d01e2b12a26864ee1fcb5d9133f2396a35331896580d7e5e218"
     },
     {
       "source": "data/models/assets/residential/residential_family_house/textures/wood_3_normal.jpeg",
@@ -259,13 +259,13 @@
     },
     {
       "source": "data/models/assets/residential/residential_house_3/scene.gltf",
-      "backup": "data/models/_archive/originals/assets/residential/residential_house_3/scene.gltf",
-      "sha256": "f4c6aa22d6ef3816060363f126300c67644c1ae51e20d9cc19bde7c346d2673c"
+      "backup": "data/models/_archive/originals/assets/residential/residential_house_3/scene.gltf.pre-collision-21ef572fd56a",
+      "sha256": "21ef572fd56a553dd6b0c91f92ead6ac37728b57ca22e08667b8d92571d8d224"
     },
     {
       "source": "data/models/assets/residential/residential_house_3/scene.bin",
-      "backup": "data/models/_archive/originals/assets/residential/residential_house_3/scene.bin",
-      "sha256": "6a5d82e28421a11b573e41df1accd18d5f24ff25e54bd62a7c68462b5c2f7244"
+      "backup": "data/models/_archive/originals/assets/residential/residential_house_3/scene.bin.pre-collision-eb3819e0cc4a",
+      "sha256": "eb3819e0cc4a6c1fc5d2129d88849008aebf88ea76dee3e6aef630546885ce5e"
     },
     {
       "source": "data/models/assets/residential/residential_house_3/textures/Main_diffuse.png",
@@ -284,13 +284,13 @@
     },
     {
       "source": "data/models/assets/residential/american_style_house/scene.gltf",
-      "backup": "data/models/_archive/originals/assets/residential/american_style_house/scene.gltf",
-      "sha256": "3ca1e51a73377370b6771fb32c0ed2f3d25f2334dd5128c6a23297ec54676c40"
+      "backup": "data/models/_archive/originals/assets/residential/american_style_house/scene.gltf.pre-collision-cdb36d06c426",
+      "sha256": "cdb36d06c4265ce40b82306021a9ac69769a365b3edc87cd4d640780099df00c"
     },
     {
       "source": "data/models/assets/residential/american_style_house/scene.bin",
-      "backup": "data/models/_archive/originals/assets/residential/american_style_house/scene.bin",
-      "sha256": "29b7c8eaaeb8d0f8cbf4f3f8a81aa8b5c44b3a54a5ba69d7b7a24626e95b5508"
+      "backup": "data/models/_archive/originals/assets/residential/american_style_house/scene.bin.pre-collision-d7e843b7ceaa",
+      "sha256": "d7e843b7ceaafc60c3027ede6bebd1cada3ac9a025951eab54ac3ee45d7dec73"
     },
     {
       "source": "data/models/assets/residential/american_style_house/textures/Mat.12_baseColor.jpeg",
@@ -309,28 +309,28 @@
     },
     {
       "source": "data/models/assets/residential/Building+04_GLB/Building 04.glb",
-      "backup": "data/models/_archive/originals/assets/residential/Building+04_GLB/Building 04.glb",
-      "sha256": "f250292a8494a2b7d091df9692f5458e0b43c5f8e71f99eeeb00f9e03cd26c27"
+      "backup": "data/models/_archive/originals/assets/residential/Building+04_GLB/Building 04.glb.pre-collision-4a475da6575d",
+      "sha256": "4a475da6575de073335e818a973fd23407917b8683c0e28900490238016896f6"
     },
     {
       "source": "data/models/assets/low_poly_skyscraper.glb",
-      "backup": "data/models/_archive/originals/assets/low_poly_skyscraper.glb",
-      "sha256": "0db895b493280ad7b354eddc8369e936f09866fbabf4494ef448216da2888f44"
+      "backup": "data/models/_archive/originals/assets/low_poly_skyscraper.glb.pre-collision-94031cc46bf9",
+      "sha256": "94031cc46bf910f45a8b38260d9cb3f15d7b8c658c1545bb40ef634daf4ae773"
     },
     {
       "source": "data/models/assets/low_poly_street_light.glb",
-      "backup": "data/models/_archive/originals/assets/low_poly_street_light.glb",
-      "sha256": "4e7d89cc5deefd446eb4bbf98946d6c8328c3c4c251e10b93a3c9e7065830820"
+      "backup": "data/models/_archive/originals/assets/low_poly_street_light.glb.pre-collision-b51d05a40f9b",
+      "sha256": "b51d05a40f9ba4d978eef6ca53f5d953ed64e62ff93609c321116829459a901d"
     },
     {
       "source": "data/models/assets/others/-dry_type_distribution_transformer/scene.gltf",
-      "backup": "data/models/_archive/originals/assets/others/-dry_type_distribution_transformer/scene.gltf",
-      "sha256": "3361c6d0613679758c471e36caa26ed02ec1e78a27b421ac8e4d1e54a1c4f4e6"
+      "backup": "data/models/_archive/originals/assets/others/-dry_type_distribution_transformer/scene.gltf.pre-collision-31b016e7fac2",
+      "sha256": "31b016e7fac2130fae0f155f25d83ad4fc7a1fbb0f9fc8276266069d31391289"
     },
     {
       "source": "data/models/assets/others/-dry_type_distribution_transformer/scene.bin",
-      "backup": "data/models/_archive/originals/assets/others/-dry_type_distribution_transformer/scene.bin",
-      "sha256": "b3f9361b72d8ad9b2190c0bd7945ee06013227b5d8ee9526b5cefd87ef0ae4ef"
+      "backup": "data/models/_archive/originals/assets/others/-dry_type_distribution_transformer/scene.bin.pre-collision-1c38f795e89e",
+      "sha256": "1c38f795e89ea9ba29f5263da93a4b4d7153bb131d7e2e6fec1a83ab4c9d41fa"
     },
     {
       "source": "data/models/assets/others/-dry_type_distribution_transformer/license.txt",
@@ -339,18 +339,18 @@
     },
     {
       "source": "data/models/assets/others/fence_-_11mb.glb",
-      "backup": "data/models/_archive/originals/assets/others/fence_-_11mb.glb",
-      "sha256": "b85255823688ea2ac9fa7b93203a20a438e56dec4d30555c3efb9972c2c0b8cd"
+      "backup": "data/models/_archive/originals/assets/others/fence_-_11mb.glb.pre-collision-ac7aa29e0714",
+      "sha256": "ac7aa29e07142bf896274e0d636da13e2cef26c705c626c7946d4148ee692e78"
     },
     {
       "source": "data/models/assets/others/freeway_streetlight_1/scene.gltf",
-      "backup": "data/models/_archive/originals/assets/others/freeway_streetlight_1/scene.gltf",
-      "sha256": "4450cc3c18f6dd3772ae8ae1ae9856fcd5ab842cfa904a977418e6e8785b8cec"
+      "backup": "data/models/_archive/originals/assets/others/freeway_streetlight_1/scene.gltf.pre-collision-d633d9f973cf",
+      "sha256": "d633d9f973cf80dadfc402ccb551a7c996c2ec86e005654f451c3b38b6df30b1"
     },
     {
       "source": "data/models/assets/others/freeway_streetlight_1/scene.bin",
-      "backup": "data/models/_archive/originals/assets/others/freeway_streetlight_1/scene.bin",
-      "sha256": "f5f33580b4a8a5352f52b97a482f22a64704e4558b03998f0a30cbc411287c2d"
+      "backup": "data/models/_archive/originals/assets/others/freeway_streetlight_1/scene.bin.pre-collision-b75e47c68e07",
+      "sha256": "b75e47c68e075d71511596896dc86d16eed040b96cf2bde7cd1e694cddea6113"
     },
     {
       "source": "data/models/assets/others/freeway_streetlight_1/textures/Aluminum_1_baseColor.jpeg",
@@ -389,18 +389,18 @@
     },
     {
       "source": "data/models/assets/others/game-ready_modular_metal_guardrail.glb",
-      "backup": "data/models/_archive/originals/assets/others/game-ready_modular_metal_guardrail.glb",
-      "sha256": "e61df195ff19cf91a493c32b17edeb4a0f3143b629b202bd8a01a568f6334ca8"
+      "backup": "data/models/_archive/originals/assets/others/game-ready_modular_metal_guardrail.glb.pre-collision-ad95d744fd83",
+      "sha256": "ad95d744fd83ca4fe85ae9dfbf1f5c7e6be2d911a8862d1093116aff9ace1c40"
     },
     {
       "source": "data/models/assets/others/low_poly_electricity_pole/scene.gltf",
-      "backup": "data/models/_archive/originals/assets/others/low_poly_electricity_pole/scene.gltf",
-      "sha256": "090be8b0b148b904ab2445f72efdcbe1a316baeec7acf775e032d303448b154c"
+      "backup": "data/models/_archive/originals/assets/others/low_poly_electricity_pole/scene.gltf.pre-collision-8ebfad70c798",
+      "sha256": "8ebfad70c7981b41f6a97b189010db370fd2b7a9bd2f6c515593c8f869e18b03"
     },
     {
       "source": "data/models/assets/others/low_poly_electricity_pole/scene.bin",
-      "backup": "data/models/_archive/originals/assets/others/low_poly_electricity_pole/scene.bin",
-      "sha256": "7c409f404e31f202b5cf1af0f718703275d965491615f1658defb9f912376859"
+      "backup": "data/models/_archive/originals/assets/others/low_poly_electricity_pole/scene.bin.pre-collision-c1c69a36eb4d",
+      "sha256": "c1c69a36eb4d34512d8721e2e88ad3345418f599754782a3162d2295f0ea6122"
     },
     {
       "source": "data/models/assets/others/low_poly_electricity_pole/textures/material_0_baseColor.png",
@@ -419,13 +419,13 @@
     },
     {
       "source": "data/models/assets/others/metal_billboard_advertising_single_sided_free/scene.gltf",
-      "backup": "data/models/_archive/originals/assets/others/metal_billboard_advertising_single_sided_free/scene.gltf",
-      "sha256": "023caede603d6a353d68810c0f33516bac65386c235638888eab9297166ff80e"
+      "backup": "data/models/_archive/originals/assets/others/metal_billboard_advertising_single_sided_free/scene.gltf.pre-collision-8559bc3dc081",
+      "sha256": "8559bc3dc081751b340b9d4917c68df2d193790ad2f296362f79484c226dfb4e"
     },
     {
       "source": "data/models/assets/others/metal_billboard_advertising_single_sided_free/scene.bin",
-      "backup": "data/models/_archive/originals/assets/others/metal_billboard_advertising_single_sided_free/scene.bin",
-      "sha256": "0e955b85c8cb6c3ac5e400708aa888507619ae039965a244e47d152e49a705a4"
+      "backup": "data/models/_archive/originals/assets/others/metal_billboard_advertising_single_sided_free/scene.bin.pre-collision-77767e6afc5e",
+      "sha256": "77767e6afc5e0f3970b366de1831b9af075ae6bd3ef7a4e4d8d41fa5cf095aed"
     },
     {
       "source": "data/models/assets/others/metal_billboard_advertising_single_sided_free/textures/billboard_large_01_baseColor.png",
@@ -454,23 +454,23 @@
     },
     {
       "source": "data/models/assets/others/power_transformer_building__electricity.glb",
-      "backup": "data/models/_archive/originals/assets/others/power_transformer_building__electricity.glb",
-      "sha256": "a885d08912ab7f345793f67dbf7ae843164dc7c91111af9337592f76aeaa89ad"
+      "backup": "data/models/_archive/originals/assets/others/power_transformer_building__electricity.glb.pre-collision-c04704f3a789",
+      "sha256": "c04704f3a789fc3b201adb6b2a763633c582cfa8dee66f09db052b7d86a8a025"
     },
     {
       "source": "data/models/assets/others/standard_bus_stop.glb",
-      "backup": "data/models/_archive/originals/assets/others/standard_bus_stop.glb",
-      "sha256": "0bcf90ac83f9ba6146f72066c5134e9b22d5ba057eb59017d7dd94fbcfd3f356"
+      "backup": "data/models/_archive/originals/assets/others/standard_bus_stop.glb.pre-collision-cf9193dded1a",
+      "sha256": "cf9193dded1a3221e6cb31a21b058ccb5caf77913cf8618fa6f4654bb5498b58"
     },
     {
       "source": "data/models/assets/others/traffic_lights/scene.gltf",
-      "backup": "data/models/_archive/originals/assets/others/traffic_lights/scene.gltf",
-      "sha256": "fd751e8c6e7eea66d12bddc378e376f04d0fc4cd9e822503ae2070ff7c1bcf22"
+      "backup": "data/models/_archive/originals/assets/others/traffic_lights/scene.gltf.pre-collision-6548c77a73c7",
+      "sha256": "6548c77a73c7f7f4d1dd5b9e997e6534fc21442caef0fece648930831d6f223a"
     },
     {
       "source": "data/models/assets/others/traffic_lights/scene.bin",
-      "backup": "data/models/_archive/originals/assets/others/traffic_lights/scene.bin",
-      "sha256": "8307d63b7d2a341dead0440870c553e74ee041844a3f2268e89764e7ed33dc06"
+      "backup": "data/models/_archive/originals/assets/others/traffic_lights/scene.bin.pre-collision-edb9e136b14b",
+      "sha256": "edb9e136b14bbf2600c9195c1fea26675e3b9d36fa4c4a9087cc3f1b51a69981"
     },
     {
       "source": "data/models/assets/others/traffic_lights/textures/trafficlights_lights_right_all_blinn_baseColor.png",
@@ -494,18 +494,18 @@
     },
     {
       "source": "data/models/assets/others/low_poly_street_food_cart.glb",
-      "backup": "data/models/_archive/originals/assets/others/low_poly_street_food_cart.glb",
-      "sha256": "f4aae6491458972d55082881eb88cca197a37d81805892c014f6fc8390dc41d8"
+      "backup": "data/models/_archive/originals/assets/others/low_poly_street_food_cart.glb.pre-collision-1c0c889ca376",
+      "sha256": "1c0c889ca376cf36d577130550a5340b9a225f6e3dc5065a670bdb5486d8d86d"
     },
     {
       "source": "data/models/assets/others/old_soviet_railway_station_kiosk/scene.gltf",
-      "backup": "data/models/_archive/originals/assets/others/old_soviet_railway_station_kiosk/scene.gltf",
-      "sha256": "d49bcac7875b143888a8a6da70843e14cdabc3661b1b1f6b75ff9375a0d50455"
+      "backup": "data/models/_archive/originals/assets/others/old_soviet_railway_station_kiosk/scene.gltf.pre-collision-09e972901710",
+      "sha256": "09e972901710d6fed51047e4592f0fa14596b05626f9a44c30a8e1b9f5f195fa"
     },
     {
       "source": "data/models/assets/others/old_soviet_railway_station_kiosk/scene.bin",
-      "backup": "data/models/_archive/originals/assets/others/old_soviet_railway_station_kiosk/scene.bin",
-      "sha256": "c3854db1e2f9f15ccd017c27242b3d899c7ed89c35aed1ec96294815d8c919cb"
+      "backup": "data/models/_archive/originals/assets/others/old_soviet_railway_station_kiosk/scene.bin.pre-collision-fea153246e15",
+      "sha256": "fea153246e1533d51337e2aaa3459afbefabd900228a086d67aee2d380e833c4"
     },
     {
       "source": "data/models/assets/others/old_soviet_railway_station_kiosk/textures/palatka_baseColor.png",
@@ -519,68 +519,68 @@
     },
     {
       "source": "data/models/assets/others/low_poly_plastic_crates.glb",
-      "backup": "data/models/_archive/originals/assets/others/low_poly_plastic_crates.glb",
-      "sha256": "ca094d3f95607fbd3d5178e3b0c5daca937f890fd40512ceef8c86accddb5a47"
+      "backup": "data/models/_archive/originals/assets/others/low_poly_plastic_crates.glb.pre-collision-ca6ab2c56b1f",
+      "sha256": "ca6ab2c56b1f6829ac8871709388eab6c9ed7ddb4ae3dc3f1e3696ac61cbf4cd"
     },
     {
       "source": "data/models/assets/others/plastic_chair.glb",
-      "backup": "data/models/_archive/originals/assets/others/plastic_chair.glb",
-      "sha256": "00fc377f3a8fd74e37854ccf0b7049f52f3be10bb5f4825dd21b00fdc7f7e7fe"
+      "backup": "data/models/_archive/originals/assets/others/plastic_chair.glb.pre-collision-f3ca22baa3d1",
+      "sha256": "f3ca22baa3d1ecbe13d295d2eb1cc606601fde2dc737266c37db469985f9cfdc"
     },
     {
       "source": "data/models/assets/others/plastic_container.glb",
-      "backup": "data/models/_archive/originals/assets/others/plastic_container.glb",
-      "sha256": "3135a010eda0ef51b3179a0d954cfbae434111fb9a25ab0a966225e34e9952d6"
+      "backup": "data/models/_archive/originals/assets/others/plastic_container.glb.pre-collision-10f69e67b413",
+      "sha256": "10f69e67b413cd44cc22ec09ddb6a30de472f8abac8771f9602590d8d8e3ecce"
     },
     {
       "source": "data/models/assets/others/plastic_table.glb",
-      "backup": "data/models/_archive/originals/assets/others/plastic_table.glb",
-      "sha256": "6e9f6e4af72c98ce0e719e6f5ce39743d83d808fc7812c5e32580692343dd3d5"
+      "backup": "data/models/_archive/originals/assets/others/plastic_table.glb.pre-collision-a56f5f8979af",
+      "sha256": "a56f5f8979afe8d56e1ea2810d717f813012bd2e0723598d8cb54c55e6902894"
     },
     {
       "source": "data/models/assets/others/psx_-_vending_machine.glb",
-      "backup": "data/models/_archive/originals/assets/others/psx_-_vending_machine.glb",
-      "sha256": "26fa30b0e98753711355741aac91aca4d07403561ddb14c1ddd085fab7c85a4a"
+      "backup": "data/models/_archive/originals/assets/others/psx_-_vending_machine.glb.pre-collision-e71d9a152f4f",
+      "sha256": "e71d9a152f4f82a960732a4eb41c9a173fdb274313744a2682c6778099412bb9"
     },
     {
       "source": "data/models/assets/others/vietnamese_meat_market_stall.glb",
-      "backup": "data/models/_archive/originals/assets/others/vietnamese_meat_market_stall.glb",
-      "sha256": "b5339570aadc5048350d72e9417a492577578775c89107ee58a32f342124dfa3"
+      "backup": "data/models/_archive/originals/assets/others/vietnamese_meat_market_stall.glb.pre-collision-6f632d5b3aa2",
+      "sha256": "6f632d5b3aa2548ae06c5c406a748e9b4cc735be0463085ceec22cdfbee56d48"
     },
     {
       "source": "data/models/assets/others/water_tank.glb",
-      "backup": "data/models/_archive/originals/assets/others/water_tank.glb",
-      "sha256": "4b2f781149fc4485c9d71195cf95c9ad7c21fde03eef3264ddca6fc3b5d4dc6a"
+      "backup": "data/models/_archive/originals/assets/others/water_tank.glb.pre-collision-f2c9580b06ce",
+      "sha256": "f2c9580b06ce744958138d2a25d5330ca195e7d09368b999a74ad415b844e6d7"
     },
     {
       "source": "data/models/assets/others/water_dispenser.glb",
-      "backup": "data/models/_archive/originals/assets/others/water_dispenser.glb",
-      "sha256": "ac809397d67fed0b343bdeb3f06d988ed9ecef5662977ba765ffdfefdcc93d30"
+      "backup": "data/models/_archive/originals/assets/others/water_dispenser.glb.pre-collision-b76933a89751",
+      "sha256": "b76933a8975189105837e4edf6bf6124414f397c22b29e471eaf1a828071fd8c"
     },
     {
       "source": "data/models/assets/others/wheelbarrow.glb",
-      "backup": "data/models/_archive/originals/assets/others/wheelbarrow.glb",
-      "sha256": "15532febf51a3a0848452ea79efe29d08bd92f14aec8c36fff9c50ee6c93a497"
+      "backup": "data/models/_archive/originals/assets/others/wheelbarrow.glb.pre-collision-bda664ddb230",
+      "sha256": "bda664ddb23065c87a6d916ca7aeefbb55d6bfe01f1ef8cbd1a587a226e08f0f"
     },
     {
       "source": "data/models/assets/others/wooden_bench.glb",
-      "backup": "data/models/_archive/originals/assets/others/wooden_bench.glb",
-      "sha256": "d2539afe215282b3a134ad91bbdc1c9d41784029981de9405d9f02e9429ae989"
+      "backup": "data/models/_archive/originals/assets/others/wooden_bench.glb.pre-collision-1b7285bb3abc",
+      "sha256": "1b7285bb3abc5e431ddee7f206c2c88187c1e3109195007153fb20581b487cf5"
     },
     {
       "source": "data/models/assets/coconut_tree_low_poly.glb",
-      "backup": "data/models/_archive/originals/assets/coconut_tree_low_poly.glb",
-      "sha256": "348ed52f1320941ba80c49e8b2bf4c7fb7612ca6adb19c578c64db3a8a414198"
+      "backup": "data/models/_archive/originals/assets/coconut_tree_low_poly.glb.pre-collision-8685b2b050b1",
+      "sha256": "8685b2b050b1ad579a724000a64e830a36ff9b7633769796334e81d18cc115a8"
     },
     {
       "source": "data/models/assets/others/low_poly_tree.glb",
-      "backup": "data/models/_archive/originals/assets/others/low_poly_tree.glb",
-      "sha256": "76d58affb26b4c39384be7bcd499e1df642bb03c0ec1347855f64c3bbc0c352e"
+      "backup": "data/models/_archive/originals/assets/others/low_poly_tree.glb.pre-collision-35a010bc1af0",
+      "sha256": "35a010bc1af066746f4c485c0176dc296b0b3cc799759d6012552865500be808"
     },
     {
       "source": "data/models/assets/tree_low-poly.glb",
-      "backup": "data/models/_archive/originals/assets/tree_low-poly.glb",
-      "sha256": "7b5c72e0cd2043a65efdb890f0f704c46d9314bbc1051083fda4f904498c37a7"
+      "backup": "data/models/_archive/originals/assets/tree_low-poly.glb.pre-collision-06fb43a1c0bb",
+      "sha256": "06fb43a1c0bbcc466d83f7db09c0cb73aecf531be3f793f0b5291bf686b78523"
     }
   ]
 }

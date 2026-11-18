@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-11-18T23:44:53.362Z",
+  "generatedAt": "2026-11-18T23:55:32.741Z",
   "selected": 39,
   "results": [
     {
       "path": "data/models/assets/buildings/brooklyn_street_twin_buildings_low_poly/scene.gltf",
       "profile": "building",
-      "proxies": 434,
+      "proxies": 259,
       "modelSize": [
         12.8728,
         14.7672,
@@ -16,7 +16,7 @@
     {
       "path": "data/models/assets/buildings/building/scene.gltf",
       "profile": "building",
-      "proxies": 1024,
+      "proxies": 196,
       "modelSize": [
         3.0889,
         1.2609,
@@ -27,7 +27,7 @@
     {
       "path": "data/models/assets/buildings/car_workshop.glb",
       "profile": "building",
-      "proxies": 512,
+      "proxies": 149,
       "modelSize": [
         2100.0011,
         797.5546,
@@ -38,7 +38,7 @@
     {
       "path": "data/models/assets/buildings/gas_station_5/scene.gltf",
       "profile": "building",
-      "proxies": 469,
+      "proxies": 133,
       "modelSize": [
         174.2121,
         15.6842,
@@ -49,7 +49,7 @@
     {
       "path": "data/models/assets/buildings/low-poly_old_american_brick_building_with_shop_/scene.gltf",
       "profile": "building",
-      "proxies": 464,
+      "proxies": 89,
       "modelSize": [
         24.2278,
         9.6091,
@@ -60,7 +60,7 @@
     {
       "path": "data/models/assets/buildings/low_poly_-_industrial_warehouse.glb",
       "profile": "building",
-      "proxies": 456,
+      "proxies": 128,
       "modelSize": [
         0.2653,
         0.0852,
@@ -71,7 +71,7 @@
     {
       "path": "data/models/assets/buildings/low_poly__school_building/scene.gltf",
       "profile": "building",
-      "proxies": 473,
+      "proxies": 182,
       "modelSize": [
         2287.643,
         1057.2808,
@@ -82,7 +82,7 @@
     {
       "path": "data/models/assets/buildings/meed_grocery_store.glb",
       "profile": "building",
-      "proxies": 1302,
+      "proxies": 146,
       "modelSize": [
         9.0162,
         12.1442,
@@ -93,7 +93,7 @@
     {
       "path": "data/models/assets/residential/nigeria_duplex/scene.gltf",
       "profile": "building",
-      "proxies": 728,
+      "proxies": 257,
       "modelSize": [
         0.9823,
         0.8655,
@@ -104,7 +104,7 @@
     {
       "path": "data/models/assets/residential/residential_family_house/scene.gltf",
       "profile": "building",
-      "proxies": 518,
+      "proxies": 247,
       "modelSize": [
         1.3259,
         0.753,
@@ -115,7 +115,7 @@
     {
       "path": "data/models/assets/residential/residential_house_3/scene.gltf",
       "profile": "building",
-      "proxies": 422,
+      "proxies": 203,
       "modelSize": [
         12.6014,
         4.0069,
@@ -126,7 +126,7 @@
     {
       "path": "data/models/assets/residential/american_style_house/scene.gltf",
       "profile": "building",
-      "proxies": 838,
+      "proxies": 257,
       "modelSize": [
         368.8779,
         290.1115,
@@ -137,7 +137,7 @@
     {
       "path": "data/models/assets/residential/Building+04_GLB/Building 04.glb",
       "profile": "building",
-      "proxies": 661,
+      "proxies": 224,
       "modelSize": [
         23.4,
         9.9286,
@@ -148,7 +148,7 @@
     {
       "path": "data/models/assets/low_poly_skyscraper.glb",
       "profile": "building",
-      "proxies": 1114,
+      "proxies": 60,
       "modelSize": [
         176.8125,
         335.375,
@@ -170,7 +170,7 @@
     {
       "path": "data/models/assets/others/-dry_type_distribution_transformer/scene.gltf",
       "profile": "small-prop",
-      "proxies": 608,
+      "proxies": 116,
       "modelSize": [
         1.8887,
         1.3,
@@ -181,7 +181,7 @@
     {
       "path": "data/models/assets/others/fence_-_11mb.glb",
       "profile": "fence",
-      "proxies": 435,
+      "proxies": 58,
       "modelSize": [
         19.1862,
         3.5,
@@ -203,7 +203,7 @@
     {
       "path": "data/models/assets/others/game-ready_modular_metal_guardrail.glb",
       "profile": "fence",
-      "proxies": 439,
+      "proxies": 143,
       "modelSize": [
         1.17,
         0.2903,
@@ -225,7 +225,7 @@
     {
       "path": "data/models/assets/others/metal_billboard_advertising_single_sided_free/scene.gltf",
       "profile": "fence",
-      "proxies": 548,
+      "proxies": 102,
       "modelSize": [
         3.6813,
         12.231,
@@ -236,7 +236,7 @@
     {
       "path": "data/models/assets/others/power_transformer_building__electricity.glb",
       "profile": "building",
-      "proxies": 768,
+      "proxies": 217,
       "modelSize": [
         254.2856,
         197.1945,
@@ -247,7 +247,7 @@
     {
       "path": "data/models/assets/others/standard_bus_stop.glb",
       "profile": "small-prop",
-      "proxies": 353,
+      "proxies": 146,
       "modelSize": [
         4.844,
         2.9882,
@@ -258,7 +258,7 @@
     {
       "path": "data/models/assets/others/traffic_lights/scene.gltf",
       "profile": "small-prop",
-      "proxies": 420,
+      "proxies": 153,
       "modelSize": [
         6.1016,
         15.6526,
@@ -269,7 +269,7 @@
     {
       "path": "data/models/assets/others/low_poly_street_food_cart.glb",
       "profile": "small-prop",
-      "proxies": 477,
+      "proxies": 165,
       "modelSize": [
         1140.9245,
         1035.4935,
@@ -280,7 +280,7 @@
     {
       "path": "data/models/assets/others/old_soviet_railway_station_kiosk/scene.gltf",
       "profile": "small-prop",
-      "proxies": 421,
+      "proxies": 167,
       "modelSize": [
         1.9149,
         2.6655,
@@ -291,7 +291,7 @@
     {
       "path": "data/models/assets/others/low_poly_plastic_crates.glb",
       "profile": "small-prop",
-      "proxies": 611,
+      "proxies": 159,
       "modelSize": [
         111.391,
         102.1124,
@@ -302,7 +302,7 @@
     {
       "path": "data/models/assets/others/plastic_chair.glb",
       "profile": "small-prop",
-      "proxies": 470,
+      "proxies": 117,
       "modelSize": [
         3.176,
         0.8798,
@@ -313,7 +313,7 @@
     {
       "path": "data/models/assets/others/plastic_container.glb",
       "profile": "small-prop",
-      "proxies": 1022,
+      "proxies": 139,
       "modelSize": [
         0.8951,
         0.4297,
@@ -324,7 +324,7 @@
     {
       "path": "data/models/assets/others/plastic_table.glb",
       "profile": "small-prop",
-      "proxies": 604,
+      "proxies": 132,
       "modelSize": [
         2,
         1.8,
@@ -335,7 +335,7 @@
     {
       "path": "data/models/assets/others/psx_-_vending_machine.glb",
       "profile": "small-prop",
-      "proxies": 1510,
+      "proxies": 175,
       "modelSize": [
         0.0724,
         0.1379,
@@ -346,7 +346,7 @@
     {
       "path": "data/models/assets/others/vietnamese_meat_market_stall.glb",
       "profile": "small-prop",
-      "proxies": 444,
+      "proxies": 148,
       "modelSize": [
         13.0619,
         4.6361,
@@ -357,7 +357,7 @@
     {
       "path": "data/models/assets/others/water_tank.glb",
       "profile": "small-prop",
-      "proxies": 614,
+      "proxies": 132,
       "modelSize": [
         211.607,
         411.5112,
@@ -368,7 +368,7 @@
     {
       "path": "data/models/assets/others/water_dispenser.glb",
       "profile": "small-prop",
-      "proxies": 1084,
+      "proxies": 178,
       "modelSize": [
         1.6348,
         6.0077,
@@ -379,7 +379,7 @@
     {
       "path": "data/models/assets/others/wheelbarrow.glb",
       "profile": "small-prop",
-      "proxies": 447,
+      "proxies": 178,
       "modelSize": [
         0.5573,
         0.5466,
@@ -390,7 +390,7 @@
     {
       "path": "data/models/assets/others/wooden_bench.glb",
       "profile": "small-prop",
-      "proxies": 397,
+      "proxies": 171,
       "modelSize": [
         298.908,
         190.1764,
