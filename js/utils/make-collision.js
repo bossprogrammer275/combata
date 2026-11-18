@@ -55,8 +55,11 @@ Usage: node make-collision.js <input.glb|input.gltf> [options]
   -h, --help
 `;
 function parseArgs(argv) {
-  const o = { mode: 'solid', modeExplicit: false, profile: 'auto', resolution: 64, minAxisResolution: 16,
-    maxBoxes: 300, maxSpan: 5, poleWidth: 0.35, poleWidthExplicit: false, scale: null, targetHeight: null,
+  const o = { mode: 'solid', modeExplicit: false, profile: 'auto',
+    resolution: 64, resolutionExplicit: false,
+    minAxisResolution: 16, minAxisResolutionExplicit: false,
+    maxBoxes: 300, maxBoxesExplicit: false,
+    maxSpan: 5, poleWidth: 0.35, poleWidthExplicit: false, scale: null, targetHeight: null,
     rename: false, sealDoors: false, keepDecor: false, replace: false, noProxies: false,
     format: null, out: null, report: null, input: null };
   for (let i = 0; i < argv.length; i++) {
@@ -68,9 +71,9 @@ function parseArgs(argv) {
       case '--gltf': o.format = 'gltf'; break;
       case '--mode': o.mode = next(); o.modeExplicit = true; if (!['solid', 'shell'].includes(o.mode)) die('--mode must be solid or shell'); break;
       case '--profile': o.profile = next(); if (!['auto', 'building', 'small-prop', 'fence', 'pole', 'trunk'].includes(o.profile)) die('--profile must be auto, small-prop, fence, pole or trunk'); break;
-      case '--resolution': o.resolution = parseInt(next(), 10); break;
-      case '--min-axis-resolution': o.minAxisResolution = parseInt(next(), 10); break;
-      case '--max-boxes': o.maxBoxes = parseInt(next(), 10); break;
+      case '--resolution': o.resolution = parseInt(next(), 10); o.resolutionExplicit = true; break;
+      case '--min-axis-resolution': o.minAxisResolution = parseInt(next(), 10); o.minAxisResolutionExplicit = true; break;
+      case '--max-boxes': o.maxBoxes = parseInt(next(), 10); o.maxBoxesExplicit = true; break;
       case '--max-span': o.maxSpan = parseFloat(next()); break;
       case '--pole-width': o.poleWidth = parseFloat(next()); o.poleWidthExplicit = true; break;
       case '--scale': o.scale = parseFloat(next()); break;
@@ -87,10 +90,19 @@ function parseArgs(argv) {
     }
   }
   if (o.profile === 'fence' && !o.modeExplicit) o.mode = 'shell';
-  if (o.profile === 'building' || o.profile === 'small-prop' || o.profile === 'fence') {
-    o.resolution = Math.max(o.resolution, 96);
-    o.minAxisResolution = Math.max(o.minAxisResolution, 24);
-    o.maxBoxes = Math.max(o.maxBoxes, 600);
+  // Higher resolution is useful for thin geometry, but thousands of tiny
+  // proxies are not. Give each profile a deliberate budget and preserve any
+  // caller-supplied override.
+  const profileDefaults = {
+    building: { resolution: 80, minAxisResolution: 18, maxBoxes: 260 },
+    'small-prop': { resolution: 80, minAxisResolution: 18, maxBoxes: 180 },
+    fence: { resolution: 88, minAxisResolution: 20, maxBoxes: 150 },
+  };
+  const preset = profileDefaults[o.profile];
+  if (preset) {
+    if (!o.resolutionExplicit) o.resolution = preset.resolution;
+    if (!o.minAxisResolutionExplicit) o.minAxisResolution = preset.minAxisResolution;
+    if (!o.maxBoxesExplicit) o.maxBoxes = preset.maxBoxes;
   }
   if (!Number.isInteger(o.resolution) || o.resolution < 8 || o.resolution > 512) die('--resolution must be an integer from 8 to 512');
   if (!Number.isInteger(o.minAxisResolution) || o.minAxisResolution < 2 || o.minAxisResolution > 256) die('--min-axis-resolution must be an integer from 2 to 256');
@@ -366,9 +378,14 @@ function buildBoxes(solidInst, B, o, scale, scaleKnown, height) {
     // When source units are unverified, merge only within one voxel. Treating
     // a short or long raw model as metres silently creates giant or microscopic
     // max-span boxes. With a verified scale, enforce the requested metre cap.
+    // With unknown source units, keep each proxy bounded relative to the
+    // model instead of assuming the raw units are metres. Allowing one voxel
+    // per proxy created hundreds or thousands of tiny physics meshes. At
+    // most ~20% of each model axis is merged into one box; coarsening still
+    // stops once the profile's proxy budget is met.
     const maxCells = scaleKnown
       ? g.cell.map(c => Math.max(1, Math.floor((o.maxSpan / scale) / c)))
-      : [1, 1, 1];
+      : g.cell.map(() => Math.max(2, Math.round(res / 5)));
     const raw = greedy(s, g, maxCells);
     last = { g, raw, res };
     if (raw.length <= o.maxBoxes || res <= 10) break;
