@@ -202,7 +202,7 @@ try {
     'every non-bridge authored street must render or be intentionally absorbed into a same-level junction');
   assert.equal(report.roadPackRoadCount, 18,
     '18 standalone road chains should render; the short access connector is consumed by its junction');
-  assert.deepEqual(report.roadPackRoadSkippedNames, ['Revenue House Access'],
+  assert.deepEqual(report.roadPackRoadSkippedNames, ['Innovation Hub Access'],
     'only the short Revenue House access connector may be fully absorbed into a nearby junction');
   assert.ok(report.roadModuleCount > 100,
     'Road Pack surfaces must be tiled along the city roads rather than stretched over an entire street');
