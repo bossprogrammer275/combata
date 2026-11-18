@@ -2,7 +2,7 @@
 // The source GLTF contains ten independent mesh nodes: five concrete structures
 // and five road/deck surfaces. They share section anchors, but are never merged
 // into composite meshes or forced to share one vertical transform.
-import * as THREE from './lib/three.module.js';
+import * as THREE from 'three';
 
 export const WORLD_BRIDGE_KIT_URL = './data/models/assets/others/modular_bridge__low_poly__game_ready_/scene.gltf';
 
