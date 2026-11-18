@@ -1,7 +1,7 @@
 {
   "id": "city-a",
   "name": "Ilorin City — Civic Core, GRA & Market District",
-  "version": 8,
+  "version": 9,
   "bounds": 228,
   "disableAutoSpawns": true,
   "startPoint": {
@@ -1807,13 +1807,14 @@
       "url": "./data/models/assets/others/wooden_bench.glb",
       "x": 57,
       "z": 88,
-      "targetH": 1.8,
+      "targetH": 0.95,
       "centerXZ": true,
       "ry": 1.5707963267948966,
       "tags": [
         "street-furniture",
         "public-space",
-        "market-district"
+        "market-district",
+        "metric-prop-height-corrected"
       ]
     },
     {
@@ -1919,6 +1920,79 @@
         "vegetation",
         "hedge",
         "landscaping"
+      ]
+    },
+    {
+      "url": "./data/models/assets/residential/american_style_house/scene.gltf",
+      "x": -143,
+      "z": 128,
+      "ry": 0.3,
+      "targetH": 8.8,
+      "building": true,
+      "centerXZ": true,
+      "tags": [
+        "residential",
+        "gra",
+        "detached-home",
+        "american-style-house"
+      ]
+    },
+    {
+      "url": "./data/models/assets/residential/residential_house_3/scene.gltf",
+      "x": -143,
+      "z": 160,
+      "ry": 0.8,
+      "targetH": 5.5,
+      "building": true,
+      "centerXZ": true,
+      "tags": [
+        "residential",
+        "gra",
+        "bungalow",
+        "family-home"
+      ]
+    },
+    {
+      "url": "./data/models/assets/buildings/brooklyn_street_twin_buildings_low_poly/scene.gltf",
+      "x": 143,
+      "z": 90,
+      "ry": 0,
+      "targetH": 9,
+      "building": true,
+      "centerXZ": true,
+      "tags": [
+        "commercial",
+        "market-district",
+        "twin-shopfronts",
+        "street-frontage"
+      ]
+    },
+    {
+      "url": "./data/models/assets/buildings/building/scene.gltf",
+      "x": -5,
+      "z": 95,
+      "ry": 0,
+      "targetH": 5,
+      "building": true,
+      "centerXZ": true,
+      "tags": [
+        "commercial",
+        "fast-food",
+        "market-district",
+        "takeaway"
+      ]
+    },
+    {
+      "url": "./data/models/assets/others/concrete_road_barrier_photoscanned/scene.gltf",
+      "x": 60,
+      "z": 127,
+      "ry": 1.57,
+      "targetH": 0.96,
+      "centerXZ": true,
+      "tags": [
+        "roadside",
+        "traffic-control",
+        "market-district"
       ]
     }
   ],
