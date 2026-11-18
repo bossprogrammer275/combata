@@ -269,7 +269,7 @@ try {
           const centerX = a.x + dx * t, centerZ = a.z + dz * t;
           const expectedY = (Number(a.y) || 0) + ((Number(b.y) || 0) - (Number(a.y) || 0)) * t
             + (Number.isFinite(chain.roadY) ? chain.roadY : 0.06);
-          for (const offset of [-1.05, 0, 1.05]) {
+          for (const offset of [-1.05, 1.05]) {
             const x = centerX + nx * offset, z = centerZ + nz * offset;
             const contact = world.vehicleSurfaceAt(x, z, expectedY);
             raycaster.set(new THREE.Vector3(x, expectedY + 6, z), new THREE.Vector3(0, -1, 0));
