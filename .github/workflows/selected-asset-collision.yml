@@ -111,6 +111,19 @@ jobs:
             if (digest(destination) !== hash) throw new Error('Backup hash mismatch: ' + destination);
             archiveIndex.push({ source: path.relative(root, source).split(path.sep).join('/'), backup: path.relative(root, destination).split(path.sep).join('/'), sha256: hash });
           }
+          function readModelJson(source) {
+            if (/\\.gltf$/i.test(source)) return JSON.parse(fs.readFileSync(source, 'utf8'));
+            const bytes = fs.readFileSync(source);
+            if (bytes.length < 20 || bytes.readUInt32LE(0) !== 0x46546c67) return null;
+            let offset = 12;
+            while (offset + 8 <= bytes.length) {
+              const length = bytes.readUInt32LE(offset);
+              const type = bytes.readUInt32LE(offset + 4);
+              if (type === 0x4e4f534a) return JSON.parse(bytes.toString('utf8', offset + 8, offset + 8 + length).trim());
+              offset += 8 + length;
+            }
+            throw new Error('GLB JSON chunk missing: ' + source);
+          }
           function safeExternal(baseDir, uri) {
             if (typeof uri !== 'string' || !uri || uri.startsWith('data:')) return null;
             const decoded = decodeURIComponent(uri.split(/[?#]/, 1)[0]);
@@ -124,11 +137,11 @@ jobs:
             const relative = path.relative(modelsRoot, source).split(path.sep).join('/');
             if (relative.startsWith('../') || path.isAbsolute(relative)) throw new Error('Refusing to archive path outside data/models: ' + item.path);
             copyFile(source, relative);
-            if (/\\.gltf$/i.test(source)) {
-              const gltf = JSON.parse(fs.readFileSync(source, 'utf8'));
+            const modelJson = readModelJson(source);
+            if (modelJson) {
               const resources = [
-                ...(gltf.buffers || []).map(x => x.uri),
-                ...(gltf.images || []).map(x => x.uri),
+                ...(modelJson.buffers || []).map(x => x.uri),
+                ...(modelJson.images || []).map(x => x.uri),
               ];
               for (const uri of resources) {
                 const external = safeExternal(path.dirname(source), uri);
@@ -148,8 +161,8 @@ jobs:
           fs.mkdirSync(path.join(modelsRoot, '_archive'), { recursive: true });
           fs.writeFileSync(path.join(modelsRoot, '_archive/selected-collision-archive-index.json'), JSON.stringify({
             generatedAt: new Date().toISOString(), selected: manifest.assets.length, files: archiveIndex,
-          }, null, 2) + '\\n');
-          console.log('Archived selected originals, referenced buffers/textures, and adjacent licence notes with SHA-256 verification.');
+          }, null, 2) + '\n');
+          console.log('Archived selected originals, GLTF/GLB external resources, and adjacent licence notes with SHA-256 verification.');
           NODE
 
       - name: Generate selected collision proxies and replace only selected files
