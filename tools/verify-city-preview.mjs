@@ -142,12 +142,12 @@ function checkMapContract() {
       assert.ok(Math.hypot((next.x-current.x)-expectedX,(next.z-current.z)-expectedZ)<=0.06,
         assembly.id+' has a deck gap/overlap between '+current.sectionId+' and '+next.sectionId);
       const yawDelta=Math.atan2(Math.sin(next.yaw-current.yaw),Math.cos(next.yaw-current.yaw));
-      if(currentType==='bridge-end-ramp'||nextType==='bridge-end-ramp'){
+      if(currentType==='bridge-end-ramp'){
         assert.ok(Math.abs(Math.abs(yawDelta)-Math.PI)<0.02,
-          assembly.id+' end ramps must face inward toward the straight spans');
+          assembly.id+' entry ramp high edge must face inward toward the straight spans');
       }else{
         assert.ok(Math.abs(yawDelta)<0.02,
-          assembly.id+' straight bridge modules must face the same travel direction');
+          assembly.id+' straight spans and the exit ramp must share the inward-facing high-edge orientation');
       }
     }
   }
