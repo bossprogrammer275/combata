@@ -141,6 +141,19 @@ try {
   assert.ok(readGlbJson(poleOutput).nodes.some(node => /^col_/.test(node.name || '')),
     'pole output must contain embedded col_* nodes');
   console.log('  PASS streetlight profile creates one correctly-sized upright proxy at the pole base');
+
+  const derivedOutput = path.join(temp, 'streetlight-derived-collision.glb');
+  const derivedReport = path.join(temp, 'streetlight-derived-report.json');
+  const derived = run(poleInput, derivedOutput, derivedReport, ['--profile', 'pole', '--replace']);
+  assert.equal(derived.scaleVerified, false, 'raw source dimensions must not be labelled as verified metres');
+  assert.equal(derived.metresPerUnit, null, 'unverified source scale must remain unset');
+  assert.equal(derived.boxes.length, 1, 'derived pole profile should still create one upright proxy');
+  const derivedBox = derived.boxes[0];
+  assert.ok(Math.abs((derivedBox.max[0] - derivedBox.min[0]) - 0.096) < 1e-4,
+    'without a known scale, pole width should derive from the model base footprint and safe minimum');
+  assert.ok(Math.abs(derivedBox.min[0] - 0.352) < 1e-4 && Math.abs(derivedBox.max[0] - 0.448) < 1e-4,
+    'derived pole proxy should remain centred on the actual base rather than the offset lamp arm');
+  console.log('  PASS unscaled pole profile derives a narrow base footprint without inventing metre scale');
 } finally {
   fs.rmSync(temp, { recursive: true, force: true });
 }
