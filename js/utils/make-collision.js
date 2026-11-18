@@ -449,7 +449,7 @@ function main() {
   let { json, dir, bin } = load(o.input);
   json.nodes = json.nodes || []; json.meshes = json.meshes || [];
   if (o.replace) { const n = removeExisting(json); if (n) console.log(`Removed ${n} existing col_* nodes`); }
-  else if (json.nodes.some(n => n.mesh !== undefined && /^col_/.test(n.name || ''))) die('Model already contains col_* proxies. Use --replace to regenerate them.');
+  else if (!o.noProxies && json.nodes.some(n => n.mesh !== undefined && /^col_/.test(n.name || ''))) die('Model already contains col_* proxies. Use --replace to regenerate them.');
 
   const inst = collectInstances(json);
   if (!inst.length) die('No meshes found in the default scene');
