@@ -58,6 +58,8 @@ jobs:
             if (manifest.stage === 'apply' && !['building', 'small-prop', 'fence', 'pole', 'trunk'].includes(item.profile)) {
               throw new Error('Unsupported/missing profile for ' + item.path);
             }
+            if (item.mode && !['solid', 'shell'].includes(item.mode)) throw new Error('Unsupported collision mode for ' + item.path);
+            if (item.poleWidth && !(Number(item.targetHeight) > 0)) throw new Error('--pole-width requires a verified targetHeight for ' + item.path);
           }
           console.log(JSON.stringify({ stage: manifest.stage, selected: manifest.assets.length, paths: [...seen] }, null, 2));
           NODE
@@ -174,10 +176,14 @@ jobs:
             const args = [path.join(root, 'js/utils/make-collision.js'), source,
               '--profile', item.profile, '--replace', '--out', output, '--report', report];
             if (item.profile === 'building') args.push('--rename');
-            if (item.profile === 'pole' || item.profile === 'trunk') {
-              if (!(Number(item.targetHeight) > 0)) throw new Error('Verified targetHeight required for ' + item.profile + ': ' + item.path);
-              args.push('--target-height', String(item.targetHeight));
-              if (Number(item.poleWidth) > 0) args.push('--pole-width', String(item.poleWidth));
+            if (item.mode) {
+              if (!['solid', 'shell'].includes(item.mode)) throw new Error('Unsupported collision mode for ' + item.path);
+              args.push('--mode', item.mode);
+            }
+            if (Number(item.targetHeight) > 0) args.push('--target-height', String(item.targetHeight));
+            if (Number(item.poleWidth) > 0) {
+              if (!(Number(item.targetHeight) > 0)) throw new Error('--pole-width requires a verified targetHeight for ' + item.path);
+              args.push('--pole-width', String(item.poleWidth));
             }
             const result = spawnSync(process.execPath, args, { cwd: root, encoding: 'utf8', maxBuffer: 30 * 1024 * 1024 });
             if (result.status !== 0) {
