@@ -226,6 +226,13 @@ node tools/process-glbs.js data/models/assets/your_model.glb
 ```
 This utility analyses mesh triangles and outputs `your_model_col.json` beside the source model. The runtime automatically requests that sibling file when it exists, applies the same `targetH`/`scale`, `x`/`z`, `elevation` and `ry` transform as the visual model, and injects the boxes into both the AABB index and Rapier static collision. The generator skips `col_*`, `door_*`, `window_*`, room markers and visual-only accents. Its grid-cell test checks triangle/rectangle overlap instead of treating every triangle's full XZ bounding rectangle as solid.
 
+
+### District plot assemblies
+
+Authored city maps can define `districtPlots` beside their roads and GLB placements. These are sitework components around the imported buildings, not procedural replacement buildings. Plot types include lawns, laterite yards, concrete forecourts, parking/driveway slabs and public market paving. Residential plots can add low compound walls, gate pillars and an open vehicle entrance; the engine creates matching AABB colliders while keeping the entrance gap clear.
+
+A plot record uses metre-space `x`/`z`, `width`, `depth`, `yaw`, `surface`, and optional `wallHeight`, `gateWidth`, `front` and `driveway` values. Each plot is independent of the GLB it surrounds, so building scale, door markers and collision proxies remain controlled by the World Kit asset metadata. This keeps the same placement convention reusable across residential, commercial, religious and market compounds.
+
 ---
 
 ## Graphics profiles
@@ -235,6 +242,10 @@ The renderer exposes **Ultra**, **High**, **Medium**, **Low** and **Ultra Low**.
 Changing the graphics tier reloads the world so its atmosphere, materials, texture filtering and asset-loading budget are rebuilt together. GLB decode concurrency and background prefetch worker count are capped on devices reporting 4 GB or less.
 
 The renderer can improve lighting, edge quality, reflections and texture clarity, but it cannot add missing geometry to a low-detail source model. A genuinely photorealistic city still needs higher-detail building, vehicle, street and vegetation assets, plus authored lower-detail LOD variants for distant placement.
+
+## Third-party asset credits
+
+CC BY asset attributions are consolidated in [`ASSET_CREDITS.md`](ASSET_CREDITS.md). The original per-model `license.txt` files are retained beside their source assets; keep those files with the project when redistributing it.
 
 ## 5. Running the Project
 
