@@ -53,6 +53,8 @@ export class World {
     this.worldKitComponents = []; // imported component instances with semantic role metadata
     this.roadModuleInstances = []; // imported Road Pack surface tiles used by the authored-road renderer
     this.roadPackSurfaceMeshes = []; // merged visible meshes using the six downloaded Road Pack materials
+    this.roadPackJunctionMeshes = [];
+    this.roadPackJunctionCount = 0;
     this.roadPackRoadCount = 0;
     this.roadPackRoadSkippedNames = [];
     this.legacyRoadSurfaceCount = 0;
@@ -2154,7 +2156,7 @@ export class World {
     return { ...profiles[best.key], height: best.height, distance: best.distance, verticalDelta: best.verticalDelta };
   }
 
-  _buildRoadPackSurface(pts, width, roadY, roadIndex = 0, roadName = '') {
+  _buildRoadPackSurface(pts, width, roadY, roadIndex = 0, roadName = '', blockedRanges = []) {
     const prefabs = this._roadPackPrefabs;
     if (!prefabs?.size || !pts || pts.length < 2) return 0;
 
@@ -2187,85 +2189,204 @@ export class World {
     };
     const angleBetween = (a, b) => Math.acos(THREE.MathUtils.clamp(a.dot(b), -1, 1));
 
+    const intervals = [];
+    let rangeCursor = 0;
+    for (const range of blockedRanges || []) {
+      const start = THREE.MathUtils.clamp(range[0], 0, total);
+      const end = THREE.MathUtils.clamp(range[1], 0, total);
+      if (start > rangeCursor + 0.1) intervals.push([rangeCursor, start]);
+      rangeCursor = Math.max(rangeCursor, end);
+    }
+    if (rangeCursor < total - 0.1) intervals.push([rangeCursor, total]);
+    if (!blockedRanges?.length) intervals.push([0, total]);
+
     const dummy = new THREE.Object3D();
     const basis = new THREE.Matrix4();
     const tangent = new THREE.Vector3();
     const right = new THREE.Vector3();
     const up = new THREE.Vector3();
-    let cursor = 0;
     let tileIndex = 0;
     let placed = 0;
     const longLength = longPrefab.dimensions[2];
-    const shortLength = shortPrefab.dimensions[2];
 
-    while (cursor < total - 0.08) {
-      const remaining = total - cursor;
-      const probeLength = Math.min(longLength, remaining);
-      const startTangent = tangentAt(cursor + Math.min(0.4, probeLength * 0.15));
-      const endTangent = tangentAt(Math.max(cursor, cursor + probeLength - Math.min(0.4, probeLength * 0.15)));
-      const curvature = angleBetween(startTangent, endTangent);
+    for (const [intervalStart, intervalEnd] of intervals) {
+      let cursor = intervalStart;
+      while (cursor < intervalEnd - 0.08) {
+        const remaining = intervalEnd - cursor;
+        const probeLength = Math.min(longLength, remaining);
+        const startTangent = tangentAt(cursor + Math.min(0.4, probeLength * 0.15));
+        const endTangent = tangentAt(Math.max(cursor, cursor + probeLength - Math.min(0.4, probeLength * 0.15)));
+        const curvature = angleBetween(startTangent, endTangent);
+        const useLong = remaining >= Math.min(longLength * 0.76, 18)
+          && curvature <= THREE.MathUtils.degToRad(13);
+        const prefab = useLong ? longPrefab : shortPrefab;
+        const tileLength = Math.min(prefab.dimensions[2], remaining);
+        if (tileLength < 0.08) break;
 
-      // Long 30m imported pieces are reserved for reasonably straight runs.
-      // Tight curves use 7m imported pieces so the road follows the authored path.
-      const useLong = remaining >= Math.min(longLength * 0.76, 18)
-        && curvature <= THREE.MathUtils.degToRad(13);
-      const prefab = useLong ? longPrefab : shortPrefab;
-      const tileLength = Math.min(prefab.dimensions[2], remaining);
-      if (tileLength < 0.08) break;
+        const start = at(cursor);
+        const end = at(cursor + tileLength);
+        const middle = at(cursor + tileLength * 0.5);
+        const dx = end.x - start.x;
+        const dy = end.y - start.y;
+        const dz = end.z - start.z;
+        const horizontalLength = Math.hypot(dx, dz);
+        const spatialLength = Math.hypot(horizontalLength, dy);
+        if (horizontalLength < 0.05 || spatialLength < 0.05) {
+          cursor += tileLength;
+          continue;
+        }
 
-      const start = at(cursor);
-      const end = at(cursor + tileLength);
-      const middle = at(cursor + tileLength * 0.5);
-      const dx = end.x - start.x;
-      const dy = end.y - start.y;
-      const dz = end.z - start.z;
-      const horizontalLength = Math.hypot(dx, dz);
-      const spatialLength = Math.hypot(horizontalLength, dy);
-      if (horizontalLength < 0.05 || spatialLength < 0.05) {
+        tangent.set(dx, dy, dz).normalize();
+        right.set(dz / horizontalLength, 0, -dx / horizontalLength).normalize();
+        up.crossVectors(tangent, right).normalize();
+        basis.makeBasis(right, up, tangent);
+
+        dummy.position.set(middle.x, middle.y + roadY, middle.z);
+        dummy.quaternion.setFromRotationMatrix(basis);
+        dummy.scale.set(width / prefab.dimensions[0], 1, spatialLength / prefab.dimensions[2]);
+        dummy.updateMatrix();
+
+        let bucket = this._roadPackGeometryBuckets.get(prefab.id);
+        if (!bucket) {
+          bucket = { prefab, matrices: [] };
+          this._roadPackGeometryBuckets.set(prefab.id, bucket);
+        }
+        bucket.matrices.push(dummy.matrix.clone());
+        this.roadModuleInstances.push({
+          id: prefab.id,
+          roadName,
+          x: middle.x,
+          y: middle.y + roadY,
+          z: middle.z,
+          width,
+          length: spatialLength,
+          scaleX: width / prefab.dimensions[0],
+          scaleZ: spatialLength / prefab.dimensions[2],
+          tileIndex,
+        });
         cursor += tileLength;
-        continue;
+        tileIndex++;
+        placed++;
       }
-
-      tangent.set(dx, dy, dz).normalize();
-      right.set(dz / horizontalLength, 0, -dx / horizontalLength).normalize();
-      up.crossVectors(tangent, right).normalize();
-      basis.makeBasis(right, up, tangent);
-
-      dummy.position.set(middle.x, middle.y + roadY, middle.z);
-      dummy.quaternion.setFromRotationMatrix(basis);
-      dummy.scale.set(
-        width / prefab.dimensions[0],
-        1,
-        spatialLength / prefab.dimensions[2],
-      );
-      dummy.updateMatrix();
-
-      let bucket = this._roadPackGeometryBuckets.get(prefab.id);
-      if (!bucket) {
-        bucket = { prefab, matrices: [] };
-        this._roadPackGeometryBuckets.set(prefab.id, bucket);
-      }
-      bucket.matrices.push(dummy.matrix.clone());
-      this.roadModuleInstances.push({
-        id: prefab.id,
-        roadName,
-        x: middle.x,
-        y: middle.y + roadY,
-        z: middle.z,
-        width,
-        length: spatialLength,
-        scaleX: width / prefab.dimensions[0],
-        scaleZ: spatialLength / prefab.dimensions[2],
-        tileIndex,
-      });
-
-      cursor += tileLength;
-      tileIndex++;
-      placed++;
     }
 
-    this.roadPackRoadCount++;
+    if (placed) this.roadPackRoadCount++;
     return placed;
+  }
+
+  _buildRoadPackJunctionPatches(chains, junctionData) {
+    if (!junctionData?.hits?.length) return 0;
+    const groups = new Map();
+
+    for (let chainIndex = 0; chainIndex < chains.length; chainIndex++) {
+      const chain = chains[chainIndex];
+      if (chain.surface !== 'road-pack') continue;
+      const cumulative = junctionData.metadata[chainIndex]?.cumulative || [];
+      const sampleAt = distance => {
+        let i = 0;
+        while (i < cumulative.length - 2 && cumulative[i + 1] < distance) i++;
+        const segment = Math.max(1e-6, cumulative[i + 1] - cumulative[i]);
+        const t = THREE.MathUtils.clamp((distance - cumulative[i]) / segment, 0, 1);
+        return {
+          x: THREE.MathUtils.lerp(chain.pts[i].x, chain.pts[i + 1].x, t),
+          y: THREE.MathUtils.lerp(Number(chain.pts[i].y) || 0, Number(chain.pts[i + 1].y) || 0, t),
+          z: THREE.MathUtils.lerp(chain.pts[i].z, chain.pts[i + 1].z, t),
+        };
+      };
+      const usedDistances = [];
+      for (const hit of junctionData.hits[chainIndex] || []) {
+        if (usedDistances.some(distance => Math.abs(distance - hit.distance) < 0.65)) continue;
+        usedDistances.push(hit.distance);
+        const sample = sampleAt(hit.distance);
+        const key = Math.round(hit.x * 4) + ':' + Math.round(hit.z * 4);
+        if (!groups.has(key)) groups.set(key, { x: hit.x, z: hit.z, entries: [] });
+        groups.get(key).entries.push({
+          chainIndex,
+          chain,
+          distance: hit.distance,
+          radius: hit.radius,
+          y: sample.y,
+        });
+      }
+    }
+
+    if (!groups.size) return 0;
+    if (!this._roadPackJunctionMaterial) {
+      this._roadPackJunctionMaterial = new THREE.MeshStandardMaterial({
+        color: 0x202b3a,
+        roughness: 0.96,
+        metalness: 0,
+        side: THREE.DoubleSide,
+      });
+    }
+
+    const positions = [];
+    const indices = [];
+    let rectangleCount = 0;
+    for (const junction of groups.values()) {
+      const patchY = junction.entries.reduce((sum, entry) => sum + entry.y, 0) / junction.entries.length;
+      for (const entry of junction.entries) {
+        const chain = entry.chain;
+        const cumulative = junctionData.metadata[entry.chainIndex].cumulative;
+        const sampleAt = distance => {
+          let i = 0;
+          while (i < cumulative.length - 2 && cumulative[i + 1] < distance) i++;
+          const segment = Math.max(1e-6, cumulative[i + 1] - cumulative[i]);
+          const t = THREE.MathUtils.clamp((distance - cumulative[i]) / segment, 0, 1);
+          return {
+            x: THREE.MathUtils.lerp(chain.pts[i].x, chain.pts[i + 1].x, t),
+            y: THREE.MathUtils.lerp(Number(chain.pts[i].y) || 0, Number(chain.pts[i + 1].y) || 0, t),
+            z: THREE.MathUtils.lerp(chain.pts[i].z, chain.pts[i + 1].z, t),
+          };
+        };
+        const a = sampleAt(Math.max(0, entry.distance - 0.65));
+        const b = sampleAt(Math.min(junctionData.metadata[entry.chainIndex].total, entry.distance + 0.65));
+        const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+        const horizontalLength = Math.hypot(dx, dz);
+        if (horizontalLength < 0.05) continue;
+        const tangent = new THREE.Vector3(dx, dy, dz).normalize();
+        const right = new THREE.Vector3(dz / horizontalLength, 0, -dx / horizontalLength).normalize();
+        const halfWidth = chain.W * 0.5;
+        const halfLength = entry.radius + 0.08;
+        const center = new THREE.Vector3(
+          junction.x,
+          patchY + chain.roadY + 0.009 + rectangleCount * 0.00015,
+          junction.z,
+        );
+        const corners = [
+          center.clone().addScaledVector(right, -halfWidth).addScaledVector(tangent, -halfLength),
+          center.clone().addScaledVector(right, halfWidth).addScaledVector(tangent, -halfLength),
+          center.clone().addScaledVector(right, -halfWidth).addScaledVector(tangent, halfLength),
+          center.clone().addScaledVector(right, halfWidth).addScaledVector(tangent, halfLength),
+        ];
+        const base = positions.length / 3;
+        for (const point of corners) positions.push(point.x, point.y, point.z);
+        indices.push(base, base + 2, base + 1, base + 1, base + 2, base + 3);
+        rectangleCount++;
+      }
+    }
+
+    if (!positions.length) return 0;
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+    const mesh = new THREE.Mesh(geometry, this._roadPackJunctionMaterial);
+    mesh.name = 'worldkit_road_pack_junction_aprons';
+    mesh.receiveShadow = true;
+    mesh.castShadow = false;
+    mesh.renderOrder = 1.1;
+    mesh.userData.worldKit = {
+      assetId: 'road-pack',
+      role: 'junction-apron',
+      junctionCount: groups.size,
+      rectangleCount,
+    };
+    this.group.add(mesh);
+    this.roadPackJunctionMeshes = [mesh];
+    this.roadPackJunctionCount = groups.size;
+    this.roadPhysicsMeshes.push({ kind: 'road', source: 'road-pack-junction', geometry });
+    return groups.size;
   }
 
   _flushRoadPackSurfaces() {
@@ -2412,37 +2533,45 @@ export class World {
         }
       }
     }
-    for (let ci = 0; ci < chains.length; ci++) {
-      const ch = chains[ci];
-      const walkY = 0.12;
-      const pts = (ch.closed || ch.keepEnds) ? ch.pts : this._trimChain(ch.pts, ch.cutStart, ch.cutEnd);
+    const renderChains = [];
+    for (const chain of chains) {
+      const pts = (chain.closed || chain.keepEnds)
+        ? chain.pts
+        : this._trimChain(chain.pts, chain.cutStart, chain.cutEnd);
       if (pts.length < 2) {
-        if (ch.surface === 'road-pack') this.roadPackRoadSkippedNames.push(ch.name);
+        if (chain.surface === 'road-pack') this.roadPackRoadSkippedNames.push(chain.name);
         continue;
       }
+      renderChains.push({ ...chain, pts, roadY: 0.06 });
+    }
+    this._roadChains = renderChains;
+    const junctionData = this._roadJunctionData(renderChains);
 
-      // Rendered road and matching thin collision strip. Vehicles raycast these
-      // surfaces, so tires sit on asphalt at y=0.06 instead of cutting through it
-      // to the lower ground plane.
-      const roadY = 0.06;
-      const renderedByImportedSurface = ch.surface === 'modular-bridge'
-        || ch.surface === 'imported-street-road'
-        || ch.surface === 'road-pack';
-      if (ch.surface === 'road-pack' && roadPack) {
-        this._buildRoadPackSurface(pts, ch.W, roadY, ci, roads[ci]?.name || 'road');
+    for (let ci = 0; ci < renderChains.length; ci++) {
+      const chain = renderChains[ci];
+      const pts = chain.pts;
+      const roadY = chain.roadY;
+      const renderedByImportedSurface = chain.surface === 'modular-bridge'
+        || chain.surface === 'imported-street-road'
+        || chain.surface === 'road-pack';
+
+      if (chain.surface === 'road-pack' && roadPack) {
+        const tileCount = this._buildRoadPackSurface(
+          pts, chain.W, roadY, ci, chain.name, junctionData.ranges[ci],
+        );
+        if (!tileCount) this.roadPackRoadSkippedNames.push(chain.name);
       } else if (!renderedByImportedSurface) {
         this.legacyRoadSurfaceCount++;
-        this._strokeMitered(pts, ch.W, roadY, roadMat || this.mRoad(), ch.closed);
+        this._strokeMitered(pts, chain.W, roadY, roadMat || this.mRoad(), chain.closed);
       }
-      this._addRoadSurfaceColliders(pts, ch.W, roadY, ch.closed, 0.05);
-      if (ch.flyover && !renderedByImportedSurface) this._buildFlyoverStructure(pts, ch.W, roadY);
-      if (ch.guardrails && !renderedByImportedSurface) this._buildRoadGuardrails(pts, ch.W, roadY);
 
-      this._roadChains.push({
-        pts, W: ch.W, sidewalk: ch.sidewalk, roadY, closed,
-        surface: ch.surface || 'asphalt',
-      });
+      // These thin segments are height-sampling metadata; imported road/bridge
+      // triangles provide the actual Rapier surface geometry.
+      this._addRoadSurfaceColliders(pts, chain.W, roadY, chain.closed, 0.05);
+      if (chain.flyover && !renderedByImportedSurface) this._buildFlyoverStructure(pts, chain.W, roadY);
+      if (chain.guardrails && !renderedByImportedSurface) this._buildRoadGuardrails(pts, chain.W, roadY);
     }
+    this._buildRoadPackJunctionPatches(renderChains, junctionData);
     this._flushRoadPackSurfaces();
     // Sidewalks and their physical surfaces stop before same-level road
     // junctions. Higher flyovers remain independent and keep their own paths.
@@ -2693,6 +2822,13 @@ export class World {
           geometry.dispose();
           return;
         }
+        // Keep the imported road texture/normal maps, but remove the wet,
+        // metallic-looking reflection from the wide boulevard surfaces.
+        material.metalness = 0;
+        material.roughness = 0.92;
+        if ('specularIntensity' in material) material.specularIntensity = 0.12;
+        if ('envMapIntensity' in material) material.envMapIntensity = 0.16;
+        if (material.normalScale?.set) material.normalScale.set(0.55, 0.55);
         for (const key of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap']) {
           if (material[key]) material[key].anisotropy = this._maxAnisotropy;
         }
