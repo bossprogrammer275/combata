@@ -54,6 +54,7 @@ export class World {
     this.roadModuleInstances = []; // imported Road Pack surface tiles used by the authored-road renderer
     this.roadPackSurfaceMeshes = []; // merged visible meshes using the six downloaded Road Pack materials
     this.roadPackRoadCount = 0;
+    this.roadPackRoadSkippedNames = [];
     this.legacyRoadSurfaceCount = 0;
     this._roadPackGeometryBuckets = new Map();
     this.sidewalkModuleInstances = []; // authored driveway, corner and damaged-pavement pieces
@@ -2387,6 +2388,7 @@ export class World {
         : !rd.surface && roadPack ? 'road-pack' : requestedSurface;
       chains.push({
         pts: smoothed, W, sidewalk: !!rd.sidewalk, closed,
+        name: rd.name || 'unnamed-road',
         surface,
         guardrails: !!(rd.guardrails || rd.bridge || rd.flyover),
         flyover: !!(rd.flyover || rd.bridge),
@@ -2414,7 +2416,10 @@ export class World {
       const ch = chains[ci];
       const walkY = 0.12;
       const pts = (ch.closed || ch.keepEnds) ? ch.pts : this._trimChain(ch.pts, ch.cutStart, ch.cutEnd);
-      if (pts.length < 2) continue;
+      if (pts.length < 2) {
+        if (ch.surface === 'road-pack') this.roadPackRoadSkippedNames.push(ch.name);
+        continue;
+      }
 
       // Rendered road and matching thin collision strip. Vehicles raycast these
       // surfaces, so tires sit on asphalt at y=0.06 instead of cutting through it
