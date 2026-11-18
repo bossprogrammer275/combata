@@ -534,10 +534,27 @@ function main() {
       const cutoff = VB.min[1] + height * 0.2;
       const baseParts = solid.filter(i => i.bounds.min[1] <= cutoff);
       const footprint = baseParts.length ? baseParts : solid;
-      const xMin = Math.min(...footprint.map(i => i.bounds.min[0]));
-      const xMax = Math.max(...footprint.map(i => i.bounds.max[0]));
-      const zMin = Math.min(...footprint.map(i => i.bounds.min[2]));
-      const zMax = Math.max(...footprint.map(i => i.bounds.max[2]));
+      // Prefer actual lowest vertices so a single combined lamp mesh with a
+      // long top arm does not shift the upright collider away from its shaft.
+      let xMin = Infinity, xMax = -Infinity, zMin = Infinity, zMax = -Infinity;
+      const baseVertexCutoff = VB.min[1] + Math.max(height * 0.08, 1e-5);
+      for (const it of solid) for (const p of it.prims) {
+        for (let i = 0; i < p.pos.length; i += 3) {
+          const x = p.pos[i], y = p.pos[i + 1], z = p.pos[i + 2], M = it.M;
+          const wx = M[0] * x + M[4] * y + M[8] * z + M[12];
+          const wy = M[1] * x + M[5] * y + M[9] * z + M[13];
+          if (wy > baseVertexCutoff) continue;
+          const wz = M[2] * x + M[6] * y + M[10] * z + M[14];
+          xMin = Math.min(xMin, wx); xMax = Math.max(xMax, wx);
+          zMin = Math.min(zMin, wz); zMax = Math.max(zMax, wz);
+        }
+      }
+      if (!Number.isFinite(xMin)) {
+        xMin = Math.min(...footprint.map(i => i.bounds.min[0]));
+        xMax = Math.max(...footprint.map(i => i.bounds.max[0]));
+        zMin = Math.min(...footprint.map(i => i.bounds.min[2]));
+        zMax = Math.max(...footprint.map(i => i.bounds.max[2]));
+      }
       const cx = (xMin + xMax) * 0.5, cz = (zMin + zMax) * 0.5;
       const widthMetres = o.poleWidthExplicit ? o.poleWidth : (o.profile === 'trunk' ? 0.5 : 0.35);
       const widthUnits = widthMetres / scale;
