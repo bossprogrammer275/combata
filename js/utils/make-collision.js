@@ -538,17 +538,52 @@ function main() {
     solid.forEach(i => { for (let k = 0; k < 3; k++) { B.min[k] = Math.min(B.min[k], i.bounds.min[k]); B.max[k] = Math.max(B.max[k], i.bounds.max[k]); } });
     let r;
     if (o.profile === 'pole' || o.profile === 'trunk') {
-      // Poles and trunks need one narrow, full-height collider, not boxes around
-      // the lamp head, wires or foliage. Find the base footprint to retain an
-      // authored offset instead of assuming the model origin is centred.
-      const cutoff = VB.min[1] + height * 0.2;
-      const baseParts = solid.filter(i => i.bounds.min[1] <= cutoff);
-      const footprint = baseParts.length ? baseParts : solid;
-      // Prefer actual lowest vertices so a single combined lamp mesh with a
-      // long top arm does not shift the upright collider away from its shaft.
+      // A pole collider follows the complete mast, but tree foliage must never
+      // extend the trunk collider. Prefer separately named trunk meshes when
+      // the source model exposes them (including common Sketchfab names).
+      let profileInst = solid;
+      let profileBounds = { min: [...VB.min], max: [...VB.max] };
+      if (o.profile === 'trunk') {
+        const names = it => it.anc.map(nameOf).concat(nameOf(it.node)).join('/');
+        const trunkName = /trunk|tronco|palm02|tree[_ -]*material|stem|bole/i;
+        const foliageName = /leaf|leaves|foliage|branch|branches|ramas|canopy/i;
+        const named = solid.filter(it => trunkName.test(names(it)) && !foliageName.test(names(it)));
+        if (named.length) {
+          profileInst = named;
+          profileBounds = { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] };
+          for (const it of profileInst) for (let axis = 0; axis < 3; axis++) {
+            profileBounds.min[axis] = Math.min(profileBounds.min[axis], it.bounds.min[axis]);
+            profileBounds.max[axis] = Math.max(profileBounds.max[axis], it.bounds.max[axis]);
+          }
+        } else {
+          // Fallback for unnamed models: use the lowest non-foliage mesh that
+          // occupies a meaningful vertical span, rather than all tree bounds.
+          const fallback = solid.filter(it => {
+            const chain = names(it);
+            const meshHeight = it.bounds.max[1] - it.bounds.min[1];
+            return !foliageName.test(chain)
+              && it.bounds.min[1] <= VB.min[1] + height * 0.12
+              && meshHeight >= height * 0.25;
+          });
+          if (fallback.length) {
+            profileInst = fallback;
+            profileBounds = { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] };
+            for (const it of profileInst) for (let axis = 0; axis < 3; axis++) {
+              profileBounds.min[axis] = Math.min(profileBounds.min[axis], it.bounds.min[axis]);
+              profileBounds.max[axis] = Math.max(profileBounds.max[axis], it.bounds.max[axis]);
+            }
+          } else {
+            warn('No separate trunk mesh was identified; falling back to full model bounds for trunk profile.');
+          }
+        }
+      }
+      const profileHeight = Math.max(profileBounds.max[1] - profileBounds.min[1], 1e-5);
+      const baseParts = profileInst.filter(i => i.bounds.min[1] <= profileBounds.min[1] + profileHeight * 0.2);
+      const footprint = baseParts.length ? baseParts : profileInst;
+      // Use actual lowest vertices to retain the shaft/trunk's base position.
       let xMin = Infinity, xMax = -Infinity, zMin = Infinity, zMax = -Infinity;
-      const baseVertexCutoff = VB.min[1] + Math.max(height * 0.08, 1e-5);
-      for (const it of solid) for (const p of it.prims) {
+      const baseVertexCutoff = profileBounds.min[1] + Math.max(profileHeight * 0.08, 1e-5);
+      for (const it of footprint) for (const p of it.prims) {
         for (let i = 0; i < p.pos.length; i += 3) {
           const x = p.pos[i], y = p.pos[i + 1], z = p.pos[i + 2], M = it.M;
           const wx = M[0] * x + M[4] * y + M[8] * z + M[12];
@@ -566,13 +601,11 @@ function main() {
         zMax = Math.max(...footprint.map(i => i.bounds.max[2]));
       }
       const cx = (xMin + xMax) * 0.5, cz = (zMin + zMax) * 0.5;
-      // Preserve the actual base footprint by default. This keeps the proxy
-      // useful even when the source is centimetres/millimetres and no trusted
-      // target height has been supplied. An explicit --pole-width is in metres
-      // and should be used only alongside a verified --scale/--target-height.
+      // Preserve asset-native scale. Explicit --pole-width is metres and
+      // should only be used alongside a verified --scale/--target-height.
       const minRatio = o.profile === 'trunk' ? 0.025 : 0.012;
-      const minWidth = Math.max(height * minRatio, 1e-4);
-      const maxWidth = Math.max(height * 0.12, minWidth);
+      const minWidth = Math.max(profileHeight * minRatio, 1e-4);
+      const maxWidth = Math.max(profileHeight * 0.12, minWidth);
       const measuredX = Math.max(xMax - xMin, minWidth);
       const measuredZ = Math.max(zMax - zMin, minWidth);
       const widthX = o.poleWidthExplicit
@@ -582,8 +615,8 @@ function main() {
         ? o.poleWidth / scale
         : Math.min(maxWidth, Math.max(minWidth, measuredZ * 0.8));
       r = { boxes: [{
-        min: [cx - widthX * 0.5, VB.min[1], cz - widthZ * 0.5],
-        max: [cx + widthX * 0.5, VB.max[1], cz + widthZ * 0.5],
+        min: [cx - widthX * 0.5, profileBounds.min[1], cz - widthZ * 0.5],
+        max: [cx + widthX * 0.5, profileBounds.max[1], cz + widthZ * 0.5],
       }], cell: [0, 0, 0], res: 0 };
     } else {
       r = buildBoxes(solid, B, o, scale, scaleKnown, height);
