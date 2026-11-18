@@ -44,6 +44,10 @@
       <button data-view="graResidential">Residential close-up</button>
       <button data-view="marketStreet">Market street close-up</button>
       <button data-view="roadKit">GRA road kit</button>
+      <button data-view="roadPackBoulevard">Road Pack boulevard</button>
+      <button data-view="roadPackResidential">Road Pack residential</button>
+      <button data-view="mainBridgeExit">Main bridge exit</button>
+      <button data-view="fateBridgeExit">Fate bridge exit</button>
     </div>
   </section>
   <div id="foot">Internal visual inspection · drag to orbit · scroll to zoom · no NPCs or loot</div>
@@ -88,6 +92,10 @@
       graResidential: { target: [-92, 4, 145], distance: 112, yaw: 0.72, pitch: 0.42 },
       marketStreet: { target: [57, 4, 111], distance: 92, yaw: 0.72, pitch: 0.43 },
       roadKit: { target: [-88, 0.5, 112], distance: 72, yaw: 0.72, pitch: 0.42 },
+      roadPackBoulevard: { target: [0, 0.6, 38], distance: 62, yaw: 0.62, pitch: 0.28 },
+      roadPackResidential: { target: [-88, 0.5, 112], distance: 34, yaw: 0.72, pitch: 0.32 },
+      mainBridgeExit: { target: [-7, 5.4, -98], distance: 48, yaw: Math.PI / 2, pitch: 0.2 },
+      fateBridgeExit: { target: [194, 2.1, 85], distance: 42, yaw: Math.PI / 2, pitch: 0.2 },
     };
     const target = new THREE.Vector3();
     let orbit = { yaw: 0.72, pitch: 0.88, distance: 455 };
@@ -205,6 +213,10 @@
       state.report = {
         roadCount: map.roads?.length || 0,
         roadModuleCount: world.roadModuleInstances?.length || 0,
+        roadPackPrefabCount: world._roadPackPrefabs?.size || 0,
+        roadPackRoadCount: world.roadPackRoadCount || 0,
+        roadPackSurfaceMeshCount: world.roadPackSurfaceMeshes?.length || 0,
+        legacyRoadSurfaceCount: world.legacyRoadSurfaceCount || 0,
         bridgeAssemblyInputCount: map.bridgeAssemblies?.length || 0,
         bridgeKitLoaded: !!world._bridgeKit,
         bridgeKitParts: world._bridgeKit ? [...world._bridgeKit.keys()] : [],
