@@ -267,7 +267,23 @@ jobs:
           git add -- .selected-collision-manifest.json .github/workflows/selected-asset-collision.yml
           if git diff --cached --quiet; then echo "No changes to commit."; exit 0; fi
           git commit -m "Generate selected asset collision proxies"
-          git push origin HEAD:main
+          # Another main workflow may push while these 39 files are being
+          # captured and processed. Rebase the isolated asset changes onto the
+          # newest main and retry, rather than dropping a fully verified batch.
+          for attempt in 1 2 3; do
+            git fetch origin main
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              echo "Could not rebase selected collision changes onto latest main."
+              exit 1
+            fi
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "Push attempt $attempt was rejected; refreshing main and retrying."
+          done
+          echo "Could not publish selected collision changes after three attempts."
+          exit 1
 
       - name: Upload selected collision reports
         if: always() && steps.manifest.outputs.stage == 'apply'
