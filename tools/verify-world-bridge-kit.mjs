@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import * as THREE from '../js/lib/three.module.js';
+import * as THREE from 'three';
 import {
   extractWorldBridgeKit,
   WORLD_KIT_BRIDGE_COMPONENTS,
