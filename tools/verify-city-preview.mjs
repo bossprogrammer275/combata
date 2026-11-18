@@ -198,8 +198,12 @@ try {
     'every bridge road surface must meet its authored metric deckY: ' + JSON.stringify(report.bridgeDeckAlignmentFailures));
   assert.ok(report.roadPackPrefabCount === 6,
     'the road renderer must load all six imported Road Pack surface components');
-  assert.equal(report.roadPackRoadCount, 19,
-    'all 19 non-bridge authored streets must use the imported Road Pack renderer');
+  assert.equal(report.roadPackRoadCount + report.roadPackRoadSkippedNames.length, 19,
+    'every non-bridge authored street must render or be intentionally absorbed into a same-level junction');
+  assert.equal(report.roadPackRoadCount, 18,
+    '18 standalone road chains should render; the short access connector is consumed by its junction');
+  assert.deepEqual(report.roadPackRoadSkippedNames, ['Revenue House Access'],
+    'only the short Revenue House access connector may be fully absorbed into a nearby junction');
   assert.ok(report.roadModuleCount > 100,
     'Road Pack surfaces must be tiled along the city roads rather than stretched over an entire street');
   assert.ok(report.roadPackSurfaceMeshCount >= 2,
