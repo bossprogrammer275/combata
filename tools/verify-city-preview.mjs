@@ -107,10 +107,14 @@ function checkMapContract() {
     assert.equal([...sections.values()].filter(pair => pair.some(component => component.componentId.startsWith('bridge-pier-starter-'))).length, 0,
       assembly.id + ' must not use the incomplete short pier-starter module');
     const orderedSections = [...sections.values()];
-    const sectionType = pair => pair.find(component => component.componentId.endsWith('-structure')).componentId.replace(/-structure$/, '');
+    const sectionType = pair => {
+      const componentId = pair.find(component => component.componentId.endsWith('-structure')).componentId;
+      return componentId === 'bridge-straight-structure' ? 'bridge-straight-span' : componentId.replace(/-structure$/, '');
+    };
     for (const pair of orderedSections) {
-      assert.ok(pair.every(component => component.componentId === sectionType(pair) + '-structure'
-        || component.componentId === sectionType(pair) + '-deck'),
+      const structureId = pair.find(component => component.componentId.endsWith('-structure'))?.componentId;
+      const deckId = pair.find(component => component.componentId.endsWith('-deck'))?.componentId;
+      assert.ok(structureId && deckId && structureId.replace(/-structure$/, '') === deckId.replace(/-deck$/, ''),
         'each bridge section must use a matching imported structure/deck pair');
       assert.ok(pair.every(component => Math.abs(component.x-pair[0].x)<1e-6
         && Math.abs(component.z-pair[0].z)<1e-6
