@@ -208,6 +208,8 @@ try {
     'Road Pack surfaces must be tiled along the city roads rather than stretched over an entire street');
   assert.ok(report.roadPackSurfaceMeshCount >= 2,
     'imported Road Pack material variants should be merged into visible road meshes');
+  assert.ok(report.roadPackJunctionCount > 0,
+    'road tiles must stop at intersections and be replaced by clean asphalt junction aprons');
   assert.equal(report.legacyRoadSurfaceCount, 0,
     'City A must not render the previous procedural asphalt road texture');
   assert.equal(report.glbAssetCount, map.glbAssets.length, 'runtime GLB placement count differs from authored map');
