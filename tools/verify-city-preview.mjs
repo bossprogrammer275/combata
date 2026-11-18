@@ -19,8 +19,8 @@ function checkMapContract() {
   assert.equal(map.id, 'city-a', 'wrong map id');
   assert.equal(map.disableAutoSpawns, true, 'compact exploration map must disable all automatic spawns');
   assert.equal(map.roads?.length, 21, 'expected the authored city, GRA lanes and split flyover approaches');
-  assert.equal(map.roadModules?.length, 2, 'expected two imported long road-pack pieces in the residential lane');
-  assert.deepEqual(map.roadModules.map(module => module.componentId), ['road-straight-long-01', 'road-straight-long-02']);
+  assert.equal(map.roadModules?.length || 0, 0,
+    'Road Pack geometry must be emitted by the road renderer, not manually overlaid on an existing road ribbon');
   assert.equal(map.glbAssets?.length, 93, 'unexpected GLB placement count for the first residential and market district build');
   const uniqueModelCount = new Set(map.glbAssets.map(a => a.url)).size;
   assert.equal(uniqueModelCount, 31, 'expected 31 distinct imported model assets in the district');
@@ -54,6 +54,17 @@ function checkMapContract() {
   assert.equal(map.roads.filter(r => r.surface === 'modular-bridge').length, 2,
     'the two central bridge decks must use imported modular bridge geometry');
   assert.equal(map.bridgeAssemblies?.length, 2, 'both elevated crossings must assemble from the imported bridge kit');
+  for (const assembly of map.bridgeAssemblies) {
+    const entry = assembly.components.find(component =>
+      component.componentId === 'bridge-end-ramp-deck' && component.sectionId.endsWith('section-01'));
+    const exit = assembly.components.find(component =>
+      component.componentId === 'bridge-end-ramp-deck'
+      && component.sectionId.endsWith('section-' + String(assembly.sectionCount).padStart(2,'0')));
+    assert.ok(entry && exit, assembly.id + ' needs an imported entry and exit ramp');
+    const delta = Math.abs(Math.atan2(Math.sin(exit.yaw - entry.yaw), Math.cos(exit.yaw - entry.yaw)));
+    assert.ok(Math.abs(delta - Math.PI) < 0.02,
+      assembly.id + ' exit ramp must face opposite the entry ramp so the asymmetric slope is not backwards');
+  }
   assert.equal(map.waterways?.length, 1, 'Fate Drainage Bridge needs its authored drainage channel and exposed bed');
   assert.equal(map.waterways[0].bankBottom, map.bridgeAssemblies.find(a => a.id === 'fate-drainage-bridge').foundationY,
     'drainage bridge supports must meet the visible channel bed datum');
@@ -185,7 +196,16 @@ try {
     'every measured bridge footing must meet visible ground or the drainage bed: ' + JSON.stringify(report.bridgeFootContactFailures));
   assert.deepEqual(report.bridgeDeckAlignmentFailures, [],
     'every bridge road surface must meet its authored metric deckY: ' + JSON.stringify(report.bridgeDeckAlignmentFailures));
-  assert.equal(report.roadModuleCount, 2, 'both imported road-kit pieces must render');
+  assert.ok(report.roadPackPrefabCount === 6,
+    'the road renderer must load all six imported Road Pack surface components');
+  assert.equal(report.roadPackRoadCount, 19,
+    'all 19 non-bridge authored streets must use the imported Road Pack renderer');
+  assert.ok(report.roadModuleCount > 100,
+    'Road Pack surfaces must be tiled along the city roads rather than stretched over an entire street');
+  assert.ok(report.roadPackSurfaceMeshCount >= 2,
+    'imported Road Pack material variants should be merged into visible road meshes');
+  assert.equal(report.legacyRoadSurfaceCount, 0,
+    'City A must not render the previous procedural asphalt road texture');
   assert.equal(report.glbAssetCount, map.glbAssets.length, 'runtime GLB placement count differs from authored map');
   assert.equal(report.uniqueModelCount, new Set(map.glbAssets.map(a => a.url)).size, 'not all distinct imported model files loaded into cache');
   assert.equal(report.buildingCount, map.glbAssets.filter(a => a.building).length, 'some authored building GLBs did not load');
@@ -235,6 +255,10 @@ try {
     ['graResidential', 'city-a-gra-residential-closeup.png'],
     ['marketStreet', 'city-a-market-street-closeup.png'],
     ['roadKit', 'city-a-gra-road-kit.png'],
+    ['roadPackBoulevard', 'city-a-road-pack-boulevard.png'],
+    ['roadPackResidential', 'city-a-road-pack-residential.png'],
+    ['mainBridgeExit', 'city-a-main-bridge-exit.png'],
+    ['fateBridgeExit', 'city-a-fate-bridge-exit.png'],
   ];
   for (const [view, filename] of shots) {
     await page.evaluate(viewName => window.__CITY_PREVIEW__.setView(viewName), view);
