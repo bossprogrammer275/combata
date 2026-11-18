@@ -842,7 +842,7 @@
       "w": 4.26,
       "sidewalk": true,
       "smooth": false,
-      "surface": "asphalt",
+      "surface": "road-pack",
       "points": [
         [
           -88,
@@ -2218,22 +2218,7 @@
       ]
     }
   ],
-  "roadModules": [
-    {
-      "componentId": "road-straight-long-01",
-      "x": -88,
-      "z": 97.005,
-      "y": 0.068,
-      "yaw": 0
-    },
-    {
-      "componentId": "road-straight-long-02",
-      "x": -88,
-      "z": 126.875,
-      "y": 0.068,
-      "yaw": 0
-    }
-  ],
+  "roadModules": [],
   "bridgeAssemblies": [
     {
       "id": "main-city-flyover",
@@ -2446,22 +2431,24 @@
           "sectionId": "main-city-flyover-section-10",
           "x": -7.127,
           "z": -96.063,
-          "yaw": 1.508378,
+          "yaw": -1.633215,
           "scaleX": 0.991,
           "scaleZ": 2.133561,
           "deckY": 7.06,
-          "foundationY": 0
+          "foundationY": 0,
+          "endRole": "exit-ramp"
         },
         {
           "componentId": "bridge-end-ramp-deck",
           "sectionId": "main-city-flyover-section-10",
           "x": -7.127,
           "z": -96.063,
-          "yaw": 1.508378,
+          "yaw": -1.633215,
           "scaleX": 0.991,
           "scaleZ": 2.133561,
           "deckY": 7.06,
-          "foundationY": 0
+          "foundationY": 0,
+          "endRole": "exit-ramp"
         }
       ],
       "sectionCount": 10
@@ -2699,22 +2686,24 @@
           "sectionId": "fate-drainage-bridge-section-11",
           "x": 194,
           "z": 84.966,
-          "yaw": -1.570796,
+          "yaw": 1.570797,
           "scaleX": 0.99,
           "scaleZ": 1.706849,
           "deckY": 3.66,
-          "foundationY": -1.05
+          "foundationY": -1.05,
+          "endRole": "exit-ramp"
         },
         {
           "componentId": "bridge-end-ramp-deck",
           "sectionId": "fate-drainage-bridge-section-11",
           "x": 194,
           "z": 84.966,
-          "yaw": -1.570796,
+          "yaw": 1.570797,
           "scaleX": 0.99,
           "scaleZ": 1.706849,
           "deckY": 3.66,
-          "foundationY": -1.05
+          "foundationY": -1.05,
+          "endRole": "exit-ramp"
         }
       ],
       "sectionCount": 11
