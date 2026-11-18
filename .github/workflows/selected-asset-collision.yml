@@ -86,31 +86,40 @@ jobs:
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
+          import crypto from 'node:crypto';
           import fs from 'node:fs';
           import path from 'node:path';
-          import { fileURLToPath } from 'node:url';
           const manifest = JSON.parse(fs.readFileSync('.selected-collision-manifest.json', 'utf8'));
           const root = process.cwd();
-          const archiveRoot = path.join(root, 'data/models/_archive/originals');
+          const modelsRoot = path.join(root, 'data/models');
+          const archiveRoot = path.join(modelsRoot, '_archive/originals');
+          const archiveIndex = [];
+          const digest = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
           function copyFile(source, relative) {
-            const destination = path.join(archiveRoot, relative);
+            const hash = digest(source);
+            let destination = path.join(archiveRoot, relative);
             fs.mkdirSync(path.dirname(destination), { recursive: true });
+            if (fs.existsSync(destination) && digest(destination) !== hash) {
+              destination += '.pre-collision-' + hash.slice(0, 12);
+            }
             if (!fs.existsSync(destination)) fs.copyFileSync(source, destination, fs.constants.COPYFILE_EXCL);
+            if (digest(destination) !== hash) throw new Error('Backup hash mismatch: ' + destination);
+            archiveIndex.push({ source: path.relative(root, source).split(path.sep).join('/'), backup: path.relative(root, destination).split(path.sep).join('/'), sha256: hash });
           }
           function safeExternal(baseDir, uri) {
             if (typeof uri !== 'string' || !uri || uri.startsWith('data:')) return null;
             const decoded = decodeURIComponent(uri.split(/[?#]/, 1)[0]);
             const resolved = path.resolve(baseDir, decoded);
-            const rel = path.relative(baseDir, resolved);
-            if (rel.startsWith('..') || path.isAbsolute(rel)) throw new Error('External resource escapes model folder: ' + uri);
+            const rel = path.relative(modelsRoot, resolved);
+            if (rel.startsWith('..') || path.isAbsolute(rel)) throw new Error('External resource escapes data/models: ' + uri);
             return resolved;
           }
           for (const item of manifest.assets) {
             const source = path.resolve(root, item.path);
-            const relative = path.relative(path.join(root, 'data/models'), source).split(path.sep).join('/');
+            const relative = path.relative(modelsRoot, source).split(path.sep).join('/');
             if (relative.startsWith('../') || path.isAbsolute(relative)) throw new Error('Refusing to archive path outside data/models: ' + item.path);
             copyFile(source, relative);
-            if (/\.gltf$/i.test(source)) {
+            if (/\\.gltf$/i.test(source)) {
               const gltf = JSON.parse(fs.readFileSync(source, 'utf8'));
               const resources = [
                 ...(gltf.buffers || []).map(x => x.uri),
@@ -118,16 +127,24 @@ jobs:
               ];
               for (const uri of resources) {
                 const external = safeExternal(path.dirname(source), uri);
-                if (!external || !fs.existsSync(external) || !fs.statSync(external).isFile()) {
-                  if (external) throw new Error('Missing referenced file ' + uri + ' in ' + item.path);
-                  continue;
-                }
-                const externalRelative = path.relative(path.join(root, 'data/models'), external).split(path.sep).join('/');
+                if (!external) continue;
+                if (!fs.existsSync(external) || !fs.statSync(external).isFile()) throw new Error('Missing referenced file ' + uri + ' in ' + item.path);
+                const externalRelative = path.relative(modelsRoot, external).split(path.sep).join('/');
                 copyFile(external, externalRelative);
               }
             }
+            for (const candidate of ['LICENSE', 'LICENSE.txt', 'license.txt', 'README.md', 'attribution.txt']) {
+              const sidecar = path.join(path.dirname(source), candidate);
+              if (fs.existsSync(sidecar) && fs.statSync(sidecar).isFile()) {
+                copyFile(sidecar, path.relative(modelsRoot, sidecar).split(path.sep).join('/'));
+              }
+            }
           }
-          console.log('Archived all selected originals and every referenced external buffer/texture.');
+          fs.mkdirSync(path.join(modelsRoot, '_archive'), { recursive: true });
+          fs.writeFileSync(path.join(modelsRoot, '_archive/selected-collision-archive-index.json'), JSON.stringify({
+            generatedAt: new Date().toISOString(), selected: manifest.assets.length, files: archiveIndex,
+          }, null, 2) + '\\n');
+          console.log('Archived selected originals, referenced buffers/textures, and adjacent licence notes with SHA-256 verification.');
           NODE
 
       - name: Generate selected collision proxies and replace only selected files
@@ -206,7 +223,7 @@ jobs:
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+users.noreply.github.com"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- data/models
           git add -- .selected-collision-manifest.json .github/workflows/selected-asset-collision.yml
           if git diff --cached --quiet; then echo "No changes to commit."; exit 0; fi
