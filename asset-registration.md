@@ -192,11 +192,16 @@ The runtime uses the registered `collisionProfile`; do not rely on vague filenam
 For generated embedded collision meshes, inspect the asset first and then use the self-contained converter in `js/utils/make-collision.js`:
 
 ```bash
-node js/utils/make-collision.js <model.glb> --mode solid --replace --rename
-node js/utils/make-collision.js <model.glb> --mode shell --replace
+node js/utils/make-collision.js <building.glb> --mode solid --replace --rename
+node js/utils/make-collision.js <ordinary-prop.glb> --profile small-prop --replace
+node js/utils/make-collision.js <fence.glb> --profile fence --target-height 2 --replace
+node js/utils/make-collision.js <streetlight.gltf> --profile pole --target-height 8 --replace
+node js/utils/make-collision.js <vehicle.gltf> --mode shell --replace
 ```
 
-Use `solid` for ordinary building/prop collision and `shell` only where a thin surface is the correct physical representation (vehicle body shell, for example). The converter supports GLB and glTF entry files; small assets are supported too. For glTF output, retain its generated `.bin` beside the `.gltf`.
+The voxeliser uses independent X/Y/Z cell sizes. It keeps at least 16 cells across each non-zero model axis by default, so narrow poles, rails and thin parts do not disappear just because the model is tall or long. `--profile small-prop` raises detail for small solid assets; `--profile fence` selects thin surface collision and raises the grid detail; `--profile pole` or `--profile trunk` creates one narrow, full-height upright proxy instead of filling the lamp head or foliage. The pole default is 0.35 m wide and the trunk default is 0.5 m; `--pole-width` overrides either value.
+
+Use `solid` for ordinary building/prop collision and `shell` only where a thin surface is the correct physical representation (fence rails or a vehicle body shell, for example). The converter supports GLB and glTF entry files; for glTF output, retain its generated `.bin` beside the `.gltf`. Supply a verified `--target-height` or `--scale` when the source unit is not metres; do not treat an unverified raw model height as a physical dimension.
 
 **Important safeguards:**
 
