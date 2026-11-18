@@ -21,13 +21,24 @@ function checkMapContract() {
   assert.equal(map.roads?.length, 21, 'expected the authored city, GRA lanes and split flyover approaches');
   assert.equal(map.roadModules?.length, 2, 'expected two imported long road-pack pieces in the residential lane');
   assert.deepEqual(map.roadModules.map(module => module.componentId), ['road-straight-long-01', 'road-straight-long-02']);
-  assert.equal(map.glbAssets?.length, 88, 'unexpected GLB placement count for the Ilorin district block');
+  assert.equal(map.glbAssets?.length, 93, 'unexpected GLB placement count for the first residential and market district build');
   const uniqueModelCount = new Set(map.glbAssets.map(a => a.url)).size;
-  assert.equal(uniqueModelCount, 26, 'expected 26 distinct imported model assets in the district');
-  assert.equal(map.glbAssets.filter(a => a.building).length, 18, 'expected the civic, commercial, school and residential building set');
+  assert.equal(uniqueModelCount, 31, 'expected 31 distinct imported model assets in the district');
+  assert.equal(map.glbAssets.filter(a => a.building).length, 22, 'expected the civic, commercial, school and expanded residential building set');
   assert.equal(map.glbAssets.filter(a => a.url.includes('street_light')).length, 32, 'expected 32 streetlights');
   assert.equal(map.glbAssets.filter(a => a.tags?.includes('vegetation')).length, 27, 'expected 27 trees and landscape assets');
-  for (const required of ['nigeria_duplex', 'mosque.glb', 'low_poly__school_building', 'gas_station_5', 'meed_grocery_store']) {
+  for (const required of [
+    'nigeria_duplex',
+    'mosque.glb',
+    'low_poly__school_building',
+    'gas_station_5',
+    'meed_grocery_store',
+    'american_style_house',
+    'residential_house_3',
+    'brooklyn_street_twin_buildings_low_poly',
+    'buildings/building/scene.gltf',
+    'concrete_road_barrier_photoscanned',
+  ]) {
     assert.ok(map.glbAssets.some(a => a.url.includes(required)), 'missing district asset: ' + required);
   }
   assert.equal(map.roads.filter(r => r.surface === 'modular-bridge').length, 2,
