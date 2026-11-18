@@ -33,12 +33,38 @@ function checkMapContract() {
   assert.equal(map.roads.filter(r => r.surface === 'modular-bridge').length, 2,
     'the two central bridge decks must use imported modular bridge geometry');
   assert.equal(map.bridgeAssemblies?.length, 2, 'both elevated crossings must assemble from the imported bridge kit');
-  assert.equal(map.bridgeAssemblies.reduce((sum, assembly) => sum + assembly.pieces.length, 0), 21,
-    'expected 21 imported bridge spans, short modules and abutments across the two crossings');
-  assert.ok(map.bridgeAssemblies.every(assembly => assembly.pieces.every(piece =>
-    piece.componentId && Number.isFinite(piece.deckY) && Number.isFinite(piece.scaleX)
-      && Number.isFinite(piece.scaleZ))),
-    'bridge pieces must use metric deckY and explicit dimensionless component scales');
+  assert.equal(map.bridgeAssemblies.reduce((sum, assembly) => sum + assembly.sectionCount, 0), 21,
+    'expected 21 bridge sections across the two elevated crossings');
+  assert.equal(map.bridgeAssemblies.reduce((sum, assembly) => sum + assembly.components.length, 0), 42,
+    'every bridge section must place its independent concrete and deck meshes separately');
+  for (const assembly of map.bridgeAssemblies) {
+    assert.equal(assembly.components.length, assembly.sectionCount * 2,
+      assembly.id + ' must contain one support and one independent deck placement per section');
+    assert.ok(assembly.components.every(component =>
+      component.componentId && component.sectionId
+      && Number.isFinite(component.deckY) && Number.isFinite(component.foundationY)
+      && Number.isFinite(component.scaleX) && Number.isFinite(component.scaleZ)),
+      assembly.id + ' components require metric deck/foundation datums and explicit horizontal scales');
+    const sections = new Map();
+    for (const component of assembly.components) {
+      if (!sections.has(component.sectionId)) sections.set(component.sectionId, []);
+      sections.get(component.sectionId).push(component);
+    }
+    assert.equal(sections.size, assembly.sectionCount, assembly.id + ' section IDs must be unique');
+    for (const [sectionId, components] of sections) {
+      assert.equal(components.length, 2, sectionId + ' must have two independent component placements');
+      assert.equal(components.filter(component => component.componentId.endsWith('-structure')).length, 1,
+        sectionId + ' must have one imported concrete support mesh');
+      assert.equal(components.filter(component => component.componentId.endsWith('-deck')).length, 1,
+        sectionId + ' must have one imported road/deck mesh');
+      assert.equal(components[0].deckY, components[1].deckY, sectionId + ' deck datums disagree');
+      assert.equal(components[0].foundationY, components[1].foundationY, sectionId + ' foundation datums disagree');
+    }
+    assert.equal([...sections.values()].filter(pair => pair.some(component => component.componentId.startsWith('bridge-end-ramp-'))).length, 2,
+      assembly.id + ' must use the imported starter/end-ramp module at both ends');
+    assert.equal([...sections.values()].filter(pair => pair.some(component => component.componentId.startsWith('bridge-pier-starter-'))).length, 1,
+      assembly.id + ' must use its imported short pier-starter module');
+  }
   assert.equal(map.spawns?.length || 0, 0, 'enemy/pedestrian spawn list must be empty');
   assert.equal(map.cover?.length || 0, 0, 'no combat cover points should be authored');
   assert.equal(map.loot?.length || 0, 0, 'loot box list must be empty');
@@ -112,9 +138,17 @@ try {
   const report = preview.report;
 
   assert.equal(report.roadCount, 21, 'runtime road count differs from authored map');
-  assert.equal(report.bridgeComponentCount, 21, 'not all imported bridge-kit sections reached the world');
-  assert.equal(report.bridgeImportedDeckCount, 21, 'every imported bridge road deck must register its exact road physics mesh');
-  assert.equal(report.bridgeImportedSupportCount, 21, 'every imported bridge concrete structure must register solid static collision');
+  assert.equal(report.bridgeKitParts.length, 10, 'all ten independent imported bridge mesh prefabs must load');
+  assert.equal(report.bridgeSectionCount, 21, 'not all imported bridge sections reached the world');
+  assert.equal(report.bridgeComponentCount, 42, 'each bridge section must render separate support and deck components');
+  assert.equal(report.bridgeStructureCount, 21, 'every bridge section needs its own imported concrete support mesh');
+  assert.equal(report.bridgeDeckComponentCount, 21, 'every bridge section needs its own independent imported deck mesh');
+  assert.equal(report.bridgeImportedDeckCount, 21, 'every imported bridge deck must register its exact road physics mesh');
+  assert.equal(report.bridgeImportedSupportCount, 21, 'every imported bridge support must register solid static collision');
+  assert.deepEqual(report.bridgeGroundContactFailures, [],
+    'bridge pillars must meet their authored foundation plane: ' + JSON.stringify(report.bridgeGroundContactFailures));
+  assert.deepEqual(report.bridgeDeckAlignmentFailures, [],
+    'every bridge road surface must meet its authored metric deckY: ' + JSON.stringify(report.bridgeDeckAlignmentFailures));
   assert.equal(report.roadModuleCount, 2, 'both imported road-kit pieces must render');
   assert.equal(report.glbAssetCount, map.glbAssets.length, 'runtime GLB placement count differs from authored map');
   assert.equal(report.uniqueModelCount, new Set(map.glbAssets.map(a => a.url)).size, 'not all distinct imported model files loaded into cache');
@@ -151,6 +185,9 @@ try {
     ['civic', 'city-a-civic-landmarks.png'],
     ['boulevard', 'city-a-street-level.png'],
     ['flyover', 'city-a-flyovers.png'],
+    ['mainBridgeSide', 'city-a-main-flyover-side.png'],
+    ['fateBridgeSide', 'city-a-fate-bridge-side.png'],
+    ['bridgeTop', 'city-a-bridge-top.png'],
     ['south', 'city-a-southern-blocks.png'],
     ['roadKit', 'city-a-gra-road-kit.png'],
   ];
