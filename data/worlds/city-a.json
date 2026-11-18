@@ -1,7 +1,7 @@
 {
   "id": "city-a",
   "name": "Ilorin City — Civic Core, GRA & Market District",
-  "version": 7,
+  "version": 8,
   "bounds": 228,
   "disableAutoSpawns": true,
   "startPoint": {
@@ -2163,108 +2163,230 @@
       "y": 0,
       "z": 0,
       "registerRoadPhysics": true,
-      "pieces": [
+      "foundationY": 0,
+      "components": [
         {
-          "componentId": "bridge-abutment",
+          "componentId": "bridge-end-ramp-structure",
+          "sectionId": "main-city-flyover-section-01",
           "x": -16.873,
           "z": 57.96,
           "yaw": 1.508378,
-          "scaleX": 1.021819,
-          "scaleY": 1,
+          "scaleX": 0.991,
           "scaleZ": 2.133561,
-          "deckY": 7.06
+          "deckY": 7.06,
+          "foundationY": 0
         },
         {
-          "componentId": "bridge-span-long",
+          "componentId": "bridge-end-ramp-deck",
+          "sectionId": "main-city-flyover-section-01",
+          "x": -16.873,
+          "z": 57.96,
+          "yaw": 1.508378,
+          "scaleX": 0.991,
+          "scaleZ": 2.133561,
+          "deckY": 7.06,
+          "foundationY": 0
+        },
+        {
+          "componentId": "bridge-straight-structure",
+          "sectionId": "main-city-flyover-section-02",
           "x": -16.108,
           "z": 45.722,
           "yaw": 1.508378,
-          "scaleX": 1.021819,
-          "scaleY": 1,
+          "scaleX": 0.991,
           "scaleZ": 2.133561,
-          "deckY": 7.06
+          "deckY": 7.06,
+          "foundationY": 0
         },
         {
-          "componentId": "bridge-span-long",
+          "componentId": "bridge-straight-deck",
+          "sectionId": "main-city-flyover-section-02",
+          "x": -16.108,
+          "z": 45.722,
+          "yaw": 1.508378,
+          "scaleX": 0.991,
+          "scaleZ": 2.133561,
+          "deckY": 7.06,
+          "foundationY": 0
+        },
+        {
+          "componentId": "bridge-straight-structure",
+          "sectionId": "main-city-flyover-section-03",
           "x": -14.833,
           "z": 25.326,
           "yaw": 1.508378,
-          "scaleX": 1.021819,
-          "scaleY": 1,
+          "scaleX": 0.991,
           "scaleZ": 2.133561,
-          "deckY": 7.06
+          "deckY": 7.06,
+          "foundationY": 0
         },
         {
-          "componentId": "bridge-span-long",
+          "componentId": "bridge-straight-deck",
+          "sectionId": "main-city-flyover-section-03",
+          "x": -14.833,
+          "z": 25.326,
+          "yaw": 1.508378,
+          "scaleX": 0.991,
+          "scaleZ": 2.133561,
+          "deckY": 7.06,
+          "foundationY": 0
+        },
+        {
+          "componentId": "bridge-straight-structure",
+          "sectionId": "main-city-flyover-section-04",
           "x": -13.558,
           "z": 4.929,
           "yaw": 1.508378,
-          "scaleX": 1.021819,
-          "scaleY": 1,
+          "scaleX": 0.991,
           "scaleZ": 2.133561,
-          "deckY": 7.06
+          "deckY": 7.06,
+          "foundationY": 0
         },
         {
-          "componentId": "bridge-span-long",
+          "componentId": "bridge-straight-deck",
+          "sectionId": "main-city-flyover-section-04",
+          "x": -13.558,
+          "z": 4.929,
+          "yaw": 1.508378,
+          "scaleX": 0.991,
+          "scaleZ": 2.133561,
+          "deckY": 7.06,
+          "foundationY": 0
+        },
+        {
+          "componentId": "bridge-straight-structure",
+          "sectionId": "main-city-flyover-section-05",
           "x": -12.283,
           "z": -15.467,
           "yaw": 1.508378,
-          "scaleX": 1.021819,
-          "scaleY": 1,
+          "scaleX": 0.991,
           "scaleZ": 2.133561,
-          "deckY": 7.06
+          "deckY": 7.06,
+          "foundationY": 0
         },
         {
-          "componentId": "bridge-span-long",
+          "componentId": "bridge-straight-deck",
+          "sectionId": "main-city-flyover-section-05",
+          "x": -12.283,
+          "z": -15.467,
+          "yaw": 1.508378,
+          "scaleX": 0.991,
+          "scaleZ": 2.133561,
+          "deckY": 7.06,
+          "foundationY": 0
+        },
+        {
+          "componentId": "bridge-straight-structure",
+          "sectionId": "main-city-flyover-section-06",
           "x": -11.009,
           "z": -35.864,
           "yaw": 1.508378,
-          "scaleX": 1.021819,
-          "scaleY": 1,
+          "scaleX": 0.991,
           "scaleZ": 2.133561,
-          "deckY": 7.06
+          "deckY": 7.06,
+          "foundationY": 0
         },
         {
-          "componentId": "bridge-span-long",
+          "componentId": "bridge-straight-deck",
+          "sectionId": "main-city-flyover-section-06",
+          "x": -11.009,
+          "z": -35.864,
+          "yaw": 1.508378,
+          "scaleX": 0.991,
+          "scaleZ": 2.133561,
+          "deckY": 7.06,
+          "foundationY": 0
+        },
+        {
+          "componentId": "bridge-straight-structure",
+          "sectionId": "main-city-flyover-section-07",
           "x": -9.734,
           "z": -56.261,
           "yaw": 1.508378,
-          "scaleX": 1.021819,
-          "scaleY": 1,
+          "scaleX": 0.991,
           "scaleZ": 2.133561,
-          "deckY": 7.06
+          "deckY": 7.06,
+          "foundationY": 0
         },
         {
-          "componentId": "bridge-span-long",
+          "componentId": "bridge-straight-deck",
+          "sectionId": "main-city-flyover-section-07",
+          "x": -9.734,
+          "z": -56.261,
+          "yaw": 1.508378,
+          "scaleX": 0.991,
+          "scaleZ": 2.133561,
+          "deckY": 7.06,
+          "foundationY": 0
+        },
+        {
+          "componentId": "bridge-straight-structure",
+          "sectionId": "main-city-flyover-section-08",
           "x": -8.459,
           "z": -76.657,
           "yaw": 1.508378,
-          "scaleX": 1.021819,
-          "scaleY": 1,
+          "scaleX": 0.991,
           "scaleZ": 2.133561,
-          "deckY": 7.06
+          "deckY": 7.06,
+          "foundationY": 0
         },
         {
-          "componentId": "bridge-span-short",
+          "componentId": "bridge-straight-deck",
+          "sectionId": "main-city-flyover-section-08",
+          "x": -8.459,
+          "z": -76.657,
+          "yaw": 1.508378,
+          "scaleX": 0.991,
+          "scaleZ": 2.133561,
+          "deckY": 7.06,
+          "foundationY": 0
+        },
+        {
+          "componentId": "bridge-pier-starter-structure",
+          "sectionId": "main-city-flyover-section-09",
           "x": -7.538,
           "z": -91.388,
           "yaw": 1.508378,
-          "scaleX": 1.021819,
-          "scaleY": 1,
+          "scaleX": 0.991,
           "scaleZ": 2.133561,
-          "deckY": 7.06
+          "deckY": 7.06,
+          "foundationY": 0
         },
         {
-          "componentId": "bridge-abutment",
+          "componentId": "bridge-pier-starter-deck",
+          "sectionId": "main-city-flyover-section-09",
+          "x": -7.538,
+          "z": -91.388,
+          "yaw": 1.508378,
+          "scaleX": 0.991,
+          "scaleZ": 2.133561,
+          "deckY": 7.06,
+          "foundationY": 0
+        },
+        {
+          "componentId": "bridge-end-ramp-structure",
+          "sectionId": "main-city-flyover-section-10",
           "x": -7.127,
           "z": -97.96,
           "yaw": 1.508378,
-          "scaleX": 1.021819,
-          "scaleY": 1,
+          "scaleX": 0.991,
           "scaleZ": 2.133561,
-          "deckY": 7.06
+          "deckY": 7.06,
+          "foundationY": 0
+        },
+        {
+          "componentId": "bridge-end-ramp-deck",
+          "sectionId": "main-city-flyover-section-10",
+          "x": -7.127,
+          "z": -97.96,
+          "yaw": 1.508378,
+          "scaleX": 0.991,
+          "scaleZ": 2.133561,
+          "deckY": 7.06,
+          "foundationY": 0
         }
-      ]
+      ],
+      "sectionCount": 10
     },
     {
       "id": "fate-drainage-bridge",
@@ -2272,118 +2394,252 @@
       "y": 0,
       "z": 0,
       "registerRoadPhysics": true,
-      "pieces": [
+      "foundationY": -1.05,
+      "components": [
         {
-          "componentId": "bridge-abutment",
+          "componentId": "bridge-end-ramp-structure",
+          "sectionId": "fate-drainage-bridge-section-01",
           "x": 194,
           "z": -87.965,
           "yaw": -1.570796,
-          "scaleX": 1.017587,
-          "scaleY": 1,
+          "scaleX": 0.99,
           "scaleZ": 1.706849,
-          "deckY": 3.66
+          "deckY": 3.66,
+          "foundationY": -1.05
         },
         {
-          "componentId": "bridge-span-long",
+          "componentId": "bridge-end-ramp-deck",
+          "sectionId": "fate-drainage-bridge-section-01",
+          "x": 194,
+          "z": -87.965,
+          "yaw": -1.570796,
+          "scaleX": 0.99,
+          "scaleZ": 1.706849,
+          "deckY": 3.66,
+          "foundationY": -1.05
+        },
+        {
+          "componentId": "bridge-straight-structure",
+          "sectionId": "fate-drainage-bridge-section-02",
           "x": 194,
           "z": -75.754,
           "yaw": -1.570796,
-          "scaleX": 1.017587,
-          "scaleY": 1,
+          "scaleX": 0.99,
           "scaleZ": 1.706849,
-          "deckY": 3.66
+          "deckY": 3.66,
+          "foundationY": -1.05
         },
         {
-          "componentId": "bridge-span-long",
+          "componentId": "bridge-straight-deck",
+          "sectionId": "fate-drainage-bridge-section-02",
+          "x": 194,
+          "z": -75.754,
+          "yaw": -1.570796,
+          "scaleX": 0.99,
+          "scaleZ": 1.706849,
+          "deckY": 3.66,
+          "foundationY": -1.05
+        },
+        {
+          "componentId": "bridge-straight-structure",
+          "sectionId": "fate-drainage-bridge-section-03",
           "x": 194,
           "z": -55.402,
           "yaw": -1.570796,
-          "scaleX": 1.017587,
-          "scaleY": 1,
+          "scaleX": 0.99,
           "scaleZ": 1.706849,
-          "deckY": 3.66
+          "deckY": 3.66,
+          "foundationY": -1.05
         },
         {
-          "componentId": "bridge-span-long",
+          "componentId": "bridge-straight-deck",
+          "sectionId": "fate-drainage-bridge-section-03",
+          "x": 194,
+          "z": -55.402,
+          "yaw": -1.570796,
+          "scaleX": 0.99,
+          "scaleZ": 1.706849,
+          "deckY": 3.66,
+          "foundationY": -1.05
+        },
+        {
+          "componentId": "bridge-straight-structure",
+          "sectionId": "fate-drainage-bridge-section-04",
           "x": 194,
           "z": -35.05,
           "yaw": -1.570796,
-          "scaleX": 1.017587,
-          "scaleY": 1,
+          "scaleX": 0.99,
           "scaleZ": 1.706849,
-          "deckY": 3.66
+          "deckY": 3.66,
+          "foundationY": -1.05
         },
         {
-          "componentId": "bridge-span-long",
+          "componentId": "bridge-straight-deck",
+          "sectionId": "fate-drainage-bridge-section-04",
+          "x": 194,
+          "z": -35.05,
+          "yaw": -1.570796,
+          "scaleX": 0.99,
+          "scaleZ": 1.706849,
+          "deckY": 3.66,
+          "foundationY": -1.05
+        },
+        {
+          "componentId": "bridge-straight-structure",
+          "sectionId": "fate-drainage-bridge-section-05",
           "x": 194,
           "z": -14.699,
           "yaw": -1.570796,
-          "scaleX": 1.017587,
-          "scaleY": 1,
+          "scaleX": 0.99,
           "scaleZ": 1.706849,
-          "deckY": 3.66
+          "deckY": 3.66,
+          "foundationY": -1.05
         },
         {
-          "componentId": "bridge-span-long",
+          "componentId": "bridge-straight-deck",
+          "sectionId": "fate-drainage-bridge-section-05",
+          "x": 194,
+          "z": -14.699,
+          "yaw": -1.570796,
+          "scaleX": 0.99,
+          "scaleZ": 1.706849,
+          "deckY": 3.66,
+          "foundationY": -1.05
+        },
+        {
+          "componentId": "bridge-straight-structure",
+          "sectionId": "fate-drainage-bridge-section-06",
           "x": 194,
           "z": 5.653,
           "yaw": -1.570796,
-          "scaleX": 1.017587,
-          "scaleY": 1,
+          "scaleX": 0.99,
           "scaleZ": 1.706849,
-          "deckY": 3.66
+          "deckY": 3.66,
+          "foundationY": -1.05
         },
         {
-          "componentId": "bridge-span-long",
+          "componentId": "bridge-straight-deck",
+          "sectionId": "fate-drainage-bridge-section-06",
+          "x": 194,
+          "z": 5.653,
+          "yaw": -1.570796,
+          "scaleX": 0.99,
+          "scaleZ": 1.706849,
+          "deckY": 3.66,
+          "foundationY": -1.05
+        },
+        {
+          "componentId": "bridge-straight-structure",
+          "sectionId": "fate-drainage-bridge-section-07",
           "x": 194,
           "z": 26.005,
           "yaw": -1.570796,
-          "scaleX": 1.017587,
-          "scaleY": 1,
+          "scaleX": 0.99,
           "scaleZ": 1.706849,
-          "deckY": 3.66
+          "deckY": 3.66,
+          "foundationY": -1.05
         },
         {
-          "componentId": "bridge-span-long",
+          "componentId": "bridge-straight-deck",
+          "sectionId": "fate-drainage-bridge-section-07",
+          "x": 194,
+          "z": 26.005,
+          "yaw": -1.570796,
+          "scaleX": 0.99,
+          "scaleZ": 1.706849,
+          "deckY": 3.66,
+          "foundationY": -1.05
+        },
+        {
+          "componentId": "bridge-straight-structure",
+          "sectionId": "fate-drainage-bridge-section-08",
           "x": 194,
           "z": 46.357,
           "yaw": -1.570796,
-          "scaleX": 1.017587,
-          "scaleY": 1,
+          "scaleX": 0.99,
           "scaleZ": 1.706849,
-          "deckY": 3.66
+          "deckY": 3.66,
+          "foundationY": -1.05
         },
         {
-          "componentId": "bridge-span-long",
+          "componentId": "bridge-straight-deck",
+          "sectionId": "fate-drainage-bridge-section-08",
+          "x": 194,
+          "z": 46.357,
+          "yaw": -1.570796,
+          "scaleX": 0.99,
+          "scaleZ": 1.706849,
+          "deckY": 3.66,
+          "foundationY": -1.05
+        },
+        {
+          "componentId": "bridge-straight-structure",
+          "sectionId": "fate-drainage-bridge-section-09",
           "x": 194,
           "z": 66.708,
           "yaw": -1.570796,
-          "scaleX": 1.017587,
-          "scaleY": 1,
+          "scaleX": 0.99,
           "scaleZ": 1.706849,
-          "deckY": 3.66
+          "deckY": 3.66,
+          "foundationY": -1.05
         },
         {
-          "componentId": "bridge-span-short",
+          "componentId": "bridge-straight-deck",
+          "sectionId": "fate-drainage-bridge-section-09",
+          "x": 194,
+          "z": 66.708,
+          "yaw": -1.570796,
+          "scaleX": 0.99,
+          "scaleZ": 1.706849,
+          "deckY": 3.66,
+          "foundationY": -1.05
+        },
+        {
+          "componentId": "bridge-pier-starter-structure",
+          "sectionId": "fate-drainage-bridge-section-10",
           "x": 194,
           "z": 81.407,
           "yaw": -1.570796,
-          "scaleX": 1.017587,
-          "scaleY": 1,
+          "scaleX": 0.99,
           "scaleZ": 1.706849,
-          "deckY": 3.66
+          "deckY": 3.66,
+          "foundationY": -1.05
         },
         {
-          "componentId": "bridge-abutment",
+          "componentId": "bridge-pier-starter-deck",
+          "sectionId": "fate-drainage-bridge-section-10",
+          "x": 194,
+          "z": 81.407,
+          "yaw": -1.570796,
+          "scaleX": 0.99,
+          "scaleZ": 1.706849,
+          "deckY": 3.66,
+          "foundationY": -1.05
+        },
+        {
+          "componentId": "bridge-end-ramp-structure",
+          "sectionId": "fate-drainage-bridge-section-11",
           "x": 194,
           "z": 87.965,
           "yaw": -1.570796,
-          "scaleX": 1.017587,
-          "scaleY": 1,
+          "scaleX": 0.99,
           "scaleZ": 1.706849,
-          "deckY": 3.66
+          "deckY": 3.66,
+          "foundationY": -1.05
+        },
+        {
+          "componentId": "bridge-end-ramp-deck",
+          "sectionId": "fate-drainage-bridge-section-11",
+          "x": 194,
+          "z": 87.965,
+          "yaw": -1.570796,
+          "scaleX": 0.99,
+          "scaleZ": 1.706849,
+          "deckY": 3.66,
+          "foundationY": -1.05
         }
-      ]
+      ],
+      "sectionCount": 11
     }
   ]
 }
