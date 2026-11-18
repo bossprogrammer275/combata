@@ -25,6 +25,16 @@ function checkMapContract() {
   const uniqueModelCount = new Set(map.glbAssets.map(a => a.url)).size;
   assert.equal(uniqueModelCount, 31, 'expected 31 distinct imported model assets in the district');
   assert.equal(map.glbAssets.filter(a => a.building).length, 22, 'expected the civic, commercial, school and expanded residential building set');
+  assert.equal(map.districtPlots?.length, 11, 'expected six GRA compounds and five public/commercial plots');
+  assert.equal(map.districtPlots.filter(plot => plot.type === 'residential-compound').length, 6,
+    'all six residential buildings need their own compound plot');
+  assert.ok(map.districtPlots.every(plot => plot.id && plot.width > 2 && plot.depth > 2
+    && Number.isFinite(plot.x) && Number.isFinite(plot.z)),
+    'district plots need stable IDs and metric dimensions');
+  assert.ok(map.districtPlots.filter(plot => plot.type === 'residential-compound').every(plot =>
+    plot.wallHeight >= 1.3 && plot.gateWidth >= 3.5 && plot.driveway?.width >= 3.5),
+    'residential plots need compound boundaries and a vehicle gate/driveway');
+
   assert.equal(map.glbAssets.filter(a => a.url.includes('street_light')).length, 32, 'expected 32 streetlights');
   assert.equal(map.glbAssets.filter(a => a.tags?.includes('vegetation')).length, 27, 'expected 27 trees and landscape assets');
   for (const required of [
@@ -164,6 +174,10 @@ try {
   assert.equal(report.glbAssetCount, map.glbAssets.length, 'runtime GLB placement count differs from authored map');
   assert.equal(report.uniqueModelCount, new Set(map.glbAssets.map(a => a.url)).size, 'not all distinct imported model files loaded into cache');
   assert.equal(report.buildingCount, map.glbAssets.filter(a => a.building).length, 'some authored building GLBs did not load');
+  assert.equal(report.districtPlotCount, 11, 'not all authored residential and market plots were built');
+  assert.equal(report.districtCompoundCount, 6, 'all six residential lots must have boundary walls');
+  assert.ok(report.districtPlotWallCount >= 36, 'compound walls and gate pillars were not generated');
+  assert.equal(report.districtDrivewayCount, 6, 'each residential compound needs a driveway and pedestrian path');
   assert.equal(report.buildingInstanceCount, report.buildingCount,
     'World Kit did not register every placed building instance');
   assert.equal(report.buildingDoorCoverageCount, report.buildingCount,
@@ -201,6 +215,8 @@ try {
     ['bridgeTop', 'city-a-bridge-top.png'],
     ['south', 'city-a-southern-blocks.png'],
     ['graMarket', 'city-a-first-district.png'],
+    ['graResidential', 'city-a-gra-residential-closeup.png'],
+    ['marketStreet', 'city-a-market-street-closeup.png'],
     ['roadKit', 'city-a-gra-road-kit.png'],
   ];
   for (const [view, filename] of shots) {
