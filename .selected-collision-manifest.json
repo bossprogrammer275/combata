@@ -1,0 +1,122 @@
+{
+  "stage": "inspect",
+  "assets": [
+    {
+      "path": "data/models/assets/buildings/brooklyn_street_twin_buildings_low_poly/scene.gltf"
+    },
+    {
+      "path": "data/models/assets/buildings/building/scene.gltf"
+    },
+    {
+      "path": "data/models/assets/buildings/car_workshop.glb"
+    },
+    {
+      "path": "data/models/assets/buildings/gas_station_5/scene.gltf"
+    },
+    {
+      "path": "data/models/assets/buildings/low-poly_old_american_brick_building_with_shop_/scene.gltf"
+    },
+    {
+      "path": "data/models/assets/buildings/low_poly_-_industrial_warehouse.glb"
+    },
+    {
+      "path": "data/models/assets/buildings/low_poly__school_building/scene.gltf"
+    },
+    {
+      "path": "data/models/assets/buildings/meed_grocery_store.glb"
+    },
+    {
+      "path": "data/models/assets/residential/nigeria_duplex/scene.gltf"
+    },
+    {
+      "path": "data/models/assets/residential/residential_family_house/scene.gltf"
+    },
+    {
+      "path": "data/models/assets/residential/residential_house_3/scene.gltf"
+    },
+    {
+      "path": "data/models/assets/residential/american_style_house/scene.gltf"
+    },
+    {
+      "path": "data/models/assets/residential/Building+04_GLB/Building 04.glb"
+    },
+    {
+      "path": "data/models/assets/low_poly_skyscraper.glb"
+    },
+    {
+      "path": "data/models/assets/low_poly_street_light.glb"
+    },
+    {
+      "path": "data/models/assets/others/-dry_type_distribution_transformer/scene.gltf"
+    },
+    {
+      "path": "data/models/assets/others/fence_-_11mb.glb"
+    },
+    {
+      "path": "data/models/assets/others/freeway_streetlight_1/scene.gltf"
+    },
+    {
+      "path": "data/models/assets/others/game-ready_modular_metal_guardrail.glb"
+    },
+    {
+      "path": "data/models/assets/others/low_poly_electricity_pole/scene.gltf"
+    },
+    {
+      "path": "data/models/assets/others/metal_billboard_advertising_single_sided_free/scene.gltf"
+    },
+    {
+      "path": "data/models/assets/others/power_transformer_building__electricity.glb"
+    },
+    {
+      "path": "data/models/assets/others/standard_bus_stop.glb"
+    },
+    {
+      "path": "data/models/assets/others/traffic_lights/scene.gltf"
+    },
+    {
+      "path": "data/models/assets/others/low_poly_street_food_cart.glb"
+    },
+    {
+      "path": "data/models/assets/others/old_soviet_railway_station_kiosk/scene.gltf"
+    },
+    {
+      "path": "data/models/assets/others/low_poly_plastic_crates.glb"
+    },
+    {
+      "path": "data/models/assets/others/plastic_chair.glb"
+    },
+    {
+      "path": "data/models/assets/others/plastic_container.glb"
+    },
+    {
+      "path": "data/models/assets/others/plastic_table.glb"
+    },
+    {
+      "path": "data/models/assets/others/psx_-_vending_machine.glb"
+    },
+    {
+      "path": "data/models/assets/others/vietnamese_meat_market_stall.glb"
+    },
+    {
+      "path": "data/models/assets/others/water_tank.glb"
+    },
+    {
+      "path": "data/models/assets/others/water_dispenser.glb"
+    },
+    {
+      "path": "data/models/assets/others/wheelbarrow.glb"
+    },
+    {
+      "path": "data/models/assets/others/wooden_bench.glb"
+    },
+    {
+      "path": "data/models/assets/coconut_tree_low_poly.glb"
+    },
+    {
+      "path": "data/models/assets/others/low_poly_tree.glb"
+    },
+    {
+      "path": "data/models/assets/tree_low-poly.glb"
+    }
+  ]
+}
