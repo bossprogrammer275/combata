@@ -113,13 +113,29 @@ try {
   assert.equal(fence.profile, 'fence');
   assert.equal(fence.mode, 'shell', 'fence profile should default to shell collision');
   assert.ok(fence.boxes.length > 0, 'thin fence should produce collision proxies');
+  assert.ok(fence.boxes.length <= 150, 'fence profile must respect its bounded proxy budget');
   assert.ok(fence.voxelSizeByAxisUnits[2] < fence.voxelSizeUnits * 0.25,
     'thin Z axis should receive finer voxels instead of collapsing to the longest-axis cell size');
   assert.ok(fence.boxes.every(box => box.min.every(Number.isFinite) && box.max.every(Number.isFinite)),
     'fence proxy bounds must be finite');
   assert.ok(readGlbJson(fenceOutput).nodes.some(node => /^col_/.test(node.name || '')),
     'fence output must contain embedded col_* nodes');
-  console.log('  PASS thin fence uses high-detail surface proxies on its narrow axis');
+  console.log('  PASS thin fence uses high-detail surface proxies on its narrow axis and respects its collider budget');
+
+  const propInput = path.join(temp, 'small-prop.glb');
+  const propOutput = path.join(temp, 'small-prop-collision.glb');
+  const propReport = path.join(temp, 'small-prop-report.json');
+  writeGlb(propInput, [
+    { name: 'chair_seat', min: [-0.5, 0.8, -0.5], max: [0.5, 0.95, 0.5] },
+    { name: 'chair_back', min: [-0.5, 0.95, -0.45], max: [0.5, 1.8, -0.3] },
+    { name: 'chair_leg_1', min: [-0.45, 0, -0.45], max: [-0.35, 0.85, -0.35] },
+    { name: 'chair_leg_2', min: [0.35, 0, -0.45], max: [0.45, 0.85, -0.35] },
+  ]);
+  const prop = run(propInput, propOutput, propReport, ['--profile', 'small-prop', '--replace']);
+  assert.ok(prop.boxes.length > 0, 'small prop should produce collision proxies');
+  assert.ok(prop.boxes.length <= 180, 'small-prop profile must respect its bounded proxy budget');
+  assert.equal(prop.scaleVerified, false, 'raw prop source dimensions must remain unverified');
+  console.log('  PASS small-prop profile stays within its collider budget without assuming metres');
 
   const poleInput = path.join(temp, 'streetlight.glb');
   const poleOutput = path.join(temp, 'streetlight-collision.glb');
