@@ -112,7 +112,7 @@ jobs:
             archiveIndex.push({ source: path.relative(root, source).split(path.sep).join('/'), backup: path.relative(root, destination).split(path.sep).join('/'), sha256: hash });
           }
           function readModelJson(source) {
-            if (/\\.gltf$/i.test(source)) return JSON.parse(fs.readFileSync(source, 'utf8'));
+            if (/\.gltf$/i.test(source)) return JSON.parse(fs.readFileSync(source, 'utf8'));
             const bytes = fs.readFileSync(source);
             if (bytes.length < 20 || bytes.readUInt32LE(0) !== 0x46546c67) return null;
             let offset = 12;
