@@ -210,7 +210,13 @@ Draws asphalt ribbons with raised curbs and sidewalks:
 
 ### Bridge component assemblies
 
-The downloaded modular bridge is extracted into its real curved spans, straight spans, short spans and abutments. Assemblies are authored in `bridgeAssemblies` in `city-a.json`. Each piece uses dimensionless `scaleX`/`scaleY`/`scaleZ`, and `deckY` is the required absolute top-of-road height in metres. The runtime measures the imported piece's own road-deck offset and derives its placement from `deckY`; the exact placed road mesh is also registered for Rapier collision. Use imported bridge modules for suitable spans, procedural geometry only for ramps, custom piers, retaining transitions and invisible physics proxies. Do not guess the bridge deck offset or treat centimetres as metres.
+The downloaded modular bridge GLTF contains **ten independent mesh components** grouped into five reusable section types: curved span A, straight span, short pier-starter, curved span B and sloped end/abutment. World Kit extracts each concrete structure mesh and each road/deck mesh as its own prefab. They share a measured section anchor, but they are not merged into a single mesh or forced to use the same vertical transform.
+
+Assemblies are authored in `bridgeAssemblies` in `city-a.json`. Each section has two independent entries in its `components` array: one `*-structure` placement and one `*-deck` placement, linked only by `sectionId`. Horizontal `scaleX`/`scaleZ` values are dimensionless and can differ between bridges. `foundationY` is the absolute foundation level in metres (normally ground at `0`, or a drainage-bed level such as `-1.05`). `deckY` is the absolute upper road-surface height in metres.
+
+The structure component is anchored at `foundationY` and stretched vertically just enough for its authored support geometry to reach the deck level. The deck component keeps its own source thickness and any sloped end profile, then is positioned so its highest driving surface lands exactly at `deckY`. Do not raise the complete bridge assembly to deck height: that lifts its pillars away from the ground. Do not merge the support and road meshes or use one vertical transform for both.
+
+The runtime records world-space bounds for each section and verifies two conditions: the concrete support's lowest point meets `foundationY`, and the deck's highest road surface meets `deckY`. The exact imported support and deck geometries are registered for static collision. Curved prefabs are available for curved bridge routes; do not force them into a straight crossing. Procedural geometry is reserved for missing transitions, custom retaining work and invisible physics proxies.
 
 ## 4. Model Pre-Processing Tool
 
