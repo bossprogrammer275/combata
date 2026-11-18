@@ -5339,7 +5339,7 @@
           "scaleX": 0.9997,
           "scaleZ": 1.706849,
           "deckY": 3.66,
-          "foundationY": -1.05,
+          "foundationY": 0,
           "endRole": "exit-ramp"
         },
         {
@@ -5351,7 +5351,7 @@
           "scaleX": 0.9997,
           "scaleZ": 1.706849,
           "deckY": 3.66,
-          "foundationY": -1.05,
+          "foundationY": 0,
           "endRole": "exit-ramp"
         }
       ],

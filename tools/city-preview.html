@@ -237,11 +237,14 @@
         bridgeFootContactCount,
         bridgeFootContactFailures,
         bridgeGroundContactFailures: (world.bridgeSectionInstances || [])
-          .filter(section => !Number.isFinite(section.groundContactError) || Math.abs(section.groundContactError) > 0.02)
-          .map(section => ({ assemblyId: section.assemblyId, sectionId: section.sectionId, expectedGroundY: section.expectedGroundY, foundationY: section.foundationY, structureMinY: section.structureMinY, error: section.groundContactError }))
-          .concat((world.bridgeSectionInstances || [])
-            .filter(section => !section.supportFootContactCount && section.structureKind !== 'sloped-end-abutment')
-            .map(section => ({ assemblyId: section.assemblyId, sectionId: section.sectionId, error: 'no independently measured pier-foot patches' }))),
+          .filter(section => !section.supportFootContactCount || (section.supportFootFailures || []).length)
+          .map(section => ({
+            assemblyId: section.assemblyId,
+            sectionId: section.sectionId,
+            expectedGroundY: section.expectedGroundY,
+            foundationY: section.foundationY,
+            footingFailures: section.supportFootFailures || [],
+          })),
         bridgeDeckAlignmentFailures: (world.bridgeSectionInstances || [])
           .filter(section => !Number.isFinite(section.deckAlignmentError) || Math.abs(section.deckAlignmentError) > 0.02)
           .map(section => ({ assemblyId: section.assemblyId, sectionId: section.sectionId, deckY: section.deckY, deckMaxY: section.deckMaxY, error: section.deckAlignmentError })),

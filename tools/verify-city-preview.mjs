@@ -219,48 +219,100 @@ try {
   if (!preview?.ready) throw new Error('Timed out waiting for the real GLB scene; status=' + await page.locator('#status').textContent());
   const report = preview.report;
 
+  // Capture the bridge angles before assertions so a failed physical test
+  // still leaves screenshots that can be inspected independently.
+  await mkdir(outputDir, { recursive: true });
+  const bridgeEvidence = [
+    ['mainBridgeSide', 'city-a-main-flyover-side.png'],
+    ['mainBridgeGround', 'city-a-main-bridge-ground-contact.png'],
+    ['fateBridgeSide', 'city-a-fate-bridge-side.png'],
+    ['fateBridgeGround', 'city-a-fate-bridge-ground-contact.png'],
+    ['mainBridgeExit', 'city-a-main-bridge-exit.png'],
+    ['fateBridgeExit', 'city-a-fate-bridge-exit.png'],
+    ['mainBridgeDrive', 'city-a-main-bridge-driving-view.png'],
+    ['fateBridgeDrive', 'city-a-fate-bridge-driving-view.png'],
+  ];
+  for (const [view, filename] of bridgeEvidence) {
+    await page.evaluate(viewName => window.__CITY_PREVIEW__.setView(viewName), view);
+    await page.waitForTimeout(450);
+    await page.screenshot({ path: path.join(outputDir, filename), animations: 'disabled', timeout: 120000 });
+  }
+
   const bridgeDriveability = await page.evaluate(async () => {
     const THREE = await import('/js/lib/three.module.js');
     const world = window.__CITY_PREVIEW__?.world;
     if (!world) throw new Error('City preview did not expose the constructed world');
-    const decks=(world.roadPhysicsMeshes||[]).filter(s=>s.kind==='bridge_deck'&&s.source==='imported-bridge-component');
-    const material=new THREE.MeshBasicMaterial({side:THREE.DoubleSide});
-    const targets=decks.map(s=>{const m=new THREE.Mesh(s.geometry,material);m.updateMatrixWorld(true);return m;});
-    const raycaster=new THREE.Raycaster(),failures=[];
-    let probeCount=0;
-    for(const chain of (world._roadChains||[]).filter(c=>c.surface==='modular-bridge')){
-      const pts=chain.pts||[];
-      const total=pts.slice(0,-1).reduce((sum,p,i)=>sum+Math.hypot(pts[i+1].x-p.x,pts[i+1].z-p.z),0);
-      let travelled=0;
-      for(let i=0;i<pts.length-1;i++){
-        const a=pts[i],b=pts[i+1],dx=b.x-a.x,dz=b.z-a.z,len=Math.hypot(dx,dz);
-        if(len<1)continue;
-        const steps=Math.max(2,Math.ceil(len/2)),nx=-dz/len,nz=dx/len;
-        for(let j=0;j<=steps;j++){
-          const t=j/steps,distance=travelled+len*t;
-          if(distance<2||total-distance<2)continue;
-          const cx=a.x+dx*t,cz=a.z+dz*t;
-          const y=(Number(a.y)||0)+((Number(b.y)||0)-(Number(a.y)||0))*t+(Number.isFinite(chain.roadY)?chain.roadY:0.06);
-          for(const offset of [-1.05,0,1.05]){
-            const x=cx+nx*offset,z=cz+nz*offset;
-            const contact=world.vehicleSurfaceAt(x,z,y);
-            raycaster.set(new THREE.Vector3(x,y+1.5,z),new THREE.Vector3(0,-1,0));
-            const hit=raycaster.intersectObjects(targets,false).find(h=>Math.abs(h.point.y-y)<=0.09);
+    world.group.updateMatrixWorld(true);
+    const targets = (world.bridgeComponentInstances || [])
+      .filter(record => record.role === 'bridge-deck')
+      .map(record => record.mesh);
+    const raycaster = new THREE.Raycaster();
+    const failures = [];
+    const hitSamples = [];
+    let probeCount = 0;
+    for (const chain of (world._roadChains || []).filter(item => item.surface === 'modular-bridge')) {
+      const points = chain.pts || [];
+      const total = points.slice(0, -1).reduce((sum, point, index) =>
+        sum + Math.hypot(points[index + 1].x - point.x, points[index + 1].z - point.z), 0);
+      let travelled = 0;
+      for (let segment = 0; segment < points.length - 1; segment++) {
+        const a = points[segment], b = points[segment + 1];
+        const dx = b.x - a.x, dz = b.z - a.z;
+        const length = Math.hypot(dx, dz);
+        if (length < 1) continue;
+        const steps = Math.max(2, Math.ceil(length / 2));
+        const nx = -dz / length, nz = dx / length;
+        for (let step = 0; step <= steps; step++) {
+          const t = step / steps;
+          const chainDistance = travelled + length * t;
+          if (chainDistance < 2 || total - chainDistance < 2) continue;
+          const centerX = a.x + dx * t, centerZ = a.z + dz * t;
+          const expectedY = (Number(a.y) || 0) + ((Number(b.y) || 0) - (Number(a.y) || 0)) * t
+            + (Number.isFinite(chain.roadY) ? chain.roadY : 0.06);
+          for (const offset of [-1.05, 0, 1.05]) {
+            const x = centerX + nx * offset, z = centerZ + nz * offset;
+            const contact = world.vehicleSurfaceAt(x, z, expectedY);
+            raycaster.set(new THREE.Vector3(x, expectedY + 6, z), new THREE.Vector3(0, -1, 0));
+            const hits = raycaster.intersectObjects(targets, false);
+            const hit = hits.find(item => item.point.y >= expectedY - 0.75 && item.point.y <= expectedY + 0.75);
             probeCount++;
-            if(!contact||contact.surface==='offroad'||contact.distance>1.12
-              ||Math.abs(contact.height-y)>0.09||!hit){
-              failures.push({road:chain.name,x,z,y,offset,surface:contact?.surface||null,
-                tyreDistance:contact?.distance??null,tyreHeight:contact?.height??null,deckHitY:hit?.point?.y??null});
+            if (hit && hitSamples.length < 10) hitSamples.push({
+              road: chain.name, x, z, expectedY, hitY: hit.point.y,
+            });
+            if (!contact || contact.surface === 'offroad' || contact.distance > 1.12
+              || Math.abs(contact.height - expectedY) > 0.09 || !hit
+              || Math.abs(hit.point.y - expectedY) > 0.09) {
+              failures.push({
+                road: chain.name, x, z, expectedY, offset,
+                tyreSurface: contact?.surface || null,
+                tyreDistance: contact?.distance ?? null,
+                tyreHeight: contact?.height ?? null,
+                deckHitY: hit?.point?.y ?? null,
+                availableHits: hits.slice(0, 2).map(item => item.point.y),
+              });
             }
           }
         }
-        travelled+=len;
+        travelled += length;
       }
     }
-    material.dispose();
-    return {probeCount,importedDeckMeshCount:decks.length,failures:failures.slice(0,80)};
+    return {
+      probeCount,
+      importedDeckMeshCount: targets.length,
+      hitSampleCount: hitSamples.length,
+      hitSamples,
+      failures: failures.slice(0, 80),
+      deckBounds: targets.map(mesh => {
+        const bounds = new THREE.Box3().setFromObject(mesh);
+        return {
+          name: mesh.name, min: bounds.min.toArray(), max: bounds.max.toArray(),
+          vertexCount: mesh.geometry.attributes.position?.count || 0,
+          indexCount: mesh.geometry.index?.count || 0,
+          visible: mesh.visible,
+        };
+      }),
+    };
   });
-
 
   assert.equal(report.roadCount, 21, 'runtime road count differs from authored map');
   assert.equal(report.bridgeKitParts.length, 10, 'all ten independent imported bridge mesh prefabs must load');
@@ -279,7 +331,7 @@ try {
   assert.deepEqual(bridgeDriveability.failures, [],
     'bridge tyre paths must have continuous vehicle surface samples and real imported deck triangles: '+JSON.stringify(bridgeDriveability.failures));
   assert.deepEqual(report.bridgeGroundContactFailures, [],
-    'bridge pillars must meet their authored foundation plane: ' + JSON.stringify(report.bridgeGroundContactFailures));
+    'bridge support footing patches must meet terrain or channel-bed elevation: ' + JSON.stringify(report.bridgeGroundContactFailures));
   assert.ok(report.bridgeFootContactCount > 0,
     'imported support modules must expose individual footing contact patches');
   assert.deepEqual(report.bridgeFootContactFailures, [],
