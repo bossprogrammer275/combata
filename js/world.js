@@ -51,7 +51,11 @@ export class World {
     this.vehicleSpawns = [];  // {x,z,ry,kind} parked/drivable vehicles
     this._buildingData = [];  // {url,min,max,x,z,doors[],interior} — auto-detected from GLB
     this.worldKitComponents = []; // imported component instances with semantic role metadata
-    this.roadModuleInstances = []; // imported road-kit pieces placed over authored drivable road paths
+    this.roadModuleInstances = []; // imported Road Pack surface tiles used by the authored-road renderer
+    this.roadPackSurfaceMeshes = []; // merged visible meshes using the six downloaded Road Pack materials
+    this.roadPackRoadCount = 0;
+    this.legacyRoadSurfaceCount = 0;
+    this._roadPackGeometryBuckets = new Map();
     this.sidewalkModuleInstances = []; // authored driveway, corner and damaged-pavement pieces
     this.bridgeComponentInstances = []; // ten independent reusable bridge structure/deck prefabs placed in the world
     this.bridgeSectionInstances = []; // measured structure/deck pairs with ground and deck alignment diagnostics
@@ -2149,9 +2153,195 @@ export class World {
     return { ...profiles[best.key], height: best.height, distance: best.distance, verticalDelta: best.verticalDelta };
   }
 
+  _buildRoadPackSurface(pts, width, roadY, roadIndex = 0, roadName = '') {
+    const prefabs = this._roadPackPrefabs;
+    if (!prefabs?.size || !pts || pts.length < 2) return 0;
+
+    const cumulative = this._roadPolylineLengths(pts);
+    const total = cumulative[cumulative.length - 1] || 0;
+    if (total < 1) return 0;
+
+    const wide = width >= 7.5;
+    const longId = wide ? 'road-straight-long-02' : 'road-straight-long-01';
+    const shortId = wide ? 'road-straight-02' : 'road-straight-01';
+    const longPrefab = prefabs.get(longId);
+    const shortPrefab = prefabs.get(shortId);
+    if (!longPrefab || !shortPrefab) return 0;
+
+    const at = distance => {
+      let i = 0;
+      while (i < cumulative.length - 2 && cumulative[i + 1] < distance) i++;
+      const segment = Math.max(1e-6, cumulative[i + 1] - cumulative[i]);
+      const t = THREE.MathUtils.clamp((distance - cumulative[i]) / segment, 0, 1);
+      return {
+        x: THREE.MathUtils.lerp(pts[i].x, pts[i + 1].x, t),
+        y: THREE.MathUtils.lerp(Number(pts[i].y) || 0, Number(pts[i + 1].y) || 0, t),
+        z: THREE.MathUtils.lerp(pts[i].z, pts[i + 1].z, t),
+      };
+    };
+    const tangentAt = distance => {
+      const a = at(Math.max(0, distance - 0.65));
+      const b = at(Math.min(total, distance + 0.65));
+      return new THREE.Vector3(b.x - a.x, b.y - a.y, b.z - a.z).normalize();
+    };
+    const angleBetween = (a, b) => Math.acos(THREE.MathUtils.clamp(a.dot(b), -1, 1));
+
+    const dummy = new THREE.Object3D();
+    const basis = new THREE.Matrix4();
+    const tangent = new THREE.Vector3();
+    const right = new THREE.Vector3();
+    const up = new THREE.Vector3();
+    let cursor = 0;
+    let tileIndex = 0;
+    let placed = 0;
+    const longLength = longPrefab.dimensions[2];
+    const shortLength = shortPrefab.dimensions[2];
+
+    while (cursor < total - 0.08) {
+      const remaining = total - cursor;
+      const probeLength = Math.min(longLength, remaining);
+      const startTangent = tangentAt(cursor + Math.min(0.4, probeLength * 0.15));
+      const endTangent = tangentAt(Math.max(cursor, cursor + probeLength - Math.min(0.4, probeLength * 0.15)));
+      const curvature = angleBetween(startTangent, endTangent);
+
+      // Long 30m imported pieces are reserved for reasonably straight runs.
+      // Tight curves use 7m imported pieces so the road follows the authored path.
+      const useLong = remaining >= Math.min(longLength * 0.76, 18)
+        && curvature <= THREE.MathUtils.degToRad(13);
+      const prefab = useLong ? longPrefab : shortPrefab;
+      const tileLength = Math.min(prefab.dimensions[2], remaining);
+      if (tileLength < 0.08) break;
+
+      const start = at(cursor);
+      const end = at(cursor + tileLength);
+      const middle = at(cursor + tileLength * 0.5);
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const dz = end.z - start.z;
+      const horizontalLength = Math.hypot(dx, dz);
+      const spatialLength = Math.hypot(horizontalLength, dy);
+      if (horizontalLength < 0.05 || spatialLength < 0.05) {
+        cursor += tileLength;
+        continue;
+      }
+
+      tangent.set(dx, dy, dz).normalize();
+      right.set(dz / horizontalLength, 0, -dx / horizontalLength).normalize();
+      up.crossVectors(tangent, right).normalize();
+      basis.makeBasis(right, up, tangent);
+
+      dummy.position.set(middle.x, middle.y + roadY, middle.z);
+      dummy.quaternion.setFromRotationMatrix(basis);
+      dummy.scale.set(
+        width / prefab.dimensions[0],
+        1,
+        spatialLength / prefab.dimensions[2],
+      );
+      dummy.updateMatrix();
+
+      let bucket = this._roadPackGeometryBuckets.get(prefab.id);
+      if (!bucket) {
+        bucket = { prefab, matrices: [] };
+        this._roadPackGeometryBuckets.set(prefab.id, bucket);
+      }
+      bucket.matrices.push(dummy.matrix.clone());
+      this.roadModuleInstances.push({
+        id: prefab.id,
+        roadName,
+        x: middle.x,
+        y: middle.y + roadY,
+        z: middle.z,
+        width,
+        length: spatialLength,
+        scaleX: width / prefab.dimensions[0],
+        scaleZ: spatialLength / prefab.dimensions[2],
+        tileIndex,
+      });
+
+      cursor += tileLength;
+      tileIndex++;
+      placed++;
+    }
+
+    this.roadPackRoadCount++;
+    return placed;
+  }
+
+  _flushRoadPackSurfaces() {
+    if (!this._roadPackGeometryBuckets?.size) return;
+    for (const [componentId, bucket] of this._roadPackGeometryBuckets) {
+      const source = bucket.prefab.geometry;
+      const sourceAttributes = source.attributes;
+      const attributeNames = Object.keys(sourceAttributes).filter(name =>
+        ['position', 'normal', 'tangent', 'uv', 'uv1'].includes(name)
+      );
+      const arrays = Object.fromEntries(attributeNames.map(name => [name, []]));
+      const indices = [];
+      let vertexOffset = 0;
+
+      for (const matrix of bucket.matrices) {
+        const transformed = source.clone();
+        transformed.applyMatrix4(matrix);
+        for (const name of attributeNames) {
+          const attribute = transformed.getAttribute(name);
+          if (!attribute) continue;
+          const values = arrays[name];
+          for (let i = 0; i < attribute.array.length; i++) values.push(attribute.array[i]);
+        }
+
+        const sourceIndex = transformed.index;
+        if (sourceIndex) {
+          for (const index of sourceIndex.array) indices.push(vertexOffset + index);
+        } else {
+          const count = transformed.getAttribute('position').count;
+          for (let i = 0; i < count; i++) indices.push(vertexOffset + i);
+        }
+        vertexOffset += transformed.getAttribute('position').count;
+        transformed.dispose();
+      }
+
+      const geometry = new THREE.BufferGeometry();
+      for (const name of attributeNames) {
+        const sourceAttribute = sourceAttributes[name];
+        const values = arrays[name];
+        if (!values?.length) continue;
+        geometry.setAttribute(name, new THREE.Float32BufferAttribute(values, sourceAttribute.itemSize, sourceAttribute.normalized));
+      }
+      geometry.setIndex(indices);
+      geometry.computeBoundingBox();
+      geometry.computeBoundingSphere();
+
+      const mesh = new THREE.Mesh(geometry, bucket.prefab.material);
+      mesh.name = 'worldkit_road_surface_' + componentId;
+      mesh.castShadow = false;
+      mesh.receiveShadow = true;
+      mesh.renderOrder = 1;
+      mesh.frustumCulled = true;
+      mesh.userData.worldKit = {
+        assetId: 'road-pack',
+        componentId,
+        role: 'road-surface',
+        tileCount: bucket.matrices.length,
+        source: './data/models/assets/roads/road_pack/scene.gltf',
+      };
+      this.group.add(mesh);
+      this.roadPackSurfaceMeshes.push(mesh);
+      // Register the same imported triangles for Rapier and tyre contact.
+      this.roadPhysicsMeshes.push({
+        kind: 'road',
+        source: 'imported-road-pack',
+        componentId,
+        tileCount: bucket.matrices.length,
+        geometry,
+      });
+    }
+    this._roadPackGeometryBuckets.clear();
+  }
+
   async _buildAuthoredRoads(roads) {
+    const roadPack = await this._loadRoadPackPrefabs();
     if (roads.some(road => road.sidewalk)) await this._loadSidewalkKit();
-    const roadMat = this.mRoad();
+    const roadMat = roadPack ? null : this.mRoad();
     const walkMat = this._sceneMat('walk');
     const curbMat = this.mCurb();
     this._roadChains = [];
@@ -2192,9 +2382,12 @@ export class World {
         y: Number.isFinite(p[2]) ? p[2] : baseElevation,
       }));
       const smoothed = rd.smooth !== false ? smoothPts(raw, 6) : raw;
+      const requestedSurface = String(rd.surface || 'road-pack').toLowerCase();
+      const surface = requestedSurface === 'asphalt' && roadPack ? 'road-pack'
+        : !rd.surface && roadPack ? 'road-pack' : requestedSurface;
       chains.push({
         pts: smoothed, W, sidewalk: !!rd.sidewalk, closed,
-        surface: String(rd.surface || 'asphalt').toLowerCase(),
+        surface,
         guardrails: !!(rd.guardrails || rd.bridge || rd.flyover),
         flyover: !!(rd.flyover || rd.bridge),
         keepEnds: !!rd.keepEnds,
@@ -2227,14 +2420,25 @@ export class World {
       // surfaces, so tires sit on asphalt at y=0.06 instead of cutting through it
       // to the lower ground plane.
       const roadY = 0.06;
-      const renderedByImportedSurface = ch.surface === 'modular-bridge' || ch.surface === 'imported-street-road';
-      if (!renderedByImportedSurface) this._strokeMitered(pts, ch.W, roadY, roadMat, ch.closed);
+      const renderedByImportedSurface = ch.surface === 'modular-bridge'
+        || ch.surface === 'imported-street-road'
+        || ch.surface === 'road-pack';
+      if (ch.surface === 'road-pack' && roadPack) {
+        this._buildRoadPackSurface(pts, ch.W, roadY, ci, roads[ci]?.name || 'road');
+      } else if (!renderedByImportedSurface) {
+        this.legacyRoadSurfaceCount++;
+        this._strokeMitered(pts, ch.W, roadY, roadMat || this.mRoad(), ch.closed);
+      }
       this._addRoadSurfaceColliders(pts, ch.W, roadY, ch.closed, 0.05);
       if (ch.flyover && !renderedByImportedSurface) this._buildFlyoverStructure(pts, ch.W, roadY);
       if (ch.guardrails && !renderedByImportedSurface) this._buildRoadGuardrails(pts, ch.W, roadY);
 
-      this._roadChains.push({ pts, W: ch.W, sidewalk: ch.sidewalk, roadY, closed: ch.closed, surface: ch.surface || 'asphalt' });
+      this._roadChains.push({
+        pts, W: ch.W, sidewalk: ch.sidewalk, roadY, closed,
+        surface: ch.surface || 'asphalt',
+      });
     }
+    this._flushRoadPackSurfaces();
     // Sidewalks and their physical surfaces stop before same-level road
     // junctions. Higher flyovers remain independent and keep their own paths.
     this._buildRoadSidewalks(this._roadChains, walkMat, curbMat);
@@ -2502,9 +2706,10 @@ export class World {
         });
       });
 
-      for (const required of ['road-straight-long-01', 'road-straight-long-02']) {
-        if (!prefabs.has(required)) throw new Error('Road Pack is missing imported component ' + required);
+      for (const definition of Object.values(WORLD_KIT_ROAD_PACK_PARTS)) {
+        if (!prefabs.has(definition.id)) throw new Error('Road Pack is missing imported component ' + definition.id);
       }
+      if (prefabs.size !== 6) throw new Error('Road Pack must expose all six imported surface prefabs');
       this._roadPackPrefabs = prefabs;
       console.info('[WorldKit] Imported road modules:', [...prefabs.keys()].join(', '));
       return prefabs;
@@ -3235,6 +3440,25 @@ export class World {
       const chain = chains[i], data = metadata[i], ranges = mergedRanges[i];
       if (chain.surface === 'modular-bridge' || chain.surface === 'imported-street-road') continue;
       const total = data.total;
+
+      if (chain.surface === 'road-pack') {
+        if (chain.W >= 8 && total > 18) {
+          const proposed = [];
+          for (const hit of hits[i]) {
+            const offset = hit.radius + 2.75;
+            if (hit.distance - offset > 4.2) proposed.push(hit.distance - offset);
+            if (hit.distance + offset < total - 4.2) proposed.push(hit.distance + offset);
+          }
+          proposed.sort((a, b) => a - b);
+          let last = -Infinity;
+          for (const distance of proposed) {
+            if (distance - last < 4.8) continue;
+            drawCrosswalk(chain, data, distance);
+            last = distance;
+          }
+        }
+        continue;
+      }
       if (total < 4 || chain.W < 6.5) continue;
       const roadPts = chain.pts;
       // Broken yellow centre line; dash gaps are removed entirely around junctions.
