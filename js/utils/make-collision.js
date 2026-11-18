@@ -314,8 +314,8 @@ function voxelise(solidInst, B, res, minAxisResolution) {
         tw(T[t], a); tw(T[t + 1], b); tw(T[t + 2], c);
         const lo = [0, 0, 0], hi = [0, 0, 0];
         for (let k = 0; k < 3; k++) {
-          lo[k] = Math.max(0, Math.floor((Math.min(a[k], b[k], c[k]) - org[k]) / cell));
-          hi[k] = Math.min(dims[k] - 1, Math.floor((Math.max(a[k], b[k], c[k]) - org[k]) / cell));
+          lo[k] = Math.max(0, Math.floor((Math.min(a[k], b[k], c[k]) - org[k]) / cell[k]));
+          hi[k] = Math.min(dims[k] - 1, Math.floor((Math.max(a[k], b[k], c[k]) - org[k]) / cell[k]));
         }
         const single = lo[0] === hi[0] && lo[1] === hi[1] && lo[2] === hi[2];
         for (let z = lo[2]; z <= hi[2]; z++) for (let y = lo[1]; y <= hi[1]; y++) for (let x = lo[0]; x <= hi[0]; x++) {
