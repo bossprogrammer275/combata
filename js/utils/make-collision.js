@@ -87,7 +87,7 @@ function parseArgs(argv) {
     }
   }
   if (o.profile === 'fence' && !o.modeExplicit) o.mode = 'shell';
-  if (o.profile === 'small-prop' || o.profile === 'fence') {
+  if (o.profile === 'building' || o.profile === 'small-prop' || o.profile === 'fence') {
     o.resolution = Math.max(o.resolution, 96);
     o.minAxisResolution = Math.max(o.minAxisResolution, 24);
     o.maxBoxes = Math.max(o.maxBoxes, 600);
@@ -363,9 +363,12 @@ function buildBoxes(solidInst, B, o, scale, scaleKnown, height) {
     const g = voxelise(solidInst, B, res, o.minAxisResolution);
     const s = o.mode === 'solid' ? floodSolid(g) : g.occ;
     // Cap each axis independently so narrow rails and posts keep their detail.
-    const maxCells = (scaleKnown || height <= 40)
+    // When source units are unverified, merge only within one voxel. Treating
+    // a short or long raw model as metres silently creates giant or microscopic
+    // max-span boxes. With a verified scale, enforce the requested metre cap.
+    const maxCells = scaleKnown
       ? g.cell.map(c => Math.max(1, Math.floor((o.maxSpan / scale) / c)))
-      : g.cell.map(() => Math.max(1, Math.round(res / 3)));
+      : [1, 1, 1];
     const raw = greedy(s, g, maxCells);
     last = { g, raw, res };
     if (raw.length <= o.maxBoxes || res <= 10) break;
@@ -511,7 +514,14 @@ function main() {
   // scale
   let scale = o.scale || 1;
   if (o.targetHeight) scale = o.targetHeight / height;
-  const report = { input: o.input, triangles: tris, meshInstances: vis.length, modelSize: VB.max.map((v, i) => +(v - VB.min[i]).toFixed(4)), metresPerUnit: scale, boxes: [] };
+  const scaleKnown = !!(o.scale || o.targetHeight);
+  const report = {
+    input: o.input, triangles: tris, meshInstances: vis.length,
+    modelSize: VB.max.map((v, i) => +(v - VB.min[i]).toFixed(4)),
+    metresPerUnit: scaleKnown ? scale : null,
+    scaleVerified: scaleKnown,
+    boxes: [],
+  };
 
   if (!o.noProxies) {
     const excluded = [], solid = [];
@@ -556,14 +566,27 @@ function main() {
         zMax = Math.max(...footprint.map(i => i.bounds.max[2]));
       }
       const cx = (xMin + xMax) * 0.5, cz = (zMin + zMax) * 0.5;
-      const widthMetres = o.poleWidthExplicit ? o.poleWidth : (o.profile === 'trunk' ? 0.5 : 0.35);
-      const widthUnits = widthMetres / scale;
+      // Preserve the actual base footprint by default. This keeps the proxy
+      // useful even when the source is centimetres/millimetres and no trusted
+      // target height has been supplied. An explicit --pole-width is in metres
+      // and should be used only alongside a verified --scale/--target-height.
+      const minRatio = o.profile === 'trunk' ? 0.025 : 0.012;
+      const minWidth = Math.max(height * minRatio, 1e-4);
+      const maxWidth = Math.max(height * 0.12, minWidth);
+      const measuredX = Math.max(xMax - xMin, minWidth);
+      const measuredZ = Math.max(zMax - zMin, minWidth);
+      const widthX = o.poleWidthExplicit
+        ? o.poleWidth / scale
+        : Math.min(maxWidth, Math.max(minWidth, measuredX * 0.8));
+      const widthZ = o.poleWidthExplicit
+        ? o.poleWidth / scale
+        : Math.min(maxWidth, Math.max(minWidth, measuredZ * 0.8));
       r = { boxes: [{
-        min: [cx - widthUnits * 0.5, VB.min[1], cz - widthUnits * 0.5],
-        max: [cx + widthUnits * 0.5, VB.max[1], cz + widthUnits * 0.5],
+        min: [cx - widthX * 0.5, VB.min[1], cz - widthZ * 0.5],
+        max: [cx + widthX * 0.5, VB.max[1], cz + widthZ * 0.5],
       }], cell: [0, 0, 0], res: 0 };
     } else {
-      r = buildBoxes(solid, B, o, scale, !!(o.scale || o.targetHeight), height);
+      r = buildBoxes(solid, B, o, scale, scaleKnown, height);
     }
     if (!r.boxes.length) die('No collision boxes were produced.');
     nameBoxes(r.boxes, VB);
@@ -575,19 +598,20 @@ function main() {
     Object.assign(report, {
       profile: o.profile, mode: o.profile === 'pole' || o.profile === 'trunk' ? o.profile : o.mode,
       resolutionUsed: r.res, voxelSizeUnits: cellMax,
-      voxelSizeByAxisUnits: r.cell, voxelSizeMetres: cellMax * scale,
-      voxelSizeByAxisMetres: cellByAxis,
+      voxelSizeByAxisUnits: r.cell,
+      voxelSizeMetres: scaleKnown ? cellMax * scale : null,
+      voxelSizeByAxisMetres: scaleKnown ? cellByAxis : null,
       excludedMeshes: excluded.map(i => ({ name: json.nodes[i.node].name, reason: i.why })),
       boxes: r.boxes.map(b => ({ name: b.name, min: b.min, max: b.max })),
     });
     console.log(`Collision: ${r.boxes.length} proxies  ${JSON.stringify(cnt)}`);
-    const u = (o.scale || o.targetHeight || height <= 40) ? 'm' : 'units';
+    const u = scaleKnown ? 'm' : 'source units';
     const voxelLabel = r.res ? cellByAxis.map(v => v.toFixed(3)).join(' × ') : 'direct profile';
     console.log(`  profile=${o.profile}  mode=${o.profile === 'pole' || o.profile === 'trunk' ? o.profile : o.mode}  grid=${r.res || '—'}  voxel=${voxelLabel} ${u}  largest proxy=${bigD.toFixed(2)} ${u}`);
     if (excluded.length) console.log(`  excluded from collision: ${excluded.length} mesh(es) (door_/decor/col_)`);
     if (r.res && r.res < o.resolution) console.log(`  (resolution auto-reduced from ${o.resolution} to keep <= ${o.maxBoxes} proxies; raise --max-boxes for more detail)`);
   }
-  if (!o.scale && !o.targetHeight) console.log(height > 40 ? 'Note: model is not obviously in metres; proxies are limited to about 1/3 of the model size. Pass --target-height <m> (or --scale) for an exact --max-span.' : 'Note: assuming 1 unit = 1 metre.');
+  if (!scaleKnown) console.log('Note: source units are unverified; proxies stay in source-model space and greedy merges are limited to one voxel per axis. Supply --target-height or --scale only when a physical reference is verified.');
   console.log(`Model height: ${height.toFixed(3)} units${o.targetHeight || o.scale ? `  (= ${(height * scale).toFixed(2)} m)` : ''}`);
 
   // write
