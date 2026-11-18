@@ -77,6 +77,54 @@ The capture report labels every raw model as **unverified**. It does not auto-co
 
 If no reliable physical dimension exists, keep the measurement as *unverified*, state the plausible range, and do not silently set a permanent scale correction. Ask for a source/reference only when the decision cannot be grounded from the available model and evidence.
 
+## Verified component-kit baseline
+
+The existing library was visually rendered with `node tools/verify-asset-review.mjs` on 18 November 2026: **53/53 world-asset entry points rendered**, with no browser errors or failed requests. That review excludes vehicles and the standalone root `data/models/assets/road.glb`; use `capture-asset-calibration.mjs` for the full assets-and-cars intake.
+
+The saved component captures confirm the following. These are already registered systems; do not create duplicate generic prefab maps for them.
+
+### Modular bridge
+
+The bridge is a genuine ten-mesh kit, not one indivisible model. Its dedicated registration and extraction are in `js/world-bridge-kit.js`, and `js/world.js` assembles those prefabs through `_spawnBridgeAssemblies()`.
+
+| Reusable section | Concrete structure mesh | Separate road/deck mesh | Type |
+|---|---|---|---|
+| `bridge-curve-main` | `Object_4` | `Object_5` | Main curved span |
+| `bridge-straight-span` | `Object_7` | `Object_8` | Straight span |
+| `bridge-pier-starter` | `Object_10` | `Object_11` | Short pier starter |
+| `bridge-curve-return` | `Object_13` | `Object_14` | Return curve |
+| `bridge-end-ramp` | `Object_16` | `Object_17` | Sloped end/ramp |
+
+The structure and deck must stay separate: structure is concrete/support geometry; deck is the road surface. The extractor anchors the support footings at the foundation datum and checks the deck height against the kit's **2.068 m** standard. The existing bridge verification script checks all five section types and all ten independent prefabs. The full source pack is approximately **46.436 × 2.861 × 37.034 source units**; these whole-pack bounds are not a placement scale recommendation.
+
+### Road Pack
+
+The Road Pack is six separate modules, already described by `WORLD_KIT_ROAD_PACK_PARTS` in `js/world-kit.js`: two short straight marking variants, two long straight variants, and two curved-corner variants. Keep those existing IDs and the existing 10× horizontal conversion. The long straight source panel is about **0.426 × 2.987 units**, resulting in roughly **4.26 m × 29.87 m** after the documented factor. Collision remains assigned to the actual assembled road surfaces, not a solid box around the whole pack.
+
+### Sidewalk pack
+
+The Sidewalks GLTF has **30 individually renderable mesh nodes**. The images show reusable square slabs, worn/broken slabs, long pavement strips, curb pieces, driveway aprons and inside/outside corner pieces. The current `WORLD_KIT_SIDEWALK_COMPONENTS` map already names 17 important semantic pieces. Do not interpret the 30 mesh count as 30 unique finished prefabs: retain small supporting/detail meshes inside their authored parent structure unless a separate reusable gameplay part is justified.
+
+### Street-road source
+
+The Street Road GLTF has four mesh nodes. The visual/component captures show two asphalt road surfaces and two side-texture meshes. The runtime already recognises `Two_lane_road` surface names and excludes `side_texture` meshes from road physics. Do not register the side textures as drivable road surfaces.
+
+### Scale-review flags from the existing library
+
+Raw dimensions below are **source units**, not verified metres. They are evidence for prioritising a reference check, not permission to multiply or divide the model:
+
+| Existing asset | Captured source bounds (W × H × D) | Review flag |
+|---|---:|---|
+| Car workshop | 2100.001 × 797.555 × 3922.451 | Very large raw extents; inspect source/export units and outliers |
+| School building | 2287.643 × 1057.281 × 2281.103 | Very large raw extents; compare to known storeys/door |
+| Freeway streetlight | 43.690 × 1084.515 × 170.482 | Extreme height/footprint; inspect hierarchy and source units |
+| Low-poly street food cart | 1140.925 × 1035.494 × 421.818 | Implausible for a cart if interpreted directly as metres |
+| Nigeria duplex | 0.982 × 0.866 × 0.767 | Very small raw bounds; confirm whether model is intentionally authored at sub-metre scale |
+| Industrial warehouse | 0.265 × 0.085 × 0.097 | Very small raw bounds; verify before relying on a target-height fit |
+| Tree low-poly | 1752.412 × 2470.546 × 1795.874 | Extreme raw extents; inspect outlier nodes and source-unit metadata |
+
+These flags can be explained by model units, nested scale transforms, stray geometry, or an asset-specific convention. Measure the actual scene bounds and inspect the images before deciding which explanation applies. The runtime may already fit a placement with `targetH`; do not make a second correction until that placement's result and the model itself have been checked.
+
 ## 3. Scale decision
 
 Use the existing World Kit scale pipeline in `js/world-kit.js`:
