@@ -87,7 +87,7 @@ function addHuman(parent, x, y, z) {
   cylinder(g, 0.065, 0.085, 0.78, [0.075, 0.39, 0], dark);
   cylinder(g, 0.035, 0.055, 0.57, [-0.19, 1.16, 0], mat);
   cylinder(g, 0.035, 0.055, 0.57, [0.19, 1.16, 0], mat);
-  sphere(g, 0.13, [0, 1.62, 0], skin);
+  sphere(g, 0.13, [0, 1.67, 0], skin);
   addBox(g, [0.25, 0.08, 0.34], [0, 0.04, 0.055], dark);
   return g;
 }
