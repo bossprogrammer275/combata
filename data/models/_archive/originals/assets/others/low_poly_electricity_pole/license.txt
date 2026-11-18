@@ -1,0 +1,11 @@
+Model Information:
+* title:	low poly electricity pole
+* source:	https://sketchfab.com/3d-models/low-poly-electricity-pole-bfea5718c35d40a28c2ff3d258d6a505
+* author:	NoVac Games (https://sketchfab.com/NoVacGames)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "low poly electricity pole" (https://sketchfab.com/3d-models/low-poly-electricity-pole-bfea5718c35d40a28c2ff3d258d6a505) by NoVac Games (https://sketchfab.com/NoVacGames) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
