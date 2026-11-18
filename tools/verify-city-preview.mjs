@@ -54,6 +54,15 @@ function checkMapContract() {
   assert.equal(map.roads.filter(r => r.surface === 'modular-bridge').length, 2,
     'the two central bridge decks must use imported modular bridge geometry');
   assert.equal(map.bridgeAssemblies?.length, 2, 'both elevated crossings must assemble from the imported bridge kit');
+  assert.equal(map.waterways?.length, 1, 'Fate Drainage Bridge needs its authored drainage channel and exposed bed');
+  assert.equal(map.waterways[0].bankBottom, map.bridgeAssemblies.find(a => a.id === 'fate-drainage-bridge').foundationY,
+    'drainage bridge supports must meet the visible channel bed datum');
+  assert.ok(map.roads.filter(road => /^(Main City Flyover|Fate Drainage Bridge).*Approach/.test(road.name))
+    .every(road => !road.flyover && !road.bridge && !road.guardrails),
+    'bridge approaches must not add procedural bridge frames over the imported starter/deck modules');
+  assert.ok(map.bridgeAssemblies.every(assembly =>
+    assembly.components.every(component => component.componentId.startsWith('bridge-')),
+  ), 'bridge assemblies must use only reusable components from the downloaded bridge pack');
   assert.equal(map.bridgeAssemblies.reduce((sum, assembly) => sum + assembly.sectionCount, 0), 21,
     'expected 21 bridge sections across the two elevated crossings');
   assert.equal(map.bridgeAssemblies.reduce((sum, assembly) => sum + assembly.components.length, 0), 42,
@@ -166,8 +175,14 @@ try {
   assert.equal(report.bridgeDeckComponentCount, 21, 'every bridge section needs its own independent imported deck mesh');
   assert.equal(report.bridgeImportedDeckCount, 21, 'every imported bridge deck must register its exact road physics mesh');
   assert.equal(report.bridgeImportedSupportCount, 21, 'every imported bridge support must register solid static collision');
+  assert.equal(report.bridgeDeckPhysicsCount, 21,
+    'all flyover approaches must use road ramps without procedural bridge deck meshes');
   assert.deepEqual(report.bridgeGroundContactFailures, [],
     'bridge pillars must meet their authored foundation plane: ' + JSON.stringify(report.bridgeGroundContactFailures));
+  assert.ok(report.bridgeFootContactCount > 0,
+    'imported support modules must expose individual footing contact patches');
+  assert.deepEqual(report.bridgeFootContactFailures, [],
+    'every measured bridge footing must meet visible ground or the drainage bed: ' + JSON.stringify(report.bridgeFootContactFailures));
   assert.deepEqual(report.bridgeDeckAlignmentFailures, [],
     'every bridge road surface must meet its authored metric deckY: ' + JSON.stringify(report.bridgeDeckAlignmentFailures));
   assert.equal(report.roadModuleCount, 2, 'both imported road-kit pieces must render');
@@ -211,7 +226,9 @@ try {
     ['boulevard', 'city-a-street-level.png'],
     ['flyover', 'city-a-flyovers.png'],
     ['mainBridgeSide', 'city-a-main-flyover-side.png'],
+    ['mainBridgeGround', 'city-a-main-bridge-ground-contact.png'],
     ['fateBridgeSide', 'city-a-fate-bridge-side.png'],
+    ['fateBridgeGround', 'city-a-fate-bridge-ground-contact.png'],
     ['bridgeTop', 'city-a-bridge-top.png'],
     ['south', 'city-a-southern-blocks.png'],
     ['graMarket', 'city-a-first-district.png'],
