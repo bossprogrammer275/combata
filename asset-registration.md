@@ -45,15 +45,16 @@ Capture only the new model:
 node tools/capture-asset-calibration.mjs data/models/assets/<category>/<model-folder>/scene.gltf
 ```
 
-The capture runner loads the actual file through the project's Three.js GLTFLoader, calculates its source bounds and saves five views:
+The capture runner loads the actual file through the project's Three.js GLTFLoader, calculates its source bounds and saves six views:
 
 - `iso`: overall shape and assembly.
 - `front`: front-facing proportions.
 - `side`: height, length and silhouette.
 - `top`: footprint, width and orientation.
 - `collision`: generated `col_*` proxy meshes without the visual meshes.
+- `scale`: the full 10 m measuring pole, shown separately so it does not make small props impossible to inspect in the main views.
 
-Each image includes physical reference objects beside the model: a **1.8 m human**, **1.0 m × 2.1 m doorway**, **1 m cube**, **10 m pole**, axis marker and metre grid.
+Main views include a **1.8 m human**, **1.0 m × 2.1 m doorway**, **1 m cube**, axis marker and metre grid. The **10 m pole** is included in the separate `scale` view so it does not dominate the main framing.
 
 Outputs are saved to:
 
@@ -67,6 +68,7 @@ artifacts/asset-calibration/
     <model>-side.png
     <model>-top.png
     <model>-collision.png
+    <model>-scale.png
 ```
 
 The assistant must open and visually inspect these saved images, not rely only on the JSON dimensions. Inspect the overall model, its front/side/top proportions, the ground contact, the origin/orientation, separate subcomponents and the collision view. For a compound pack, inspect each relevant component separately before treating it as a reusable kit.
@@ -185,7 +187,7 @@ Never copy another vehicle's wheel dimensions, camera height or suspension value
 
 - [ ] Original source and required support files are present; original is archived before any destructive processing.
 - [ ] Creator/source and licence are recorded; add/update `ASSET_CREDITS.md` when attribution is required.
-- [ ] All five saved calibration images exist and have been visually inspected.
+- [ ] All six saved calibration images exist and have been visually inspected; compound-kit component captures are also checked where applicable.
 - [ ] Mesh names, separate components, orientation, footprint and ground contact are understood.
 - [ ] At least one physical dimension is supported by a trusted reference, or the model is explicitly marked unverified.
 - [ ] Any scale correction is uniform and recorded; final dimensions are in metres.
