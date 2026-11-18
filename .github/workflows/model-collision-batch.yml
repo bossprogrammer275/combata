@@ -113,7 +113,7 @@ jobs:
               cp "$out" "$file"
               box_count=0
               if [[ -s "$report" ]]; then
-                box_count="$(node -e "const r=require(process.argv[1]);process.stdout.write(String((r.boxes||[]).length))" "$report")"
+                box_count="$(node --input-type=module -e "import fs from 'node:fs'; const r=JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); process.stdout.write(String((r.boxes || []).length))" "$report")"
               fi
               success=$((success + 1))
               proxies=$((proxies + box_count))
