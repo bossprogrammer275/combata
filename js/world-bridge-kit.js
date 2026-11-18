@@ -1,54 +1,107 @@
-// Reusable prefabs extracted from the five authored bridge sections in the
-// downloaded bridge kit. Each source section contains a concrete structure mesh
-// and a separate textured road-deck mesh.
+// Reusable, independent prefabs extracted from the downloaded modular bridge kit.
+// The source GLTF contains ten independent mesh nodes: five concrete structures
+// and five road/deck surfaces. They share section anchors, but are never merged
+// into composite meshes or forced to share one vertical transform.
 import * as THREE from './lib/three.module.js';
 
 export const WORLD_BRIDGE_KIT_URL = './data/models/assets/others/modular_bridge__low_poly__game_ready_/scene.gltf';
 
-export const WORLD_KIT_BRIDGE_COMPONENTS = Object.freeze([
-  Object.freeze({ id: 'bridge-curve-main', sourceNode: 'Plane_0', kind: 'curved-span', label: 'Curved elevated span A', expectedMeshes: 2 }),
-  Object.freeze({ id: 'bridge-span-long', sourceNode: 'Plane.001_1', kind: 'straight-span', label: 'Long straight elevated span', expectedMeshes: 2 }),
-  Object.freeze({ id: 'bridge-abutment', sourceNode: 'Plane.002_2', kind: 'abutment', label: 'Supported bridge transition', expectedMeshes: 2 }),
-  Object.freeze({ id: 'bridge-curve-return', sourceNode: 'Plane.003_3', kind: 'curved-span', label: 'Curved elevated span B', expectedMeshes: 2 }),
-  Object.freeze({ id: 'bridge-span-short', sourceNode: 'Plane.004_4', kind: 'straight-span', label: 'Short straight elevated span', expectedMeshes: 2 }),
+export const WORLD_KIT_BRIDGE_SECTIONS = Object.freeze([
+  Object.freeze({
+    id: 'bridge-curve-main',
+    sourceNode: 'Plane_0',
+    structureComponentId: 'bridge-curve-main-structure',
+    deckComponentId: 'bridge-curve-main-deck',
+    structureNode: 'Object_4',
+    deckNode: 'Object_5',
+    kind: 'curved-span',
+  }),
+  Object.freeze({
+    id: 'bridge-straight-span',
+    sourceNode: 'Plane.001_1',
+    structureComponentId: 'bridge-straight-structure',
+    deckComponentId: 'bridge-straight-deck',
+    structureNode: 'Object_7',
+    deckNode: 'Object_8',
+    kind: 'straight-span',
+  }),
+  Object.freeze({
+    id: 'bridge-pier-starter',
+    sourceNode: 'Plane.002_2',
+    structureComponentId: 'bridge-pier-starter-structure',
+    deckComponentId: 'bridge-pier-starter-deck',
+    structureNode: 'Object_10',
+    deckNode: 'Object_11',
+    kind: 'short-pier-starter',
+  }),
+  Object.freeze({
+    id: 'bridge-curve-return',
+    sourceNode: 'Plane.003_3',
+    structureComponentId: 'bridge-curve-return-structure',
+    deckComponentId: 'bridge-curve-return-deck',
+    structureNode: 'Object_13',
+    deckNode: 'Object_14',
+    kind: 'curved-span',
+  }),
+  Object.freeze({
+    id: 'bridge-end-ramp',
+    sourceNode: 'Plane.004_4',
+    structureComponentId: 'bridge-end-ramp-structure',
+    deckComponentId: 'bridge-end-ramp-deck',
+    structureNode: 'Object_16',
+    deckNode: 'Object_17',
+    kind: 'sloped-end-abutment',
+  }),
 ]);
 
-function isBridgeRoadMesh(mesh) {
-  const materialNames = (Array.isArray(mesh.material) ? mesh.material : [mesh.material])
-    .filter(Boolean)
-    .map(material => String(material.name || '').toLowerCase());
-  return materialNames.some(name => name.includes('bridge_road') || name.includes('bridge road'));
-}
+export const WORLD_KIT_BRIDGE_COMPONENTS = Object.freeze(
+  WORLD_KIT_BRIDGE_SECTIONS.flatMap(section => [
+    Object.freeze({
+      id: section.structureComponentId,
+      sectionId: section.id,
+      sourceNode: section.structureNode,
+      sourceSectionNode: section.sourceNode,
+      kind: section.kind,
+      role: 'bridge-structure',
+    }),
+    Object.freeze({
+      id: section.deckComponentId,
+      sectionId: section.id,
+      sourceNode: section.deckNode,
+      sourceSectionNode: section.sourceNode,
+      kind: section.kind,
+      role: 'bridge-deck',
+    }),
+  ]),
+);
 
 function normalizeBridgeNodeName(name) {
   return String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-function findBridgeSourceNode(sourceScene, requestedName) {
-  const exact = sourceScene.getObjectByName(requestedName);
+function findBridgeNode(root, requestedName) {
+  const exact = root.getObjectByName(requestedName);
   if (exact) return exact;
 
-  // Blender/FBX/glTF exporters can normalize dotted object suffixes while
-  // preserving the same imported hierarchy. Resolve punctuation-only name
-  // differences before declaring a downloaded bridge section missing.
+  // GLTFLoader may normalize punctuation in Blender node suffixes.
   const target = normalizeBridgeNodeName(requestedName);
-  let match = null;
-  let matchExtra = Infinity;
+  let exactNormalized = null;
   const prefixMatches = [];
-  sourceScene.traverse(node => {
+  root.traverse(node => {
     const normalized = normalizeBridgeNodeName(node.name);
-    if (normalized === target) {
-      match = node;
-      matchExtra = 0;
-      return;
-    }
-    if (normalized.startsWith(target)) {
+    if (normalized === target) exactNormalized = node;
+    else if (normalized.startsWith(target)) {
       prefixMatches.push({ node, extra: normalized.length - target.length });
     }
   });
-  if (match) return match;
+  if (exactNormalized) return exactNormalized;
   prefixMatches.sort((a, b) => a.extra - b.extra);
   return prefixMatches[0]?.node || null;
+}
+
+function worldBounds(node) {
+  node.updateWorldMatrix(true, false);
+  return new THREE.Box3().setFromObject(node);
 }
 
 export function extractWorldBridgeKit(sourceScene) {
@@ -57,100 +110,101 @@ export function extractWorldBridgeKit(sourceScene) {
   }
 
   sourceScene.updateMatrixWorld(true);
-  const components = new Map();
+  const prefabs = new Map();
 
-  for (const definition of WORLD_KIT_BRIDGE_COMPONENTS) {
-    const source = findBridgeSourceNode(sourceScene, definition.sourceNode);
-    if (!source) {
-      const available = [];
-      sourceScene.traverse(node => {
-        if (/plane/i.test(node.name || '')) available.push(node.name);
-      });
+  for (const section of WORLD_KIT_BRIDGE_SECTIONS) {
+    const sourceSection = findBridgeNode(sourceScene, section.sourceNode);
+    const structureNode = findBridgeNode(sourceScene, section.structureNode);
+    const deckNode = findBridgeNode(sourceScene, section.deckNode);
+    if (!sourceSection || !structureNode?.isMesh || !deckNode?.isMesh) {
       throw new Error(
-        'Bridge kit is missing source component ' + definition.sourceNode +
-        '; available Plane nodes: ' + available.join(', '),
+        'Bridge section ' + section.id + ' is incomplete: expected ' +
+        section.sourceNode + ' with independent meshes ' +
+        section.structureNode + ' and ' + section.deckNode,
       );
     }
 
-    const group = new THREE.Group();
-    group.name = definition.id;
-    let meshCount = 0;
-    let roadSurfaceCount = 0;
+    const sectionBounds = worldBounds(sourceSection);
+    const structureBounds = worldBounds(structureNode);
+    const deckBounds = worldBounds(deckNode);
+    if (sectionBounds.isEmpty() || structureBounds.isEmpty() || deckBounds.isEmpty()) {
+      throw new Error('Bridge section has empty geometry bounds: ' + section.id);
+    }
 
-    source.traverse(node => {
-      if (!node.isMesh || !node.geometry) return;
-      const geometry = node.geometry.clone().applyMatrix4(node.matrixWorld);
+    // Both independent components use the same X/Z anchor and support-foot
+    // datum. This preserves the authored relationship without merging the meshes.
+    const anchor = sectionBounds.getCenter(new THREE.Vector3());
+    const foundationDatum = structureBounds.min.y;
+    const sourceDeckHeight = deckBounds.max.y - foundationDatum;
+    if (!Number.isFinite(sourceDeckHeight) || sourceDeckHeight <= 0.1) {
+      throw new Error('Bridge section has invalid source deck height: ' + section.id);
+    }
+
+    const sectionMeta = {
+      sectionId: section.id,
+      sourceNode: section.sourceNode,
+      kind: section.kind,
+      sourceDeckHeight,
+      sourceDeckMinOffset: deckBounds.min.y - foundationDatum,
+      sourceDeckMaxOffset: deckBounds.max.y - foundationDatum,
+      anchor: { x: anchor.x, y: foundationDatum, z: anchor.z },
+    };
+
+    for (const definition of WORLD_KIT_BRIDGE_COMPONENTS.filter(item => item.sectionId === section.id)) {
+      const sourceMesh = definition.role === 'bridge-structure' ? structureNode : deckNode;
+      const sourceMaterial = sourceMesh.material;
+      const material = Array.isArray(sourceMaterial)
+        ? sourceMaterial.map(entry => entry?.clone?.() || entry)
+        : sourceMaterial?.clone?.() || sourceMaterial;
+      if (!material) throw new Error('Bridge component has no material: ' + definition.id);
+
+      const geometry = sourceMesh.geometry.clone().applyMatrix4(sourceMesh.matrixWorld);
+      geometry.translate(-anchor.x, -foundationDatum, -anchor.z);
       geometry.computeBoundingBox();
-      if (!geometry.boundingBox || geometry.boundingBox.isEmpty()) {
+      geometry.computeBoundingSphere();
+      const bounds = geometry.boundingBox;
+      if (!bounds || bounds.isEmpty()) {
         geometry.dispose();
-        return;
+        throw new Error('Bridge component has empty local geometry: ' + definition.id);
       }
 
-      const sourceMaterials = Array.isArray(node.material) ? node.material : [node.material];
-      const materials = sourceMaterials.map(material => material?.clone?.() || material);
-      const material = Array.isArray(node.material) ? materials : materials[0];
-      const roadSurface = isBridgeRoadMesh({ material });
+      const size = bounds.getSize(new THREE.Vector3());
       const mesh = new THREE.Mesh(geometry, material);
-      mesh.name = node.name;
-      mesh.castShadow = !roadSurface;
+      mesh.name = definition.id;
+      mesh.castShadow = definition.role === 'bridge-structure';
       mesh.receiveShadow = true;
       mesh.userData.worldKit = {
         assetId: 'modular-bridge',
         componentId: definition.id,
-        role: roadSurface ? 'bridge-road-surface' : 'bridge-concrete-structure',
+        sectionId: definition.sectionId,
+        role: definition.role,
+        sourceNode: definition.sourceNode,
       };
-      group.add(mesh);
-      meshCount++;
-      if (roadSurface) roadSurfaceCount++;
-    });
 
-    if (meshCount !== definition.expectedMeshes || roadSurfaceCount !== 1) {
-      throw new Error(
-        'Bridge component ' + definition.id + ' expected ' + definition.expectedMeshes +
-        ' meshes (one road surface), received ' + meshCount + ' meshes (' + roadSurfaceCount + ' road surfaces)',
-      );
+      prefabs.set(definition.id, {
+        ...definition,
+        ...sectionMeta,
+        mesh,
+        geometry,
+        material,
+        dimensions: [size.x, size.y, size.z],
+        localBounds: {
+          min: bounds.min.toArray(),
+          max: bounds.max.toArray(),
+        },
+      });
     }
-
-    group.updateMatrixWorld(true);
-    const bounds = new THREE.Box3().setFromObject(group);
-    if (bounds.isEmpty()) throw new Error('Bridge component has empty bounds: ' + definition.id);
-    const size = bounds.getSize(new THREE.Vector3());
-    const center = bounds.getCenter(new THREE.Vector3());
-    group.traverse(node => {
-      if (!node.isMesh) return;
-      node.geometry.translate(-center.x, -bounds.min.y, -center.z);
-      node.geometry.computeBoundingBox();
-      node.geometry.computeBoundingSphere();
-    });
-    group.updateMatrixWorld(true);
-
-    let deckHeight = 0;
-    group.traverse(node => {
-      if (!node.isMesh || node.userData.worldKit?.role !== 'bridge-road-surface') return;
-      node.geometry.computeBoundingBox();
-      deckHeight = node.geometry.boundingBox.max.y;
-    });
-
-    group.userData.worldKit = {
-      assetId: 'modular-bridge',
-      componentId: definition.id,
-      kind: definition.kind,
-      sourceNode: definition.sourceNode,
-      meshCount,
-      roadSurfaceCount,
-      deckHeight,
-    };
-
-    components.set(definition.id, {
-      ...definition,
-      group,
-      meshCount,
-      roadSurfaceCount,
-      dimensions: [size.x, size.y, size.z],
-      deckHeight,
-      longitudinalAxis: size.x >= size.z ? 'x' : 'z',
-    });
   }
 
-  return components;
+  if (prefabs.size !== 10) {
+    throw new Error('Expected ten independent bridge component prefabs, received ' + prefabs.size);
+  }
+
+  for (const section of WORLD_KIT_BRIDGE_SECTIONS) {
+    for (const id of [section.structureComponentId, section.deckComponentId]) {
+      if (!prefabs.has(id)) throw new Error('Missing reusable bridge component: ' + id);
+    }
+  }
+
+  return prefabs;
 }
