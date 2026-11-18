@@ -22,7 +22,7 @@ function checkMapContract() {
   assert.equal(map.roads?.length, 21, 'expected the authored city, GRA lanes and split flyover approaches');
   assert.equal(map.roadModules?.length || 0, 0,
     'Road Pack geometry must be emitted by the road renderer, not manually overlaid on an existing road ribbon');
-  assert.equal(map.glbAssets?.length, 93, 'unexpected GLB placement count for the first residential and market district build');
+  assert.equal(map.glbAssets?.length, 294, 'unexpected GLB placement count for the expanded city and district build');
   const uniqueModelCount = new Set(map.glbAssets.map(a => a.url)).size;
   assert.equal(uniqueModelCount, 31, 'expected 31 distinct imported model assets in the district');
   assert.equal(map.glbAssets.filter(a => a.building).length, 22, 'expected the civic, commercial, school and expanded residential building set');
@@ -36,8 +36,8 @@ function checkMapContract() {
     plot.wallHeight >= 1.3 && plot.gateWidth >= 3.5 && plot.driveway?.width >= 3.5),
     'residential plots need compound boundaries and a vehicle gate/driveway');
 
-  assert.equal(map.glbAssets.filter(a => a.url.includes('street_light')).length, 32, 'expected 32 streetlights');
-  assert.equal(map.glbAssets.filter(a => a.tags?.includes('vegetation')).length, 27, 'expected 27 trees and landscape assets');
+  assert.equal(map.glbAssets.filter(a => a.url.includes('street_light')).length, 87, 'expected 87 streetlights');
+  assert.equal(map.glbAssets.filter(a => a.tags?.includes('vegetation')).length, 148, 'expected 148 trees and landscape assets');
   for (const required of [
     'nigeria_duplex',
     'mosque.glb',
