@@ -166,9 +166,9 @@ function applyVisibility(collision = false) {
     if (collision) {
       mesh.visible = hasCollisionAncestor(mesh);
     } else if (selectedMeshIndex !== null) {
-      mesh.visible = meshNodes[selectedMeshIndex] === mesh;
+      mesh.visible = meshNodes[selectedMeshIndex] === mesh && !hasCollisionAncestor(mesh);
     } else {
-      mesh.visible = baseVisibility.get(mesh) ?? true;
+      mesh.visible = !hasCollisionAncestor(mesh) && (baseVisibility.get(mesh) ?? true);
     }
   }
 }
