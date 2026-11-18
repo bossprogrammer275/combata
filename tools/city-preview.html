@@ -48,6 +48,8 @@
       <button data-view="roadPackResidential">Road Pack residential</button>
       <button data-view="mainBridgeExit">Main bridge exit</button>
       <button data-view="fateBridgeExit">Fate bridge exit</button>
+      <button data-view="mainBridgeDrive">Main bridge drive</button>
+      <button data-view="fateBridgeDrive">Fate bridge drive</button>
     </div>
   </section>
   <div id="foot">Internal visual inspection · drag to orbit · scroll to zoom · no NPCs or loot</div>
@@ -94,8 +96,10 @@
       roadKit: { target: [-88, 0.5, 112], distance: 72, yaw: 0.72, pitch: 0.42 },
       roadPackBoulevard: { target: [0, 0.6, 38], distance: 62, yaw: 0.62, pitch: 0.28 },
       roadPackResidential: { target: [-88, 0.5, 112], distance: 34, yaw: 0.72, pitch: 0.32 },
-      mainBridgeExit: { target: [-7, 5.4, -98], distance: 48, yaw: Math.PI / 2, pitch: 0.2 },
-      fateBridgeExit: { target: [194, 2.1, 85], distance: 42, yaw: Math.PI / 2, pitch: 0.2 },
+      mainBridgeExit: { target: [-6, 5.4, -114], distance: 48, yaw: Math.PI / 2, pitch: 0.2 },
+      fateBridgeExit: { target: [194, 2.1, 102], distance: 42, yaw: Math.PI / 2, pitch: 0.2 },
+      mainBridgeDrive: { target: [-10, 7.06, -58], distance: 78, yaw: 0, pitch: 0.08 },
+      fateBridgeDrive: { target: [194, 3.66, 12], distance: 78, yaw: 0, pitch: 0.08 },
     };
     const target = new THREE.Vector3();
     let orbit = { yaw: 0.72, pitch: 0.88, distance: 455 };
