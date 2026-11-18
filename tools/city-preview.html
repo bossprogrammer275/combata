@@ -39,6 +39,8 @@
       <button data-view="fateBridgeSide">Fate bridge side</button>
       <button data-view="south">Southern blocks</button>
       <button data-view="graMarket">GRA + market district</button>
+      <button data-view="graResidential">Residential close-up</button>
+      <button data-view="marketStreet">Market street close-up</button>
       <button data-view="roadKit">GRA road kit</button>
     </div>
   </section>
@@ -79,6 +81,8 @@
       bridgeTop: { target: [-12, 6, -20], distance: 175, yaw: 0.02, pitch: 1.43 },
       south: { target: [0, 4, 134], distance: 175, yaw: 0.78, pitch: 0.38 },
       graMarket: { target: [-5, 4, 129], distance: 185, yaw: 0.72, pitch: 0.43 },
+      graResidential: { target: [-92, 4, 145], distance: 112, yaw: 0.72, pitch: 0.42 },
+      marketStreet: { target: [57, 4, 111], distance: 92, yaw: 0.72, pitch: 0.43 },
       roadKit: { target: [-88, 0.5, 112], distance: 72, yaw: 0.72, pitch: 0.42 },
     };
     const target = new THREE.Vector3();
@@ -188,7 +192,12 @@
           .filter(section => !Number.isFinite(section.deckAlignmentError) || Math.abs(section.deckAlignmentError) > 0.02)
           .map(section => ({ assemblyId: section.assemblyId, sectionId: section.sectionId, deckY: section.deckY, deckMaxY: section.deckMaxY, error: section.deckAlignmentError })),
         bridgeSectionDiagnostics: world.bridgeSectionInstances || [],
-        warnings: state.warnings.filter(message => /bridge|WorldKit/i.test(message)).slice(0, 40),
+        districtPlotCount: world.districtPlotInstances?.length || 0,
+        districtCompoundCount: world.districtPlotInstances?.filter(plot => plot.wallCount > 0).length || 0,
+        districtPlotWallCount: world.districtPlotInstances?.reduce((sum, plot) => sum + (plot.wallCount || 0), 0) || 0,
+        districtDrivewayCount: world.districtPlotInstances?.filter(plot => plot.driveway).length || 0,
+        districtPlotDiagnostics: world.districtPlotInstances || [],
+        warnings: state.warnings.filter(message => /bridge|WorldKit|district_plot/i.test(message)).slice(0, 60),
         glbAssetCount: map.glbAssets?.length || 0,
         uniqueModelCount: uniqueModels,
         buildingCount: buildings,
@@ -207,7 +216,7 @@
         errors: state.errors.slice(),
       };
       status.textContent = 'World ready · real assets loaded';
-      counts.textContent = `${state.report.roadCount} roads · ${state.report.roadModuleCount} road modules · ${state.report.bridgeSectionCount} bridge sections · ${state.report.bridgeComponentCount} independent bridge meshes · ${state.report.glbAssetCount} GLB placements · ${uniqueModels} unique models · ${meshCount} meshes · ${world.colliders.length} colliders`;
+      counts.textContent = `${state.report.roadCount} roads · ${state.report.bridgeSectionCount} bridge sections · ${state.report.districtPlotCount} district plots · ${state.report.glbAssetCount} GLB placements · ${uniqueModels} unique models · ${meshCount} meshes · ${world.colliders.length} colliders`;
       applyCamera();
       busy.classList.add('hide');
       window.__CITY_PREVIEW__ = {
