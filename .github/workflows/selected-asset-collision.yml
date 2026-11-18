@@ -182,11 +182,17 @@ jobs:
           const results = [];
           for (const [index, item] of manifest.assets.entries()) {
             const source = path.resolve(root, item.path);
+            const relative = path.relative(path.join(root, 'data/models'), source);
+            const archivedSource = path.join(root, 'data/models/_archive/originals', relative);
+            if (!fs.existsSync(archivedSource)) throw new Error('Pristine archived source is missing for ' + item.path);
             const output = path.join(tempRoot, item.path);
             const report = path.join(tempRoot, 'reports', String(index + 1).padStart(2, '0') + '.json');
             fs.mkdirSync(path.dirname(output), { recursive: true });
             fs.mkdirSync(path.dirname(report), { recursive: true });
-            const args = [path.join(root, 'js/utils/make-collision.js'), source,
+            // Always regenerate from the preserved original, not an earlier
+            // collider build. This prevents orphaned old proxy buffers and
+            // makes repeated calibration runs deterministic.
+            const args = [path.join(root, 'js/utils/make-collision.js'), archivedSource,
               '--profile', item.profile, '--replace', '--out', output, '--report', report];
             if (item.profile === 'building') args.push('--rename');
             if (item.mode) {
