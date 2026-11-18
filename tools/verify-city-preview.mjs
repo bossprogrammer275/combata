@@ -161,7 +161,9 @@ checkMapContract();
 
 let server;
 let browser;
+let context;
 let page;
+let video;
 const pageErrors = [];
 const failedResponses = [];
 const failedRequests = [];
@@ -186,10 +188,17 @@ try {
   assert.ok(ready, 'local preview server did not become ready:\n' + serverOutput);
 
   browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist', '--disable-gpu-sandbox'] });
-  page = await browser.newPage({
+  await mkdir(outputDir, { recursive: true });
+  context = await browser.newContext({
     viewport: { width: 1280, height: 800 },
     deviceScaleFactor: 1,
+    recordVideo: {
+      dir: path.join(outputDir, 'video'),
+      size: { width: 1280, height: 800 },
+    },
   });
+  page = await context.newPage();
+  video = page.video();
   page.on('pageerror', e => pageErrors.push(String(e.stack || e)));
   page.on('console', msg => {
     if (msg.type() !== 'error') return;
@@ -443,6 +452,12 @@ try {
   }
   process.exitCode = 1;
 } finally {
+  if (page && !page.isClosed()) await page.close().catch(() => {});
+  if (video) {
+    await video.saveAs(path.join(outputDir, 'bridge-assembly-inspection.webm')).catch(error =>
+      console.error('[city preview] bridge video save failed:', String(error)));
+  }
+  if (context) await context.close().catch(() => {});
   if (browser) await browser.close().catch(() => {});
   if (server && server.exitCode == null) {
     server.kill('SIGTERM');
