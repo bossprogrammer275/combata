@@ -55,6 +55,7 @@ export class World {
     this.sidewalkModuleInstances = []; // authored driveway, corner and damaged-pavement pieces
     this.bridgeComponentInstances = []; // ten independent reusable bridge structure/deck prefabs placed in the world
     this.bridgeSectionInstances = []; // measured structure/deck pairs with ground and deck alignment diagnostics
+    this.districtPlotInstances = []; // authored lawns, compounds, driveways and market forecourts
     this._bridgeKit = null;
     this._bridgeKitPromise = null;
     this._roadPackPrefabs = null;
@@ -711,6 +712,149 @@ export class World {
     this._spawnGLBAssets();
   }
 
+  _buildDistrictPlots(plots = []) {
+    if (!Array.isArray(plots) || !plots.length) return;
+
+    const grassMaterial = this._mat('district-plot-grass', () => {
+      const texture = TEX.makeGroundTexture(512, [108, 119, 82]);
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.set(4, 4);
+      return new THREE.MeshStandardMaterial({ map: texture, roughness: 0.98, metalness: 0 });
+    });
+    const lateriteMaterial = this._mat('district-plot-laterite', () => {
+      const texture = TEX.makeGroundTexture(512, [142, 112, 82]);
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.set(4, 4);
+      return new THREE.MeshStandardMaterial({ map: texture, roughness: 0.98, metalness: 0 });
+    });
+    const pavingMaterial = this.mConcrete([161, 157, 147]);
+    const wallMaterial = this.mConcrete([174, 169, 157]);
+    const gatePostMaterial = this.mConcrete([135, 132, 125]);
+
+    const surfaceMaterial = surface => {
+      if (surface === 'lawn' || surface === 'grass') return grassMaterial;
+      if (surface === 'laterite' || surface === 'soil') return lateriteMaterial;
+      return pavingMaterial;
+    };
+
+    for (const plot of plots) {
+      const width = Number(plot.width), depth = Number(plot.depth);
+      if (!(width > 2 && depth > 2)) continue;
+
+      const x = Number(plot.x) || 0;
+      const z = Number(plot.z) || 0;
+      const yaw = Number(plot.yaw) || 0;
+      const baseY = Number.isFinite(plot.y) ? plot.y : 0.012;
+      const group = new THREE.Group();
+      group.name = 'district_plot_' + String(plot.id || this.districtPlotInstances.length).replace(/[^a-z0-9_-]/gi, '_');
+      group.position.set(x, baseY, z);
+      group.rotation.y = yaw;
+
+      const addSurface = (w, d, lx, lz, material, yOffset = 0.008, name = 'surface') => {
+        if (!(w > 0.2 && d > 0.2)) return;
+        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, d), material);
+        mesh.name = 'district_plot_' + name;
+        mesh.rotation.x = -Math.PI / 2;
+        mesh.position.set(lx, yOffset, lz);
+        mesh.receiveShadow = true;
+        mesh.castShadow = false;
+        mesh.frustumCulled = false;
+        group.add(mesh);
+      };
+
+      addSurface(width, depth, 0, 0, surfaceMaterial(plot.surface || 'lawn'), 0.008, plot.surface || 'lawn');
+
+      const driveway = plot.driveway;
+      if (driveway && typeof driveway === 'object') {
+        const drivewayWidth = Number(driveway.width) || 3.6;
+        const drivewayDepth = Number(driveway.depth) || 4.5;
+        const front = plot.front === 'north' ? -1 : 1;
+        const drivewayX = Number(driveway.offsetX) || 0;
+        const drivewayZ = Number.isFinite(driveway.offsetZ)
+          ? driveway.offsetZ
+          : front * (depth / 2 - drivewayDepth / 2);
+        addSurface(drivewayWidth, drivewayDepth, drivewayX, drivewayZ, pavingMaterial, 0.018, 'driveway');
+
+        // A narrow path links the vehicle gate/driveway to the building entrance.
+        if (driveway.pathWidth > 0 && driveway.pathDepth > 0) {
+          const pathWidth = Number(driveway.pathWidth);
+          const pathDepth = Number(driveway.pathDepth);
+          const pathZ = front * (depth / 2 - drivewayDepth - pathDepth / 2);
+          addSurface(pathWidth, pathDepth, drivewayX, pathZ, pavingMaterial, 0.02, 'front-walk');
+        }
+      }
+
+      let wallCount = 0;
+      const wallHeight = Number(plot.wallHeight) || 0;
+      if (wallHeight > 0.35) {
+        const thickness = THREE.MathUtils.clamp(Number(plot.wallThickness) || 0.18, 0.12, 0.35);
+        const gateWidth = THREE.MathUtils.clamp(Number(plot.gateWidth) || 3.8, 2.4, width * 0.65);
+        const front = plot.front === 'north' ? 'north' : 'south';
+        const frontSign = front === 'south' ? 1 : -1;
+        const wallBase = -baseY + 0.006;
+        const addWall = (lx, lz, w, d, name = 'compound-wall') => {
+          if (!(w > 0.12 && d > 0.12)) return;
+          const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, wallHeight, d), wallMaterial);
+          mesh.name = 'district_' + name;
+          mesh.position.set(lx, wallBase + wallHeight / 2, lz);
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          group.add(mesh);
+
+          const c = Math.cos(yaw), sn = Math.sin(yaw);
+          const worldX = x + lx * c + lz * sn;
+          const worldZ = z - lx * sn + lz * c;
+          const worldW = Math.abs(c) * w + Math.abs(sn) * d;
+          const worldD = Math.abs(sn) * w + Math.abs(c) * d;
+          this.addCollider(worldX, baseY, worldZ, worldW, wallHeight, worldD);
+          wallCount++;
+        };
+
+        // Rear and side walls remain continuous. The street-facing wall is
+        // split around a proper car gate so the plot stays accessible.
+        addWall(0, -frontSign * (depth / 2 - thickness / 2), width, thickness, 'compound-rear-wall');
+        addWall(-width / 2 + thickness / 2, 0, thickness, depth, 'compound-side-wall');
+        addWall(width / 2 - thickness / 2, 0, thickness, depth, 'compound-side-wall');
+
+        const frontZ = frontSign * (depth / 2 - thickness / 2);
+        const sideLength = Math.max(0, (width - gateWidth) / 2);
+        addWall(-gateWidth / 2 - sideLength / 2, frontZ, sideLength, thickness, 'compound-front-wall');
+        addWall(gateWidth / 2 + sideLength / 2, frontZ, sideLength, thickness, 'compound-front-wall');
+
+        // The gate has substantial concrete piers, while the vehicle opening
+        // remains clear. The gate posts are also real movement colliders.
+        const postSize = 0.34;
+        for (const side of [-1, 1]) {
+          const lx = side * gateWidth / 2;
+          const mesh = new THREE.Mesh(
+            new THREE.BoxGeometry(postSize, wallHeight + 0.16, postSize),
+            gatePostMaterial,
+          );
+          mesh.name = 'district_compound_gate_pillar';
+          mesh.position.set(lx, wallBase + (wallHeight + 0.16) / 2, frontZ);
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          group.add(mesh);
+          const c = Math.cos(yaw), sn = Math.sin(yaw);
+          const worldX = x + lx * c + frontZ * sn;
+          const worldZ = z - lx * sn + frontZ * c;
+          this.addCollider(worldX, baseY, worldZ, postSize, wallHeight + 0.16, postSize);
+          wallCount++;
+        }
+      }
+
+      this.group.add(group);
+      this.districtPlotInstances.push({
+        id: plot.id || 'district-plot-' + this.districtPlotInstances.length,
+        type: plot.type || plot.surface || 'plot',
+        x, z, width, depth, yaw,
+        wallCount,
+        wallHeight,
+        driveway: !!driveway,
+      });
+    }
+  }
+
   // ===== AUTHORED SCENE (map JSON) =====
   async buildFromScene(sd) {
     if (sd.startPoint) {
@@ -721,6 +865,7 @@ export class World {
       };
     }
     if (sd.roads) await this._buildAuthoredRoads(sd.roads);
+    if (sd.districtPlots?.length) this._buildDistrictPlots(sd.districtPlots);
     if (sd.roadModules?.length) await this._spawnRoadModules(sd.roadModules);
     if (sd.sidewalkModules?.length) await this._spawnSidewalkModules(sd.sidewalkModules);
     if (sd.bridgeAssemblies?.length) await this._spawnBridgeAssemblies(sd.bridgeAssemblies);
