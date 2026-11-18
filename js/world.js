@@ -2861,6 +2861,7 @@ export class World {
           deckY: section.deckY,
           structureComponentId: structure.componentId,
           deckComponentId: deck.componentId,
+          structureKind: structure.kind,
           structureMinY: structure.minY,
           structureMaxY: structure.maxY,
           deckMinY: deck.minY,
