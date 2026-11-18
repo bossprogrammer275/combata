@@ -643,8 +643,8 @@
       "w": 10,
       "sidewalk": false,
       "smooth": true,
-      "flyover": true,
-      "guardrails": true,
+      "flyover": false,
+      "guardrails": false,
       "keepEnds": true,
       "points": [
         [
@@ -672,7 +672,8 @@
           60,
           7
         ]
-      ]
+      ],
+      "bridge": false
     },
     {
       "name": "Main City Flyover · Imported Central Spans",
@@ -717,8 +718,8 @@
       "w": 10,
       "sidewalk": false,
       "smooth": true,
-      "flyover": true,
-      "guardrails": true,
+      "flyover": false,
+      "guardrails": false,
       "keepEnds": true,
       "points": [
         [
@@ -741,15 +742,16 @@
           -202,
           0
         ]
-      ]
+      ],
+      "bridge": false
     },
     {
       "name": "Fate Drainage Bridge · North Approach",
       "w": 8,
       "sidewalk": false,
       "smooth": true,
-      "flyover": true,
-      "guardrails": true,
+      "flyover": false,
+      "guardrails": false,
       "keepEnds": true,
       "points": [
         [
@@ -767,7 +769,8 @@
           -90,
           3.6
         ]
-      ]
+      ],
+      "bridge": false
     },
     {
       "name": "Fate Drainage Bridge · Imported Central Spans",
@@ -812,8 +815,8 @@
       "w": 8,
       "sidewalk": false,
       "smooth": true,
-      "flyover": true,
-      "guardrails": true,
+      "flyover": false,
+      "guardrails": false,
       "keepEnds": true,
       "points": [
         [
@@ -831,7 +834,8 @@
           170,
           0
         ]
-      ]
+      ],
+      "bridge": false
     },
     {
       "name": "GRA Residential Lane",
@@ -2419,7 +2423,7 @@
           "componentId": "bridge-pier-starter-structure",
           "sectionId": "main-city-flyover-section-09",
           "x": -7.538,
-          "z": -91.388,
+          "z": -89.093,
           "yaw": 1.508378,
           "scaleX": 0.991,
           "scaleZ": 2.133561,
@@ -2430,7 +2434,7 @@
           "componentId": "bridge-pier-starter-deck",
           "sectionId": "main-city-flyover-section-09",
           "x": -7.538,
-          "z": -91.388,
+          "z": -89.093,
           "yaw": 1.508378,
           "scaleX": 0.991,
           "scaleZ": 2.133561,
@@ -2441,7 +2445,7 @@
           "componentId": "bridge-end-ramp-structure",
           "sectionId": "main-city-flyover-section-10",
           "x": -7.127,
-          "z": -97.96,
+          "z": -96.063,
           "yaw": 1.508378,
           "scaleX": 0.991,
           "scaleZ": 2.133561,
@@ -2452,7 +2456,7 @@
           "componentId": "bridge-end-ramp-deck",
           "sectionId": "main-city-flyover-section-10",
           "x": -7.127,
-          "z": -97.96,
+          "z": -96.063,
           "yaw": 1.508378,
           "scaleX": 0.991,
           "scaleZ": 2.133561,
@@ -2672,7 +2676,7 @@
           "componentId": "bridge-pier-starter-structure",
           "sectionId": "fate-drainage-bridge-section-10",
           "x": 194,
-          "z": 81.407,
+          "z": 78.587,
           "yaw": -1.570796,
           "scaleX": 0.99,
           "scaleZ": 1.706849,
@@ -2683,7 +2687,7 @@
           "componentId": "bridge-pier-starter-deck",
           "sectionId": "fate-drainage-bridge-section-10",
           "x": 194,
-          "z": 81.407,
+          "z": 78.587,
           "yaw": -1.570796,
           "scaleX": 0.99,
           "scaleZ": 1.706849,
@@ -2694,7 +2698,7 @@
           "componentId": "bridge-end-ramp-structure",
           "sectionId": "fate-drainage-bridge-section-11",
           "x": 194,
-          "z": 87.965,
+          "z": 84.966,
           "yaw": -1.570796,
           "scaleX": 0.99,
           "scaleZ": 1.706849,
@@ -2705,7 +2709,7 @@
           "componentId": "bridge-end-ramp-deck",
           "sectionId": "fate-drainage-bridge-section-11",
           "x": 194,
-          "z": 87.965,
+          "z": 84.966,
           "yaw": -1.570796,
           "scaleX": 0.99,
           "scaleZ": 1.706849,
@@ -2891,6 +2895,27 @@
       "yaw": 0,
       "surface": "concrete",
       "front": "south"
+    }
+  ],
+  "waterways": [
+    {
+      "name": "Fate drainage channel",
+      "start": [
+        194,
+        -96
+      ],
+      "end": [
+        194,
+        96
+      ],
+      "width": 8.4,
+      "waterY": -0.55,
+      "bankBottom": -1.05,
+      "bankWidth": 0.7,
+      "bankHeight": 1.25,
+      "groundCutoutCap": 1.8,
+      "color": 5402227,
+      "bedColor": 5327421
     }
   ]
 }
