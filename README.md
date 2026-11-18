@@ -216,7 +216,11 @@ Assemblies are authored in `bridgeAssemblies` in `city-a.json`. Each section has
 
 The structure component is anchored at `foundationY` and stretched vertically just enough for its authored support geometry to reach the deck level. The deck component keeps its own source thickness and any sloped end profile, then is positioned so its highest driving surface lands exactly at `deckY`. Do not raise the complete bridge assembly to deck height: that lifts its pillars away from the ground. Do not merge the support and road meshes or use one vertical transform for both.
 
-The runtime records world-space bounds for each section and verifies two conditions: the concrete support's lowest point meets `foundationY`, and the deck's highest road surface meets `deckY`. The exact imported support and deck geometries are registered for static collision. Curved prefabs are available for curved bridge routes; do not force them into a straight crossing. Procedural geometry is reserved for missing transitions, custom retaining work and invisible physics proxies.
+The runtime records world-space bounds for each section and checks the deck's highest road surface against `deckY`. It also extracts the compact bottom patches from each concrete pier mesh and checks each patch against the actual terrain height. End-ramp/abutment modules use their continuous base bounds. Close-up browser screenshots cover both flyovers and the footings.
+
+Bridge assemblies use only the bridge pack's own structure and deck prefabs. Do not substitute `road_pack` modules or add procedural flyover slabs/columns over an imported span. The four approaches in City A remain ordinary asphalt embankment roads; the imported end-ramp components join those approaches to the elevated span. Invisible road-height sampling proxies remain available for player/vehicle contact, but they are not visible bridge geometry.
+
+A support foundation below world ground is valid only when the map also authors the terrain opening and bed it lands on. City A's Fate crossing declares a `waterways` record: the ground plane is cut out, concrete banks and a channel bed are created, and the imported piers terminate at that bed's `bankBottom`. Never set a negative `foundationY` on a flat ground plane without a matching channel/terrain cutout. The exact imported structure and deck geometries are registered for static collision. Curved prefabs remain reusable for curved routes; do not force them into a straight crossing.
 
 ## 4. Model Pre-Processing Tool
 
