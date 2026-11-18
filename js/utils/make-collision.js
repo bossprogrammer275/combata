@@ -40,7 +40,7 @@ Usage: node make-collision.js <input.glb|input.gltf> [options]
                            Minimum cells on every non-zero axis (default 16)
       --max-boxes <n>     Auto-coarsen until at most n proxies (default 300)
       --max-span <m>      Largest proxy size in metres (default 5)
-      --profile <name>    auto | small-prop | fence | pole | trunk
+      --profile <name>    auto | building | small-prop | fence | pole | trunk
                            fence = thin surface collision; pole/trunk = one
                            narrow upright box; small-prop = higher detail
       --pole-width <m>    Diameter for pole/trunk profiles (default 0.35 m)
@@ -67,7 +67,7 @@ function parseArgs(argv) {
       case '--glb': o.format = 'glb'; break;
       case '--gltf': o.format = 'gltf'; break;
       case '--mode': o.mode = next(); o.modeExplicit = true; if (!['solid', 'shell'].includes(o.mode)) die('--mode must be solid or shell'); break;
-      case '--profile': o.profile = next(); if (!['auto', 'small-prop', 'fence', 'pole', 'trunk'].includes(o.profile)) die('--profile must be auto, small-prop, fence, pole or trunk'); break;
+      case '--profile': o.profile = next(); if (!['auto', 'building', 'small-prop', 'fence', 'pole', 'trunk'].includes(o.profile)) die('--profile must be auto, small-prop, fence, pole or trunk'); break;
       case '--resolution': o.resolution = parseInt(next(), 10); break;
       case '--min-axis-resolution': o.minAxisResolution = parseInt(next(), 10); break;
       case '--max-boxes': o.maxBoxes = parseInt(next(), 10); break;
