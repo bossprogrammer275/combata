@@ -152,7 +152,7 @@ Use `solid` for ordinary building/prop collision and `shell` only where a thin s
 
 - Check for existing `col_*`, `door_*`, `floor_*` and `stairs_*` nodes before replacing anything. Do not remove intentional authored proxies or named gameplay markers accidentally.
 - Do not generate solid collision for road surfaces, foliage, modular bridge kits, modular road kits or visual-only pieces.
-- Buildings must retain a clear walk-in aperture. The default converter excludes `door_*) geometry from solid collision.
+- Buildings must retain a clear walk-in aperture. The default converter excludes `door_*` geometry from solid collision.
 - A tree uses trunk-only collision. A lamp uses a pole proxy. Do not make their entire visual bounds solid.
 - Vehicle handling is configured separately in `js/vehicles.js` and Rapier. Do not treat the imported render mesh as the car's complete dynamic physics setup.
 - If a sidecar `*_col.json` is used instead of embedded proxies, add its exact URL to `WORLD_KIT_COLLISION_SIDECARS` in `js/world-kit.js`. The current world loader recognises embedded `col_*` meshes directly.
