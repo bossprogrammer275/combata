@@ -254,7 +254,7 @@ try {
     failedRequests,
     assets: records,
   };
-  await fs.writeFile(path.join(OUT, 'report.json'), JSON.stringify(output, null, 2) + '\\n', 'utf8');
+  await fs.writeFile(path.join(OUT, 'report.json'), JSON.stringify(output, null, 2) + '\n', 'utf8');
   const cards = records.map(makeCard).join('\\n');
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Open World · Asset Calibration Captures</title><style>
     *{box-sizing:border-box}body{margin:0;padding:22px;background:#e5eae7;color:#18231d;font:13px/1.5 system-ui}header{margin:0 0 18px}h1{font-size:20px;margin:0}header p{color:#55665b}main{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:13px}article{padding:12px;border:1px solid #c3cec5;border-radius:9px;background:#f8faf8;min-width:0}h2{font-size:14px;margin:0 0 4px;overflow-wrap:anywhere}.path{color:#617166;font-size:11px;overflow-wrap:anywhere}article p{font-size:11px}section{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}a{color:#245b42}img{display:block;width:100%;aspect-ratio:16/10;object-fit:contain;background:#dfe5e8;border:1px solid #d1d9d3;border-radius:5px}small{display:block;text-align:center;color:#4c5d52}.warning{color:#7a5724}
