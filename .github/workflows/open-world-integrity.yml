@@ -133,6 +133,9 @@ jobs:
           node --check tools/asset-calibration-preview.js
           node --check tools/capture-asset-calibration.mjs
           node --check tools/verify-collisions.mjs
+          node --check js/utils/make-collision.js
+          node --check tools/verify-collisioner-small-assets.mjs
+          node tools/verify-collisioner-small-assets.mjs
       - name: Verify World Kit component metadata
         run: node tools/verify-world-kit.mjs
       - name: Verify imported bridge component extraction
