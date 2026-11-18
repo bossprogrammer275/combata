@@ -1,0 +1,188 @@
+name: Batch model collision proxies
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".collision-batch-trigger"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: model-collision-batch
+  cancel-in-progress: false
+
+jobs:
+  process-models:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Archive original model library
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p data/models/_archive/originals/assets data/models/_archive/originals/cars
+          cp -a -n data/models/assets/. data/models/_archive/originals/assets/
+          cp -a -n data/models/cars/. data/models/_archive/originals/cars/
+          echo "Original assets and cars archived under data/models/_archive/originals/"
+
+      - name: Generate collision-ready models in their original locations
+        id: process
+        shell: bash
+        run: |
+          set -uo pipefail
+          TMP_ROOT="$RUNNER_TEMP/collision-batch"
+          mkdir -p "$TMP_ROOT/reports" "$TMP_ROOT/logs"
+          SUMMARY="$TMP_ROOT/results.tsv"
+          : > "$SUMMARY"
+
+          total=0
+          success=0
+          failed=0
+          proxies=0
+          preserved=0
+
+          preserve_profile() {
+            case "$1" in
+              *"/coconut_tree_low_poly.glb"|*"/tree_low-poly.glb"|*"/others/low_poly_tree.glb"|*"/others/hedge.glb"|*"/others/low_poly_shrub.glb"|*"/others/real_bush.glb"|*"/freeway_streetlight_1/scene.gltf"|*"/low_poly_electricity_pole/scene.gltf"|*"/traffic_lights/scene.gltf"|*"/low_poly_street_light.glb"|*"/roads/road_pack/scene.gltf"|*"/roads/sidewalks/scene.gltf"|*"/roads/street_road/scene.gltf"|*"/modular_bridge__low_poly__game_ready_/scene.gltf"|*"/assets/road.glb")
+                return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          while IFS= read -r -d '' file; do
+            total=$((total + 1))
+            rel="${file#data/models/}"
+            dir="$(dirname "$file")"
+            base="$(basename "$file")"
+            stem="${base%.*}"
+            temp_dir="$TMP_ROOT/${rel%/*}"
+            mkdir -p "$temp_dir"
+            out="$temp_dir/$base"
+            report="$TMP_ROOT/reports/${rel//\//__}.json"
+            log="$TMP_ROOT/logs/${rel//\//__}.log"
+
+            mode="solid"
+            args=()
+            if [[ "$file" == data/models/cars/* ]]; then
+              mode="shell"
+            else
+              args+=(--rename)
+            fi
+
+            if preserve_profile "$file"; then
+              args+=(--no-proxies)
+              preserved=$((preserved + 1))
+              profile="preserve-existing-profile"
+            else
+              args+=(--replace)
+              profile="generated-proxies"
+            fi
+
+            echo "[$total] $rel | mode=$mode | $profile"
+            if node js/utils/make-collision.js "$file" --mode "$mode" --resolution 64 --max-boxes 300 --max-span 5 --report "$report" --out "$out" "${args[@]}" >"$log" 2>&1; then
+              if [[ ! -s "$out" ]]; then
+                echo "ERROR: converter reported success but output is missing: $out" | tee -a "$log"
+                failed=$((failed + 1))
+                printf 'failed\t%s\t%s\t0\n' "$rel" "$mode" >> "$SUMMARY"
+                continue
+              fi
+
+              if [[ "$file" == *.gltf ]]; then
+                generated_bin="${out%.*}.bin"
+                if [[ ! -s "$generated_bin" ]]; then
+                  echo "ERROR: generated glTF buffer is missing: $generated_bin" | tee -a "$log"
+                  failed=$((failed + 1))
+                  printf 'failed\t%s\t%s\t0\n' "$rel" "$mode" >> "$SUMMARY"
+                  continue
+                fi
+                cp "$generated_bin" "$dir/$stem.bin"
+              fi
+
+              cp "$out" "$file"
+              box_count=0
+              if [[ -s "$report" ]]; then
+                box_count="$(node -e "const r=require(process.argv[1]);process.stdout.write(String((r.boxes||[]).length))" "$report")"
+              fi
+              success=$((success + 1))
+              proxies=$((proxies + box_count))
+              if preserve_profile "$file"; then
+                printf 'success-preserved\t%s\t%s\t%s\n' "$rel" "$mode" "$box_count" >> "$SUMMARY"
+              else
+                printf 'success-generated\t%s\t%s\t%s\n' "$rel" "$mode" "$box_count" >> "$SUMMARY"
+              fi
+              echo "OK: $rel | boxes=$box_count"
+            else
+              failed=$((failed + 1))
+              printf 'failed\t%s\t%s\t0\n' "$rel" "$mode" >> "$SUMMARY"
+              echo "FAILED: $rel"
+              tail -n 30 "$log" || true
+            fi
+          done < <(find data/models/assets data/models/cars -type f \( -iname '*.glb' -o -iname '*.gltf' \) -print0 | sort -z)
+
+          node --input-type=commonjs - "$SUMMARY" "$total" "$success" "$failed" "$proxies" "$preserved" <<'NODE'
+          const fs = require('fs');
+          const [summaryPath, total, success, failed, proxies, preserved] = process.argv.slice(2);
+          const rows = fs.readFileSync(summaryPath, 'utf8').trim().split('\n').filter(Boolean).map(line => {
+            const [status, path, mode, boxCount] = line.split('\t');
+            return { status, path, mode, collisionProxyCount: Number(boxCount) };
+          });
+          const report = {
+            generatedAt: new Date().toISOString(),
+            totalModels: Number(total),
+            succeeded: Number(success),
+            failed: Number(failed),
+            generatedCollisionProxies: Number(proxies),
+            keptExistingCollisionProfiles: Number(preserved),
+            models: rows
+          };
+          fs.writeFileSync('data/models/_archive/collision-batch-report.json', JSON.stringify(report, null, 2) + '\n');
+          console.log(JSON.stringify({ total, success, failed, proxies, preserved }, null, 2));
+          NODE
+
+          echo "total=$total" >> "$GITHUB_OUTPUT"
+          echo "success=$success" >> "$GITHUB_OUTPUT"
+          echo "failed=$failed" >> "$GITHUB_OUTPUT"
+          echo "proxies=$proxies" >> "$GITHUB_OUTPUT"
+          echo "preserved=$preserved" >> "$GITHUB_OUTPUT"
+          if [[ "$failed" -gt 0 ]]; then
+            echo "Some models failed. Successful outputs have still been placed at their original paths; failed originals were left untouched."
+            exit 1
+          fi
+
+      - name: Commit archived originals and processed models
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .collision-batch-trigger
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A data/models js/utils/make-collision.js .collision-batch-trigger
+          if git diff --cached --quiet; then
+            echo "No repository changes to commit."
+            exit 0
+          fi
+          git commit -m "Archive model originals and generate collision proxies"
+          git push origin HEAD:main
+
+      - name: Upload collision reports and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-collision-batch-results
+          path: ${{ runner.temp }}/collision-batch/
+          if-no-files-found: ignore
