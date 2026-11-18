@@ -83,7 +83,7 @@ export class World {
     // buildSky() has a low-cost ultra-low fallback. Always call it so low-end
     // devices receive a real sky background instead of the renderer's black clear.
     this.buildSky();
-    this.buildGround(sceneData && sceneData.ground);
+    this.buildGround(sceneData && sceneData.ground, sceneData && sceneData.waterways);
     this.startPoint = { x: 0, z: 40, yaw: Math.PI };
     this.assetsReady = Promise.resolve();
     if (sceneData) {
@@ -654,7 +654,7 @@ export class World {
     // Don't set background — atmosphere sky dome renders over it
   }
 
-  buildGround(spec = null) {
+  buildGround(spec = null, waterways = []) {
     const ultra = this._quality === 'ultra-low';
     const gSize = spec && spec.size ? spec.size : (ultra ? 3000 : 5000);
     let groundMat;
@@ -670,8 +670,59 @@ export class World {
       groundMat = new THREE.MeshStandardMaterial({ map: TEX.makeGroundTexture(), roughness: 0.96, metalness: 0 });
       groundMat.map.repeat.set(120, 120);
     }
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(gSize, gSize), groundMat);
-    ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
+    const groundShape = new THREE.Shape();
+    const halfGround = gSize * 0.5;
+    groundShape.moveTo(-halfGround, -halfGround);
+    groundShape.lineTo(halfGround, -halfGround);
+    groundShape.lineTo(halfGround, halfGround);
+    groundShape.lineTo(-halfGround, halfGround);
+    groundShape.lineTo(-halfGround, -halfGround);
+
+    const signedArea = points => {
+      let area = 0;
+      for (let i = 0; i < points.length; i++) {
+        const a = points[i], b = points[(i + 1) % points.length];
+        area += a.x * b.y - b.x * a.y;
+      }
+      return area * 0.5;
+    };
+    for (const channel of waterways || []) {
+      const start = channel.start || [];
+      const end = channel.end || [];
+      const dx = Number(end[0]) - Number(start[0]);
+      const dz = Number(end[1]) - Number(start[1]);
+      const length = Math.hypot(dx, dz);
+      if (length < 2) continue;
+      const ux = dx / length, uz = dz / length;
+      const nx = -uz, nz = ux;
+      const bankWidth = Number(channel.bankWidth) || 0.7;
+      const halfOpening = (Number(channel.width) || 6) * 0.5 + bankWidth + 0.06;
+      const cap = Number.isFinite(channel.groundCutoutCap) ? channel.groundCutoutCap : 1.5;
+      const a = { x: Number(start[0]), z: Number(start[1]) };
+      const b = { x: Number(end[0]), z: Number(end[1]) };
+      const worldPoints = [
+        { x: a.x - ux * cap + nx * halfOpening, z: a.z - uz * cap + nz * halfOpening },
+        { x: b.x + ux * cap + nx * halfOpening, z: b.z + uz * cap + nz * halfOpening },
+        { x: b.x + ux * cap - nx * halfOpening, z: b.z + uz * cap - nz * halfOpening },
+        { x: a.x - ux * cap - nx * halfOpening, z: a.z - uz * cap - nz * halfOpening },
+      ];
+      let localPoints = worldPoints.map(point => ({ x: point.x, y: -point.z }));
+      // ShapeGeometry expects the outer contour and holes to have opposite winding.
+      if (signedArea(localPoints) > 0) localPoints = localPoints.reverse();
+      const hole = new THREE.Path();
+      hole.moveTo(localPoints[0].x, localPoints[0].y);
+      for (let i = 1; i < localPoints.length; i++) hole.lineTo(localPoints[i].x, localPoints[i].y);
+      hole.lineTo(localPoints[0].x, localPoints[0].y);
+      groundShape.holes.push(hole);
+    }
+
+    const groundGeometry = waterways?.length
+      ? new THREE.ShapeGeometry(groundShape, 1)
+      : new THREE.PlaneGeometry(gSize, gSize);
+    const ground = new THREE.Mesh(groundGeometry, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    ground.name = 'world_ground_with_drainage_cutouts';
     this.group.add(ground);
     if (ultra) return;
     // distant low hills for horizon depth
@@ -2559,9 +2610,29 @@ export class World {
       water.frustumCulled = false;
       this.group.add(water);
 
+      const bankBottom = Number.isFinite(channel.bankBottom) ? channel.bankBottom : -1.05;
+      const bedMaterial = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(channel.bedColor || 0x514a3d),
+        roughness: 0.98,
+        metalness: 0,
+      });
+      const bedGeometry = new THREE.BufferGeometry();
+      bedGeometry.setAttribute('position', new THREE.Float32BufferAttribute([
+        al.x, bankBottom, al.z,
+        bl.x, bankBottom, bl.z,
+        ar.x, bankBottom, ar.z,
+        br.x, bankBottom, br.z,
+      ], 3));
+      bedGeometry.setIndex([0, 1, 2, 2, 1, 3]);
+      bedGeometry.computeVertexNormals();
+      const bed = new THREE.Mesh(bedGeometry, bedMaterial);
+      bed.name = 'world_waterway_bed_' + String(channel.name || 'channel').toLowerCase().replace(/[^a-z0-9]+/g, '_');
+      bed.receiveShadow = true;
+      bed.castShadow = false;
+      this.group.add(bed);
+
       const bankWidth = Number(channel.bankWidth) || 0.7;
       const bankHeight = Number(channel.bankHeight) || 1.25;
-      const bankBottom = Number.isFinite(channel.bankBottom) ? channel.bankBottom : -1.05;
       const bankMaterial = this.mConcrete([118, 122, 120]);
       const bankYaw = Math.atan2(dx, dz);
       for (const side of [-1, 1]) {
@@ -2589,6 +2660,30 @@ export class World {
       return null;
     });
     return this._bridgeKitPromise;
+  }
+
+  _bridgeGroundHeightAt(x, z) {
+    const ground = this.sceneData?.ground || {};
+    const baseY = Number.isFinite(ground.elevation) ? ground.elevation
+      : Number.isFinite(ground.y) ? ground.y : 0;
+    for (const channel of this.sceneData?.waterways || []) {
+      const start = channel.start || [];
+      const end = channel.end || [];
+      const dx = Number(end[0]) - Number(start[0]);
+      const dz = Number(end[1]) - Number(start[1]);
+      const lengthSq = dx * dx + dz * dz;
+      if (lengthSq < 1e-6) continue;
+      const t = ((x - Number(start[0])) * dx + (z - Number(start[1])) * dz) / lengthSq;
+      if (t < 0 || t > 1) continue;
+      const nearestX = Number(start[0]) + dx * t;
+      const nearestZ = Number(start[1]) + dz * t;
+      const lateral = Math.hypot(x - nearestX, z - nearestZ);
+      const halfOpening = (Number(channel.width) || 6) * 0.5 + (Number(channel.bankWidth) || 0.7);
+      if (lateral <= halfOpening + 0.08) {
+        return Number.isFinite(channel.bankBottom) ? channel.bankBottom : -1.05;
+      }
+    }
+    return baseY;
   }
 
   async _spawnBridgeAssemblies(assemblies = []) {
@@ -2673,6 +2768,8 @@ export class World {
           foundationY,
           deckY,
           sourceDeckHeight: prefab.sourceDeckHeight,
+          supportFootContacts: prefab.supportFootContacts || [],
+          longitudinalAxis: prefab.longitudinalAxis,
         };
         assembly.add(component);
 
@@ -2687,6 +2784,8 @@ export class World {
           foundationY,
           deckY,
           sourceDeckHeight: prefab.sourceDeckHeight,
+          longitudinalAxis: prefab.longitudinalAxis,
+          supportFootContacts: prefab.supportFootContacts || [],
           scale: { x: sx, y: sy, z: sz },
           mesh: component,
         };
@@ -2739,12 +2838,26 @@ export class World {
         if (!structure || !deck) {
           throw new Error('Bridge section must place its structure and deck as independent meshes: ' + section.sectionId);
         }
-        const groundContactError = structure.minY - section.foundationY;
+        const supportFootContacts = (structure.supportFootContacts || [])
+          .map(point => structure.mesh.localToWorld(new THREE.Vector3(point.x, point.y, point.z)))
+          .map(point => ({
+            x: point.x,
+            y: point.y,
+            z: point.z,
+            groundY: this._bridgeGroundHeightAt(point.x, point.z),
+            error: point.y - this._bridgeGroundHeightAt(point.x, point.z),
+          }));
+        const supportFootFailures = supportFootContacts.filter(contact => Math.abs(contact.error) > 0.04);
+        const structureCenterX = (structure.bounds.min[0] + structure.bounds.max[0]) * 0.5;
+        const structureCenterZ = (structure.bounds.min[2] + structure.bounds.max[2]) * 0.5;
+        const expectedGroundY = this._bridgeGroundHeightAt(structureCenterX, structureCenterZ);
+        const groundContactError = structure.minY - expectedGroundY;
         const deckAlignmentError = deck.maxY - section.deckY;
         this.bridgeSectionInstances.push({
           assemblyId: id,
           sectionId: section.sectionId,
           foundationY: section.foundationY,
+          expectedGroundY,
           deckY: section.deckY,
           structureComponentId: structure.componentId,
           deckComponentId: deck.componentId,
@@ -2752,6 +2865,9 @@ export class World {
           structureMaxY: structure.maxY,
           deckMinY: deck.minY,
           deckMaxY: deck.maxY,
+          supportFootContactCount: supportFootContacts.length,
+          supportFootContacts,
+          supportFootFailures,
           groundContactError,
           deckAlignmentError,
           structureBounds: structure.bounds,
