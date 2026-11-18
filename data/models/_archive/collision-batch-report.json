@@ -1,358 +1,358 @@
 {
-  "generatedAt": "2026-11-18T21:33:33.784Z",
+  "generatedAt": "2026-11-18T21:35:02.523Z",
   "totalModels": 58,
-  "succeeded": 0,
-  "failed": 58,
-  "generatedCollisionProxies": 0,
+  "succeeded": 58,
+  "failed": 0,
+  "generatedCollisionProxies": 6605,
   "keptExistingCollisionProfiles": 15,
   "models": [
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/buildings/brooklyn_street_twin_buildings_low_poly/scene.gltf",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 238
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/buildings/building/scene.gltf",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 36
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/buildings/car_workshop.glb",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 98
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/buildings/gas_station_5/scene.gltf",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 220
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/buildings/low-poly_old_american_brick_building_with_shop_/scene.gltf",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 116
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/buildings/low_poly_-_industrial_warehouse.glb",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 49
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/buildings/low_poly__school_building/scene.gltf",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 128
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/buildings/meed_grocery_store.glb",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 120
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/buildings/mosque.glb",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 293
     },
     {
-      "status": "failed",
+      "status": "success-preserved",
       "path": "assets/coconut_tree_low_poly.glb",
       "mode": "solid",
       "collisionProxyCount": 0
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/ilorin_innovation_hub.glb",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 294
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/kwara_revenue_house.glb",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 39
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/low_poly_skyscraper.glb",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 23
     },
     {
-      "status": "failed",
+      "status": "success-preserved",
       "path": "assets/low_poly_street_light.glb",
       "mode": "solid",
       "collisionProxyCount": 0
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/others/-dry_type_distribution_transformer/scene.gltf",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 213
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/others/concrete_road_barrier_photoscanned/scene.gltf",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 58
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/others/fence_-_11mb.glb",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 26
     },
     {
-      "status": "failed",
+      "status": "success-preserved",
       "path": "assets/others/freeway_streetlight_1/scene.gltf",
       "mode": "solid",
       "collisionProxyCount": 0
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/others/game-ready_modular_metal_guardrail.glb",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 43
     },
     {
-      "status": "failed",
+      "status": "success-preserved",
       "path": "assets/others/hedge.glb",
       "mode": "solid",
       "collisionProxyCount": 0
     },
     {
-      "status": "failed",
+      "status": "success-preserved",
       "path": "assets/others/low_poly_electricity_pole/scene.gltf",
       "mode": "solid",
       "collisionProxyCount": 0
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/others/low_poly_plastic_crates.glb",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 238
     },
     {
-      "status": "failed",
+      "status": "success-preserved",
       "path": "assets/others/low_poly_shrub.glb",
       "mode": "solid",
       "collisionProxyCount": 0
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/others/low_poly_street_food_cart.glb",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 299
     },
     {
-      "status": "failed",
+      "status": "success-preserved",
       "path": "assets/others/low_poly_tree.glb",
       "mode": "solid",
       "collisionProxyCount": 0
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/others/metal_billboard_advertising_single_sided_free/scene.gltf",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 194
     },
     {
-      "status": "failed",
+      "status": "success-preserved",
       "path": "assets/others/modular_bridge__low_poly__game_ready_/scene.gltf",
       "mode": "solid",
       "collisionProxyCount": 0
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/others/old_soviet_railway_station_kiosk/scene.gltf",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 75
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/others/plastic_chair.glb",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 271
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/others/plastic_container.glb",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 118
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/others/plastic_table.glb",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 37
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/others/power_transformer_building__electricity.glb",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 227
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/others/psx_-_vending_machine.glb",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 17
     },
     {
-      "status": "failed",
+      "status": "success-preserved",
       "path": "assets/others/real_bush.glb",
       "mode": "solid",
       "collisionProxyCount": 0
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/others/standard_bus_stop.glb",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 177
     },
     {
-      "status": "failed",
+      "status": "success-preserved",
       "path": "assets/others/traffic_lights/scene.gltf",
       "mode": "solid",
       "collisionProxyCount": 0
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/others/vietnamese_meat_market_stall.glb",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 206
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/others/water_dispenser.glb",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 83
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/others/water_tank.glb",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 251
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/others/wheelbarrow.glb",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 246
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/others/wooden_bench.glb",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 285
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/residential/Building+04_GLB/Building 04.glb",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 179
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/residential/american_style_house/scene.gltf",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 132
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/residential/nigeria_duplex/scene.gltf",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 237
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/residential/residential_family_house/scene.gltf",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 221
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/residential/residential_house_3/scene.gltf",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 124
     },
     {
-      "status": "failed",
+      "status": "success-preserved",
       "path": "assets/road.glb",
       "mode": "solid",
       "collisionProxyCount": 0
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/roads/concrete_block_low_poly.glb",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 29
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/roads/road_block/scene.gltf",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 24
     },
     {
-      "status": "failed",
+      "status": "success-preserved",
       "path": "assets/roads/road_pack/scene.gltf",
       "mode": "solid",
       "collisionProxyCount": 0
     },
     {
-      "status": "failed",
+      "status": "success-preserved",
       "path": "assets/roads/sidewalks/scene.gltf",
       "mode": "solid",
       "collisionProxyCount": 0
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "assets/roads/speed_bump.glb",
       "mode": "solid",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 13
     },
     {
-      "status": "failed",
+      "status": "success-preserved",
       "path": "assets/roads/street_road/scene.gltf",
       "mode": "solid",
       "collisionProxyCount": 0
     },
     {
-      "status": "failed",
+      "status": "success-preserved",
       "path": "assets/tree_low-poly.glb",
       "mode": "solid",
       "collisionProxyCount": 0
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "cars/2021_bugatti_chiron_pur_sport/scene.gltf",
       "mode": "shell",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 231
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "cars/CAR Model by Ignition Labs - 5zUWP5UsLg-.glb",
       "mode": "shell",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 189
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "cars/cadillac_escalade_2006/scene.gltf",
       "mode": "shell",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 250
     },
     {
-      "status": "failed",
+      "status": "success-generated",
       "path": "cars/tesla_cybertruk_low_poly/scene.gltf",
       "mode": "shell",
-      "collisionProxyCount": 0
+      "collisionProxyCount": 258
     }
   ]
 }
