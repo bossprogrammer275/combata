@@ -154,6 +154,21 @@ try {
   assert.ok(Math.abs(derivedBox.min[0] - 0.352) < 1e-4 && Math.abs(derivedBox.max[0] - 0.448) < 1e-4,
     'derived pole proxy should remain centred on the actual base rather than the offset lamp arm');
   console.log('  PASS unscaled pole profile derives a narrow base footprint without inventing metre scale');
+
+  const treeInput = path.join(temp, 'tree-with-foliage.glb');
+  const treeOutput = path.join(temp, 'tree-trunk-collision.glb');
+  const treeReport = path.join(temp, 'tree-trunk-report.json');
+  writeGlb(treeInput, [
+    { name: 'Tree_Trunk', min: [-0.2, 0, -0.2], max: [0.2, 5, 0.2] },
+    { name: 'leaves_canopy', min: [-2, 4, -2], max: [2, 8, 2] },
+  ]);
+  const tree = run(treeInput, treeOutput, treeReport, ['--profile', 'trunk', '--replace']);
+  assert.equal(tree.profile, 'trunk');
+  assert.equal(tree.boxes.length, 1, 'tree should use one trunk proxy');
+  assert.ok(Math.abs(tree.boxes[0].min[1]) < 1e-5, 'trunk proxy must start at trunk base');
+  assert.ok(Math.abs(tree.boxes[0].max[1] - 5) < 1e-5,
+    'trunk proxy height must stop at trunk mesh top, not foliage canopy height');
+  console.log('  PASS trunk profile excludes separately named canopy foliage from collider height');
 } finally {
   fs.rmSync(temp, { recursive: true, force: true });
 }
