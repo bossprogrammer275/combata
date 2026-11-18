@@ -130,6 +130,8 @@ jobs:
           node --check js/main.js
           node --check js/textures.js
           node --check tools/process-glbs.js
+          node --check tools/asset-calibration-preview.js
+          node --check tools/capture-asset-calibration.mjs
           node --check tools/verify-collisions.mjs
       - name: Verify World Kit component metadata
         run: node tools/verify-world-kit.mjs
