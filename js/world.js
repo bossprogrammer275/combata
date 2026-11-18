@@ -53,7 +53,8 @@ export class World {
     this.worldKitComponents = []; // imported component instances with semantic role metadata
     this.roadModuleInstances = []; // imported road-kit pieces placed over authored drivable road paths
     this.sidewalkModuleInstances = []; // authored driveway, corner and damaged-pavement pieces
-    this.bridgeComponentInstances = []; // modular bridge components extracted from the imported bridge kit
+    this.bridgeComponentInstances = []; // ten independent reusable bridge structure/deck prefabs placed in the world
+    this.bridgeSectionInstances = []; // measured structure/deck pairs with ground and deck alignment diagnostics
     this._bridgeKit = null;
     this._bridgeKitPromise = null;
     this._roadPackPrefabs = null;
@@ -2451,7 +2452,7 @@ export class World {
     if (!kit?.size) return;
 
     for (const assemblyData of assemblies) {
-      const id = assemblyData.id || 'bridge-assembly-' + this.bridgeComponentInstances.length;
+      const id = assemblyData.id || 'bridge-assembly-' + this.bridgeSectionInstances.length;
       const assembly = new THREE.Group();
       assembly.name = 'worldkit_bridge_' + id;
       assembly.position.set(
@@ -2462,61 +2463,171 @@ export class World {
       assembly.rotation.y = Number(assemblyData.yaw) || 0;
       this.group.add(assembly);
 
-      const placements = Array.isArray(assemblyData.pieces) ? assemblyData.pieces : [];
+      const placements = Array.isArray(assemblyData.components) ? assemblyData.components : [];
+      const placedComponents = [];
+      const sectionGroups = new Map();
+
       for (const placement of placements) {
-        const componentId = placement.componentId || placement.part || placement.id;
+        const componentId = placement.componentId || placement.id;
         const prefab = kit.get(componentId);
         if (!prefab) {
-          console.warn('[WorldKit] Unknown bridge component:', componentId);
+          console.warn('[WorldKit] Unknown independent bridge component:', componentId);
           continue;
         }
 
-        const part = prefab.group.clone(true);
-        part.name = 'worldkit_bridge_part_' + componentId;
+        const foundationY = Number.isFinite(placement.foundationY)
+          ? placement.foundationY
+          : Number.isFinite(assemblyData.foundationY) ? assemblyData.foundationY : 0;
+        const deckY = Number.isFinite(placement.deckY)
+          ? placement.deckY
+          : Number.isFinite(assemblyData.deckY) ? assemblyData.deckY : null;
+        const rise = deckY == null ? null : deckY - foundationY;
+        if (prefab.role === 'bridge-structure' && !(rise > 0.1)) {
+          console.warn('[WorldKit] Skipping bridge support without a positive metric deck rise:', componentId);
+          continue;
+        }
+
         const uniformScale = Number.isFinite(placement.scale) && placement.scale > 0 ? placement.scale : 1;
         const sx = Number.isFinite(placement.scaleX) && placement.scaleX > 0 ? placement.scaleX : uniformScale;
-        const sy = Number.isFinite(placement.scaleY) && placement.scaleY > 0 ? placement.scaleY : uniformScale;
         const sz = Number.isFinite(placement.scaleZ) && placement.scaleZ > 0 ? placement.scaleZ : uniformScale;
-        // deckY is the required top-of-asphalt height in world metres. The
-        // component's real road-deck offset is measured from its imported bounds,
-        // so all visible modules and their Rapier road meshes share one datum.
-        const partY = Number.isFinite(placement.deckY)
-          ? placement.deckY - assembly.position.y - prefab.deckHeight * sy
-          : (Number(placement.y) || 0);
-        part.position.set(Number(placement.x) || 0, partY, Number(placement.z) || 0);
-        part.rotation.y = Number(placement.yaw) || 0;
-        part.scale.set(sx, sy, sz);
-        assembly.add(part);
+        const sy = prefab.role === 'bridge-structure'
+          ? rise / prefab.sourceDeckHeight
+          : (Number.isFinite(placement.scaleY) && placement.scaleY > 0 ? placement.scaleY : 1);
 
-        this.bridgeComponentInstances.push({
+        // Structure and asphalt are separate reusable meshes with independent
+        // vertical placement:
+        // - the concrete support starts at foundationY and stretches upward;
+        // - the road piece keeps its authored slope/thickness and its highest
+        //   driving surface lands exactly on deckY.
+        const positionY = prefab.role === 'bridge-structure'
+          ? foundationY - assembly.position.y
+          : (deckY == null
+            ? (Number(placement.y) || 0)
+            : deckY - prefab.sourceDeckHeight - assembly.position.y);
+
+        const component = prefab.mesh.clone();
+        component.name = 'worldkit_bridge_component_' + componentId;
+        component.position.set(
+          Number(placement.x) || 0,
+          positionY,
+          Number(placement.z) || 0,
+        );
+        component.rotation.y = Number(placement.yaw) || 0;
+        component.scale.set(sx, sy, sz);
+        component.castShadow = prefab.role === 'bridge-structure';
+        component.receiveShadow = true;
+        component.userData.worldKit = {
+          assetId: 'modular-bridge',
+          componentId,
+          sectionId: placement.sectionId || prefab.sectionId,
+          role: prefab.role,
+          kind: prefab.kind,
+          assemblyId: id,
+          sourceNode: prefab.sourceNode,
+          sourceSectionNode: prefab.sourceSectionNode,
+          foundationY,
+          deckY,
+          sourceDeckHeight: prefab.sourceDeckHeight,
+        };
+        assembly.add(component);
+
+        const record = {
           assemblyId: id,
           componentId,
-          sourceNode: prefab.sourceNode,
+          sectionId: placement.sectionId || prefab.sectionId,
+          role: prefab.role,
           kind: prefab.kind,
-          dimensions: [prefab.dimensions[0] * sx, prefab.dimensions[1] * sy, prefab.dimensions[2] * sz],
-          deckHeight: prefab.deckHeight * sy,
+          sourceNode: prefab.sourceNode,
+          sourceSectionNode: prefab.sourceSectionNode,
+          foundationY,
+          deckY,
+          sourceDeckHeight: prefab.sourceDeckHeight,
+          scale: { x: sx, y: sy, z: sz },
+          mesh: component,
+        };
+        placedComponents.push(record);
+        this.bridgeComponentInstances.push(record);
+        this.worldKitComponents.push({
+          root: component,
+          id: componentId,
+          category: 'infrastructure',
+          role: prefab.role,
+          meshCount: 1,
+          assemblyId: id,
+          position: { x: component.position.x, y: component.position.y, z: component.position.z },
         });
+
+        const sectionId = record.sectionId;
+        if (!sectionGroups.has(sectionId)) {
+          sectionGroups.set(sectionId, {
+            assemblyId: id,
+            sectionId,
+            foundationY,
+            deckY,
+            structure: null,
+            deck: null,
+          });
+        }
+        const group = sectionGroups.get(sectionId);
+        if (group.foundationY !== foundationY || group.deckY !== deckY) {
+          throw new Error('Bridge section components disagree on metric height: ' + sectionId);
+        }
+        if (prefab.role === 'bridge-structure') group.structure = record;
+        else if (prefab.role === 'bridge-deck') group.deck = record;
       }
 
       assembly.updateMatrixWorld(true);
+
+      for (const record of placedComponents) {
+        const bounds = new THREE.Box3().setFromObject(record.mesh);
+        record.bounds = {
+          min: bounds.min.toArray(),
+          max: bounds.max.toArray(),
+        };
+        record.minY = bounds.min.y;
+        record.maxY = bounds.max.y;
+      }
+
+      for (const section of sectionGroups.values()) {
+        const structure = section.structure;
+        const deck = section.deck;
+        if (!structure || !deck) {
+          throw new Error('Bridge section must place its structure and deck as independent meshes: ' + section.sectionId);
+        }
+        const groundContactError = structure.minY - section.foundationY;
+        const deckAlignmentError = deck.maxY - section.deckY;
+        this.bridgeSectionInstances.push({
+          assemblyId: id,
+          sectionId: section.sectionId,
+          foundationY: section.foundationY,
+          deckY: section.deckY,
+          structureComponentId: structure.componentId,
+          deckComponentId: deck.componentId,
+          structureMinY: structure.minY,
+          structureMaxY: structure.maxY,
+          deckMinY: deck.minY,
+          deckMaxY: deck.maxY,
+          groundContactError,
+          deckAlignmentError,
+          structureBounds: structure.bounds,
+          deckBounds: deck.bounds,
+        });
+      }
+
       if (assemblyData.registerRoadPhysics !== false) {
-        assembly.traverse(node => {
-          if (!node.isMesh) return;
-          const role = node.userData.worldKit?.role;
-          if (role !== 'bridge-road-surface' && role !== 'bridge-concrete-structure') return;
-          const geometry = node.geometry.clone();
-          geometry.applyMatrix4(node.matrixWorld);
+        for (const record of placedComponents) {
+          const geometry = record.mesh.geometry.clone();
+          geometry.applyMatrix4(record.mesh.matrixWorld);
           geometry.computeBoundingBox();
           geometry.computeBoundingSphere();
-          // The visible deck and its imported concrete support mesh become
-          // separate Rapier triangle surfaces, both using the same final metre
-          // transform as their rendered component.
           this.roadPhysicsMeshes.push({
-            kind: role === 'bridge-road-surface' ? 'bridge_deck' : 'bridge_support',
+            kind: record.role === 'bridge-deck' ? 'bridge_deck' : 'bridge_support',
             source: 'imported-bridge-component',
+            componentId: record.componentId,
+            sectionId: record.sectionId,
             geometry,
           });
-        });
+        }
       }
     }
   }
