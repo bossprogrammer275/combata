@@ -1,0 +1,54 @@
+name: Internal asset calibration captures
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'data/models/assets/**'
+      - 'data/models/cars/**'
+      - 'tools/asset-calibration-preview.html'
+      - 'tools/asset-calibration-preview.js'
+      - 'tools/capture-asset-calibration.mjs'
+      - '.github/workflows/asset-calibration.yml'
+  workflow_dispatch:
+    inputs:
+      asset_path:
+        description: 'Optional single GLB/glTF path inside data/models/assets or data/models/cars'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install project dependencies
+        run: npm install --no-audit --no-fund
+      - name: Install headless Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Capture internal calibration views
+        env:
+          ASSET_PATH: ${{ inputs.asset_path || '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "$ASSET_PATH" ]]; then
+            node tools/capture-asset-calibration.mjs "$ASSET_PATH"
+          else
+            node tools/capture-asset-calibration.mjs
+          fi
+      - name: Upload calibration screenshots and measurement report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: open-world-asset-calibration-${{ github.run_id }}
+          path: artifacts/asset-calibration/
+          if-no-files-found: warn
+          retention-days: 7
