@@ -15,6 +15,7 @@ export const WORLD_KIT_BRIDGE_SECTIONS = Object.freeze([
     structureNode: 'Object_4',
     deckNode: 'Object_5',
     kind: 'curved-span',
+    longitudinalAxis: 'x',
   }),
   Object.freeze({
     id: 'bridge-straight-span',
@@ -24,6 +25,7 @@ export const WORLD_KIT_BRIDGE_SECTIONS = Object.freeze([
     structureNode: 'Object_7',
     deckNode: 'Object_8',
     kind: 'straight-span',
+    longitudinalAxis: 'x',
   }),
   Object.freeze({
     id: 'bridge-pier-starter',
@@ -33,6 +35,7 @@ export const WORLD_KIT_BRIDGE_SECTIONS = Object.freeze([
     structureNode: 'Object_10',
     deckNode: 'Object_11',
     kind: 'short-pier-starter',
+    longitudinalAxis: 'x',
   }),
   Object.freeze({
     id: 'bridge-curve-return',
@@ -42,6 +45,7 @@ export const WORLD_KIT_BRIDGE_SECTIONS = Object.freeze([
     structureNode: 'Object_13',
     deckNode: 'Object_14',
     kind: 'curved-span',
+    longitudinalAxis: 'z',
   }),
   Object.freeze({
     id: 'bridge-end-ramp',
@@ -51,6 +55,7 @@ export const WORLD_KIT_BRIDGE_SECTIONS = Object.freeze([
     structureNode: 'Object_16',
     deckNode: 'Object_17',
     kind: 'sloped-end-abutment',
+    longitudinalAxis: 'x',
   }),
 ]);
 
@@ -103,6 +108,79 @@ function worldBounds(node) {
   node.updateWorldMatrix(true, false);
   return new THREE.Box3().setFromObject(node);
 }
+
+function collectSupportFootContacts(geometry) {
+  if (!geometry?.attributes?.position) return [];
+  if (!geometry.boundingBox) geometry.computeBoundingBox();
+  const bounds = geometry.boundingBox;
+  if (!bounds || bounds.isEmpty()) return [];
+  const positions = geometry.attributes.position;
+  const footY = bounds.min.y;
+  const yTolerance = Math.max(0.012, (bounds.max.y - footY) * 0.002);
+  const cellSize = 0.35;
+  const cells = new Map();
+
+  for (let i = 0; i < positions.count; i++) {
+    const x = positions.getX(i);
+    const y = positions.getY(i);
+    const z = positions.getZ(i);
+    if (y > footY + yTolerance) continue;
+    const ix = Math.round(x / cellSize);
+    const iz = Math.round(z / cellSize);
+    const key = ix + ':' + iz;
+    let cell = cells.get(key);
+    if (!cell) {
+      cell = { ix, iz, points: [] };
+      cells.set(key, cell);
+    }
+    cell.points.push({ x, z });
+  }
+
+  const unvisited = new Map(cells);
+  const contacts = [];
+  while (unvisited.size) {
+    const first = unvisited.values().next().value;
+    const queue = [first];
+    unvisited.delete(first.ix + ':' + first.iz);
+    const cluster = [];
+    while (queue.length) {
+      const current = queue.pop();
+      cluster.push(current);
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dz = -1; dz <= 1; dz++) {
+          if (!dx && !dz) continue;
+          const key = (current.ix + dx) + ':' + (current.iz + dz);
+          const next = unvisited.get(key);
+          if (!next) continue;
+          unvisited.delete(key);
+          queue.push(next);
+        }
+      }
+    }
+
+    const points = cluster.flatMap(cell => cell.points);
+    if (points.length < 3) continue;
+    const minX = Math.min(...points.map(point => point.x));
+    const maxX = Math.max(...points.map(point => point.x));
+    const minZ = Math.min(...points.map(point => point.z));
+    const maxZ = Math.max(...points.map(point => point.z));
+    const width = maxX - minX;
+    const depth = maxZ - minZ;
+    // A footing is a compact bottom patch. Discard long beams and numerical specks.
+    if (width < 0.08 || depth < 0.08 || width > 3.5 || depth > 3.5) continue;
+    contacts.push({
+      x: (minX + maxX) * 0.5,
+      y: footY,
+      z: (minZ + maxZ) * 0.5,
+      width,
+      depth,
+      vertexCount: points.length,
+    });
+  }
+  contacts.sort((a, b) => a.x - b.x || a.z - b.z);
+  return contacts;
+}
+
 
 export function extractWorldBridgeKit(sourceScene) {
   if (!sourceScene || typeof sourceScene.getObjectByName !== 'function') {
@@ -181,6 +259,10 @@ export function extractWorldBridgeKit(sourceScene) {
         sourceNode: definition.sourceNode,
       };
 
+      const supportFootContacts = definition.role === 'bridge-structure'
+        ? collectSupportFootContacts(geometry)
+        : [];
+      mesh.userData.worldKit.supportFootContacts = supportFootContacts;
       prefabs.set(definition.id, {
         ...definition,
         ...sectionMeta,
@@ -188,6 +270,8 @@ export function extractWorldBridgeKit(sourceScene) {
         geometry,
         material,
         dimensions: [size.x, size.y, size.z],
+        longitudinalAxis: section.longitudinalAxis,
+        supportFootContacts,
         localBounds: {
           min: bounds.min.toArray(),
           max: bounds.max.toArray(),
