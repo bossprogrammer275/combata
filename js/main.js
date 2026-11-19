@@ -998,7 +998,12 @@ class Game {
     });
     if (!elements.length) return;
     let index = elements.indexOf(document.activeElement);
-    if (index < 0) index = this.remoteMenuIndex || 0;
+    if (index < 0) {
+      const preferred = this.state === 'menu'
+        ? elements.indexOf(document.getElementById('deploy-btn'))
+        : -1;
+      index = preferred >= 0 ? preferred : (this.remoteMenuIndex || 0);
+    }
     index = (index + direction + elements.length) % elements.length;
     this.remoteMenuIndex = index;
     elements[index].focus({ preventScroll: true });
@@ -1015,7 +1020,18 @@ class Game {
         else if (this.state === 'paused') this.resume();
       }
       if (control === 'CIRCLE' && this.state === 'paused') {
-        document.getElementById('pause-controls-back')?.click();
+        const controlsPanel = document.getElementById('pause-controls-panel');
+        const settingsPanel = document.getElementById('pause-settings-panel');
+        const cockpitPanel = document.getElementById('pause-cockpit-panel');
+        if (controlsPanel && !controlsPanel.classList.contains('hidden')) {
+          document.getElementById('pause-controls-back')?.click();
+        } else if (settingsPanel && !settingsPanel.classList.contains('hidden')) {
+          document.getElementById('pause-settings-back')?.click();
+        } else if (cockpitPanel && !cockpitPanel.classList.contains('hidden')) {
+          document.getElementById('cockpit-back')?.click();
+        } else {
+          this.resume();
+        }
       }
       if (control === 'OPTIONS') {
         if (this.state === 'paused') this.resume();
@@ -1057,20 +1073,22 @@ class Game {
       }
       return;
     }
-    if (this.state !== 'playing' || !this.player) return;
-
-    const left = packet.left || { x: 0, y: 0 };
-    const right = packet.right || { x: 0, y: 0 };
     const buttons = packet.buttons || {};
-    const driving = !!this.vehicles?.driver;
-    const clamp = (value) => Math.max(-1, Math.min(1, Number(value) || 0));
-
     for (const [control, pressed] of Object.entries(buttons)) {
       if (pressed && !this.remotePreviousButtons?.[control]) {
         this.handleRemoteControllerButton(control);
       }
     }
     this.remotePreviousButtons = { ...buttons };
+
+    // Button edges are consumed in every game state. Analogue movement is only
+    // applied while playing so the phone can navigate the title and pause menus.
+    if (this.state !== 'playing' || !this.player) return;
+
+    const left = packet.left || { x: 0, y: 0 };
+    const right = packet.right || { x: 0, y: 0 };
+    const driving = !!this.vehicles?.driver;
+    const clamp = (value) => Math.max(-1, Math.min(1, Number(value) || 0));
 
     if (driving) {
       const triggers = (buttons.R2 ? 1 : 0) - (buttons.L2 ? 1 : 0);
@@ -1537,6 +1555,7 @@ class Game {
   // ===== MAIN LOOP =====
   tick() {
     const dt = Math.min(this.clock.getDelta(), .05);
+    this.applyRemoteControllerInput();
     if (this.state === 'playing') this.tickPlaying(dt);
     else if (this.state === 'menu') this.tickMenu(dt);
     else if (this.state === 'intro') { this.tickIntro(dt); this.renderFrame(dt); return; }
@@ -1577,8 +1596,6 @@ class Game {
       this.updateHud();
       return;
     }
-
-    this.applyRemoteControllerInput();
 
     // ---- ismailg privileges: unlimited ammo ----
     if (this.ismailg) {
