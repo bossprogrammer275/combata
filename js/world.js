@@ -3212,7 +3212,10 @@ export class World {
           || !Number.isFinite(rampLength) || rampLength < 4) {
           throw new Error('Imported bridge end ramp has invalid metric dimensions: ' + id);
         }
-        const transitionLength = rampLength * 2;
+        // Spread each ramp's rise/drop over the full ramp plus a full adjacent
+        // straight span. A 3R cubic transition keeps the grade gentler for a
+        // low sports-car chassis and gives the suspension time to follow it.
+        const transitionLength = rampLength * 3;
         const entryLow = firstRampCenter.clone().addScaledVector(routeDirection, -rampLength * 0.5);
         const exitLow = lastRampCenter.clone().addScaledVector(routeDirection, rampLength * 0.5);
         const bridgeLength = exitLow.clone().sub(entryLow).dot(routeDirection);
@@ -3369,14 +3372,17 @@ export class World {
           routeSampleCount = dense.length;
         }
 
-        firstRamp.expectedDeckMaxY = firstRamp.deckY - rampDrop * 0.5;
-        lastRamp.expectedDeckMaxY = lastRamp.deckY - rampDrop * 0.5;
+        firstRamp.expectedDeckMaxY = targetProfileY(rampLength);
+        lastRamp.expectedDeckMaxY = targetProfileY(bridgeLength - rampLength);
         this.bridgeVerticalTransitions ||= [];
         this.bridgeVerticalTransitions.push({
           assemblyId: id,
           rampLength,
           rampDrop,
           originalGradeDegrees: THREE.MathUtils.radToDeg(Math.atan(rampGrade)),
+          smoothedMaxGradeDegrees: THREE.MathUtils.radToDeg(
+            Math.atan((1.5 * rampDrop) / transitionLength),
+          ),
           transitionLength,
           deformedComponentCount,
           routeSampleCount,
