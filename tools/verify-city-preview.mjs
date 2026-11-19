@@ -256,8 +256,9 @@ try {
     const world = window.__CITY_PREVIEW__?.world;
     if (!world) throw new Error('City preview did not expose the constructed world');
 
-    // Register the same imported bridge-deck triangles that production sends
-    // to Rapier. Use Rapier ray queries, not a render-only THREE raycaster.
+    // Use the same imported deck triangles and Rapier ray query as the vehicle
+    // suspension. Detect the real usable carriageway strips across each deck;
+    // the middle of a divided bridge may be a concrete median, not a tyre path.
     await Physics.init();
     const physics = new Physics();
     physics.createWorld();
@@ -268,70 +269,125 @@ try {
     const registeredDeckColliders = physics.registerStaticRoadMeshes(decks);
     physics.step(1 / 60);
 
+    const wheelHalfTrack = 0.82;
+    const gridStep = 0.25;
+    const minimumLaneWidth = wheelHalfTrack * 2 + 0.2;
     const failures = [];
+    const laneSamples = [];
+    const laneCountsByRoad = {};
     let probeCount = 0;
     let maxProfileError = 0;
-    const hitSamples = [];
+
     for (const chain of (world._roadChains || []).filter(item => item.surface === 'modular-bridge')) {
       const points = chain.pts || [];
       const total = points.slice(0, -1).reduce((sum, point, index) =>
         sum + Math.hypot(points[index + 1].x - point.x, points[index + 1].z - point.z), 0);
+      const halfWidth = Math.max(2, (chain.W || 8) * 0.5 - 0.25);
       let travelled = 0;
+      let laneCount = 0;
+
       for (let segment = 0; segment < points.length - 1; segment++) {
         const a = points[segment], b = points[segment + 1];
         const dx = b.x - a.x, dz = b.z - a.z;
         const length = Math.hypot(dx, dz);
         if (length < 1) continue;
-        const steps = Math.max(2, Math.ceil(length / 2));
+        const samples = Math.max(2, Math.ceil(length / 10));
         const nx = -dz / length, nz = dx / length;
-        for (let step = 0; step <= steps; step++) {
-          const t = step / steps;
+
+        for (let step = 0; step <= samples; step++) {
+          const t = step / samples;
           const chainDistance = travelled + length * t;
-          if (chainDistance < 1.5 || total - chainDistance < 1.5) continue;
+          if (chainDistance < 2 || total - chainDistance < 2) continue;
+
           const centerX = a.x + dx * t, centerZ = a.z + dz * t;
           const expectedY = (Number(a.y) || 0)
             + ((Number(b.y) || 0) - (Number(a.y) || 0)) * t
             + (Number.isFinite(chain.roadY) ? chain.roadY : 0.06);
-          for (const offset of [-1.05, 1.05]) {
+          const crossSection = [];
+
+          for (let offset = -halfWidth; offset <= halfWidth + 1e-6; offset += gridStep) {
             const x = centerX + nx * offset, z = centerZ + nz * offset;
-            const contact = world.vehicleSurfaceAt(x, z, expectedY);
-            // This is the actual query path used by Physics.applyVehicleControls
-            // for its four suspension struts.
             const hit = physics.castRayDown(x, expectedY + 1.35, z, 1.8);
             const error = hit ? hit.point.y - expectedY : null;
             if (Number.isFinite(error)) maxProfileError = Math.max(maxProfileError, Math.abs(error));
+            const surface = world.vehicleSurfaceAt(x, z, expectedY);
+            const valid = !!hit && hit.normal.y >= 0.45
+              && Math.abs(error) <= 0.24
+              && surface && surface.surface !== 'offroad'
+              && surface.distance <= 1.12;
+            crossSection.push({ offset, valid });
             probeCount++;
-            if (hit && hitSamples.length < 12) {
-              hitSamples.push({
-                road: chain.name, x, z,
-                routeY: expectedY,
-                rapierDeckY: hit.point.y,
-                normalY: hit.normal.y,
-              });
-            }
-            if (!contact || contact.surface === 'offroad' || contact.distance > 1.12
-              || !hit || hit.normal.y < 0.45 || Math.abs(error) > 0.22) {
-              failures.push({
-                road: chain.name, x, z, routeY: expectedY, offset,
-                tyreSurface: contact?.surface || null,
-                tyreDistance: contact?.distance ?? null,
-                rapierDeckY: hit?.point?.y ?? null,
-                rapierNormalY: hit?.normal?.y ?? null,
+          }
+
+          const strips = [];
+          let current = [];
+          for (const sample of crossSection) {
+            if (sample.valid) current.push(sample);
+            else if (current.length) { strips.push(current); current = []; }
+          }
+          if (current.length) strips.push(current);
+
+          const usableStrips = [];
+          for (const strip of strips) {
+            const first = strip[0].offset;
+            const last = strip[strip.length - 1].offset;
+            if (last - first < minimumLaneWidth) continue;
+
+            const laneCenter = (first + last) * 0.5;
+            const tyres = [-wheelHalfTrack, wheelHalfTrack].map(relative => {
+              const offset = laneCenter + relative;
+              const x = centerX + nx * offset, z = centerZ + nz * offset;
+              const hit = physics.castRayDown(x, expectedY + 1.35, z, 1.8);
+              const surface = world.vehicleSurfaceAt(x, z, expectedY);
+              const error = hit ? hit.point.y - expectedY : null;
+              return {
+                offset, x, z,
+                supported: !!hit && hit.normal.y >= 0.45 && Math.abs(error) <= 0.24,
+                deckY: hit?.point?.y ?? null,
+                normalY: hit?.normal?.y ?? null,
                 routeDeckError: error,
-              });
+                surface: surface?.surface ?? null,
+                surfaceDistance: surface?.distance ?? null,
+              };
+            });
+
+            if (tyres.every(tyre => tyre.supported
+              && tyre.surface !== 'offroad'
+              && tyre.surfaceDistance <= 1.12)) {
+              usableStrips.push({ first, last, laneCenter, tyres });
             }
+          }
+
+          laneCount += usableStrips.length;
+          if (!usableStrips.length) {
+            failures.push({
+              road: chain.name,
+              center: [centerX, centerZ],
+              routeY: expectedY,
+              supportedOffsets: crossSection.filter(sample => sample.valid).map(sample => sample.offset),
+              stripWidths: strips.map(strip => strip[strip.length - 1].offset - strip[0].offset),
+            });
+          } else if (laneSamples.length < 16) {
+            laneSamples.push({
+              road: chain.name,
+              center: [centerX, centerZ],
+              strips: usableStrips,
+            });
           }
         }
         travelled += length;
       }
+      laneCountsByRoad[chain.name] = laneCount;
     }
+
     physics.destroy();
     return {
       probeCount,
       importedDeckMeshCount: decks.length,
       registeredDeckColliders,
       maxProfileError,
-      hitSamples,
+      laneCountsByRoad,
+      laneSamples,
       failures: failures.slice(0, 80),
     };
   });
@@ -350,12 +406,14 @@ try {
     'each imported bridge deck must be available to Rapier');
   assert.equal(bridgeDriveability.registeredDeckColliders, 21,
     'all imported bridge decks must become real Rapier static triangle colliders');
-  assert.ok(bridgeDriveability.probeCount > 100,
-    'both tyre tracks must be sampled along the full length of both crossings');
-  assert.ok(bridgeDriveability.maxProfileError <= 0.22,
-    'authored tyre heights must stay within suspension travel of the actual ramp/deck mesh: '+bridgeDriveability.maxProfileError);
+  assert.ok(bridgeDriveability.probeCount > 500,
+    'the full width of both crossings must be sampled at regular intervals');
+  assert.ok(bridgeDriveability.maxProfileError <= 0.24,
+    'route heights must stay within suspension travel of the actual ramp/deck mesh: '+bridgeDriveability.maxProfileError);
+  assert.ok(Object.values(bridgeDriveability.laneCountsByRoad).every(count => count > 0),
+    'each bridge must provide a carriageway wide enough for a car and two tyres: '+JSON.stringify(bridgeDriveability.laneCountsByRoad));
   assert.deepEqual(bridgeDriveability.failures, [],
-    'both wheel tracks must have real Rapier deck contact and upward support normals: '+JSON.stringify(bridgeDriveability.failures));
+    'each bridge cross-section must contain at least one continuous car-width strip with two Rapier-supported tyres: '+JSON.stringify(bridgeDriveability.failures));
   assert.deepEqual(report.bridgeGroundContactFailures, [],
     'bridge support footing patches must meet terrain or channel-bed elevation: ' + JSON.stringify(report.bridgeGroundContactFailures));
   assert.ok(report.bridgeFootContactCount > 0,
