@@ -252,6 +252,7 @@
           .filter(section => !Number.isFinite(section.deckAlignmentError) || Math.abs(section.deckAlignmentError) > 0.02)
           .map(section => ({ assemblyId: section.assemblyId, sectionId: section.sectionId, deckY: section.deckY, deckMaxY: section.deckMaxY, error: section.deckAlignmentError })),
         bridgeSectionDiagnostics: world.bridgeSectionInstances || [],
+        bridgeVerticalTransitions: world.bridgeVerticalTransitions || [],
         districtPlotCount: world.districtPlotInstances?.length || 0,
         districtCompoundCount: world.districtPlotInstances?.filter(plot => plot.wallCount > 0).length || 0,
         districtPlotWallCount: world.districtPlotInstances?.reduce((sum, plot) => sum + (plot.wallCount || 0), 0) || 0,

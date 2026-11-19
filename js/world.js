@@ -3332,6 +3332,8 @@ export class World {
           routeSampleCount = dense.length;
         }
 
+        firstRamp.expectedDeckMaxY = firstRamp.deckY - rampDrop * 0.25;
+        lastRamp.expectedDeckMaxY = lastRamp.deckY - rampDrop * 0.25;
         this.bridgeVerticalTransitions ||= [];
         this.bridgeVerticalTransitions.push({
           assemblyId: id,
@@ -3378,7 +3380,9 @@ export class World {
         const structureCenterZ = (structure.bounds.min[2] + structure.bounds.max[2]) * 0.5;
         const expectedGroundY = this._bridgeGroundHeightAt(structureCenterX, structureCenterZ);
         const groundContactError = structure.minY - expectedGroundY;
-        const deckAlignmentError = deck.maxY - section.deckY;
+        const expectedDeckMaxY = Number.isFinite(deck.expectedDeckMaxY)
+          ? deck.expectedDeckMaxY : section.deckY;
+        const deckAlignmentError = deck.maxY - expectedDeckMaxY;
         this.bridgeSectionInstances.push({
           assemblyId: id,
           sectionId: section.sectionId,
@@ -3392,6 +3396,7 @@ export class World {
           structureMaxY: structure.maxY,
           deckMinY: deck.minY,
           deckMaxY: deck.maxY,
+          expectedDeckMaxY,
           supportFootContactCount: supportFootContacts.length,
           supportFootContacts,
           supportFootFailures,

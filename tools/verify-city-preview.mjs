@@ -819,8 +819,16 @@ try {
     'imported support modules must expose individual footing contact patches');
   assert.deepEqual(report.bridgeFootContactFailures, [],
     'every measured bridge footing must meet visible ground or the drainage bed: ' + JSON.stringify(report.bridgeFootContactFailures));
+  assert.equal(report.bridgeVerticalTransitions.length, 2,
+    'both modular bridge assemblies must receive vertical-curve transitions at both ends');
+  assert.ok(report.bridgeVerticalTransitions.every(transition =>
+    transition.deformedComponentCount >= 4
+      && transition.routeSampleCount > 80
+      && transition.transitionLength >= 17
+  ), 'both bridges must deform the imported ramp/deck support geometry and densify the gameplay road profile: '
+    + JSON.stringify(report.bridgeVerticalTransitions));
   assert.deepEqual(report.bridgeDeckAlignmentFailures, [],
-    'every bridge road surface must meet its authored metric deckY: ' + JSON.stringify(report.bridgeDeckAlignmentFailures));
+    'every bridge deck must match its flat or vertically curved design profile: ' + JSON.stringify(report.bridgeDeckAlignmentFailures));
   assert.ok(report.roadPackPrefabCount === 6,
     'the road renderer must load all six imported Road Pack surface components');
   assert.equal(report.roadPackRoadCount + report.roadPackRoadSkippedNames.length, 19,
