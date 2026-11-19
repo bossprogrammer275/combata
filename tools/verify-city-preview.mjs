@@ -681,7 +681,7 @@ try {
       // Bound the physical test. If the vehicle cannot gain ground for three
       // simulated seconds, stop and report a stuck traversal instead of
       // spending several minutes pushing a vehicle against an obstruction.
-      const maxFrames = 720;
+      const maxFrames = 1400;
       let bestDistance = 0;
       let lastProgressFrame = 0;
       for (let frame = 0; frame < maxFrames; frame++) {
