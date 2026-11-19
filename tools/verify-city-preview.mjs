@@ -252,6 +252,7 @@ try {
   }
 
   const bridgeDriveability = await page.evaluate(async () => {
+    const THREE = await import('/js/lib/three.module.js');
     const { Physics } = await import('/js/physics.js');
     const { loadCarModel, CAR_PHYSICS } = await import('/js/vehicles.js');
     const world = window.__CITY_PREVIEW__?.world;
