@@ -274,6 +274,12 @@ try {
       surface.source === 'imported-bridge-component'
     );
     const decks = bridgeSurfaces.filter(surface => surface.kind === 'bridge_deck');
+    const bridgeSupports = bridgeSurfaces.filter(surface => surface.kind === 'bridge_support');
+
+    // Identify the asphalt carriageways from deck triangles first. Registering
+    // the structure mesh at this stage makes its raised centre divider look
+    // like a third drivable strip, even though it is not a tyre lane.
+    const registeredDeckColliders = physics.registerStaticRoadMeshes(decks);
 
     // Include only the approach-road meshes immediately beyond the two ramp
     // ends. The imported bridge kit proves deck contact; the approach asphalt
@@ -308,9 +314,6 @@ try {
         },
       });
     }
-    const physicsSurfaces = [...bridgeSurfaces, ...approachRoadSurfaces];
-    const registeredRoadColliders = physics.registerStaticRoadMeshes(physicsSurfaces);
-    const registeredDeckColliders = decks.filter(surface => !!surface.physicsCollider).length;
     physics.addGroundPlane();
     physics.step(1 / 60);
 
@@ -435,6 +438,21 @@ try {
       }
       laneCountsByRoad[chain.name] = laneCount;
     }
+
+    // Now that lane offsets have been identified from deck-only geometry,
+    // restore the remaining live structure/approach colliders for the dynamic
+    // Bugatti runs. This still includes the imported parapets, piers, four
+    // generated approach slabs/guardrails, and the adjoining asphalt tiles.
+    const approachStructureSurfaces = (world.roadPhysicsMeshes || []).filter(surface =>
+      surface.source === 'generated-flyover-approach'
+    );
+    const registeredSupportColliders = physics.registerStaticRoadMeshes([
+      ...bridgeSupports,
+      ...approachRoadSurfaces,
+      ...approachStructureSurfaces,
+    ]);
+    const registeredRoadColliders = registeredDeckColliders + registeredSupportColliders;
+    physics.step(1 / 60);
 
     const vehicleRuns = [];
     const carScene = await loadCarModel('bugatti');
@@ -721,7 +739,9 @@ try {
     return {
       vehicleRuns: driveSummary,
       registeredRoadColliders,
+      registeredSupportColliders,
       approachRoadColliderCount: approachRoadSurfaces.length,
+      approachStructureColliderCount: approachStructureSurfaces.length,
       approachRoadSummary,
       probeCount,
       importedDeckMeshCount: decks.length,
@@ -756,10 +776,14 @@ try {
   assert.equal(bridgeDriveability.registeredDeckColliders, 21,
     'all imported bridge decks must register their exact Rapier triangle colliders');
   assert.equal(bridgeDriveability.registeredRoadColliders,
-    42 + bridgeDriveability.approachRoadColliderCount,
-    'register every imported bridge component plus the selected exit-approach asphalt meshes');
+    42 + bridgeDriveability.approachRoadColliderCount
+      + bridgeDriveability.approachStructureColliderCount,
+    'register imported bridge decks/supports, selected approach asphalt, and every generated approach slab/support/guardrail');
   assert.ok(bridgeDriveability.approachRoadColliderCount > 0,
     'the bridge drive must include the real asphalt beyond both low-end ramps');
+  assert.equal(bridgeDriveability.approachStructureColliderCount,
+    report.bridgeApproachDeckCount + report.bridgeApproachSupportCount + report.bridgeApproachGuardrailCount,
+    'the dynamic test must include all generated approach decks, piers and guardrails');
   assert.ok(bridgeDriveability.probeCount > 500,
     'the full width of both crossings must be sampled at regular intervals inside each module');
   assert.ok(bridgeDriveability.maxProfileError <= 0.24,
