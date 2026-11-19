@@ -390,6 +390,223 @@ try {
       laneCountsByRoad[chain.name] = laneCount;
     }
 
+    const vehicleRuns = [];
+    const carScene = await loadCarModel('bugatti');
+    carScene.updateMatrixWorld(true);
+    const modelWheels = carScene.userData.wheels || [];
+    const bodyBox = carScene.userData.bodyBox;
+    if (modelWheels.length !== 4 || !bodyBox) {
+      throw new Error('Bugatti GLB did not expose four real suspension wheels and chassis bounds');
+    }
+
+    const wheelSpecs = modelWheels.map(wheel => {
+      wheel.pivot.updateWorldMatrix(true, false);
+      const center = wheel.pivot.getWorldPosition(new THREE.Vector3());
+      let radius = 0;
+      for (const mesh of wheel.meshes || []) {
+        mesh.updateWorldMatrix(true, false);
+        if (!mesh.geometry?.boundingBox) mesh.geometry?.computeBoundingBox();
+        const bounds = new THREE.Box3().setFromObject(mesh);
+        if (!bounds.isEmpty()) radius = Math.max(radius, center.y - bounds.min.y);
+      }
+      const fittedRadius = Math.min(
+        radius || center.y || 0.32,
+        Math.max(0.18, center.y + 0.015),
+      );
+      return {
+        x: center.x, y: center.y, z: center.z,
+        radius: THREE.MathUtils.clamp(fittedRadius, 0.18, 0.5),
+        front: !!wheel.front,
+      };
+    });
+
+    for (const front of [true, false]) {
+      const axle = wheelSpecs.filter(wheel => wheel.front === front);
+      const left = axle.find(wheel => wheel.x > 0);
+      const right = axle.find(wheel => wheel.x < 0);
+      if (!left || !right) continue;
+      const halfTrack = (Math.abs(left.x) + Math.abs(right.x)) * 0.5;
+      const axleZ = (left.z + right.z) * 0.5;
+      const axleY = (left.y + right.y) * 0.5;
+      const axleRadius = (left.radius + right.radius) * 0.5;
+      left.x = halfTrack; right.x = -halfTrack;
+      left.z = right.z = axleZ;
+      left.y = right.y = axleY;
+      left.radius = right.radius = axleRadius;
+    }
+
+    const physicsBox = { min: bodyBox.min.clone(), max: bodyBox.max.clone() };
+    const minWheelY = Math.min(...wheelSpecs.map(wheel => wheel.y));
+    const meanRadius = wheelSpecs.reduce((sum, wheel) => sum + wheel.radius, 0) / wheelSpecs.length;
+    physicsBox.min.y = THREE.MathUtils.clamp(
+      minWheelY + meanRadius * 0.42,
+      bodyBox.min.y + 0.10,
+      bodyBox.max.y - 0.3,
+    );
+    const bodyCenterX = (bodyBox.min.x + bodyBox.max.x) * 0.5;
+    const bodyCenterZ = (bodyBox.min.z + bodyBox.max.z) * 0.5;
+    const halfX = (bodyBox.max.x - bodyBox.min.x) * 0.44;
+    const halfZ = (bodyBox.max.z - bodyBox.min.z) * 0.46;
+    physicsBox.min.x = bodyCenterX - halfX;
+    physicsBox.max.x = bodyCenterX + halfX;
+    physicsBox.min.z = bodyCenterZ - halfZ;
+    physicsBox.max.z = bodyCenterZ + halfZ;
+
+    const colliderCenterY = (physicsBox.min.y + physicsBox.max.y) * 0.5;
+    const centerY = Math.max(
+      0.22,
+      colliderCenterY - Math.min(0.22, (bodyBox.max.y - bodyBox.min.y) * 0.18),
+    );
+    const tune = CAR_PHYSICS.bugatti;
+    const yawOffset = Math.PI;
+    const centerOfMass = {
+      x: 0,
+      y: tune.centerOfMassHeight - centerY,
+      z: tune.wheelbase * (tune.weightFront - 0.5),
+    };
+
+    preview.scene.add(carScene);
+    const driveRoutes = [
+      {
+        bridge: 'main-city-flyover',
+        roadName: 'Main City Flyover · Imported Central Spans',
+        startZ: 66,
+        guessY: 5.55,
+        targetZ: -122,
+        direction: -1,
+        gameYaw: 0,
+      },
+      {
+        bridge: 'fate-drainage-bridge',
+        roadName: 'Fate Drainage Bridge · Imported Central Spans',
+        startZ: -96,
+        guessY: 1.92,
+        targetZ: 111,
+        direction: 1,
+        gameYaw: Math.PI,
+      },
+    ];
+
+    for (const route of driveRoutes) {
+      const chain = (world._roadChains || []).find(item => item.name === route.roadName);
+      const laneOffsets = laneCentersByRoad[route.roadName] || [];
+      if (!chain || !laneOffsets.length) {
+        throw new Error(route.bridge + ' has no validated vehicle-width carriageway');
+      }
+
+      const laneOffset = laneOffsets[0];
+      const entryA = chain.pts[0], entryB = chain.pts[1];
+      const tangentLength = Math.hypot(entryB.x - entryA.x, entryB.z - entryA.z) || 1;
+      const normalX = -(entryB.z - entryA.z) / tangentLength;
+      const normalZ = (entryB.x - entryA.x) / tangentLength;
+      const startX = entryA.x + normalX * laneOffset;
+      const startSurface = world.vehicleSurfaceAt(startX, route.startZ, route.guessY);
+      if (!startSurface || startSurface.surface === 'offroad' || !Number.isFinite(startSurface.height)) {
+        throw new Error(route.bridge + ' Bugatti spawn is not on a drivable approach: '
+          + JSON.stringify({ x: startX, z: route.startZ, y: route.guessY, surface: startSurface }));
+      }
+
+      const body = physics.createVehicleBody(
+        startX,
+        startSurface.height,
+        route.startZ,
+        route.gameYaw + yawOffset,
+        [physicsBox],
+        {
+          dynamic: true,
+          centerY,
+          mass: tune.mass,
+          centerOfMass,
+          yawOffset,
+          tuning: tune,
+          angularDamping: tune.angularDamping,
+        },
+      );
+      physics.updateVehicleBody(body, startX, startSurface.height, route.startZ, route.gameYaw + yawOffset);
+      physics.step(1 / 60);
+
+      const run = {
+        bridge: route.bridge,
+        laneOffset,
+        start: [startX, startSurface.height, route.startZ],
+        finalZ: route.startZ,
+        distance: 0,
+        maxSpeed: 0,
+        minWheelContacts: 4,
+        unsupportedFrames: 0,
+        offroadWheelFrames: 0,
+        frames: 0,
+      };
+      let motion = null;
+
+      for (let frame = 0; frame < 45; frame++) {
+        physics.step(1 / 60, dt => {
+          motion = physics.applyVehicleControls(body, {
+            throttle: 0, steer: 0, handbrake: false, dt,
+            wheels: wheelSpecs,
+            tuning: tune,
+            surfaceAt: (x, z, y) => world.vehicleSurfaceAt(x, z, y),
+          });
+        });
+      }
+
+      const maxFrames = 2100;
+      for (let frame = 0; frame < maxFrames; frame++) {
+        physics.step(1 / 60, dt => {
+          motion = physics.applyVehicleControls(body, {
+            throttle: 0.65, steer: 0, handbrake: false, dt,
+            wheels: wheelSpecs,
+            tuning: tune,
+            surfaceAt: (x, z, y) => world.vehicleSurfaceAt(x, z, y),
+          });
+        });
+
+        const translation = body.translation();
+        const rotation = body.rotation();
+        const quaternion = new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
+        const rootOffset = new THREE.Vector3(0, centerY, 0).applyQuaternion(quaternion);
+        const rootY = translation.y - rootOffset.y;
+
+        run.finalZ = translation.z;
+        run.distance = (translation.z - route.startZ) * route.direction;
+        run.maxSpeed = Math.max(run.maxSpeed, Math.abs(motion?.forwardSpeed || 0));
+        run.minWheelContacts = Math.min(run.minWheelContacts, motion?.wheelContacts ?? 0);
+        if ((motion?.wheelContacts ?? 0) < 3) run.unsupportedFrames++;
+        run.offroadWheelFrames += (motion?.wheelStates || []).filter(state =>
+          state.contact && state.surface?.surface === 'offroad'
+        ).length;
+        run.frames = frame + 1;
+
+        carScene.position.set(
+          translation.x - rootOffset.x,
+          translation.y - rootOffset.y,
+          translation.z - rootOffset.z,
+        );
+        carScene.quaternion.copy(quaternion);
+
+        if (frame % 4 === 0) {
+          preview.camera.position.set(
+            translation.x,
+            rootY + 4.6,
+            translation.z - route.direction * 10,
+          );
+          preview.camera.lookAt(
+            translation.x,
+            rootY + 1.1,
+            translation.z + route.direction * 6,
+          );
+          preview.renderer.render(preview.scene, preview.camera);
+          await new Promise(resolve => requestAnimationFrame(resolve));
+        }
+
+        if (route.direction * (translation.z - route.targetZ) >= 0) break;
+      }
+
+      physics.removeVehicleBody(body);
+      vehicleRuns.push(run);
+    }
+    carScene.removeFromParent();
+
     const driveSummary = vehicleRuns.map(run => ({
       bridge: run.bridge,
       distance: Number(run.distance.toFixed(2)),
