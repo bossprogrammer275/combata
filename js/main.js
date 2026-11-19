@@ -883,6 +883,13 @@ class Game {
     socket.on('controller:connected', () => {
       this.remoteControllerConnected = true;
       if (statusText) statusText.textContent = 'PHONE CONNECTED · CONTROLS ARE LIVE';
+      if (this.state === 'menu') {
+        // Pairing happens from its own menu tab. Put the desktop back on PLAY
+        // and make the first phone confirm land on the actual game start button.
+        document.querySelector('.navbtn[data-sec="play"]')?.click();
+        document.getElementById('deploy-btn')?.focus({ preventScroll: true });
+        this.remoteMenuIndex = 0;
+      }
       this.hud?.toast?.('PHONE CONTROLLER CONNECTED');
       this.sendRemoteGameMode();
     });
@@ -1015,9 +1022,13 @@ class Game {
       if (control === 'DPAD_DOWN' || control === 'DPAD_RIGHT') this.moveRemoteMenuFocus(1);
       if (control === 'CROSS') {
         const active = document.activeElement;
-        if (active && typeof active.click === 'function' && active !== document.body) active.click();
+        const scope = this.state === 'paused' ? '#pause-screen' : '#menu-screen';
+        const activeIsVisible = active && typeof active.click === 'function'
+          && active !== document.body && active.closest(scope)
+          && active.getClientRects().length && !active.closest('.hidden');
+        if (activeIsVisible) active.click();
         else if (this.state === 'menu') document.getElementById('deploy-btn')?.click();
-        else if (this.state === 'paused') this.resume();
+        else if (this.state === 'paused') document.getElementById('resume-btn')?.click();
       }
       if (control === 'CIRCLE' && this.state === 'paused') {
         const controlsPanel = document.getElementById('pause-controls-panel');
