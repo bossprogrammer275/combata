@@ -6,6 +6,8 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { readdir, readFile, writeFile, unlink } from 'fs/promises';
 import { networkInterfaces } from 'os';
+import { randomInt } from 'crypto';
+import { Server } from 'socket.io';
 
 function getLanIp() {
   const nets = networkInterfaces();
@@ -98,6 +100,206 @@ app.delete('/api/scene', async (req, res) => {
   } catch (e) {
     res.status(404).json({ error: String(e) });
   }
+});
+
+
+// Low-latency phone-controller pairing. The desktop owns a short-lived room;
+// the phone joins with the six-character code and streams compact input state.
+const io = new Server(httpServer, {
+  pingInterval: 10000,
+  pingTimeout: 20000,
+  maxHttpBufferSize: 12000,
+});
+
+const pairSessions = new Map();
+const PAIR_CODE_TTL_MS = 10 * 60 * 1000;
+const ALLOWED_REMOTE_BUTTONS = new Set([
+  'CROSS', 'TRIANGLE', 'SQUARE', 'CIRCLE',
+  'L1', 'L2', 'L3', 'R1', 'R2', 'R3',
+  'DPAD_UP', 'DPAD_DOWN', 'DPAD_LEFT', 'DPAD_RIGHT',
+  'TOUCHPAD', 'SHARE', 'OPTIONS', 'PS',
+]);
+
+function makePairCode() {
+  let code = '';
+  do {
+    code = String(randomInt(0, 1000000)).padStart(6, '0');
+  } while (pairSessions.has(code));
+  return code;
+}
+
+function expirePair(code, session) {
+  clearTimeout(session.expiryTimer);
+  session.expiryTimer = setTimeout(() => {
+    if (pairSessions.get(code) !== session || session.controllerId) return;
+    pairSessions.delete(code);
+    const host = io.sockets.sockets.get(session.hostId);
+    if (host) {
+      host.emit('pair:expired');
+      host.data.pairCode = null;
+    }
+  }, PAIR_CODE_TTL_MS);
+  session.expiryTimer.unref?.();
+}
+
+function closePair(code, reason = 'closed') {
+  const session = pairSessions.get(code);
+  if (!session) return;
+  clearTimeout(session.expiryTimer);
+  pairSessions.delete(code);
+  if (session.controllerId) {
+    io.to(session.controllerId).emit('pair:closed', { reason });
+  }
+  const host = io.sockets.sockets.get(session.hostId);
+  if (host) {
+    host.emit('pair:closed', { reason });
+    host.data.pairCode = null;
+  }
+}
+
+function clampAxis(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 0;
+  return Math.max(-1, Math.min(1, number));
+}
+
+function sanitizeControllerState(payload) {
+  if (!payload || typeof payload !== 'object') return null;
+  const sourceButtons = payload.buttons && typeof payload.buttons === 'object'
+    ? payload.buttons : {};
+  const buttons = {};
+  for (const key of ALLOWED_REMOTE_BUTTONS) {
+    buttons[key] = sourceButtons[key] === true;
+  }
+  return {
+    left: {
+      x: clampAxis(payload.left?.x),
+      y: clampAxis(payload.left?.y),
+    },
+    right: {
+      x: clampAxis(payload.right?.x),
+      y: clampAxis(payload.right?.y),
+    },
+    buttons,
+  };
+}
+
+io.on('connection', (socket) => {
+  socket.data.role = null;
+  socket.data.pairCode = null;
+  socket.data.joinAttempts = [];
+
+  socket.on('pair:create', () => {
+    if (socket.data.role === 'controller') return;
+    if (socket.data.pairCode) closePair(socket.data.pairCode, 'replaced');
+
+    const code = makePairCode();
+    const session = {
+      hostId: socket.id,
+      controllerId: null,
+      createdAt: Date.now(),
+      expiryTimer: null,
+      lastInputAt: 0,
+    };
+    pairSessions.set(code, session);
+    socket.data.role = 'host';
+    socket.data.pairCode = code;
+    socket.join('game:' + code);
+    expirePair(code, session);
+    socket.emit('pair:created', {
+      code,
+      expiresInMs: PAIR_CODE_TTL_MS,
+    });
+  });
+
+  socket.on('pair:join', (payload) => {
+    if (socket.data.role === 'host') {
+      socket.emit('pair:error', { message: 'This device is hosting a game session.' });
+      return;
+    }
+
+    const now = Date.now();
+    socket.data.joinAttempts = socket.data.joinAttempts.filter((time) => now - time < 10000);
+    if (socket.data.joinAttempts.length >= 8) {
+      socket.emit('pair:error', { message: 'Too many attempts. Wait a few seconds and try again.' });
+      return;
+    }
+    socket.data.joinAttempts.push(now);
+
+    const code = String(payload?.code || '').replace(/\D/g, '').slice(0, 6);
+    const session = pairSessions.get(code);
+    if (!/^\d{6}$/.test(code) || !session) {
+      socket.emit('pair:error', { message: 'Pair code not found. Check the six digits on your game screen.' });
+      return;
+    }
+    if (session.controllerId && session.controllerId !== socket.id) {
+      socket.emit('pair:error', { message: 'A phone is already connected to this game.' });
+      return;
+    }
+    if (now - session.createdAt > PAIR_CODE_TTL_MS && !session.controllerId) {
+      closePair(code, 'expired');
+      socket.emit('pair:error', { message: 'That pair code expired. Generate a new one on the game screen.' });
+      return;
+    }
+
+    clearTimeout(session.expiryTimer);
+    session.controllerId = socket.id;
+    socket.data.role = 'controller';
+    socket.data.pairCode = code;
+    socket.join('game:' + code);
+    socket.emit('pair:joined', { code });
+    io.to(session.hostId).emit('controller:connected');
+  });
+
+  socket.on('controller:input', (payload) => {
+    const code = socket.data.pairCode;
+    if (socket.data.role !== 'controller' || !code) return;
+    const session = pairSessions.get(code);
+    if (!session || session.controllerId !== socket.id) return;
+
+    const now = Date.now();
+    if (now - session.lastInputAt < 7) return; // cap at about 140 packets/second
+    session.lastInputAt = now;
+    const state = sanitizeControllerState(payload);
+    if (!state) return;
+    io.to(session.hostId).emit('controller:input', state);
+  });
+
+  socket.on('game:mode', (payload) => {
+    const code = socket.data.pairCode;
+    if (socket.data.role !== 'host' || !code) return;
+    const session = pairSessions.get(code);
+    if (!session || session.hostId !== socket.id || !session.controllerId) return;
+    const mode = payload?.mode === 'vehicle' ? 'vehicle' : 'foot';
+    const state = ['menu', 'playing', 'paused', 'dead', 'intro'].includes(payload?.state)
+      ? payload.state : 'menu';
+    const vehicleName = String(payload?.vehicleName || '').slice(0, 32);
+    io.to(session.controllerId).emit('game:mode', { mode, state, vehicleName });
+  });
+
+  socket.on('pair:cancel', () => {
+    if (socket.data.role === 'host' && socket.data.pairCode) {
+      closePair(socket.data.pairCode, 'cancelled');
+    }
+  });
+
+  socket.on('disconnect', () => {
+    const code = socket.data.pairCode;
+    if (!code) return;
+    const session = pairSessions.get(code);
+    if (!session) return;
+
+    if (socket.data.role === 'host' && session.hostId === socket.id) {
+      closePair(code, 'host-disconnected');
+      return;
+    }
+    if (socket.data.role === 'controller' && session.controllerId === socket.id) {
+      session.controllerId = null;
+      const host = io.sockets.sockets.get(session.hostId);
+      if (host) host.emit('controller:disconnected');
+      expirePair(code, session);
+    }
+  });
 });
 
 httpServer.listen(PORT, () => {
