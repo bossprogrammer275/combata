@@ -65,6 +65,7 @@ class Game {
     this.achievements = new AchievementSystem(this.profile, this.audio);
     this.bindUI();
     this.bindInput();
+    this.setupRemoteController();
     this.clock = new THREE.Clock();
     this.shakeOffset = new THREE.Vector3();
     this.ambientPlanes = [];
@@ -852,6 +853,253 @@ class Game {
     if (introSkip) introSkip.onclick = () => { this.skipIntro = true; };
   }
 
+
+  setupRemoteController() {
+    if (typeof window.io !== 'function') return;
+    const socket = window.io({ autoConnect: false, transports: ['websocket', 'polling'], reconnection: true });
+    this.remoteSocket = socket;
+
+    const codeBox = document.getElementById('remote-pair-result');
+    const codeText = document.getElementById('remote-pair-code');
+    const statusText = document.getElementById('remote-pair-status');
+    const createButton = document.getElementById('remote-pair-create');
+
+    socket.on('connect', () => {
+      if (statusText && !this.remoteControllerConnected) statusText.textContent = 'CONNECTED TO GAME SERVER · GENERATE A CODE';
+    });
+    socket.on('connect_error', () => {
+      if (statusText) statusText.textContent = 'SERVER CONNECTION FAILED · CHECK THE GAME SERVER';
+    });
+    socket.on('pair:created', (data) => {
+      if (codeBox) codeBox.classList.remove('hidden');
+      if (codeText) codeText.textContent = data.code;
+      if (statusText) statusText.textContent = 'WAITING FOR PHONE · CODE EXPIRES IN 10 MINUTES';
+      this.remotePairCode = data.code;
+    });
+    socket.on('pair:error', (data) => {
+      if (statusText) statusText.textContent = String(data?.message || 'PAIRING FAILED').toUpperCase();
+      this.hud?.toast?.(data?.message || 'Phone pairing failed');
+    });
+    socket.on('controller:connected', () => {
+      this.remoteControllerConnected = true;
+      if (statusText) statusText.textContent = 'PHONE CONNECTED · CONTROLS ARE LIVE';
+      this.hud?.toast?.('PHONE CONTROLLER CONNECTED');
+      this.sendRemoteGameMode();
+    });
+    socket.on('controller:disconnected', () => {
+      this.remoteControllerConnected = false;
+      this.remoteControllerState = null;
+      this.remoteLastPacketAt = 0;
+      this.clearRemoteControllerInput();
+      if (statusText) statusText.textContent = 'PHONE DISCONNECTED · SAME CODE CAN RECONNECT';
+      this.hud?.toast?.('PHONE CONTROLLER DISCONNECTED');
+    });
+    socket.on('controller:input', (packet) => {
+      if (!packet || typeof packet !== 'object') return;
+      this.remoteControllerState = packet;
+      this.remoteLastPacketAt = performance.now();
+    });
+    socket.on('pair:expired', () => {
+      this.remoteControllerConnected = false;
+      this.remoteControllerState = null;
+      if (codeBox) codeBox.classList.add('hidden');
+      if (statusText) statusText.textContent = 'PAIR CODE EXPIRED · CREATE A NEW ONE';
+    });
+    socket.on('pair:closed', (data) => {
+      this.remoteControllerConnected = false;
+      this.remoteControllerState = null;
+      this.clearRemoteControllerInput();
+      if (codeBox) codeBox.classList.add('hidden');
+      if (statusText) statusText.textContent = 'PHONE LINK CLOSED' + (data?.reason ? ' · ' + String(data.reason).toUpperCase() : '');
+    });
+
+    createButton?.addEventListener('click', () => {
+      if (statusText) statusText.textContent = 'CONNECTING TO GAME SERVER…';
+      const create = () => socket.emit('pair:create');
+      if (socket.connected) create();
+      else {
+        socket.connect();
+        socket.once('connect', create);
+      }
+    });
+    document.getElementById('remote-pair-cancel')?.addEventListener('click', () => {
+      socket.emit('pair:cancel');
+    });
+    document.getElementById('remote-pair-copy')?.addEventListener('click', async () => {
+      if (!this.remotePairCode) return;
+      try {
+        await navigator.clipboard.writeText(this.remotePairCode);
+        statusText.textContent = 'PAIR CODE COPIED';
+      } catch (_) {
+        statusText.textContent = 'PAIR CODE: ' + this.remotePairCode;
+      }
+    });
+    document.getElementById('remote-open-controller')?.addEventListener('click', () => {
+      window.open('./controller.html', '_blank', 'noopener');
+    });
+
+    this.remotePreviousButtons = {};
+    this.remoteMenuIndex = 0;
+    setInterval(() => {
+      if (socket.connected && this.remotePairCode) this.sendRemoteGameMode();
+    }, 300);
+  }
+
+  sendRemoteGameMode() {
+    if (!this.remoteSocket?.connected || !this.remotePairCode) return;
+    const driving = !!this.vehicles?.driver;
+    const vehicle = this.vehicles?.driver;
+    this.remoteSocket.emit('game:mode', {
+      state: this.state,
+      mode: driving ? 'vehicle' : 'foot',
+      vehicleName: vehicle?.kind || '',
+    });
+  }
+
+  clearRemoteControllerInput() {
+    this.input.forward = 0;
+    this.input.right = 0;
+    this.input.sprint = false;
+    this.input.crouch = false;
+    this.input.jump = false;
+    this.input.fire = false;
+    this.input.ads = false;
+    this.input.mouseDX = 0;
+    this.input.mouseDY = 0;
+    this.input.throwGrenade = false;
+    this.remotePreviousButtons = {};
+  }
+
+  dispatchRemoteKey(code, modifiers = {}) {
+    const keyByCode = {
+      KeyE: 'e', KeyR: 'r', KeyV: 'v', KeyQ: 'q', KeyK: 'k',
+      KeyX: 'x', KeyM: 'm', KeyO: 'o', Digit1: '1', Digit2: '2', Digit3: '3',
+      Escape: 'Escape', Space: ' ',
+    };
+    const key = keyByCode[code] || code;
+    window.dispatchEvent(new KeyboardEvent('keydown', {
+      code, key, bubbles: true, cancelable: true,
+      ctrlKey: !!modifiers.ctrlKey, metaKey: !!modifiers.metaKey,
+    }));
+    window.dispatchEvent(new KeyboardEvent('keyup', {
+      code, key, bubbles: true, cancelable: true,
+      ctrlKey: !!modifiers.ctrlKey, metaKey: !!modifiers.metaKey,
+    }));
+  }
+
+  moveRemoteMenuFocus(direction) {
+    const scope = this.state === 'paused' ? '#pause-screen' : '#menu-screen';
+    const elements = Array.from(document.querySelectorAll(
+      scope + ' button:not(:disabled), ' + scope + ' select:not(:disabled), ' + scope + ' input:not(:disabled)'
+    )).filter((element) => {
+      const style = getComputedStyle(element);
+      return style.display !== 'none' && style.visibility !== 'hidden'
+        && element.getClientRects().length && !element.closest('.hidden');
+    });
+    if (!elements.length) return;
+    let index = elements.indexOf(document.activeElement);
+    if (index < 0) index = this.remoteMenuIndex || 0;
+    index = (index + direction + elements.length) % elements.length;
+    this.remoteMenuIndex = index;
+    elements[index].focus({ preventScroll: true });
+  }
+
+  handleRemoteControllerButton(control) {
+    if (this.state !== 'playing') {
+      if (control === 'DPAD_UP' || control === 'DPAD_LEFT') this.moveRemoteMenuFocus(-1);
+      if (control === 'DPAD_DOWN' || control === 'DPAD_RIGHT') this.moveRemoteMenuFocus(1);
+      if (control === 'CROSS') {
+        const active = document.activeElement;
+        if (active && typeof active.click === 'function' && active !== document.body) active.click();
+        else if (this.state === 'menu') document.getElementById('deploy-btn')?.click();
+        else if (this.state === 'paused') this.resume();
+      }
+      if (control === 'CIRCLE' && this.state === 'paused') {
+        document.getElementById('pause-controls-back')?.click();
+      }
+      if (control === 'OPTIONS') {
+        if (this.state === 'paused') this.resume();
+        else if (this.state === 'menu') document.getElementById('deploy-btn')?.click();
+      }
+      return;
+    }
+
+    switch (control) {
+      case 'TRIANGLE': this.dispatchRemoteKey('KeyE'); break;
+      case 'SQUARE':
+        if (this.vehicles?.driver) this.dispatchRemoteKey('KeyV');
+        else this.dispatchRemoteKey('KeyR');
+        break;
+      case 'CIRCLE':
+        if (this.vehicles?.driver) this.toggleFullMap();
+        else this.dispatchRemoteKey('KeyV');
+        break;
+      case 'L1': this.dispatchRemoteKey('KeyQ'); break;
+      case 'DPAD_UP': this.dispatchRemoteKey('Digit1'); break;
+      case 'DPAD_RIGHT': this.dispatchRemoteKey('Digit2'); break;
+      case 'DPAD_LEFT': this.dispatchRemoteKey('Digit3'); break;
+      case 'DPAD_DOWN': this.dispatchRemoteKey('KeyX'); break;
+      case 'TOUCHPAD': this.toggleFullMap(); break;
+      case 'SHARE': this.toggleVehicleSpawnMenu(); break;
+      case 'OPTIONS': this.pause(); break;
+      case 'PS': this.toggleOverview(); break;
+      case 'R3': this.dispatchRemoteKey('KeyV'); break;
+    }
+  }
+
+  applyRemoteControllerInput() {
+    const packet = this.remoteControllerState;
+    if (!this.remoteControllerConnected || !packet
+      || performance.now() - (this.remoteLastPacketAt || 0) > 1400) {
+      if (this.remoteControllerConnected && packet) {
+        this.remoteControllerState = null;
+        this.clearRemoteControllerInput();
+      }
+      return;
+    }
+    if (this.state !== 'playing' || !this.player) return;
+
+    const left = packet.left || { x: 0, y: 0 };
+    const right = packet.right || { x: 0, y: 0 };
+    const buttons = packet.buttons || {};
+    const driving = !!this.vehicles?.driver;
+    const clamp = (value) => Math.max(-1, Math.min(1, Number(value) || 0));
+
+    for (const [control, pressed] of Object.entries(buttons)) {
+      if (pressed && !this.remotePreviousButtons?.[control]) {
+        this.handleRemoteControllerButton(control);
+      }
+    }
+    this.remotePreviousButtons = { ...buttons };
+
+    if (driving) {
+      const triggers = (buttons.R2 ? 1 : 0) - (buttons.L2 ? 1 : 0);
+      const stickThrottle = -clamp(left.y);
+      this.input.forward = Math.abs(triggers) > 0.01 ? triggers : stickThrottle;
+      this.input.right = clamp(left.x);
+      this.input.jump = !!(buttons.CROSS || buttons.R1);
+      this.input.sprint = false;
+      this.input.crouch = false;
+      this.input.fire = false;
+      this.input.ads = false;
+      this.input.mouseDX = clamp(right.x) * 8;
+      this.input.mouseDY = clamp(right.y) * 8;
+    } else {
+      this.input.forward = clamp(-left.y);
+      this.input.right = clamp(left.x);
+      this.input.sprint = !!buttons.R1;
+      this.input.crouch = !!buttons.L3;
+      this.input.jump = !!buttons.CROSS;
+      this.input.fire = !!buttons.R2;
+      this.input.ads = !!buttons.L2;
+      this.input.mouseDX = 0;
+      this.input.mouseDY = 0;
+      if (!this.overview && !this.drone && !this.player.skydive) {
+        this.player.onMouseMove(clamp(right.x) * 10, clamp(right.y) * 10);
+      }
+    }
+  }
+
   bindInput() {
     const I = this.input;
     const driveKeys = this._driveKeys || (this._driveKeys = new Set());
@@ -1329,6 +1577,8 @@ class Game {
       this.updateHud();
       return;
     }
+
+    this.applyRemoteControllerInput();
 
     // ---- ismailg privileges: unlimited ammo ----
     if (this.ismailg) {
