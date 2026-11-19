@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#090d12">
+<title>Open World · PS Touch Controller</title>
+<style>
+:root{color-scheme:dark;--bg:#090d12;--panel:#131c28;--line:rgba(210,228,246,.14);--ink:#eef4fa;--muted:#90a2b6;--gold:#c9a227;--mint:#78dfb0;--blue:#72baff;--pink:#e7a5dd;--red:#f08b9a}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;color:var(--ink);user-select:none;-webkit-user-select:none;touch-action:manipulation}
+button,input{font:inherit;color:inherit}button{border:0;cursor:pointer}
+.app{height:100dvh;width:100vw;display:flex;flex-direction:column;gap:7px;padding:max(7px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(7px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));background:radial-gradient(ellipse at 50% -40%,rgba(69,117,152,.25),transparent 62%),linear-gradient(140deg,#0b121b,#080c12 70%)}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:33px}
+.brand{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:950;letter-spacing:.16em}
+.logo{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;color:#07121a;background:linear-gradient(145deg,#d1fbff,#5bcad6);font-weight:1000}
+.sub{display:block;color:#8195aa;font-size:8px;letter-spacing:.14em;margin-top:2px}
+.status{border:1px solid var(--line);border-radius:99px;padding:6px 9px;color:#b5c5d6;font-size:8px;letter-spacing:.12em;white-space:nowrap;background:rgba(16,25,37,.7)}
+.dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#78889a;margin-right:6px}
+.dot.ok{background:#78dfb0;box-shadow:0 0 9px #78dfb0}
+.tools{display:flex;gap:6px}
+.tool{padding:7px 9px;border-radius:8px;border:1px solid var(--line);background:#172334;color:#dce8f4;font-size:8px;font-weight:900;letter-spacing:.08em}
+.shoulders{display:flex;justify-content:space-between;align-items:center;padding:0 3%;gap:10px;min-height:34px}
+.side{display:flex;gap:7px;align-items:center}
+.trigger{min-width:clamp(62px,10vw,110px);height:30px;padding:4px 10px;border:1px solid rgba(207,225,244,.16);border-radius:8px 8px 12px 12px;background:linear-gradient(#2a3b50,#111b29);box-shadow:inset 0 1px rgba(255,255,255,.11),0 3px #060a10;display:flex;align-items:center;justify-content:space-between;gap:6px;touch-action:none}
+.trigger b{font-size:11px;letter-spacing:.1em}.trigger small{font-size:7px;color:#96a9bc;white-space:nowrap}
+.trigger.active{transform:translateY(3px);background:#274459;border-color:#69dbe6;box-shadow:0 0 0 1px rgba(105,219,230,.12)}
+.deck{flex:1;min-height:0;position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(116px,.65fr) minmax(0,1fr);gap:clamp(3px,1vw,14px);padding:5px 1.3%;overflow:hidden;border:1px solid var(--line);border-radius:25px 25px 19px 19px;background:radial-gradient(ellipse at 50% 12%,rgba(112,146,174,.12),transparent 45%),linear-gradient(145deg,rgba(38,54,72,.73),rgba(12,19,29,.96) 48%,rgba(27,41,56,.7));box-shadow:inset 0 1px rgba(255,255,255,.06),0 15px 40px rgba(0,0,0,.24)}
+.deck:before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.16;background-image:radial-gradient(rgba(230,241,250,.25) .5px,transparent .5px);background-size:8px 8px;mask-image:linear-gradient(90deg,#000,transparent 44%,transparent 56%,#000)}
+.zone{position:relative;min-width:0;min-height:0;z-index:1}
+.dpad{position:absolute;left:7%;top:4%;width:clamp(88px,14vw,128px);height:clamp(88px,14vw,128px);display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);filter:drop-shadow(0 6px 7px #0008)}
+.dkey{display:grid;place-items:center;border:1px solid rgba(215,232,247,.15);background:linear-gradient(145deg,#29394d,#111b28);color:#c1cedc;font-weight:900;font-size:17px;touch-action:none}
+.up{grid-area:1/2;border-radius:8px 8px 2px 2px}.left{grid-area:2/1;border-radius:8px 2px 2px 8px}.right{grid-area:2/3;border-radius:2px 8px 8px 2px}.down{grid-area:3/2;border-radius:2px 2px 8px 8px}.dcenter{grid-area:2/2;background:#0d1520;border:1px solid rgba(215,232,247,.08)}
+.dkey.active{background:#2c4d62;color:#7be8ed;border-color:#70e1e9;transform:scale(.94)}
+.stick-wrap{position:absolute;left:7%;bottom:1%;width:clamp(108px,17vw,148px);height:clamp(108px,17vw,148px)}
+.stick{width:100%;height:100%;position:relative;border-radius:50%;background:radial-gradient(circle at 50% 42%,#2b3b4f 0 39%,#0d1622 72%);border:1px solid rgba(219,234,247,.17);box-shadow:inset 0 8px 16px #0008,inset 0 -2px #ffffff0a,0 7px 13px #0007;touch-action:none}
+.stick:before{content:"";position:absolute;inset:12%;border:1px dashed rgba(200,223,242,.17);border-radius:50%}
+.knob{position:absolute;left:21.5%;top:21.5%;width:57%;height:57%;border-radius:50%;background:radial-gradient(circle at 33% 25%,#7a8da3 0,#2c3c50 43%,#121d2b 82%);border:1px solid rgba(227,240,251,.25);box-shadow:inset 0 2px 4px #ffffff25,inset 0 -6px 8px #0008,0 6px 10px #0009;will-change:transform}
+.stick-name{position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);font-size:8px;font-weight:950;letter-spacing:.16em;color:#91a5ba;white-space:nowrap}
+.stick-click{position:absolute;right:0;top:0;width:21px;height:21px;border-radius:50%;border:1px solid rgba(210,230,246,.22);background:#1a2a3e;color:#c4d7e8;font-size:7px;font-weight:900;z-index:2;touch-action:none}
+.stick-click.active{color:#77e5ee;border-color:#77e5ee}
+.right-stick{left:auto;right:7%}
+.faces{position:absolute;right:7%;top:1%;width:clamp(116px,18vw,158px);height:clamp(116px,18vw,158px)}
+.face{position:absolute;width:42%;height:42%;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,#2b3c50,#121c29 74%);border:1px solid rgba(225,238,249,.19);box-shadow:inset 0 1px #ffffff18,0 5px #070c13,0 8px 11px #0007;font-size:clamp(23px,3vw,31px);font-weight:500;touch-action:none}
+.face small{position:absolute;color:#a6b7c8;font-size:7px;font-weight:900;letter-spacing:.07em;white-space:nowrap}
+.tri{left:29%;top:0;color:var(--mint)}.tri small{top:-11px}
+.sq{left:0;top:29%;color:var(--pink)}.sq small{left:-10px;bottom:-12px}
+.cir{right:0;top:29%;color:var(--red)}.cir small{right:-11px;bottom:-12px}
+.cross{left:29%;bottom:0;color:var(--blue)}.cross small{bottom:-12px}
+.face.active{transform:translateY(4px) scale(.96);background:#314e63;border-color:#75e5ec;box-shadow:inset 0 1px #ffffff12,0 1px #070c13,0 3px 8px #0007}
+.center{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:clamp(6px,1.1vh,12px);padding:2px 0}
+.touchpad{width:min(100%,190px);height:clamp(40px,8vh,62px);border-radius:14px;border:1px solid rgba(210,229,245,.19);background:linear-gradient(145deg,#304157,#121d2b);box-shadow:inset 0 1px #ffffff16,0 5px 12px #0005;color:#a7b8c9;font-size:8px;font-weight:950;letter-spacing:.22em;position:relative;touch-action:none}
+.touchpad:after{content:"";position:absolute;left:50%;top:15%;bottom:15%;width:1px;background:#d8e8f41f}
+.touchpad.active{border-color:#75e5ec;color:#75e5ec}
+.system{display:flex;align-items:center;gap:17px}
+.system button{min-width:38px;height:23px;padding:0 8px;border-radius:50px;border:1px solid rgba(215,233,248,.16);background:#101a28;color:#b3c2d2;font-size:8px;font-weight:950;letter-spacing:.08em;touch-action:none}
+.system .ps{width:32px;height:32px;min-width:32px;border-radius:50%;font-size:14px;background:radial-gradient(circle at 35% 25%,#566b80,#18283b 76%);box-shadow:inset 0 1px #ffffff24,0 3px #070c13}
+.system button.active{color:#7de6ed;border-color:#7de6ed;transform:translateY(2px)}
+.modecard{width:min(100%,210px);min-height:72px;flex:1;max-height:126px;position:relative;overflow:hidden;border-radius:11px;border:1px solid rgba(201,162,39,.24);background:linear-gradient(145deg,rgba(69,76,46,.88),rgba(18,37,27,.94));display:flex;flex-direction:column;justify-content:center;padding:9px}
+.mode-title{font-size:9px;letter-spacing:.18em;color:#f0d28b;font-weight:950}
+.mode-action{font-size:12px;font-weight:900;margin-top:6px}
+.mode-help{font-size:8px;color:#a8baa9;margin-top:4px;line-height:1.4}
+.bottom{min-height:30px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 3px;color:#8b9db1;font-size:9px}
+.bottom strong{color:#d8e5f1}
+.bottom button{padding:7px 11px;background:rgba(201,162,39,.12);border:1px solid rgba(201,162,39,.3);border-radius:8px;color:#f1d78d;font-size:8px;font-weight:950;letter-spacing:.1em}
+.portrait{display:none;position:fixed;z-index:20;top:45px;left:50%;transform:translateX(-50%);padding:6px 11px;border-radius:99px;background:#152d3d;border:1px solid #69dce6;color:#d9fbff;font-size:9px;white-space:nowrap}
+.pair-screen{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;padding:18px;background:radial-gradient(ellipse at 50% 25%,rgba(58,123,150,.27),transparent 58%),linear-gradient(145deg,#0d1724,#080c12 75%)}
+.pair-card{width:min(390px,100%);padding:24px;border-radius:18px;border:1px solid rgba(207,228,245,.17);background:linear-gradient(145deg,#19283a,#0d1621);box-shadow:0 22px 80px #000a;text-align:center}
+.pair-logo{width:52px;height:52px;margin:0 auto 13px;border-radius:16px;background:linear-gradient(145deg,#c7fbff,#58cbd9);color:#08141b;display:grid;place-items:center;font-size:23px;font-weight:1000}
+.kicker{font-size:9px;font-weight:950;color:#79e0e8;letter-spacing:.2em}
+.pair-card h1{font-size:25px;letter-spacing:-.04em;margin:8px 0}
+.pair-card p{font-size:11px;color:#9db0c4;line-height:1.55;margin:0 0 15px}
+.code-input{width:100%;height:51px;border:1px solid rgba(202,225,245,.22);border-radius:11px;background:#0b1420;text-align:center;letter-spacing:.48em;font:900 22px monospace;outline:none;text-transform:uppercase}
+.code-input:focus{border-color:#71e0e9;box-shadow:0 0 0 3px #71e0e91a}
+.connect{width:100%;height:45px;margin-top:10px;border-radius:11px;background:linear-gradient(110deg,#d5faff,#65cfda);color:#07141b;font-size:10px;font-weight:1000;letter-spacing:.16em}
+.pair-status{min-height:17px;margin-top:12px;color:#98aec2;font-size:9px;letter-spacing:.08em;line-height:1.5}
+.pair-help{margin-top:12px;color:#71859b;font-size:9px;line-height:1.55}
+.hidden{display:none!important}
+.guide{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;padding:14px;background:#03070bd9;backdrop-filter:blur(10px)}
+.guide.show{display:flex}
+.guide-box{width:min(570px,100%);max-height:88dvh;overflow:auto;border:1px solid var(--line);border-radius:17px;background:#142131;padding:18px}
+.guide-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.guide-head h2{font-size:18px;margin:0}.guide-close{width:28px;height:28px;border-radius:8px;background:#293a4d}
+.guide-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:13px}
+.guide-tile{padding:10px;border:1px solid var(--line);border-radius:10px;background:#0d1723;font-size:10px;line-height:1.5;color:#afc0d2}
+.guide-tile b{color:#f0f5fb}
+@media(orientation:portrait){.portrait{display:block}.deck{grid-template-columns:minmax(0,1fr) 74px minmax(0,1fr);border-radius:18px;padding:4px 0}.dpad{width:clamp(82px,22vw,116px);height:clamp(82px,22vw,116px);left:0}.stick-wrap{width:clamp(91px,25vw,124px);height:clamp(91px,25vw,124px);left:0;bottom:4%}.right-stick{right:0}.faces{right:0;width:clamp(101px,26vw,130px);height:clamp(101px,26vw,130px)}.touchpad{height:42px}.system{gap:6px;flex-direction:column}.system button:not(.ps){min-width:48px}.modecard{min-height:65px;padding:6px}.mode-help{display:none}.shoulders{padding:0}.trigger{min-width:55px}.trigger small{display:none}.brand .sub{display:none}.status{font-size:7px;padding:5px 7px}.bottom{font-size:8px}}
+@media(max-height:420px) and (orientation:landscape){.app{gap:4px;padding-top:4px;padding-bottom:4px}.top{min-height:26px}.logo{width:22px;height:22px}.shoulders{min-height:27px}.trigger{height:25px}.dpad{width:clamp(88px,14vh,112px);height:clamp(88px,14vh,112px)}.stick-wrap{width:clamp(98px,17vh,128px);height:clamp(98px,17vh,128px)}.faces{width:clamp(112px,18vh,140px);height:clamp(112px,18vh,140px)}.touchpad{height:32px}.modecard{min-height:55px}.bottom{min-height:25px}}
+@media(max-width:370px){.deck{grid-template-columns:minmax(0,1fr) 62px minmax(0,1fr)}.system{gap:5px}.system button:not(.ps){min-width:45px}.guide-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app" id="controllerApp">
+  <header class="top">
+    <div class="brand"><div class="logo">OW</div><div>OPEN WORLD<span class="sub">WIRELESS TOUCH CONTROLLER</span></div></div>
+    <div class="tools"><div class="status" id="connectionStatus"><i class="dot" id="statusDot"></i><span id="statusText">NOT PAIRED</span></div><button class="tool" id="fullscreenBtn">⛶</button></div>
+  </header>
+  <div class="shoulders">
+    <div class="side"><button class="trigger" data-button="L2"><b>L2</b><small id="l2Label">AIM</small></button><button class="trigger" data-button="L1"><b>L1</b><small id="l1Label">WEAPON</small></button></div>
+    <div class="side"><button class="trigger" data-button="R1"><b>R1</b><small id="r1Label">SPRINT</small></button><button class="trigger" data-button="R2"><b>R2</b><small id="r2Label">FIRE</small></button></div>
+  </div>
+  <main class="deck">
+    <section class="zone">
+      <div class="dpad">
+        <button class="dkey up" data-button="DPAD_UP">▲</button><button class="dkey left" data-button="DPAD_LEFT">◀</button><div class="dcenter"></div><button class="dkey right" data-button="DPAD_RIGHT">▶</button><button class="dkey down" data-button="DPAD_DOWN">▼</button>
+      </div>
+      <div class="stick-wrap">
+        <div class="stick" id="leftStick"><div class="knob" id="leftKnob"></div></div>
+        <button class="stick-click" data-button="L3">L3</button><span class="stick-name" id="leftStickName">MOVE</span>
+      </div>
+    </section>
+    <section class="zone center">
+      <button class="touchpad" data-button="TOUCHPAD">MAP / TOUCHPAD</button>
+      <div class="system"><button data-button="SHARE">GARAGE</button><button class="ps" data-button="PS">✦</button><button data-button="OPTIONS">MENU</button></div>
+      <div class="modecard"><div class="mode-title" id="modeTitle">WAITING FOR GAME</div><div class="mode-action" id="modeAction">PAIR YOUR PHONE</div><div class="mode-help" id="modeHelp">The labels change when you enter a car or open a game menu.</div></div>
+    </section>
+    <section class="zone">
+      <div class="faces">
+        <button class="face tri" data-button="TRIANGLE">△<small id="triangleLabel">INTERACT</small></button>
+        <button class="face sq" data-button="SQUARE">□<small id="squareLabel">RELOAD</small></button>
+        <button class="face cir" data-button="CIRCLE">○<small id="circleLabel">VIEW</small></button>
+        <button class="face cross" data-button="CROSS">×<small id="crossLabel">JUMP</small></button>
+      </div>
+      <div class="stick-wrap right-stick">
+        <div class="stick" id="rightStick"><div class="knob" id="rightKnob"></div></div>
+        <button class="stick-click" data-button="R3">R3</button><span class="stick-name">LOOK / CAMERA</span>
+      </div>
+    </section>
+  </main>
+  <footer class="bottom"><span><strong id="lastAction">READY</strong> · <span id="lastHelp">Left stick moves, right stick looks</span></span><button id="guideBtn">CONTROL GUIDE</button></footer>
+  <div class="portrait">↻ Rotate your phone to landscape for the full control layout</div>
+</div>
+
+<div class="pair-screen" id="pairScreen">
+  <div class="pair-card">
+    <div class="pair-logo">OW</div><div class="kicker">OPEN WORLD · PHONE LINK</div>
+    <h1>Connect to your game</h1>
+    <p>On the laptop, open <b>PS CONTROLLER</b> in the game menu and generate a six-digit pairing code. Enter it below.</p>
+    <input class="code-input" id="pairCodeInput" type="tel" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" aria-label="Six digit pairing code">
+    <button class="connect" id="connectBtn">CONNECT CONTROLLER</button>
+    <div class="pair-status" id="pairStatus">READY TO PAIR · BOTH DEVICES MUST OPEN THE SAME GAME SERVER</div>
+    <div class="pair-help">This phone sends control inputs to your game over a live Socket.IO WebSocket connection. It does not pretend to be a Bluetooth gamepad.</div>
+  </div>
+</div>
+
+<div class="guide" id="guide">
+  <div class="guide-box">
+    <div class="guide-head"><div><div class="kicker">QUICK START</div><h2>How to play Open World</h2></div><button class="guide-close" id="guideClose">×</button></div>
+    <div class="guide-grid">
+      <div class="guide-tile"><b>LEFT STICK · MOVE</b><br>Walk, run, and steer. Push it up to move forward.</div>
+      <div class="guide-tile"><b>RIGHT STICK · LOOK</b><br>Move it to look around or aim the camera.</div>
+      <div class="guide-tile"><b>× · JUMP</b><br>Jump on foot. It becomes the handbrake in a car.</div>
+      <div class="guide-tile"><b>△ · INTERACT</b><br>Talk, use objects, enter or exit a vehicle.</div>
+      <div class="guide-tile"><b>□ · RELOAD</b><br>Reload your current weapon. In a car it toggles cockpit view.</div>
+      <div class="guide-tile"><b>○ · CHANGE VIEW</b><br>Switch camera view. In a car, use it for the map.</div>
+      <div class="guide-tile"><b>L2 / R2</b><br>Aim and fire on foot. Brake/reverse and accelerate in a car.</div>
+      <div class="guide-tile"><b>R1 / L1</b><br>Sprint and weapon swap on foot. R1 is handbrake while driving.</div>
+      <div class="guide-tile"><b>TOUCHPAD · MAP</b><br>Open the full city map.</div>
+      <div class="guide-tile"><b>GARAGE · MENU</b><br>Garage opens the vehicle selector. Menu pauses or resumes the game.</div>
+    </div>
+  </div>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+(() => {
+  "use strict";
+  const $ = (selector) => document.querySelector(selector);
+  const socket = window.io ? window.io({ transports: ["websocket", "polling"], reconnection: true }) : null;
+  const state = {
+    left: { x: 0, y: 0 },
+    right: { x: 0, y: 0 },
+    buttons: {},
+    connected: false,
+    gameMode: { mode: "foot", state: "menu", vehicleName: "" },
+    lastSend: 0
+  };
+  const controlNames = {
+    CROSS: "JUMP", TRIANGLE: "INTERACT", SQUARE: "RELOAD", CIRCLE: "CHANGE VIEW",
+    L1: "WEAPON", L2: "AIM", L3: "CROUCH", R1: "SPRINT", R2: "FIRE",
+    R3: "VIEW", DPAD_UP: "WEAPON 1", DPAD_DOWN: "GRENADE",
+    DPAD_LEFT: "WEAPON 3", DPAD_RIGHT: "WEAPON 2", TOUCHPAD: "CITY MAP",
+    SHARE: "VEHICLE GARAGE", OPTIONS: "PAUSE / RESUME", PS: "OVERVIEW"
+  };
+  function setStatus(text, good) {
+    $("#statusText").textContent = text;
+    $("#statusDot").classList.toggle("ok", !!good);
+    $("#connectionStatus").style.borderColor = good ? "rgba(120,223,176,.4)" : "";
+  }
+  function setAction(text, help) {
+    $("#lastAction").textContent = text;
+    $("#lastHelp").textContent = help || "";
+  }
+  function vibrate() {
+    if (navigator.vibrate) {
+      try { navigator.vibrate(7); } catch (_) {}
+    }
+  }
+  function snapshot() {
+    return {
+      left: { x: state.left.x, y: state.left.y },
+      right: { x: state.right.x, y: state.right.y },
+      buttons: Object.assign({}, state.buttons)
+    };
+  }
+  function sendNow() {
+    if (!socket || !state.connected) return;
+    const data = snapshot();
+    if (socket.volatile) socket.volatile.emit("controller:input", data);
+    else socket.emit("controller:input", data);
+  }
+  function setButton(button, pressed) {
+    const key = button.dataset.button;
+    if (!key) return;
+    state.buttons[key] = !!pressed;
+    button.classList.toggle("active", !!pressed);
+    setAction(controlNames[key] || key, pressed ? "HELD" : "RELEASED");
+    if (pressed) vibrate();
+    sendNow();
+  }
+  document.querySelectorAll("[data-button]").forEach((button) => {
+    let pointer = null;
+    button.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      pointer = event.pointerId;
+      try { button.setPointerCapture(pointer); } catch (_) {}
+      setButton(button, true);
+    });
+    const release = (event) => {
+      if (pointer !== event.pointerId) return;
+      pointer = null;
+      setButton(button, false);
+    };
+    button.addEventListener("pointerup", release);
+    button.addEventListener("pointercancel", release);
+    button.addEventListener("lostpointercapture", release);
+    button.addEventListener("contextmenu", (event) => event.preventDefault());
+  });
+  function setupStick(id, knobId, key) {
+    const pad = document.getElementById(id);
+    const knob = document.getElementById(knobId);
+    let pointer = null;
+    function move(event) {
+      const rect = pad.getBoundingClientRect();
+      const radius = rect.width * .34;
+      let dx = event.clientX - rect.left - rect.width / 2;
+      let dy = event.clientY - rect.top - rect.height / 2;
+      const length = Math.hypot(dx, dy);
+      if (length > radius) { dx = dx / length * radius; dy = dy / length * radius; }
+      const x = dx / radius, y = dy / radius;
+      knob.style.transform = "translate(" + dx + "px," + dy + "px)";
+      state[key] = { x: Math.abs(x) < .07 ? 0 : Number(x.toFixed(3)), y: Math.abs(y) < .07 ? 0 : Number(y.toFixed(3)) };
+      setAction(key === "left" ? "MOVEMENT" : "CAMERA LOOK", "X " + state[key].x.toFixed(2) + " · Y " + state[key].y.toFixed(2));
+      sendNow();
+    }
+    function reset() {
+      pointer = null;
+      knob.style.transform = "translate(0px,0px)";
+      state[key] = { x: 0, y: 0 };
+      sendNow();
+    }
+    pad.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      pointer = event.pointerId;
+      try { pad.setPointerCapture(pointer); } catch (_) {}
+      move(event);
+    });
+    pad.addEventListener("pointermove", (event) => {
+      if (event.pointerId === pointer) move(event);
+    });
+    pad.addEventListener("pointerup", (event) => { if (event.pointerId === pointer) reset(); });
+    pad.addEventListener("pointercancel", (event) => { if (event.pointerId === pointer) reset(); });
+    pad.addEventListener("lostpointercapture", (event) => { if (event.pointerId === pointer) reset(); });
+  }
+  setupStick("leftStick", "leftKnob", "left");
+  setupStick("rightStick", "rightKnob", "right");
+
+  function updateMode(data) {
+    state.gameMode = data || state.gameMode;
+    const mode = state.gameMode.mode;
+    const gameState = state.gameMode.state;
+    const driving = mode === "vehicle";
+    if (gameState !== "playing") {
+      $("#modeTitle").textContent = gameState === "paused" ? "GAME PAUSED" : gameState === "menu" ? "MAIN MENU" : "GAME " + gameState.toUpperCase();
+      $("#modeAction").textContent = "NAVIGATE / SELECT";
+      $("#modeHelp").textContent = "Use D-pad to move through menu items, × to select, ○ to go back.";
+      $("#crossLabel").textContent = "SELECT";
+      $("#triangleLabel").textContent = "INTERACT";
+      $("#squareLabel").textContent = "SELECT";
+      $("#circleLabel").textContent = "BACK";
+      $("#r1Label").textContent = "CONFIRM";
+      $("#r2Label").textContent = "ACTION";
+      $("#l2Label").textContent = "BACK";
+      $("#l1Label").textContent = "PREVIOUS";
+      $("#leftStickName").textContent = "MENU NAV";
+      return;
+    }
+    if (driving) {
+      $("#modeTitle").textContent = "DRIVING · " + String(state.gameMode.vehicleName || "VEHICLE").toUpperCase();
+      $("#modeAction").textContent = "STEER · GAS · BRAKE";
+      $("#modeHelp").textContent = "Left stick steers and can throttle. R2 gas · L2 brake/reverse · × handbrake.";
+      $("#crossLabel").textContent = "HANDBRAKE";
+      $("#triangleLabel").textContent = "EXIT";
+      $("#squareLabel").textContent = "COCKPIT";
+      $("#circleLabel").textContent = "MAP";
+      $("#r1Label").textContent = "HANDBRAKE";
+      $("#r2Label").textContent = "GAS";
+      $("#l2Label").textContent = "BRAKE";
+      $("#l1Label").textContent = "WEAPON";
+      $("#leftStickName").textContent = "STEER / THROTTLE";
+    } else {
+      $("#modeTitle").textContent = "ON FOOT · FREE ROAM";
+      $("#modeAction").textContent = "EXPLORE THE CITY";
+      $("#modeHelp").textContent = "Move and look with the sticks. Hold R1 to sprint. Hold R2 to fire.";
+      $("#crossLabel").textContent = "JUMP";
+      $("#triangleLabel").textContent = "INTERACT";
+      $("#squareLabel").textContent = "RELOAD";
+      $("#circleLabel").textContent = "VIEW";
+      $("#r1Label").textContent = "SPRINT";
+      $("#r2Label").textContent = "FIRE";
+      $("#l2Label").textContent = "AIM";
+      $("#l1Label").textContent = "WEAPON";
+      $("#leftStickName").textContent = "MOVE";
+    }
+  }
+
+  $("#connectBtn").addEventListener("click", () => {
+    const code = $("#pairCodeInput").value.replace(/\D/g, "").slice(0, 6);
+    if (code.length !== 6) {
+      $("#pairStatus").textContent = "ENTER ALL SIX DIGITS FROM THE GAME SCREEN.";
+      return;
+    }
+    if (!socket) {
+      $("#pairStatus").textContent = "SOCKET.IO CLIENT FAILED TO LOAD. RELOAD THE PAGE.";
+      return;
+    }
+    $("#pairStatus").textContent = "CONNECTING TO GAME…";
+    if (!socket.connected) socket.connect();
+    const join = () => socket.emit("pair:join", { code });
+    if (socket.connected) join();
+    else socket.once("connect", join);
+  });
+  $("#pairCodeInput").addEventListener("input", () => {
+    $("#pairCodeInput").value = $("#pairCodeInput").value.replace(/\D/g, "").slice(0, 6);
+  });
+  $("#pairCodeInput").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") $("#connectBtn").click();
+  });
+  if (socket) {
+    socket.on("connect", () => {
+      if (!state.connected) setStatus("SERVER READY", false);
+    });
+    socket.on("connect_error", () => {
+      $("#pairStatus").textContent = "SERVER UNREACHABLE · CHECK THE GAME ADDRESS.";
+    });
+    socket.on("pair:joined", () => {
+      state.connected = true;
+      $("#pairScreen").classList.add("hidden");
+      setStatus("PHONE LINKED", true);
+      $("#pairStatus").textContent = "PAIRED";
+      sendNow();
+      toast("Controller linked. You're ready.");
+    });
+    socket.on("pair:error", (data) => {
+      $("#pairStatus").textContent = String(data?.message || "PAIRING FAILED").toUpperCase();
+      setStatus("NOT PAIRED", false);
+    });
+    socket.on("pair:closed", (data) => {
+      state.connected = false;
+      state.buttons = {};
+      state.left = { x: 0, y: 0 };
+      state.right = { x: 0, y: 0 };
+      $("#pairScreen").classList.remove("hidden");
+      $("#pairStatus").textContent = "LINK CLOSED · " + String(data?.reason || "").toUpperCase();
+      setStatus("DISCONNECTED", false);
+    });
+    socket.on("game:mode", updateMode);
+    socket.on("disconnect", () => {
+      if (state.connected) {
+        state.connected = false;
+        $("#pairScreen").classList.remove("hidden");
+        $("#pairStatus").textContent = "CONNECTION LOST · RECONNECT WITH THE SAME CODE.";
+        setStatus("RECONNECTING", false);
+      }
+    });
+  }
+  function toast(message) {
+    setAction("LINKED", message);
+  }
+  $("#fullscreenBtn").addEventListener("click", async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen({ navigationUI: "hide" });
+    } catch (_) {}
+    try { if (screen.orientation?.lock) await screen.orientation.lock("landscape"); } catch (_) {}
+  });
+  $("#guideBtn").addEventListener("click", () => $("#guide").classList.add("show"));
+  $("#guideClose").addEventListener("click", () => $("#guide").classList.remove("show"));
+  $("#guide").addEventListener("click", (event) => { if (event.target.id === "guide") $("#guide").classList.remove("show"); });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      state.buttons = {};
+      state.left = { x: 0, y: 0 };
+      state.right = { x: 0, y: 0 };
+      document.querySelectorAll(".active").forEach((element) => element.classList.remove("active"));
+      sendNow();
+    }
+  });
+  let lastFrame = 0;
+  function sendLoop(time) {
+    if (time - lastFrame >= 16) {
+      lastFrame = time;
+      sendNow();
+    }
+    requestAnimationFrame(sendLoop);
+  }
+  requestAnimationFrame(sendLoop);
+  updateMode(state.gameMode);
+})();
+</script>
+</body>
+</html>
