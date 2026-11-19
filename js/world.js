@@ -3262,6 +3262,14 @@ export class World {
           }
           return correction;
         };
+        const bridgeRoad = (this._roadChains || []).find(chain =>
+          chain.surface === 'modular-bridge'
+          && ((id === 'main-city-flyover' && chain.name.includes('Main City Flyover'))
+            || (id === 'fate-drainage-bridge' && chain.name.includes('Fate Drainage Bridge')))
+        );
+        // Road-chain points are stored 6cm below the actual rendered deck;
+        // vehicleSurfaceAt adds chain.roadY back during tyre queries.
+        const roadSurfaceOffset = Number.isFinite(bridgeRoad?.roadY) ? bridgeRoad.roadY : 0.06;
 
         let deformedComponentCount = 0;
         for (const record of placedComponents) {
@@ -3335,11 +3343,6 @@ export class World {
         // Keep gameplay height sampling on the same vertical curve as the
         // rendered/collidable meshes. Subdivide the bridge route to 2m samples
         // so suspension helpers don't interpolate across a long curved segment.
-        const bridgeRoad = (this._roadChains || []).find(chain =>
-          chain.surface === 'modular-bridge'
-          && ((id === 'main-city-flyover' && chain.name.includes('Main City Flyover'))
-            || (id === 'fate-drainage-bridge' && chain.name.includes('Fate Drainage Bridge')))
-        );
         let routeSampleCount = 0;
         if (bridgeRoad?.pts?.length >= 2) {
           const dense = [];
@@ -3358,7 +3361,7 @@ export class World {
               const progress = new THREE.Vector3(
                 point.x - entryLow.x, 0, point.z - entryLow.z,
               ).dot(routeDirection);
-              point.y = targetProfileY(progress);
+              point.y = targetProfileY(progress) - roadSurfaceOffset;
               dense.push(point);
             }
           }
@@ -3366,7 +3369,7 @@ export class World {
           const finalProgress = new THREE.Vector3(
             finalPoint.x - entryLow.x, 0, finalPoint.z - entryLow.z,
           ).dot(routeDirection);
-          finalPoint.y = targetProfileY(finalProgress);
+          finalPoint.y = targetProfileY(finalProgress) - roadSurfaceOffset;
           dense.push(finalPoint);
           bridgeRoad.pts = dense;
           routeSampleCount = dense.length;
