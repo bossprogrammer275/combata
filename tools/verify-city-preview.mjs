@@ -69,9 +69,13 @@ function checkMapContract() {
   assert.equal(map.waterways?.length, 1, 'Fate Drainage Bridge needs its authored drainage channel and exposed bed');
   assert.equal(map.waterways[0].bankBottom, map.bridgeAssemblies.find(a => a.id === 'fate-drainage-bridge').foundationY,
     'drainage bridge supports must meet the visible channel bed datum');
-  assert.ok(map.roads.filter(road => /^(Main City Flyover|Fate Drainage Bridge).*Approach/.test(road.name))
-    .every(road => !road.flyover && !road.bridge && !road.guardrails),
-    'bridge approaches must not add procedural bridge frames over the imported starter/deck modules');
+  const bridgeApproaches = map.roads.filter(road =>
+    /^(Main City Flyover|Fate Drainage Bridge).*Approach/.test(road.name)
+  );
+  assert.equal(bridgeApproaches.length, 4, 'both approaches of both bridges must be defined separately');
+  assert.ok(bridgeApproaches.every(road =>
+    road.flyover === true && road.guardrails === true && road.smooth === true
+  ), 'every road-only bridge approach must construct an elevated concrete deck, supports and guardrails');
   assert.ok(map.bridgeAssemblies.every(assembly =>
     assembly.components.every(component => component.componentId.startsWith('bridge-')),
   ), 'bridge assemblies must use only reusable components from the downloaded bridge pack');
@@ -737,8 +741,14 @@ try {
   assert.equal(report.bridgeDeckComponentCount, 21, 'every bridge section needs its own independent imported deck mesh');
   assert.equal(report.bridgeImportedDeckCount, 21, 'every imported bridge deck must register its exact road physics mesh');
   assert.equal(report.bridgeImportedSupportCount, 21, 'every imported bridge support must register solid static collision');
-  assert.equal(report.bridgeDeckPhysicsCount, 21,
-    'all flyover approaches must use road ramps without procedural bridge deck meshes');
+  assert.equal(report.bridgeDeckPhysicsCount, 25,
+    '21 imported bridge decks plus four structural approach slabs must form continuous elevated crossings');
+  assert.equal(report.bridgeApproachDeckCount, 4,
+    'each of the four road-only approach definitions must also construct its own concrete bridge slab');
+  assert.ok(report.bridgeApproachSupportCount >= 2,
+    'the elevated main flyover approaches must have real supporting piers beneath their deck slabs');
+  assert.equal(report.bridgeApproachGuardrailCount, 4,
+    'all four elevated bridge approaches must have continuous parapet/guardrail geometry');
   assert.equal(bridgeDriveability.importedDeckMeshCount, 21,
     'each imported bridge deck must be available to Rapier');
   assert.equal(bridgeDriveability.registeredDeckColliders, 21,

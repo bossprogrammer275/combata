@@ -646,9 +646,9 @@
       "name": "Main City Flyover · South Approach",
       "w": 10,
       "sidewalk": false,
-      "smooth": false,
-      "flyover": false,
-      "guardrails": false,
+      "smooth": true,
+      "flyover": true,
+      "guardrails": true,
       "keepEnds": true,
       "points": [
         [
@@ -659,17 +659,37 @@
         [
           -22,
           170,
-          2.2
+          0
         ],
         [
           -20,
           135,
-          5.2
+          0
         ],
         [
-          -18,
-          100,
-          7
+          -18.28,
+          112.356106,
+          0
+        ],
+        [
+          -17.996,
+          99.856106,
+          0.361
+        ],
+        [
+          -17.713,
+          87.356106,
+          1.402
+        ],
+        [
+          -17.43,
+          74.856106,
+          3.05
+        ],
+        [
+          -17.26,
+          67.356106,
+          4.31
         ],
         [
           -17.147568,
@@ -756,9 +776,9 @@
       "name": "Main City Flyover · North Approach",
       "w": 10,
       "sidewalk": false,
-      "smooth": false,
-      "flyover": false,
-      "guardrails": false,
+      "smooth": true,
+      "flyover": true,
+      "guardrails": true,
       "keepEnds": true,
       "points": [
         [
@@ -767,14 +787,29 @@
           5.255422
         ],
         [
-          -4,
-          -140,
-          5.2
+          -4.868,
+          -129.062299,
+          3.05
+        ],
+        [
+          -3.868,
+          -141.562299,
+          1.402
+        ],
+        [
+          -2.656,
+          -154.062299,
+          0.361
+        ],
+        [
+          -1.644,
+          -166.562299,
+          0
         ],
         [
           -1,
           -175,
-          2.2
+          0
         ],
         [
           2,
@@ -788,9 +823,9 @@
       "name": "Fate Drainage Bridge · North Approach",
       "w": 8,
       "sidewalk": false,
-      "smooth": false,
-      "flyover": false,
-      "guardrails": false,
+      "smooth": true,
+      "flyover": true,
+      "guardrails": true,
       "keepEnds": true,
       "points": [
         [
@@ -801,7 +836,27 @@
         [
           194,
           -130,
-          2
+          0
+        ],
+        [
+          194,
+          -110.365167,
+          0
+        ],
+        [
+          194,
+          -105.865167,
+          0.124
+        ],
+        [
+          194,
+          -101.365167,
+          0.487
+        ],
+        [
+          194,
+          -96.865167,
+          1.07
         ],
         [
           193.999997,
@@ -893,20 +948,40 @@
       "name": "Fate Drainage Bridge · South Approach",
       "w": 8,
       "sidewalk": false,
-      "smooth": false,
-      "flyover": false,
-      "guardrails": false,
+      "smooth": true,
+      "flyover": true,
+      "guardrails": true,
       "keepEnds": true,
       "points": [
         [
-          194.000012,
+          193.999997,
           105.360334,
           1.855422
         ],
         [
           194,
-          130,
-          2
+          109.860334,
+          1.07
+        ],
+        [
+          194,
+          114.360334,
+          0.487
+        ],
+        [
+          194,
+          118.860334,
+          0.124
+        ],
+        [
+          194,
+          123.360334,
+          0
+        ],
+        [
+          194,
+          145,
+          0
         ],
         [
           194,

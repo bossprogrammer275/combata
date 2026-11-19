@@ -2568,8 +2568,13 @@ export class World {
       // These thin segments are height-sampling metadata; imported road/bridge
       // triangles provide the actual Rapier surface geometry.
       this._addRoadSurfaceColliders(pts, chain.W, roadY, chain.closed, 0.05);
-      if (chain.flyover && !renderedByImportedSurface) this._buildFlyoverStructure(pts, chain.W, roadY);
-      if (chain.guardrails && !renderedByImportedSurface) this._buildRoadGuardrails(pts, chain.W, roadY);
+      const usesImportedBridgeAssembly = chain.surface === 'modular-bridge';
+      if (chain.flyover && !usesImportedBridgeAssembly) {
+        this._buildFlyoverStructure(pts, chain.W, roadY, 0.48, 18, chain.name);
+      }
+      if (chain.guardrails && !usesImportedBridgeAssembly) {
+        this._buildRoadGuardrails(pts, chain.W, roadY, 0.78, 0.22, chain.name);
+      }
     }
     this._buildRoadPackJunctionPatches(renderChains, junctionData);
     this._flushRoadPackSurfaces();
@@ -3720,7 +3725,7 @@ export class World {
   // Build the structural pieces of a raised crossing from the same elevated
   // centreline used by the asphalt ribbon. Vertices are in world coordinates,
   // because registerStaticRoadMeshes consumes geometry positions directly.
-  _buildFlyoverStructure(pts, width, roadOffset = 0.06, slabThickness = 0.48, pierSpacing = 18) {
+  _buildFlyoverStructure(pts, width, roadOffset = 0.06, slabThickness = 0.48, pierSpacing = 18, roadName = '') {
     if (!pts || pts.length < 2) return;
     const deckPositions = [], deckIndices = [];
     const addQuad = (positions, indices, a, b, c, d) => {
@@ -3767,8 +3772,18 @@ export class World {
     const deckMesh = new THREE.Mesh(deckGeometry, deckMaterial);
     deckMesh.castShadow = true;
     deckMesh.receiveShadow = true;
+    deckMesh.userData.worldKit = {
+      assetId: 'authored-flyover-approach',
+      role: 'approach-deck',
+      roadName,
+    };
     this.group.add(deckMesh);
-    this.roadPhysicsMeshes.push({ kind: 'bridge_deck', geometry: deckGeometry });
+    this.roadPhysicsMeshes.push({
+      kind: 'bridge_deck',
+      source: 'generated-flyover-approach',
+      roadName,
+      geometry: deckGeometry,
+    });
 
     // Paired tapered columns and a crosshead beam every 18m where the road
     // deck is high enough. Ground-height portions remain ramp-only.
@@ -3829,17 +3844,31 @@ export class World {
       const supportMesh = new THREE.Mesh(supportGeometry, supportMaterial);
       supportMesh.castShadow = true;
       supportMesh.receiveShadow = true;
+      supportMesh.userData.worldKit = {
+        assetId: 'authored-flyover-approach',
+        role: 'approach-supports',
+        roadName,
+      };
       this.group.add(supportMesh);
-      this.roadPhysicsMeshes.push({ kind: 'bridge_support', geometry: supportGeometry });
+      this.roadPhysicsMeshes.push({
+        kind: 'bridge_support',
+        source: 'generated-flyover-approach',
+        roadName,
+        geometry: supportGeometry,
+      });
     }
   }
 
-  _buildRoadGuardrails(pts, width, yOffset = 0.06, height = 0.78, thickness = 0.22) {
+  _buildRoadGuardrails(pts, width, yOffset = 0.06, height = 0.78, thickness = 0.22, roadName = '') {
     if (!pts || pts.length < 2) return;
     const positions = [], indices = [];
     const quad = (a,b,c,d) => { const i=positions.length/3; for(const p of [a,b,c,d]) positions.push(p.x,p.y,p.z); indices.push(i,i+1,i+2,i+2,i+1,i+3); };
     for(const side of [-1,1]) for(let i=0;i<pts.length-1;i++) {
       const a=pts[i],b=pts[i+1],dx=b.x-a.x,dz=b.z-a.z,len=Math.hypot(dx,dz); if(len<0.05)continue;
+      // Start guardrails only once the road is raised. At-grade approach
+      // asphalt remains a normal street; the parapets continue into the
+      // imported bridge end-ramp where the deck becomes elevated.
+      if (Math.max(Number(a.y)||0, Number(b.y)||0) + yOffset < 0.85) continue;
       const nx=-dz/len,nz=dx/len,p=(v,o,h=0)=>({x:v.x+nx*o,y:(v.y||0)+yOffset+h,z:v.z+nz*o});
       const inner=side*(width/2-thickness),outer=side*width/2;
       const ai=p(a,inner),bi=p(b,inner),ao=p(a,outer),bo=p(b,outer),ait=p(a,inner,height),bit=p(b,inner,height),aot=p(a,outer,height),bot=p(b,outer,height);
@@ -3847,8 +3876,19 @@ export class World {
     }
     const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.setIndex(indices);geo.computeVertexNormals();
     const mat=this.mCurb();mat.side=THREE.DoubleSide;mat.needsUpdate=true;
-    const mesh=new THREE.Mesh(geo,mat);mesh.castShadow=true;mesh.receiveShadow=true;this.group.add(mesh);
-    this.roadPhysicsMeshes.push({kind:'barrier',geometry:geo});
+    const mesh=new THREE.Mesh(geo,mat);mesh.castShadow=true;mesh.receiveShadow=true;
+    mesh.userData.worldKit = {
+      assetId: 'authored-flyover-approach',
+      role: 'approach-guardrails',
+      roadName,
+    };
+    this.group.add(mesh);
+    this.roadPhysicsMeshes.push({
+      kind: 'barrier',
+      source: 'generated-flyover-approach',
+      roadName,
+      geometry: geo,
+    });
   }
 
   // Stroke a polyline as a solid mitered polygon (correct corners, no gaps) into _ribbonBatch.
