@@ -3201,8 +3201,16 @@ export class World {
         const rampLength = rampBounds
           ? rampBounds.getSize(new THREE.Vector3()).x * Math.abs(firstRamp.mesh.scale.x)
           : 8.889 * Math.abs(firstRamp.mesh.scale.x);
-        const rampDrop = Math.abs(firstRamp.maxY - firstRamp.minY);
+        const rampGeometryBounds = firstRamp.mesh.geometry.boundingBox
+          || (firstRamp.mesh.geometry.computeBoundingBox(), firstRamp.mesh.geometry.boundingBox);
+        const rampDrop = rampGeometryBounds
+          ? Math.abs(rampGeometryBounds.max.y - rampGeometryBounds.min.y)
+            * Math.abs(firstRamp.mesh.scale.y)
+          : 1.744578;
         const rampGrade = rampDrop / Math.max(0.01, rampLength);
+        if (!Number.isFinite(rampDrop) || rampDrop < 0.5) {
+          throw new Error('Imported bridge end ramp has no measurable vertical drop: ' + id);
+        }
         const transitionLength = rampLength * 2;
         const entryLow = firstRampCenter.clone().addScaledVector(routeDirection, -rampLength * 0.5);
         const exitLow = lastRampCenter.clone().addScaledVector(routeDirection, rampLength * 0.5);
