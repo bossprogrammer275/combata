@@ -253,6 +253,7 @@ try {
 
   const bridgeDriveability = await page.evaluate(async () => {
     const { Physics } = await import('/js/physics.js');
+    const { loadCarModel, CAR_PHYSICS } = await import('/js/vehicles.js');
     const world = window.__CITY_PREVIEW__?.world;
     if (!world) throw new Error('City preview did not expose the constructed world');
 
@@ -266,7 +267,10 @@ try {
       surface.kind === 'bridge_deck'
       && surface.source === 'imported-bridge-component'
     );
-    const registeredDeckColliders = physics.registerStaticRoadMeshes(decks);
+    // The test world receives the same road triangle set the real game registers.
+    const registeredRoadColliders = physics.registerStaticRoadMeshes(world.roadPhysicsMeshes || []);
+    const registeredDeckColliders = decks.filter(surface => !!surface.physicsCollider).length;
+    physics.addGroundPlane();
     physics.step(1 / 60);
 
     const wheelHalfTrack = 0.82;
@@ -275,6 +279,7 @@ try {
     const failures = [];
     const laneSamples = [];
     const laneCountsByRoad = {};
+    const laneCentersByRoad = {};
     let probeCount = 0;
     let maxProfileError = 0;
 
@@ -291,7 +296,9 @@ try {
         const dx = b.x - a.x, dz = b.z - a.z;
         const length = Math.hypot(dx, dz);
         if (length < 1) continue;
-        const samples = Math.max(2, Math.ceil(length / 10));
+        // Use an odd number of intervals so sampling lands inside each imported
+        // module rather than exactly on every centre-to-centre deck seam.
+        const samples = Math.max(3, Math.ceil(length / 8));
         const nx = -dz / length, nz = dx / length;
 
         for (let step = 0; step <= samples; step++) {
@@ -359,6 +366,9 @@ try {
           }
 
           laneCount += usableStrips.length;
+          if (usableStrips.length && !laneCentersByRoad[chain.name]) {
+            laneCentersByRoad[chain.name] = usableStrips.map(strip => strip.laneCenter);
+          }
           if (!usableStrips.length) {
             failures.push({
               road: chain.name,
@@ -380,9 +390,20 @@ try {
       laneCountsByRoad[chain.name] = laneCount;
     }
 
+    const driveSummary = vehicleRuns.map(run => ({
+      bridge: run.bridge,
+      distance: Number(run.distance.toFixed(2)),
+      maxSpeed: Number(run.maxSpeed.toFixed(2)),
+      minWheelContacts: run.minWheelContacts,
+      unsupportedFrames: run.unsupportedFrames,
+      offroadWheelFrames: run.offroadWheelFrames,
+      frames: run.frames,
+      start: run.start,
+      finalZ: Number(run.finalZ.toFixed(2)),
+    }));
     physics.destroy();
     return {
-      probeCount,
+      vehicleRuns: driveSummary,\n      registeredRoadColliders,\n      probeCount,
       importedDeckMeshCount: decks.length,
       registeredDeckColliders,
       maxProfileError,
@@ -406,14 +427,28 @@ try {
     'each imported bridge deck must be available to Rapier');
   assert.equal(bridgeDriveability.registeredDeckColliders, 21,
     'all imported bridge decks must become real Rapier static triangle colliders');
+  assert.ok(bridgeDriveability.registeredRoadColliders > 100,
+    'the driving test must register the city road network as static Rapier geometry');
   assert.ok(bridgeDriveability.probeCount > 500,
-    'the full width of both crossings must be sampled at regular intervals');
+    'the full width of both crossings must be sampled at regular intervals inside each module');
   assert.ok(bridgeDriveability.maxProfileError <= 0.24,
     'route heights must stay within suspension travel of the actual ramp/deck mesh: '+bridgeDriveability.maxProfileError);
   assert.ok(Object.values(bridgeDriveability.laneCountsByRoad).every(count => count > 0),
     'each bridge must provide a carriageway wide enough for a car and two tyres: '+JSON.stringify(bridgeDriveability.laneCountsByRoad));
   assert.deepEqual(bridgeDriveability.failures, [],
     'each bridge cross-section must contain at least one continuous car-width strip with two Rapier-supported tyres: '+JSON.stringify(bridgeDriveability.failures));
+  assert.equal(bridgeDriveability.vehicleRuns.length, 2,
+    'a real Bugatti with four normalized GLB wheels must be driven across both bridges');
+  for (const drive of bridgeDriveability.vehicleRuns) {
+    assert.ok(drive.distance >= 180,
+      drive.bridge+' Bugatti did not traverse the full bridge: '+JSON.stringify(drive));
+    assert.ok(drive.minWheelContacts >= 3,
+      drive.bridge+' Bugatti lost more than one wheel support during the traversal: '+JSON.stringify(drive));
+    assert.ok(drive.unsupportedFrames <= Math.max(8, Math.ceil(drive.frames * 0.025)),
+      drive.bridge+' Bugatti suspension lost support for too many frames: '+JSON.stringify(drive));
+    assert.equal(drive.offroadWheelFrames, 0,
+      drive.bridge+' Bugatti suspension sampled off-road under a contacting wheel: '+JSON.stringify(drive));
+  }
   assert.deepEqual(report.bridgeGroundContactFailures, [],
     'bridge support footing patches must meet terrain or channel-bed elevation: ' + JSON.stringify(report.bridgeGroundContactFailures));
   assert.ok(report.bridgeFootContactCount > 0,
