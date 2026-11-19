@@ -314,7 +314,7 @@ try {
             const valid = !!hit && hit.normal.y >= 0.45
               && Math.abs(error) <= 0.24
               && surface && surface.surface !== 'offroad'
-              && surface.distance <= 1.12;
+              && surface.distance <= halfWidth + 0.05;
             crossSection.push({ offset, valid });
             probeCount++;
           }
@@ -353,7 +353,7 @@ try {
 
             if (tyres.every(tyre => tyre.supported
               && tyre.surface !== 'offroad'
-              && tyre.surfaceDistance <= 1.12)) {
+              && tyre.surfaceDistance <= halfWidth + 0.05)) {
               usableStrips.push({ first, last, laneCenter, tyres });
             }
           }
