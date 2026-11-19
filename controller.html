@@ -324,6 +324,7 @@ button,input{font:inherit;color:inherit}button{border:0;cursor:pointer}
   }
 
   $("#connectBtn").addEventListener("click", () => {
+    enterImmersiveMode();
     const code = $("#pairCodeInput").value.replace(/\D/g, "").slice(0, 6);
     if (code.length !== 6) {
       $("#pairStatus").textContent = "ENTER ALL SIX DIGITS FROM THE GAME SCREEN.";
@@ -394,12 +395,33 @@ button,input{font:inherit;color:inherit}button{border:0;cursor:pointer}
   function toast(message) {
     setAction("LINKED", message);
   }
-  $("#fullscreenBtn").addEventListener("click", async () => {
+  function enterImmersiveMode() {
+    // Browsers that permit automatic fullscreen enter immediately. Others
+    // retry on the first real touch/click, when the Fullscreen API has a
+    // user-activation signal.
+    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+      try {
+        const request = document.documentElement.requestFullscreen({ navigationUI: "hide" });
+        if (request && typeof request.catch === "function") request.catch(() => {});
+      } catch (_) {}
+    }
     try {
-      if (document.fullscreenElement) await document.exitFullscreen();
-      else if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen({ navigationUI: "hide" });
+      const lock = screen.orientation?.lock?.("landscape");
+      if (lock && typeof lock.catch === "function") lock.catch(() => {});
     } catch (_) {}
-    try { if (screen.orientation?.lock) await screen.orientation.lock("landscape"); } catch (_) {}
+  }
+
+  // Attempt on page open, then retry once on the first real phone interaction.
+  enterImmersiveMode();
+  document.addEventListener("pointerdown", enterImmersiveMode, { capture: true, once: true });
+  window.addEventListener("pageshow", enterImmersiveMode);
+
+  $("#fullscreenBtn").addEventListener("click", async () => {
+    if (document.fullscreenElement) {
+      try { await document.exitFullscreen(); } catch (_) {}
+    } else {
+      enterImmersiveMode();
+    }
   });
   $("#guideBtn").addEventListener("click", () => $("#guide").classList.add("show"));
   $("#guideClose").addEventListener("click", () => $("#guide").classList.remove("show"));
