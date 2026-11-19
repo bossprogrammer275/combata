@@ -570,10 +570,16 @@ try {
       const tangentLength = Math.hypot(entryB.x - entryA.x, entryB.z - entryA.z) || 1;
       const t = THREE.MathUtils.clamp((route.startZ - entryA.z) / (entryB.z - entryA.z || 1), 0, 1);
       const centerX = THREE.MathUtils.lerp(entryA.x, entryB.x, t);
-      const normalX = -(entryB.z - entryA.z) / tangentLength;
-      const normalZ = (entryB.x - entryA.x) / tangentLength;
+      const tangentX = (entryB.x - entryA.x) / tangentLength;
+      const tangentZ = (entryB.z - entryA.z) / tangentLength;
+      const normalX = -tangentZ;
+      const normalZ = tangentX;
       const startX = centerX + normalX * laneOffset;
       const startZ = route.startZ + normalZ * laneOffset;
+      // The Bugatti's gameplay nose points along local -Z. Align it with the
+      // authored bridge centreline instead of world -Z; the main flyover is
+      // diagonal and a fixed heading would drift off the side by its exit.
+      const gameYaw = Math.atan2(-tangentX, -tangentZ);
       const startSurface = world.vehicleSurfaceAt(startX, startZ, route.guessY);
       if (!startSurface || startSurface.surface === 'offroad' || !Number.isFinite(startSurface.height)) {
         throw new Error(route.bridge + ' Bugatti spawn is not on a drivable approach: '
@@ -584,7 +590,7 @@ try {
         startX,
         startSurface.height,
         startZ,
-        route.gameYaw + yawOffset,
+        gameYaw + yawOffset,
         [physicsBox],
         {
           dynamic: true,
@@ -596,12 +602,13 @@ try {
           angularDamping: tune.angularDamping,
         },
       );
-      physics.updateVehicleBody(body, startX, startSurface.height, startZ, route.gameYaw + yawOffset);
+      physics.updateVehicleBody(body, startX, startSurface.height, startZ, gameYaw + yawOffset);
       physics.step(1 / 60);
 
       const run = {
         bridge: route.bridge,
         laneOffset,
+        gameYaw,
         start: [startX, startSurface.height, startZ],
         targetDistance: Math.abs(route.targetZ - startZ),
         finalZ: startZ,
