@@ -557,7 +557,9 @@ try {
         unsupportedFrames: 0,
         offroadWheelFrames: 0,
         frames: 0,
+        supportLossEpisodes: [],
       };
+      let currentSupportLoss = null;
       let motion = null;
 
       for (let frame = 0; frame < 45; frame++) {
@@ -596,9 +598,40 @@ try {
         run.finalZ = translation.z;
         run.distance = (translation.z - startZ) * route.direction;
         run.maxSpeed = Math.max(run.maxSpeed, Math.abs(motion?.forwardSpeed || 0));
-        run.minWheelContacts = Math.min(run.minWheelContacts, motion?.wheelContacts ?? 0);
-        if ((motion?.wheelContacts ?? 0) < 3) run.unsupportedFrames++;
-        run.offroadWheelFrames += (motion?.wheelStates || []).filter(state =>
+        const wheelContactCount = motion?.wheelContacts ?? 0;
+        const wheelStates = motion?.wheelStates || [];
+        run.minWheelContacts = Math.min(run.minWheelContacts, wheelContactCount);
+        if (wheelContactCount < 3) {
+          run.unsupportedFrames++;
+          if (!currentSupportLoss) {
+            currentSupportLoss = {
+              startFrame: frame,
+              startZ: translation.z,
+              startDistance: run.distance,
+              minWheelContacts: wheelContactCount,
+              frames: 0,
+              wheelStates: wheelStates.map((state, index) => ({
+                index,
+                front: !!wheelSpecs[index]?.front,
+                contact: !!state.contact,
+                normalY: state.normal?.y ?? null,
+                surface: state.surface?.surface ?? null,
+                compression: state.compression ?? null,
+                point: state.point ? { x: state.point.x, y: state.point.y, z: state.point.z } : null,
+              })),
+            };
+          }
+          currentSupportLoss.frames++;
+          currentSupportLoss.minWheelContacts = Math.min(currentSupportLoss.minWheelContacts, wheelContactCount);
+          currentSupportLoss.endFrame = frame;
+          currentSupportLoss.endZ = translation.z;
+          currentSupportLoss.endDistance = run.distance;
+          currentSupportLoss.maxSpeed = Math.max(currentSupportLoss.maxSpeed || 0, Math.abs(motion?.forwardSpeed || 0));
+        } else if (currentSupportLoss) {
+          run.supportLossEpisodes.push(currentSupportLoss);
+          currentSupportLoss = null;
+        }
+        run.offroadWheelFrames += wheelStates.filter(state =>
           state.contact && state.surface?.surface === 'offroad'
         ).length;
         run.frames = frame + 1;
@@ -627,6 +660,7 @@ try {
         }
       }
 
+      if (currentSupportLoss) run.supportLossEpisodes.push(currentSupportLoss);
       physics.removeVehicleBody(body);
       vehicleRuns.push(run);
     }
@@ -639,6 +673,7 @@ try {
       maxSpeed: Number(run.maxSpeed.toFixed(2)),
       minWheelContacts: run.minWheelContacts,
       unsupportedFrames: run.unsupportedFrames,
+      supportLossEpisodes: run.supportLossEpisodes,
       offroadWheelFrames: run.offroadWheelFrames,
       frames: run.frames,
       reachedTarget: !!run.reachedTarget,
