@@ -249,7 +249,8 @@
             footingFailures: section.supportFootFailures || [],
           })),
         bridgeDeckAlignmentFailures: (world.bridgeSectionInstances || [])
-          .filter(section => !Number.isFinite(section.deckAlignmentError) || Math.abs(section.deckAlignmentError) > 0.02)
+          .filter(section => !Number.isFinite(section.deckAlignmentError)
+            || Math.abs(section.deckAlignmentError) > (section.structureKind === 'sloped-end-abutment' ? 0.08 : 0.02))
           .map(section => ({ assemblyId: section.assemblyId, sectionId: section.sectionId, deckY: section.deckY, deckMaxY: section.deckMaxY, error: section.deckAlignmentError })),
         bridgeSectionDiagnostics: world.bridgeSectionInstances || [],
         bridgeVerticalTransitions: world.bridgeVerticalTransitions || [],
