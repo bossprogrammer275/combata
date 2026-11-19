@@ -552,7 +552,12 @@ try {
         });
       }
 
-      const maxFrames = 2100;
+      // Bound the physical test. If the vehicle cannot gain ground for three
+      // simulated seconds, stop and report a stuck traversal instead of
+      // spending several minutes pushing a vehicle against an obstruction.
+      const maxFrames = 900;
+      let bestDistance = 0;
+      let lastProgressFrame = 0;
       for (let frame = 0; frame < maxFrames; frame++) {
         physics.step(1 / 60, dt => {
           motion = physics.applyVehicleControls(body, {
@@ -578,6 +583,10 @@ try {
           state.contact && state.surface?.surface === 'offroad'
         ).length;
         run.frames = frame + 1;
+        if (run.distance > bestDistance + 0.35) {
+          bestDistance = run.distance;
+          lastProgressFrame = frame;
+        }
 
         carScene.position.set(
           translation.x - rootOffset.x,
@@ -586,7 +595,7 @@ try {
         );
         carScene.quaternion.copy(quaternion);
 
-        if (frame % 4 === 0) {
+        if (frame % 8 === 0) {
           previewWorld.camera.position.set(
             translation.x,
             rootY + 4.6,
@@ -601,7 +610,14 @@ try {
           await new Promise(resolve => requestAnimationFrame(resolve));
         }
 
-        if (route.direction * (translation.z - route.targetZ) >= 0) break;
+        if (route.direction * (translation.z - route.targetZ) >= 0) {
+          run.reachedTarget = true;
+          break;
+        }
+        if (frame - lastProgressFrame >= 180) {
+          run.stalled = true;
+          break;
+        }
       }
 
       physics.removeVehicleBody(body);
@@ -617,6 +633,8 @@ try {
       unsupportedFrames: run.unsupportedFrames,
       offroadWheelFrames: run.offroadWheelFrames,
       frames: run.frames,
+      reachedTarget: !!run.reachedTarget,
+      stalled: !!run.stalled,
       start: run.start,
       finalZ: Number(run.finalZ.toFixed(2)),
     }));
@@ -661,8 +679,10 @@ try {
   assert.equal(bridgeDriveability.vehicleRuns.length, 2,
     'a real Bugatti with four normalized GLB wheels must be driven across both bridges');
   for (const drive of bridgeDriveability.vehicleRuns) {
-    assert.ok(drive.distance >= 180,
+    assert.ok(drive.distance >= 180 && drive.reachedTarget,
       drive.bridge+' Bugatti did not traverse the full bridge: '+JSON.stringify(drive));
+    assert.equal(drive.stalled, false,
+      drive.bridge+' Bugatti stalled before the bridge exit: '+JSON.stringify(drive));
     assert.ok(drive.minWheelContacts >= 3,
       drive.bridge+' Bugatti lost more than one wheel support during the traversal: '+JSON.stringify(drive));
     assert.ok(drive.unsupportedFrames <= Math.max(8, Math.ceil(drive.frames * 0.025)),
