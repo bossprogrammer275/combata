@@ -403,7 +403,9 @@ try {
     }));
     physics.destroy();
     return {
-      vehicleRuns: driveSummary,\n      registeredRoadColliders,\n      probeCount,
+      vehicleRuns: driveSummary,
+      registeredRoadColliders,
+      probeCount,
       importedDeckMeshCount: decks.length,
       registeredDeckColliders,
       maxProfileError,
