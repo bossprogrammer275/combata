@@ -432,6 +432,17 @@
   .vehicle-spawn-action{margin-top:auto;font-size:10px;letter-spacing:2px;color:var(--accent)}
   .vehicle-spawn-footer{display:flex;justify-content:space-between;gap:12px;margin-top:18px;padding-top:12px;border-top:1px solid rgba(201,162,39,.16);font-size:10px;letter-spacing:1.5px;color:var(--dim)}
   @media(max-width:620px){.vehicle-spawn-shell{padding:16px}.vehicle-spawn-list{grid-template-columns:1fr}.vehicle-spawn-card{min-height:104px}.vehicle-spawn-title{font-size:22px}}
+
+  /* Phone controller pairing panel */
+  #sec-controller .panel{max-width:600px}
+  .phone-link-card{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+  .phone-link-action{min-height:72px;padding:12px;border:1px solid rgba(201,162,39,.28);border-radius:5px;background:rgba(255,255,255,.035);color:var(--ink);font-family:inherit;text-align:left;cursor:pointer}
+  .phone-link-action strong{display:block;color:var(--accent);font-size:11px;letter-spacing:1.5px;margin-bottom:6px}
+  .phone-link-action span{display:block;color:var(--dim);font-size:10px;line-height:1.45;letter-spacing:.4px}
+  .phone-pair-code{font:900 clamp(28px,6vw,42px)/1.2 monospace;letter-spacing:8px;color:#fff;text-align:center;padding:14px 8px;border:1px dashed rgba(201,162,39,.5);background:rgba(201,162,39,.07);margin:12px 0}
+  .phone-pair-status{font-size:10px;letter-spacing:1px;color:var(--dim);text-align:center;min-height:17px}
+  @media(max-width:620px){.phone-link-card{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
@@ -555,6 +566,7 @@
       <button class="navbtn active" data-sec="play">PLAY</button>
       <button class="navbtn" data-sec="customize">CUSTOMIZE</button>
       <button class="navbtn" data-sec="settings">SETTINGS</button>
+      <button class="navbtn" data-sec="controller">PS CONTROLLER</button>
     </div>
 
     <!-- PLAY section -->
@@ -607,6 +619,35 @@
           <label>SENS <input type="range" id="sens" min="0.2" max="3" step="0.1" value="1"></label>
           <label>VOL <input type="range" id="vol" min="0" max="1" step="0.05" value="0.7"></label>
           <label>GFX <select id="quality"><option value="ultra">Ultra</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option><option value="ultra-low">ULTRA LOW</option></select></label>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- PHONE CONTROLLER section -->
+    <div class="sec hidden" id="sec-controller">
+      <div class="panel">
+        <div class="panel-h">DUALSENSE PHONE LINK</div>
+        <div style="font-size:11px;color:var(--dim);letter-spacing:1px;line-height:1.6;margin:5px 0 12px">
+          Use your phone as a wireless touch controller for this game. Keep both devices on this same game server or public game URL.
+        </div>
+        <div class="phone-link-card">
+          <button class="phone-link-action" id="remote-pair-create" type="button">
+            <strong>① CREATE PAIR CODE</strong>
+            <span>Use this on the laptop or desktop that is running the game.</span>
+          </button>
+          <button class="phone-link-action" id="remote-open-controller" type="button">
+            <strong>② OPEN PS CONTROLLER</strong>
+            <span>Open the touch controller on your phone, then enter the code shown here.</span>
+          </button>
+        </div>
+        <div id="remote-pair-result" class="hidden">
+          <div class="phone-pair-code" id="remote-pair-code">------</div>
+          <div class="phone-pair-status" id="remote-pair-status">WAITING FOR PHONE…</div>
+          <div class="seg" style="justify-content:center;margin-top:10px">
+            <button class="sm ghost" id="remote-pair-copy" type="button">COPY CODE</button>
+            <button class="sm ghost" id="remote-pair-cancel" type="button">CANCEL LINK</button>
+          </div>
         </div>
       </div>
     </div>
@@ -785,6 +826,7 @@
 </div>
 
 <script type="importmap">{"imports":{"three":"./js/lib/three.module.js","three-mesh-bvh":"./js/lib/three-mesh-bvh.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}</script>
+<script src="/socket.io/socket.io.js"></script>
 <script type="module" src="./js/main.js"></script>
 </body>
 </html>
