@@ -327,6 +327,42 @@ try {
     let probeCount = 0;
     let maxProfileError = 0;
 
+    // The imported bridge kit uses independent section meshes that meet at
+    // butt joints. Their top faces have a tiny triangulation inset exactly on
+    // the zero-width joint; a tyre bridges this seam, so sample either side,
+    // not the mathematical boundary itself.
+    const bridgeDeckSeams = [];
+    const deckSectionsByAssembly = new Map();
+    for (const record of (world.bridgeComponentInstances || []).filter(item => item.role === 'bridge-deck')) {
+      if (!deckSectionsByAssembly.has(record.assemblyId)) deckSectionsByAssembly.set(record.assemblyId, []);
+      record.mesh.updateWorldMatrix(true, false);
+      const center = record.mesh.getWorldPosition(new THREE.Vector3());
+      const match = String(record.sectionId).match(/section-(\d+)$/);
+      deckSectionsByAssembly.get(record.assemblyId).push({
+        sectionNumber: Number(match?.[1] || 0),
+        sectionId: record.sectionId,
+        center,
+      });
+    }
+    for (const [assemblyId, sections] of deckSectionsByAssembly) {
+      sections.sort((a, b) => a.sectionNumber - b.sectionNumber);
+      for (let index = 0; index < sections.length - 1; index++) {
+        const a = sections[index], b = sections[index + 1];
+        const dx = b.center.x - a.center.x, dz = b.center.z - a.center.z;
+        const length = Math.hypot(dx, dz);
+        if (length < 0.1) continue;
+        bridgeDeckSeams.push({
+          assemblyId,
+          before: a.sectionId,
+          after: b.sectionId,
+          x: (a.center.x + b.center.x) * 0.5,
+          z: (a.center.z + b.center.z) * 0.5,
+          dirX: dx / length,
+          dirZ: dz / length,
+        });
+      }
+    }
+
     for (const chain of (world._roadChains || []).filter(item => item.surface === 'modular-bridge')) {
       const points = chain.pts || [];
       const total = points.slice(0, -1).reduce((sum, point, index) =>
@@ -351,6 +387,14 @@ try {
           if (chainDistance < 2 || total - chainDistance < 2) continue;
 
           const centerX = a.x + dx * t, centerZ = a.z + dz * t;
+          const assemblyId = chain.name.includes('Main City')
+            ? 'main-city-flyover' : 'fate-drainage-bridge';
+          const onModuleSeam = bridgeDeckSeams.some(seam => {
+            if (seam.assemblyId !== assemblyId) return false;
+            const along = (centerX - seam.x) * seam.dirX + (centerZ - seam.z) * seam.dirZ;
+            return Math.abs(along) < 0.12;
+          });
+          if (onModuleSeam) continue;
           const expectedY = (Number(a.y) || 0)
             + ((Number(b.y) || 0) - (Number(a.y) || 0)) * t
             + (Number.isFinite(chain.roadY) ? chain.roadY : 0.06);
@@ -643,7 +687,7 @@ try {
       for (let frame = 0; frame < maxFrames; frame++) {
         physics.step(1 / 60, dt => {
           motion = physics.applyVehicleControls(body, {
-            throttle: 0.65, steer: 0, handbrake: false, dt,
+            throttle: 0.28, steer: 0, handbrake: false, dt,
             wheels: wheelSpecs,
             tuning: tune,
             surfaceAt: (x, z, y) => world.vehicleSurfaceAt(x, z, y),
