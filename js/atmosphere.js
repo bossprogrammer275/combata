@@ -188,11 +188,18 @@ export class Atmosphere {
 
     this._sunDir = new THREE.Vector3(0, 1, 0);
     this._fogColor = new THREE.Color(0x8aa8c8);
+    this._nextFogColor = new THREE.Color();
+    this._weatherFogColor = new THREE.Color(0x556677);
+    this._backgroundDay = new THREE.Color(0x87CEEB);
+    this._backgroundNight = new THREE.Color(0x060a14);
+    this._backgroundScratch = new THREE.Color();
     this._sunColor = new THREE.Color(0xfff4dd);
     this._sunIntensity = 2.8;
     this._ambientIntensity = 1.0;
     this._hemiSky = new THREE.Color(0xcfe3ff);
     this._hemiGnd = new THREE.Color(0x6a6c60);
+    this._nextHemiSky = new THREE.Color();
+    this._nextHemiGnd = new THREE.Color();
     this._exposure = 1.0;
     this._fogDensity = 0.0025;
     this._cloudDensity = 0.35;
@@ -291,8 +298,8 @@ export class Atmosphere {
 
     // Interpolate fog color
     this._fogColor.set(phase.fogColor);
-    const nextFog = new THREE.Color(nextPhase.fogColor);
-    this._fogColor.lerp(nextFog, lerpT);
+    this._nextFogColor.set(nextPhase.fogColor);
+    this._fogColor.lerp(this._nextFogColor, lerpT);
 
     // Interpolate sun color/intensity
     this._sunColor.set(phase.sunColor);
@@ -302,10 +309,10 @@ export class Atmosphere {
     // Hemisphere
     this._hemiSky.set(phase.hemiSky);
     this._hemiGnd.set(phase.hemiGnd);
-    const nextHemiSky = new THREE.Color(nextPhase.hemiSky);
-    const nextHemiGnd = new THREE.Color(nextPhase.hemiGnd);
-    this._hemiSky.lerp(nextHemiSky, lerpT);
-    this._hemiGnd.lerp(nextHemiGnd, lerpT);
+    this._nextHemiSky.set(nextPhase.hemiSky);
+    this._nextHemiGnd.set(nextPhase.hemiGnd);
+    this._hemiSky.lerp(this._nextHemiSky, lerpT);
+    this._hemiGnd.lerp(this._nextHemiGnd, lerpT);
 
     // Exposure, fog density, clouds, night blend
     this._exposure = THREE.MathUtils.lerp(phase.exposure, nextPhase.exposure, lerpT);
@@ -327,7 +334,7 @@ export class Atmosphere {
       this._sunIntensity *= 0.3;
       this._exposure *= 0.65;
       this._fogDensity *= 2.0;
-      this._fogColor.lerp(new THREE.Color(0x556677), 0.5);
+      this._fogColor.lerp(this._weatherFogColor, 0.5);
     } else if (this.weather === 'fog') {
       this._fogDensity *= 4.0;
       this._sunIntensity *= 0.3;
@@ -360,16 +367,12 @@ export class Atmosphere {
       u.uSkyTex.value = this._skyTex || this._fallbackSkyTex();
     }
 
-    // Fallback scene background: blend between day/night so there's no black void
-    if (!this.scene.background) {
-      const dayBg = new THREE.Color(0x87CEEB);
-      const nightBg = new THREE.Color(0x060a14);
-      this.scene.background = nightBg.clone().lerp(dayBg, 1.0 - this._nightBlend);
-    } else {
-      const dayBg = new THREE.Color(0x87CEEB);
-      const nightBg = new THREE.Color(0x060a14);
-      this.scene.background.copy(nightBg).lerp(dayBg, 1.0 - this._nightBlend);
-    }
+    // Fallback scene background: reuse colours instead of allocating on every frame.
+    this._backgroundScratch.copy(this._backgroundNight).lerp(
+      this._backgroundDay, 1.0 - this._nightBlend,
+    );
+    if (!this.scene.background) this.scene.background = this._backgroundScratch.clone();
+    else this.scene.background.copy(this._backgroundScratch);
 
     if (this.skyDome) {
       this.skyDome.position.copy(cameraPos);

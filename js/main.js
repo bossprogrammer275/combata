@@ -59,6 +59,7 @@ class Game {
     this.graphicsProfile = GRAPHICS_PROFILES.high;
     this._frameTimeEMA = 1000 / 30;
     this._resolutionSampleTime = 0;
+    this._lastFrameTimestamp = performance.now();
     this._graphicsCapabilities = this.detectGraphicsCapabilities();
     this.hud = new HUD();
     this.audio = new GameAudio(this.profile.data.settings.quality);
@@ -1565,7 +1566,14 @@ class Game {
 
   // ===== MAIN LOOP =====
   tick() {
-    const dt = Math.min(this.clock.getDelta(), .05);
+    // Keep simulation delta bounded, but measure the real frame interval for
+    // adaptive resolution. Clamping before measuring hid severe stalls.
+    const frameNow = performance.now();
+    const rawFrameDt = this._lastFrameTimestamp > 0
+      ? Math.max(0, (frameNow - this._lastFrameTimestamp) / 1000)
+      : this.clock.getDelta();
+    this._lastFrameTimestamp = frameNow;
+    const dt = Math.min(rawFrameDt, .05);
     this.applyRemoteControllerInput();
     if (this.state === 'playing') this.tickPlaying(dt);
     else if (this.state === 'menu') this.tickMenu(dt);
@@ -1575,7 +1583,7 @@ class Game {
       this.fx.getShakeOffset(this.shakeOffset);
       this.camera.position.add(this.shakeOffset);
     }
-    this._updateDynamicResolution(dt);
+    this._updateDynamicResolution(rawFrameDt);
     this.renderFrame(dt);
     this.tools.renderPip();
   }
@@ -2072,17 +2080,18 @@ class Game {
   _updateDynamicResolution(dt) {
     const profile = this.graphicsProfile;
     if (!profile?.adaptive || this.state === 'boot') return;
-    const frameMs = Math.min(Math.max(Number(dt) || 0, 0), 0.1) * 1000;
-    this._frameTimeEMA += (frameMs - this._frameTimeEMA) * 0.08;
-    this._resolutionSampleTime += dt;
-    if (this._resolutionSampleTime < 1.0) return;
+    const frameMs = Math.max(Number(dt) || 0, 0) * 1000;
+    this._frameTimeEMA += (frameMs - this._frameTimeEMA) * 0.18;
+    this._resolutionSampleTime += Math.max(Number(dt) || 0, 0);
+    if (this._resolutionSampleTime < 0.5) return;
     this._resolutionSampleTime = 0;
 
     const slow = this._frameTimeEMA > profile.targetMs * 1.12;
     const fast = this._frameTimeEMA < profile.targetMs * 0.78;
     let nextScale = this.renderScale;
-    if (slow) nextScale -= 0.05;
-    else if (fast) nextScale += 0.025;
+    if (this._frameTimeEMA > profile.targetMs * 2.0) nextScale -= 0.12;
+    else if (slow) nextScale -= 0.075;
+    else if (fast) nextScale += 0.02;
     nextScale = THREE.MathUtils.clamp(nextScale, profile.minScale, profile.maxScale);
     if (Math.abs(nextScale - this.renderScale) >= 0.02) {
       this.renderScale = nextScale;
@@ -2092,10 +2101,12 @@ class Game {
 
   setupRenderer() {
     this.renderScale = 1;
+    const reportedMemory = Number(navigator.deviceMemory) || 0;
+    const lowMemoryDevice = reportedMemory > 0 && reportedMemory <= 4;
     this.renderer = new THREE.WebGLRenderer({
-      // MSAA removes the hard, aliased silhouettes of the old renderer.
-      // Adaptive resolution is used to control its cost on weaker GPUs.
-      antialias: true,
+      // Skip context MSAA on memory-constrained devices; adaptive resolution
+      // and the stronger low-end profile handle the remaining GPU budget.
+      antialias: !lowMemoryDevice,
       powerPreference: 'high-performance',
       depth: true,
       stencil: false,
@@ -2136,14 +2147,16 @@ class Game {
     const profile = constrainedHigh
       ? {
           ...baseProfile,
-          minScale: 0.50,
-          maxScale: 0.85,
-          startScale: 0.72,
+          minScale: 0.35,
+          maxScale: 0.60,
+          startScale: 0.50,
           maxDpr: 1.0,
           targetMs: 33.3,
-          shadowSize: 1024,
-          shadowExtent: 160,
-          anisotropy: 4,
+          shadows: false,
+          shadowSize: 0,
+          shadowExtent: 120,
+          far: 180,
+          anisotropy: 1,
         }
       : baseProfile;
     this.graphicsQuality = q;
@@ -2154,6 +2167,7 @@ class Game {
     this.renderScale = profile.startScale;
     this._frameTimeEMA = profile.targetMs;
     this._resolutionSampleTime = 0;
+    this._lastFrameTimestamp = performance.now();
     const selector = document.getElementById('quality');
     if (selector) {
       selector.value = q;
@@ -2191,11 +2205,19 @@ class Game {
       this.world.sun.shadow.map = null;
     }
     if (this.world?.scene?.environment) {
-      this.world.scene.environmentIntensity = q === 'ultra' ? 0.68 : q === 'high' ? 0.55 : 0.45;
+      this.world.scene.environmentIntensity = constrainedHigh ? 0.12
+        : q === 'ultra' ? 0.68 : q === 'high' ? 0.55 : 0.45;
     }
     if (this.world) {
       this.world._quality = q;
-      if (this.world.atmosphere) this.world.atmosphere.quality = q;
+      if (this.world.atmosphere) {
+        this.world.atmosphere.quality = q;
+        // On legacy integrated GPUs the full-screen procedural cloud shader
+        // costs more than the simple animated scene background.
+        if (constrainedHigh && this.world.atmosphere.skyDome) {
+          this.world.atmosphere.skyDome.visible = false;
+        }
+      }
     }
     this.camera.far = profile.far;
     this.camera.updateProjectionMatrix();

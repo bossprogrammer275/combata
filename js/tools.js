@@ -27,9 +27,9 @@ export class Tools {
     this.pipCanvas.classList.add('hidden');
     document.body.appendChild(this.pipCanvas);
 
-    this.pipRenderer = new THREE.WebGLRenderer({ canvas: this.pipCanvas, antialias: true });
-    this.pipRenderer.setPixelRatio(window.devicePixelRatio);
-    this.pipRenderer.setClearColor(0x0a0e0a, 1);
+    // A second WebGL context is expensive on integrated GPUs. Create it only
+    // when the player opens the PIP device, and cap it to a modest pixel ratio.
+    this.pipRenderer = null;
 
     this.pipCamera = new THREE.PerspectiveCamera(45, 1, 1, 1200);
     this.pipCamera.up.set(0, 0, -1);
@@ -151,6 +151,28 @@ export class Tools {
 
   isOpen() { return this.deviceOpen; }
 
+  _ensurePipRenderer() {
+    if (this.pipRenderer) return this.pipRenderer;
+    const compact = !!this.game._graphicsCapabilities?.legacyGpu
+      || this.game.graphicsQuality === 'low'
+      || this.game.graphicsQuality === 'ultra-low';
+    const resolution = compact ? 256 : 384;
+    this.pipCanvas.width = resolution;
+    this.pipCanvas.height = resolution;
+    this.pipCanvas.style.width = this.pipSize + 'px';
+    this.pipCanvas.style.height = this.pipSize + 'px';
+    this.pipRenderer = new THREE.WebGLRenderer({
+      canvas: this.pipCanvas,
+      antialias: false,
+      alpha: false,
+      powerPreference: 'low-power',
+    });
+    this.pipRenderer.setPixelRatio(1);
+    this.pipRenderer.setSize(resolution, resolution, false);
+    this.pipRenderer.setClearColor(0x0a0e0a, 1);
+    return this.pipRenderer;
+  }
+
   open() {
     if (this.deviceOpen) return;
     this.deviceOpen = true;
@@ -159,6 +181,7 @@ export class Tools {
     this._ring.visible = false;
     this._beam.visible = false;
     this._panTarget.copy(this.game.player.pos);
+    this._ensurePipRenderer();
     this.pipCanvas.classList.remove('hidden');
     document.getElementById('device-screen').classList.remove('hidden');
     if (document.exitPointerLock) document.exitPointerLock();
@@ -184,7 +207,7 @@ export class Tools {
   renderPip() {
     if (!this.deviceOpen) return;
     const g = this.game;
-    if (!g.player) return;
+    if (!g.player || !this.pipRenderer) return;
     const savedFog = g.scene.fog;
     g.scene.fog = null;
     this.pipRenderer.render(g.scene, this.pipCamera);
