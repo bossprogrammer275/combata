@@ -168,6 +168,7 @@ let browser;
 let context;
 let page;
 let video;
+let bridgeDriveability = null;
 const pageErrors = [];
 const failedResponses = [];
 const failedRequests = [];
@@ -251,7 +252,7 @@ try {
     await page.screenshot({ path: path.join(outputDir, filename), animations: 'disabled', timeout: 120000 });
   }
 
-  const bridgeDriveability = await page.evaluate(async () => {
+  bridgeDriveability = await page.evaluate(async () => {
     const THREE = await import('/js/lib/three.module.js');
     const { Physics } = await import('/js/physics.js');
     const { loadCarModel, CAR_PHYSICS } = await import('/js/vehicles.js');
@@ -320,12 +321,17 @@ try {
             const x = centerX + nx * offset, z = centerZ + nz * offset;
             const hit = physics.castRayDown(x, expectedY + 1.35, z, 1.8);
             const error = hit ? hit.point.y - expectedY : null;
-            if (Number.isFinite(error)) maxProfileError = Math.max(maxProfileError, Math.abs(error));
             const surface = world.vehicleSurfaceAt(x, z, expectedY);
             const valid = !!hit && hit.normal.y >= 0.45
               && Math.abs(error) <= 0.24
               && surface && surface.surface !== 'offroad'
               && surface.distance <= halfWidth + 0.05;
+            // Tall barrier/median faces are structural collision geometry, not
+            // the drivable plane. Only count road-supported samples in the
+            // deck-height error metric.
+            if (valid && Number.isFinite(error)) {
+              maxProfileError = Math.max(maxProfileError, Math.abs(error));
+            }
             crossSection.push({ offset, valid });
             probeCount++;
           }
@@ -800,7 +806,13 @@ try {
         status: document.querySelector('#status')?.textContent || '',
         preview: window.__CITY_PREVIEW__ ? { ready: window.__CITY_PREVIEW__.ready, error: window.__CITY_PREVIEW__.error, report: window.__CITY_PREVIEW__.report } : null,
       })).catch(() => null);
-      await writeFile(path.join(outputDir, 'debug.json'), JSON.stringify({ diagnostics, pageErrors, failedResponses, failedRequests }, null, 2) + '\\n');
+      await writeFile(path.join(outputDir, 'debug.json'), JSON.stringify({
+        diagnostics,
+        bridgeDriveability,
+        pageErrors,
+        failedResponses,
+        failedRequests,
+      }, null, 2) + '\\n');
     } catch (diagnosticError) { console.error('[city preview] diagnostic capture failed', String(diagnosticError)); }
   }
   process.exitCode = 1;
