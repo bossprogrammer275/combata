@@ -2080,7 +2080,7 @@ class Game {
   _updateDynamicResolution(dt) {
     const profile = this.graphicsProfile;
     if (!profile?.adaptive || this.state === 'boot') return;
-    const frameMs = Math.max(Number(dt) || 0, 0) * 1000;
+    const frameMs = Math.min(Math.max(Number(dt) || 0, 0), 1) * 1000;
     this._frameTimeEMA += (frameMs - this._frameTimeEMA) * 0.18;
     this._resolutionSampleTime += Math.max(Number(dt) || 0, 0);
     if (this._resolutionSampleTime < 0.5) return;

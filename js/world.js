@@ -1615,7 +1615,7 @@ export class World {
         model.updateMatrixWorld(true);
         const toGroup = new THREE.Matrix4().copy(this.group.matrixWorld).invert();
         model.traverse(o => {
-          if (!o.isMesh || !o.geometry || o.isSkinnedMesh
+          if (!o.isMesh || !o.visible || !o.geometry || o.isSkinnedMesh
             || (o.morphTargetInfluences && o.morphTargetInfluences.length)) return;
           const materials = Array.isArray(o.material) ? o.material : [o.material];
           if (!materials.length || materials.some(material =>
