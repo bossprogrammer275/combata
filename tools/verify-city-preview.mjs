@@ -517,7 +517,7 @@ try {
       const startSurface = world.vehicleSurfaceAt(startX, startZ, route.guessY);
       if (!startSurface || startSurface.surface === 'offroad' || !Number.isFinite(startSurface.height)) {
         throw new Error(route.bridge + ' Bugatti spawn is not on a drivable approach: '
-          + JSON.stringify({ x: startX, z: route.startZ, y: route.guessY, surface: startSurface }));
+          + JSON.stringify({ x: startX, z: startZ, y: route.guessY, surface: startSurface }));
       }
 
       const body = physics.createVehicleBody(
@@ -588,7 +588,7 @@ try {
         const rootY = translation.y - rootOffset.y;
 
         run.finalZ = translation.z;
-        run.distance = (translation.z - route.startZ) * route.direction;
+        run.distance = (translation.z - startZ) * route.direction;
         run.maxSpeed = Math.max(run.maxSpeed, Math.abs(motion?.forwardSpeed || 0));
         run.minWheelContacts = Math.min(run.minWheelContacts, motion?.wheelContacts ?? 0);
         if ((motion?.wheelContacts ?? 0) < 3) run.unsupportedFrames++;
