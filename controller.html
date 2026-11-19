@@ -364,19 +364,27 @@ button,input{font:inherit;color:inherit}button{border:0;cursor:pointer}
       $("#pairStatus").textContent = String(data?.message || "PAIRING FAILED").toUpperCase();
       setStatus("NOT PAIRED", false);
     });
-    socket.on("pair:closed", (data) => {
-      state.connected = false;
+    const releaseAllLocalInputs = () => {
       state.buttons = {};
       state.left = { x: 0, y: 0 };
       state.right = { x: 0, y: 0 };
+      document.querySelectorAll("[data-button].active").forEach((element) => element.classList.remove("active"));
+      $("#leftKnob").style.transform = "translate(0px,0px)";
+      $("#rightKnob").style.transform = "translate(0px,0px)";
+    };
+    socket.on("pair:closed", (data) => {
+      state.connected = false;
+      releaseAllLocalInputs();
       $("#pairScreen").classList.remove("hidden");
       $("#pairStatus").textContent = "LINK CLOSED · " + String(data?.reason || "").toUpperCase();
       setStatus("DISCONNECTED", false);
     });
     socket.on("game:mode", updateMode);
     socket.on("disconnect", () => {
-      if (state.connected) {
-        state.connected = false;
+      const wasConnected = state.connected;
+      state.connected = false;
+      releaseAllLocalInputs();
+      if (wasConnected) {
         $("#pairScreen").classList.remove("hidden");
         $("#pairStatus").textContent = "CONNECTION LOST · RECONNECT WITH THE SAME CODE.";
         setStatus("RECONNECTING", false);
