@@ -820,6 +820,16 @@ try {
     'the elevated main flyover approaches must have real supporting piers beneath their deck slabs');
   assert.equal(report.bridgeApproachGuardrailCount, 4,
     'all four elevated bridge approaches must have continuous parapet/guardrail geometry');
+  assert.equal(report.bridgeVerticalTransitions.length, 2,
+    'both imported bridge assemblies must receive a measured vertical transition');
+  for (const transition of report.bridgeVerticalTransitions) {
+    assert.ok(Number.isFinite(transition.rampDrop) && transition.rampDrop > 0.5,
+      transition.assemblyId + ' requires a measured imported ramp drop');
+    assert.ok(transition.routeSampleCount > 50,
+      transition.assemblyId + ' vehicle height sampler must follow the curved bridge profile');
+    assert.ok(transition.deformedComponentCount >= 4,
+      transition.assemblyId + ' must deform the end ramps and adjacent deck/support sections together');
+  }
   assert.equal(bridgeDriveability.importedDeckMeshCount, 21,
     'each imported bridge deck must be available to Rapier');
   assert.equal(bridgeDriveability.registeredDeckColliders, 21,
