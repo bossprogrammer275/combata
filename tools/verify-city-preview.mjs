@@ -255,7 +255,8 @@ try {
     const THREE = await import('/js/lib/three.module.js');
     const { Physics } = await import('/js/physics.js');
     const { loadCarModel, CAR_PHYSICS } = await import('/js/vehicles.js');
-    const world = window.__CITY_PREVIEW__?.world;
+    const previewWorld = window.__CITY_PREVIEW__;
+    const world = previewWorld?.world;
     if (!world) throw new Error('City preview did not expose the constructed world');
 
     // Use the same imported deck triangles and Rapier ray query as the vehicle
@@ -466,7 +467,7 @@ try {
       z: tune.wheelbase * (tune.weightFront - 0.5),
     };
 
-    preview.scene.add(carScene);
+    previewWorld.scene.add(carScene);
     const driveRoutes = [
       {
         bridge: 'main-city-flyover',
@@ -586,17 +587,17 @@ try {
         carScene.quaternion.copy(quaternion);
 
         if (frame % 4 === 0) {
-          preview.camera.position.set(
+          previewWorld.camera.position.set(
             translation.x,
             rootY + 4.6,
             translation.z - route.direction * 10,
           );
-          preview.camera.lookAt(
+          previewWorld.camera.lookAt(
             translation.x,
             rootY + 1.1,
             translation.z + route.direction * 6,
           );
-          preview.renderer.render(preview.scene, preview.camera);
+          previewWorld.renderer.render(previewWorld.scene, previewWorld.camera);
           await new Promise(resolve => requestAnimationFrame(resolve));
         }
 
