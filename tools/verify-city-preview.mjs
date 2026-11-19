@@ -608,21 +608,9 @@ try {
         );
         carScene.quaternion.copy(quaternion);
 
-        if (frame % 8 === 0) {
-          previewWorld.camera.position.set(
-            translation.x,
-            rootY + 4.6,
-            translation.z - route.direction * 10,
-          );
-          previewWorld.camera.lookAt(
-            translation.x,
-            rootY + 1.1,
-            translation.z + route.direction * 6,
-          );
-          previewWorld.renderer.render(previewWorld.scene, previewWorld.camera);
-          await new Promise(resolve => requestAnimationFrame(resolve));
-        }
-
+        // The bridge camera tour is recorded separately. Keep this traversal a
+        // physics-only run; redrawing the entire 10k-mesh city on every car frame
+        // would make the verification needlessly expensive on CI.
         if (route.direction * (translation.z - route.targetZ) >= 0) {
           run.reachedTarget = true;
           break;
