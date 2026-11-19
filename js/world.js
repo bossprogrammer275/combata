@@ -3173,6 +3173,181 @@ export class World {
 
       assembly.updateMatrixWorld(true);
 
+      // Replace the imported ramp's abrupt flat-to-11-degree hinge with a
+      // vertical curve. The curve spans the ramp plus half of the adjacent
+      // straight module (2 * ramp length total), so both grade and height are
+      // continuous at the straight/ramp seam and at the approach-road joint.
+      const orderedSections = [...sectionGroups.values()];
+      const rampSections = orderedSections.filter(section =>
+        section.deck?.kind === 'sloped-end-abutment'
+      );
+      const straightSections = orderedSections.filter(section =>
+        section.deck?.kind === 'straight-span'
+      );
+      if (rampSections.length === 2 && straightSections.length >= 2) {
+        const firstStraightCenter = straightSections[0].deck.mesh.getWorldPosition(new THREE.Vector3());
+        const nextStraightCenter = straightSections[1].deck.mesh.getWorldPosition(new THREE.Vector3());
+        const routeDirection = new THREE.Vector3(
+          nextStraightCenter.x - firstStraightCenter.x,
+          0,
+          nextStraightCenter.z - firstStraightCenter.z,
+        ).normalize();
+        const firstRamp = rampSections[0].deck;
+        const lastRamp = rampSections[1].deck;
+        const firstRampCenter = firstRamp.mesh.getWorldPosition(new THREE.Vector3());
+        const lastRampCenter = lastRamp.mesh.getWorldPosition(new THREE.Vector3());
+        const rampBounds = firstRamp.mesh.geometry.boundingBox
+          || (firstRamp.mesh.geometry.computeBoundingBox(), firstRamp.mesh.geometry.boundingBox);
+        const rampLength = rampBounds
+          ? rampBounds.getSize(new THREE.Vector3()).x * Math.abs(firstRamp.mesh.scale.x)
+          : 8.889 * Math.abs(firstRamp.mesh.scale.x);
+        const rampDrop = Math.abs(firstRamp.maxY - firstRamp.minY);
+        const rampGrade = rampDrop / Math.max(0.01, rampLength);
+        const transitionLength = rampLength * 2;
+        const entryLow = firstRampCenter.clone().addScaledVector(routeDirection, -rampLength * 0.5);
+        const exitLow = lastRampCenter.clone().addScaledVector(routeDirection, rampLength * 0.5);
+        const bridgeLength = exitLow.clone().sub(entryLow).dot(routeDirection);
+
+        const verticalCurveCorrection = progress => {
+          let correction = 0;
+          // Entry: match the approach grade at the low edge, then ease to flat.
+          if (progress >= 0 && progress <= transitionLength) {
+            if (progress <= rampLength) {
+              correction -= rampGrade * progress * progress / (4 * rampLength);
+            } else {
+              const remaining = transitionLength - progress;
+              correction -= rampGrade * remaining * remaining / (4 * rampLength);
+            }
+          }
+          // Exit: start flat and ease into the same grade as the departure road.
+          const fromExit = bridgeLength - progress;
+          if (fromExit >= 0 && fromExit <= transitionLength) {
+            if (fromExit <= rampLength) {
+              correction -= rampGrade * fromExit * fromExit / (4 * rampLength);
+            } else {
+              const distanceIntoApproachTransition = transitionLength - fromExit;
+              correction -= rampGrade * distanceIntoApproachTransition
+                * distanceIntoApproachTransition / (4 * rampLength);
+            }
+          }
+          return correction;
+        };
+
+        let deformedComponentCount = 0;
+        for (const record of placedComponents) {
+          const mesh = record.mesh;
+          const geometry = mesh.geometry;
+          if (!geometry?.attributes?.position) continue;
+          mesh.updateWorldMatrix(true, false);
+          const matrixWorld = mesh.matrixWorld.clone();
+          const inverseWorld = matrixWorld.clone().invert();
+          const positions = geometry.attributes.position;
+          let changed = false;
+          const foundation = Number.isFinite(record.foundationY) ? record.foundationY : 0;
+          const deck = Number.isFinite(record.deckY) ? record.deckY : foundation + 2.068;
+          const verticalRise = Math.max(0.1, deck - foundation);
+
+          // Never mutate the shared extracted prefab geometry. Each placed
+          // transition section receives its own deformed geometry instance.
+          let deformedGeometry = null;
+          for (let vertex = 0; vertex < positions.count; vertex++) {
+            const worldVertex = new THREE.Vector3(
+              positions.getX(vertex),
+              positions.getY(vertex),
+              positions.getZ(vertex),
+            ).applyMatrix4(matrixWorld);
+            const progress = new THREE.Vector3(
+              worldVertex.x - entryLow.x,
+              0,
+              worldVertex.z - entryLow.z,
+            ).dot(routeDirection);
+            const correction = verticalCurveCorrection(progress);
+            if (Math.abs(correction) < 1e-5) continue;
+
+            const weight = record.role === 'bridge-deck'
+              ? 1
+              : (() => {
+                const heightRatio = THREE.MathUtils.clamp(
+                  (worldVertex.y - foundation) / verticalRise, 0, 1,
+                );
+                return heightRatio * heightRatio * (3 - 2 * heightRatio);
+              })();
+            if (weight < 1e-4) continue;
+            if (!deformedGeometry) deformedGeometry = geometry.clone();
+            worldVertex.y += correction * weight;
+            worldVertex.applyMatrix4(inverseWorld);
+            deformedGeometry.attributes.position.setXYZ(
+              vertex, worldVertex.x, worldVertex.y, worldVertex.z,
+            );
+            changed = true;
+          }
+
+          if (changed && deformedGeometry) {
+            deformedGeometry.attributes.position.needsUpdate = true;
+            deformedGeometry.computeVertexNormals();
+            deformedGeometry.computeBoundingBox();
+            deformedGeometry.computeBoundingSphere();
+            mesh.geometry = deformedGeometry;
+            deformedComponentCount++;
+          }
+        }
+
+        // Keep gameplay height sampling on the same vertical curve as the
+        // rendered/collidable meshes. Subdivide the bridge route to 2m samples
+        // so suspension helpers don't interpolate across a long curved segment.
+        const bridgeRoad = (this._roadChains || []).find(chain =>
+          chain.surface === 'modular-bridge'
+          && ((id === 'main-city-flyover' && chain.name.includes('Main City Flyover'))
+            || (id === 'fate-drainage-bridge' && chain.name.includes('Fate Drainage Bridge')))
+        );
+        let routeSampleCount = 0;
+        if (bridgeRoad?.pts?.length >= 2) {
+          const dense = [];
+          for (let segment = 0; segment < bridgeRoad.pts.length - 1; segment++) {
+            const a = bridgeRoad.pts[segment];
+            const b = bridgeRoad.pts[segment + 1];
+            const length = Math.hypot(b.x - a.x, b.z - a.z);
+            const steps = Math.max(1, Math.ceil(length / 2));
+            for (let step = 0; step < steps; step++) {
+              const t = step / steps;
+              const point = {
+                x: THREE.MathUtils.lerp(a.x, b.x, t),
+                y: THREE.MathUtils.lerp(a.y || 0, b.y || 0, t),
+                z: THREE.MathUtils.lerp(a.z, b.z, t),
+              };
+              const progress = new THREE.Vector3(
+                point.x - entryLow.x, 0, point.z - entryLow.z,
+              ).dot(routeDirection);
+              point.y += verticalCurveCorrection(progress);
+              dense.push(point);
+            }
+          }
+          const finalPoint = { ...bridgeRoad.pts[bridgeRoad.pts.length - 1] };
+          const finalProgress = new THREE.Vector3(
+            finalPoint.x - entryLow.x, 0, finalPoint.z - entryLow.z,
+          ).dot(routeDirection);
+          finalPoint.y = (finalPoint.y || 0) + verticalCurveCorrection(finalProgress);
+          dense.push(finalPoint);
+          bridgeRoad.pts = dense;
+          routeSampleCount = dense.length;
+        }
+
+        this.bridgeVerticalTransitions ||= [];
+        this.bridgeVerticalTransitions.push({
+          assemblyId: id,
+          rampLength,
+          rampDrop,
+          originalGradeDegrees: THREE.MathUtils.radToDeg(Math.atan(rampGrade)),
+          transitionLength,
+          deformedComponentCount,
+          routeSampleCount,
+          entryLow: entryLow.toArray(),
+          exitLow: exitLow.toArray(),
+        });
+      }
+
+      assembly.updateMatrixWorld(true);
+
       for (const record of placedComponents) {
         const bounds = new THREE.Box3().setFromObject(record.mesh);
         record.bounds = {
