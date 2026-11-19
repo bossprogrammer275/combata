@@ -2570,7 +2570,7 @@ export class World {
       this._addRoadSurfaceColliders(pts, chain.W, roadY, chain.closed, 0.05);
       const usesImportedBridgeAssembly = chain.surface === 'modular-bridge';
       if (chain.flyover && !usesImportedBridgeAssembly) {
-        this._buildFlyoverStructure(pts, chain.W, roadY, 0.48, 18, chain.name);
+        this._buildFlyoverStructure(pts, chain.W, roadY, 0.48, 18, chain.name, 1.2);
       }
       if (chain.guardrails && !usesImportedBridgeAssembly) {
         this._buildRoadGuardrails(pts, chain.W, roadY, 0.78, 0.22, chain.name);
@@ -3725,7 +3725,7 @@ export class World {
   // Build the structural pieces of a raised crossing from the same elevated
   // centreline used by the asphalt ribbon. Vertices are in world coordinates,
   // because registerStaticRoadMeshes consumes geometry positions directly.
-  _buildFlyoverStructure(pts, width, roadOffset = 0.06, slabThickness = 0.48, pierSpacing = 18, roadName = '') {
+  _buildFlyoverStructure(pts, width, roadOffset = 0.06, slabThickness = 0.48, pierSpacing = 18, roadName = '', minimumPierHeight = 1.9) {
     if (!pts || pts.length < 2) return;
     const deckPositions = [], deckIndices = [];
     const addQuad = (positions, indices, a, b, c, d) => {
@@ -3817,7 +3817,7 @@ export class World {
       const deckBottom = s.y + roadOffset - 0.035 - slabThickness;
       const capHeight = 0.52;
       const columnHeight = deckBottom - capHeight;
-      if (columnHeight < 1.9) continue;
+      if (columnHeight < minimumPierHeight) continue;
       for (const side of [-1, 1]) {
         const x = s.x + s.nx * side * (width * 0.5 + 1.1);
         const z = s.z + s.nz * side * (width * 0.5 + 1.1);
