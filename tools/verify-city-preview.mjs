@@ -270,10 +270,42 @@ try {
       surface.source === 'imported-bridge-component'
     );
     const decks = bridgeSurfaces.filter(surface => surface.kind === 'bridge_deck');
-    // Keep the physics lab focused on the actual bridge kit: 21 imported deck
-    // surfaces plus their 21 support meshes. The city-wide road network is
-    // unrelated to whether this crossing itself supports a vehicle.
-    const registeredRoadColliders = physics.registerStaticRoadMeshes(bridgeSurfaces);
+
+    // Include only the approach-road meshes immediately beyond the two ramp
+    // ends. The imported bridge kit proves deck contact; the approach asphalt
+    // proves the ramp-to-road transition is physically continuous.
+    const approachBounds = [
+      { id: 'main-flyover-north-road', minX: -42, maxX: 32, minZ: -198, maxZ: -98 },
+      { id: 'fate-bridge-south-road', minX: 160, maxX: 228, minZ: 92, maxZ: 146 },
+    ];
+    const approachRoadSurfaces = [];
+    const approachRoadSummary = [];
+    for (const surface of world.roadPhysicsMeshes || []) {
+      if (surface.source === 'imported-bridge-component'
+        || !['road', 'imported_road'].includes(surface.kind)
+        || !surface.geometry?.attributes?.position) continue;
+      if (!surface.geometry.boundingBox) surface.geometry.computeBoundingBox();
+      const bounds = surface.geometry.boundingBox;
+      if (!bounds || bounds.isEmpty()) continue;
+      const matchingZones = approachBounds.filter(zone =>
+        bounds.max.x >= zone.minX && bounds.min.x <= zone.maxX
+        && bounds.max.z >= zone.minZ && bounds.min.z <= zone.maxZ
+      ).map(zone => zone.id);
+      if (!matchingZones.length) continue;
+      approachRoadSurfaces.push(surface);
+      approachRoadSummary.push({
+        kind: surface.kind,
+        source: surface.source || null,
+        componentId: surface.componentId || null,
+        zones: matchingZones,
+        bounds: {
+          min: bounds.min.toArray(),
+          max: bounds.max.toArray(),
+        },
+      });
+    }
+    const physicsSurfaces = [...bridgeSurfaces, ...approachRoadSurfaces];
+    const registeredRoadColliders = physics.registerStaticRoadMeshes(physicsSurfaces);
     const registeredDeckColliders = decks.filter(surface => !!surface.physicsCollider).length;
     physics.addGroundPlane();
     physics.step(1 / 60);
@@ -482,7 +514,7 @@ try {
         roadName: 'Main City Flyover · Imported Central Spans',
         startZ: 0,
         guessY: 7.06,
-        targetZ: -116,
+        targetZ: -142,
         direction: -1,
         gameYaw: 0,
       },
@@ -491,7 +523,7 @@ try {
         roadName: 'Fate Drainage Bridge · Imported Central Spans',
         startZ: 0,
         guessY: 3.66,
-        targetZ: 105,
+        targetZ: 130,
         direction: 1,
         gameYaw: Math.PI,
       },
@@ -685,6 +717,8 @@ try {
     return {
       vehicleRuns: driveSummary,
       registeredRoadColliders,
+      approachRoadColliderCount: approachRoadSurfaces.length,
+      approachRoadSummary,
       probeCount,
       importedDeckMeshCount: decks.length,
       registeredDeckColliders,
@@ -709,8 +743,13 @@ try {
     'each imported bridge deck must be available to Rapier');
   assert.equal(bridgeDriveability.registeredDeckColliders, 21,
     'all imported bridge decks must become real Rapier static triangle colliders');
-  assert.equal(bridgeDriveability.registeredRoadColliders, 42,
-    'the bridge-only physics lab must register every deck and support surface, without unrelated city colliders');
+  assert.equal(bridgeDriveability.registeredDeckColliders, 21,
+    'all imported bridge decks must register their exact Rapier triangle colliders');
+  assert.equal(bridgeDriveability.registeredRoadColliders,
+    42 + bridgeDriveability.approachRoadColliderCount,
+    'register every imported bridge component plus the selected exit-approach asphalt meshes');
+  assert.ok(bridgeDriveability.approachRoadColliderCount > 0,
+    'the bridge drive must include the real asphalt beyond both low-end ramps');
   assert.ok(bridgeDriveability.probeCount > 500,
     'the full width of both crossings must be sampled at regular intervals inside each module');
   assert.ok(bridgeDriveability.maxProfileError <= 0.24,
