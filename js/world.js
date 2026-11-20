@@ -57,6 +57,7 @@ export class World {
     this.roofAccess = [];     // {x,z,y,rx,rz} walkable rooftops
     this.reactiveObjects = []; // {mesh, kind, base, sway, ...}
     this.npcInteractables = []; // semantic seats, phones, counters and other civilian-use nodes
+    this.calibratedDoors = []; // reviewed door panels with world-space hinge/handle anchors
     this.calibratedTraversalCandidates = []; // reviewed asset geometry candidates for player traversal
     this.vehicleSpawns = [];  // {x,z,ry,kind} parked/drivable vehicles
     this._buildingData = [];  // {url,min,max,x,z,doors[],interior} — auto-detected from GLB
@@ -1641,9 +1642,11 @@ export class World {
         const localCenter = localBox.getCenter(new THREE.Vector3());
         const record = {
           name: o.name,
+          mesh: o,
           min: meshBox.min.clone(), max: meshBox.max.clone(), center, size,
           localMin: localBox.min.clone(), localMax: localBox.max.clone(),
           localCenter, localSize,
+          calibratedDoor: o.userData?.worldKit?.calibratedDoor || null,
         };
         if (isProxy) collisionProxyBoxes.push(record);
         if (isDoor) {
@@ -2317,12 +2320,39 @@ export class World {
 
       this.addPortal(entrancePos, outward.clone().negate(), interiorPos, 'enter', buildingIdx);
       this.addPortal(interiorPos, outward.clone(), exitPos, 'exit', buildingIdx);
-      bd.doors.push({
+      const calibratedDoor = door.calibratedDoor;
+      const resolveLocalPoint = value => {
+        if (!door.mesh || !Array.isArray(value) || value.length < 3) return null;
+        return door.mesh.localToWorld(new THREE.Vector3(
+          Number(value[0]) || 0, Number(value[1]) || 0, Number(value[2]) || 0,
+        ));
+      };
+      const resolveLocalDirection = value => {
+        if (!door.mesh || !value) return null;
+        const direction = Array.isArray(value)
+          ? new THREE.Vector3(Number(value[0]) || 0, Number(value[1]) || 0, Number(value[2]) || 0)
+          : new THREE.Vector3(Number(value.x) || 0, Number(value.y) || 0, Number(value.z) || 0);
+        if (direction.lengthSq() < 1e-6) return null;
+        door.mesh.updateWorldMatrix(true, false);
+        return direction.transformDirection(door.mesh.matrixWorld).normalize();
+      };
+      const doorRecord = {
         name: door.name,
         entrance: entrancePos.clone(),
         exit: interiorPos.clone(),
         dir: outward.clone().negate(),
-      });
+        mesh: door.mesh || null,
+        calibrated: calibratedDoor?.accepted === true,
+        hinge: resolveLocalPoint(calibratedDoor?.hinge),
+        hingeAxis: resolveLocalDirection(calibratedDoor?.hingeAxis),
+        handle: resolveLocalPoint(calibratedDoor?.handle),
+        openAngleDeg: Number.isFinite(calibratedDoor?.openAngleDeg) ? calibratedDoor.openAngleDeg : null,
+      };
+      bd.doors.push(doorRecord);
+      if (doorRecord.calibrated) {
+        doorRecord.buildingIdx = buildingIdx;
+        this.calibratedDoors.push(doorRecord);
+      }
       console.log(`[World] Door "${door.name}" at (${entrancePos.x.toFixed(1)}, ${entrancePos.z.toFixed(1)}) → interior at (${interiorPos.x.toFixed(1)}, ${interiorPos.z.toFixed(1)})`);
     }
 
