@@ -118,6 +118,12 @@ function validateCalibrationWrite(data, assetPath, sourceHash) {
     }
   }
   for (const section of data.bridge?.sections || []) {
+    if (section.requiresReview === false
+      && !(section.connection?.accepted === true
+        && section.connection.requiresReview === false
+        && section.connection.method === 'manual-reviewed-socket')) {
+      return 'approved bridge section has no accepted manual socket record';
+    }
     if (section.requiresReview === false && /curved|sloped|ramp/i.test(section.kind)
       && (!Array.isArray(section.connection?.points)
         || section.connection.points.length < 3
@@ -139,6 +145,7 @@ function validateCalibrationWrite(data, assetPath, sourceHash) {
     if (!component) return 'road surface references an unknown component';
     if (surface.connection?.accepted === true) {
       if (surface.connection.status !== 'estimated' || surface.connection.requiresReview !== false
+        || surface.connection.method !== 'manual-reviewed-socket'
         || surface.runtimeEnabled !== true || component.runtimeEnabled !== true) {
         return 'accepted road connection is not runtime-enabled or still requires review';
       }
