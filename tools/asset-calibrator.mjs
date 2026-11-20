@@ -78,6 +78,9 @@ function classifyComponent(item, assetType, assetPath) {
   const name = stableNodeName(item);
   const pathText = String(item.nodePath || '') + ' / ' + name;
   const key = pathText.toLowerCase().replace(/[\\s-]+/g, '_');
+  if (assetPath.includes('/roads/street_road/') && /two_lane_road/.test(key) && !/side_texture/.test(key)) {
+    return { role: 'road-surface', kind: 'driveable-surface', confidence: 0.98, source: 'world-kit-street-road' };
+  }
   const bridgeRole = assetType === 'bridge' ? bridgeRoleByName(name) : null;
   if (bridgeRole) return { ...bridgeRole, kind: bridgeRole.role };
 
@@ -126,10 +129,10 @@ function localConnection(item, longitudinalAxis, sectionKind = 'straight-span') 
   const min = item.boundsMin;
   const max = item.boundsMax;
   const centerX = (min[0] + max[0]) / 2;
-  const centerY = (min[1] + max[1]) / 2;
+  const surfaceY = max[1];
   const centerZ = (min[2] + max[2]) / 2;
-  const start = [centerX, centerY, centerZ];
-  const end = [centerX, centerY, centerZ];
+  const start = [centerX, surfaceY, centerZ];
+  const end = [centerX, surfaceY, centerZ];
   if (longitudinalAxis === 'x') {
     start[0] = min[0]; end[0] = max[0];
   } else {
@@ -140,8 +143,9 @@ function localConnection(item, longitudinalAxis, sectionKind = 'straight-span') 
   return {
     status: 'estimated',
     method: 'mesh-bounds-axis-estimate',
-    start: { position: start, tangent: tangent.map(v => -v), elevation: centerY },
-    end: { position: end, tangent, elevation: centerY },
+    start: { position: start, tangent: tangent.map(v => -v), elevation: surfaceY },
+    end: { position: end, tangent, elevation: surfaceY },
+    accepted: false,
     width: longitudinalAxis === 'x' ? depth : width,
     length: longitudinalAxis === 'x' ? width : depth,
     deckThickness: height,
@@ -278,7 +282,7 @@ function makeComponent(item, role, index, assetType) {
     component.requiresReview = true;
   }
   component.runtimeEnabled = !component.requiresReview && [
-    'bridge-deck', 'road-straight-module', 'road-corner-module', 'walkable-surface',
+    'bridge-deck', 'road-surface', 'road-straight-module', 'road-corner-module', 'walkable-surface',
   ].includes(component.role);
   return component;
 }
@@ -298,7 +302,7 @@ async function calibrateOne(file) {
     excludeMesh: item => {
       const role = classifyComponent(item, assetType, assetPath);
       return (role?.source?.startsWith('world-kit') || role?.source === 'world-bridge-kit')
-        && ['bridge-deck', 'road-straight-module', 'road-corner-module', 'walkable-surface'].includes(role.role);
+        && ['bridge-deck', 'road-surface', 'road-straight-module', 'road-corner-module', 'walkable-surface'].includes(role.role);
     },
   });
 
