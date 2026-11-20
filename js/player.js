@@ -711,6 +711,7 @@ export class Player {
     if (calibrated?.actionCandidate === 'ladder-climb') {
       plan = buildLadderTraversalPath({
         start: this.pos,
+        approach: anchors.approach,
         mountBottom: anchors.mountBottom,
         mountTop: anchors.mountTop,
         climbPath: anchors.climbPath,
