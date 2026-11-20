@@ -1,5 +1,6 @@
 // World — GLB-only city with authored roads.
 import * as THREE from 'three';
+import { validateTraversalPath } from './traversal-physics.js';
 
 function yieldStreamingWork() {
   return new Promise(resolve => {
@@ -1088,7 +1089,7 @@ export class World {
     const trackedArrays = [
       'colliders', 'climbables', 'interiors', 'portals', 'roofAccess',
       'npcInteractables', 'reactiveObjects', 'coverPoints', 'worldKitComponents',
-      '_buildingData', 'vehicleSpawns', 'roadPhysicsMeshes', 'calibratedRoadChains',
+      '_buildingData', 'vehicleSpawns', 'roadPhysicsMeshes', 'calibratedRoadChains', 'calibratedTraversalCandidates',
     ];
     const before = Object.create(null);
     for (const name of trackedArrays) before[name] = this[name].length;
@@ -1497,11 +1498,62 @@ export class World {
           if (!node || !component) continue;
           node.updateWorldMatrix(true, false);
           const candidateBounds = new THREE.Box3().setFromObject(node);
+          const localPoint = value => {
+            if (Array.isArray(value)) return value.length >= 3 ? value : null;
+            if (Array.isArray(value?.position)) return value.position;
+            if (value?.position && ['x', 'y', 'z'].every(key => Number.isFinite(Number(value.position[key])))) {
+              return [value.position.x, value.position.y, value.position.z];
+            }
+            if (value && ['x', 'y', 'z'].every(key => Number.isFinite(Number(value[key])))) {
+              return [value.x, value.y, value.z];
+            }
+            return null;
+          };
+          const toWorldPoint = value => {
+            const point = localPoint(value);
+            if (!point || !point.slice(0, 3).every(item => Number.isFinite(Number(item)))) return null;
+            return node.localToWorld(new THREE.Vector3(Number(point[0]), Number(point[1]), Number(point[2])));
+          };
+          const toWorldDirection = value => {
+            const point = localPoint(value);
+            if (!point || !point.slice(0, 3).every(item => Number.isFinite(Number(item)))) return null;
+            const origin = node.localToWorld(new THREE.Vector3());
+            const target = node.localToWorld(new THREE.Vector3(Number(point[0]), Number(point[1]), Number(point[2])));
+            const direction = target.sub(origin);
+            return direction.lengthSq() > 1e-8 ? direction.normalize() : null;
+          };
+          const localAnchors = candidate.anchors || {};
+          const worldAnchors = { ...localAnchors };
+          for (const key of ['approach', 'handContact', 'topOut', 'landing', 'mountBottom', 'mountTop', 'bottomDismount']) {
+            const point = toWorldPoint(localAnchors[key]);
+            if (point) worldAnchors[key] = point;
+          }
+          for (const key of ['forward', 'normal', 'planeNormal', 'facing']) {
+            const direction = toWorldDirection(localAnchors[key]);
+            if (direction) worldAnchors[key] = direction;
+          }
+          if (Array.isArray(localAnchors.rootPath)) {
+            worldAnchors.rootPath = localAnchors.rootPath.map(item => ({
+              ...item, position: toWorldPoint(item.position || item),
+            }));
+          }
+          if (Array.isArray(localAnchors.climbPath)) {
+            worldAnchors.climbPath = localAnchors.climbPath.map(toWorldPoint);
+          }
+          if (Array.isArray(localAnchors.boneContacts)) {
+            worldAnchors.boneContacts = localAnchors.boneContacts.map(contact => ({
+              ...contact, position: toWorldPoint(contact.position),
+            }));
+          }
           this.calibratedTraversalCandidates.push({
             assetUrl: a.url, componentId: candidate.componentId, nodeKey: candidate.nodeKey,
             actionCandidate: candidate.actionCandidate, capabilities: candidate.capabilities,
             min: candidateBounds.min.clone(), max: candidateBounds.max.clone(),
-            accepted: candidate.accepted === true, requiresReview: candidate.requiresReview !== false,
+            anchors: worldAnchors,
+            node,
+            accepted: candidate.accepted === true && candidate.runtimeEnabled === true,
+            requiresReview: candidate.requiresReview !== false,
+            _streamChunkKey: streamChunk?.key || null,
           });
         }
       }
@@ -5135,27 +5187,121 @@ export class World {
     return null;
   }
 
-  // GTA-style: find any wall/surface within reach by casting a ray forward.
-  // Returns the first climbable wall hit (height 0.5m to 2.8m, within maxDist).
-  findClimbWall(pos, yaw, maxDist = 1.8, minH = 0.5, maxH = 2.8) {
+  findClimbableHit(pos, collider) {
+    if (!collider) return null;
+    const min = collider.min, max = collider.max;
+    const faces = [
+      { distance: Math.abs(pos.x - min.x), normal: new THREE.Vector3(-1, 0, 0) },
+      { distance: Math.abs(max.x - pos.x), normal: new THREE.Vector3(1, 0, 0) },
+      { distance: Math.abs(pos.z - min.z), normal: new THREE.Vector3(0, 0, -1) },
+      { distance: Math.abs(max.z - pos.z), normal: new THREE.Vector3(0, 0, 1) },
+    ].sort((a, b) => a.distance - b.distance);
+    const face = faces[0];
+    const point = new THREE.Vector3(
+      THREE.MathUtils.clamp(pos.x, min.x, max.x),
+      THREE.MathUtils.clamp(pos.y + 0.9, min.y, max.y),
+      THREE.MathUtils.clamp(pos.z, min.z, max.z),
+    );
+    return { collider, point, normal: face.normal, dist: face.distance };
+  }
+
+  findClimbWallHit(pos, yaw, maxDist = 1.8, minH = 0.5, maxH = 2.8) {
     const dir = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
     const origin = new THREE.Vector3(pos.x, pos.y + 0.9, pos.z);
     const candidates = this.grid
       ? this.grid.queryRadius(pos.x, pos.z, maxDist + 1)
       : this.colliders;
     let best = null, bestDist = maxDist;
-    for (const c of candidates) {
-      if (c.max.y - c.min.y < minH || c.max.y - c.min.y > maxH) continue;
-      const hit = rayAABB(origin, dir, c, maxDist + 0.5);
+    for (const collider of candidates) {
+      const height = collider.max.y - collider.min.y;
+      if (height < minH || height > maxH || collider.surfaceOnly || collider.type === 'road_surface') continue;
+      const hit = rayAABB(origin, dir, collider, maxDist + 0.5);
       if (hit && hit.dist < bestDist) {
-        const wallH = c.max.y - c.min.y;
-        if (wallH >= minH && wallH <= maxH) {
-          bestDist = hit.dist;
-          best = c;
-        }
+        bestDist = hit.dist;
+        best = { collider, point: hit.point, normal: hit.normal, dist: hit.dist };
       }
     }
     return best;
+  }
+
+  // Backwards-compatible collider-only query for existing callers.
+  findClimbWall(pos, yaw, maxDist = 1.8, minH = 0.5, maxH = 2.8) {
+    return this.findClimbWallHit(pos, yaw, maxDist, minH, maxH)?.collider || null;
+  }
+
+  getTraversalCandidateForCollider(collider, position = null) {
+    if (!collider) return null;
+    const ccx = (collider.min.x + collider.max.x) * 0.5;
+    const ccy = (collider.min.y + collider.max.y) * 0.5;
+    const ccz = (collider.min.z + collider.max.z) * 0.5;
+    let best = null, bestScore = Infinity;
+    for (const candidate of this.calibratedTraversalCandidates || []) {
+      if (!candidate.accepted || candidate.requiresReview) continue;
+      const ix = Math.min(collider.max.x, candidate.max.x) - Math.max(collider.min.x, candidate.min.x);
+      const iy = Math.min(collider.max.y, candidate.max.y) - Math.max(collider.min.y, candidate.min.y);
+      const iz = Math.min(collider.max.z, candidate.max.z) - Math.max(collider.min.z, candidate.min.z);
+      if (ix <= 0.02 || iy <= 0.02 || iz <= 0.02) continue;
+      const x = (candidate.min.x + candidate.max.x) * 0.5;
+      const y = (candidate.min.y + candidate.max.y) * 0.5;
+      const z = (candidate.min.z + candidate.max.z) * 0.5;
+      const centerDistance = Math.hypot(ccx - x, ccy - y, ccz - z);
+      const playerDistance = position ? Math.hypot(position.x - x, position.z - z) : 0;
+      const score = centerDistance + playerDistance * 0.02;
+      if (score < bestScore) { bestScore = score; best = candidate; }
+    }
+    return best;
+  }
+
+  isCapsuleClearAt(position, radius = 0.42, height = 1.8) {
+    if (!position) return false;
+    const minX = position.x - radius, maxX = position.x + radius;
+    const minZ = position.z - radius, maxZ = position.z + radius;
+    const candidates = this.bvhWorld
+      ? this.bvhWorld.queryAABB(minX, minZ, maxX, maxZ)
+      : this.colliders;
+    for (const collider of candidates) {
+      if (collider.surfaceOnly || collider.type === 'road_surface') continue;
+      if (position.y >= collider.max.y - 0.015 || position.y + height <= collider.min.y + 0.015) continue;
+      let dx, dz;
+      if (collider.orientedBox) {
+        const box = collider.orientedBox;
+        const ox = position.x - box.center.x, oz = position.z - box.center.z;
+        const cosine = Math.cos(box.yaw), sine = Math.sin(box.yaw);
+        const localX = ox * cosine - oz * sine;
+        const localZ = ox * sine + oz * cosine;
+        const closestX = THREE.MathUtils.clamp(localX, -box.halfExtents.x, box.halfExtents.x);
+        const closestZ = THREE.MathUtils.clamp(localZ, -box.halfExtents.z, box.halfExtents.z);
+        dx = localX - closestX; dz = localZ - closestZ;
+      } else {
+        const closestX = THREE.MathUtils.clamp(position.x, collider.min.x, collider.max.x);
+        const closestZ = THREE.MathUtils.clamp(position.z, collider.min.z, collider.max.z);
+        dx = position.x - closestX; dz = position.z - closestZ;
+      }
+      if (dx * dx + dz * dz < radius * radius - 1e-5) return false;
+    }
+    return true;
+  }
+
+  hasTraversalSupport(position, radius = 0.42) {
+    if (!position) return false;
+    const ground = this.groundHeightAt(position.x, position.z, position.y + 0.25);
+    if (Math.abs(ground - position.y) <= 0.14) return true;
+    const candidates = this.bvhWorld
+      ? this.bvhWorld.queryAABB(position.x - radius, position.z - radius, position.x + radius, position.z + radius)
+      : this.colliders;
+    for (const collider of candidates) {
+      if (collider.surfaceOnly || collider.type === 'road_surface') continue;
+      if (Math.abs(collider.max.y - position.y) > 0.14) continue;
+      const inset = Math.min(radius * 0.55, 0.24);
+      if (position.x >= collider.min.x + inset && position.x <= collider.max.x - inset
+        && position.z >= collider.min.z + inset && position.z <= collider.max.z - inset) return true;
+    }
+    return false;
+  }
+
+  isTraversalPathClear(path, radius = 0.42, height = 1.8) {
+    if (!Array.isArray(path) || path.length < 2) return false;
+    return validateTraversalPath(path, point => this.isCapsuleClearAt(point, radius, height), { sampleSpacing: 0.1 });
   }
 }
 
