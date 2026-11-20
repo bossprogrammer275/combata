@@ -692,7 +692,7 @@
       "js/enemies.js"
     ],
     "legacyAssets": "Removed data/models/npc/civilian_001, data/models/npc/civilian_002 and data/models/npc/npc1; no legacy clips are imported.",
-    "rigPolicy": "One shared base FBX, cloned skinning bindings for each character, source height normalized to 1.74m, shared material textures and cached animation clips.",
+    "rigPolicy": "One shared base FBX, cloned skinning bindings for each character, source height normalized to 1.74m, shared materials/textures and cached clips. Runtime acceptance requires a skinned mesh, nonzero skeleton, all 15 required humanoid landmarks (hips, spine, head, arms, forearms, hands, upper/lower legs and feet), valid bounds and a playable base idle take.",
     "clipPolicy": "Player essentials are loaded through the shared cache; civilian and profile actions are loaded lazily on first use. Locomotion and idle-start jump Hips translation is stripped because physics owns world movement.",
     "animationRules": {
       "walkAim": "Walking (1).fbx",
@@ -715,7 +715,8 @@
       "baseRigVerified": false,
       "allClipBindingsVerified": false,
       "physicsAndContactValidation": false,
-      "physicsJump": "Character-controller jump displacement is wired; runtime collision/landing verification is still pending."
+      "physicsJump": "Character-controller jump displacement is wired; runtime collision/landing verification is still pending.",
+      "requiredHumanoidBones": 15
     }
   }
 }
