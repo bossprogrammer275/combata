@@ -1193,6 +1193,15 @@ class Game {
           }
           e.preventDefault();
           break;
+        case 'F10':
+          if (this.state === 'playing' && this.civilians) {
+            const changed = this.civilians.cycleNearbyProfile(this.player.pos);
+            this.hud.toast(changed
+              ? 'NPC PROFILE: ' + changed.profileId.toUpperCase()
+              : 'NO NPC NEARBY — PROFILE TEST');
+          }
+          e.preventDefault();
+          break;
         case 'KeyK':
           e.preventDefault();
           this.toggleVehicleSpawnMenu();
