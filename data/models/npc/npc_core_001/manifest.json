@@ -430,115 +430,199 @@
   "fileInventory": [
     {
       "file": "data/models/npc/npc_core_001/animations/Block.fbx",
-      "sizeBytes": 571616
+      "sizeBytes": 571616,
+      "durationSeconds": 2.867,
+      "keyframes": 87,
+      "motionInspection": "duration and uncompressed keyframe count measured"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Climbing Ladder.fbx",
-      "sizeBytes": 340688
+      "sizeBytes": 340688,
+      "durationSeconds": 0.767,
+      "keyframes": 24,
+      "motionInspection": "duration and uncompressed keyframe count measured"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Climbing.fbx",
-      "sizeBytes": 630480
+      "sizeBytes": 630480,
+      "durationSeconds": 3.833,
+      "keyframes": 116,
+      "motionInspection": "duration and uncompressed keyframe count measured"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Crouch Walking.fbx",
-      "sizeBytes": 356528
+      "sizeBytes": 356528,
+      "durationSeconds": 1.167,
+      "keyframes": 36,
+      "motionInspection": "duration and uncompressed keyframe count measured"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Crouched Walking.fbx",
-      "sizeBytes": 345728
+      "sizeBytes": 345728,
+      "durationSeconds": 1.033,
+      "keyframes": 32,
+      "motionInspection": "duration and uncompressed keyframe count measured"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Crouching Idle.fbx",
-      "sizeBytes": 515824
+      "sizeBytes": 515824,
+      "durationSeconds": 2.5,
+      "keyframes": 76,
+      "motionInspection": "duration and uncompressed keyframe count measured"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Driving.fbx",
-      "sizeBytes": 581040
+      "sizeBytes": 581040,
+      "durationSeconds": 5,
+      "keyframes": null,
+      "motionInspection": "duration measured; detailed keyframe extraction incomplete"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Dying.fbx",
-      "sizeBytes": 580016
+      "sizeBytes": 580016,
+      "durationSeconds": 4.333,
+      "keyframes": null,
+      "motionInspection": "duration measured; detailed keyframe extraction incomplete"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Entering Car.fbx",
-      "sizeBytes": 754368
+      "sizeBytes": 754368,
+      "durationSeconds": 5.467,
+      "keyframes": null,
+      "motionInspection": "duration measured; detailed keyframe extraction incomplete"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Exiting Car.fbx",
-      "sizeBytes": 783520
+      "sizeBytes": 783520,
+      "durationSeconds": 5.8,
+      "keyframes": null,
+      "motionInspection": "duration measured; detailed keyframe extraction incomplete"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Gunplay.fbx",
-      "sizeBytes": 318896
+      "sizeBytes": 318896,
+      "durationSeconds": 0.2,
+      "keyframes": 7,
+      "motionInspection": "duration and uncompressed keyframe count measured"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Hard Landing.fbx",
-      "sizeBytes": 518528
+      "sizeBytes": 518528,
+      "durationSeconds": 2.5,
+      "keyframes": 76,
+      "motionInspection": "duration and uncompressed keyframe count measured"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Hit Reaction.fbx",
-      "sizeBytes": 443456
+      "sizeBytes": 443456,
+      "durationSeconds": 1.6,
+      "keyframes": 49,
+      "motionInspection": "duration and uncompressed keyframe count measured"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Idle Crouching Aiming.fbx",
-      "sizeBytes": 427584
+      "sizeBytes": 427584,
+      "durationSeconds": 2.1,
+      "keyframes": 64,
+      "motionInspection": "duration and uncompressed keyframe count measured"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Idle.fbx",
-      "sizeBytes": 20546976
+      "sizeBytes": 20546976,
+      "durationSeconds": null,
+      "keyframes": null,
+      "motionInspection": "stack metadata not measured (large/unsupported binary payload)"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Jumping.fbx",
-      "sizeBytes": 361920
+      "sizeBytes": 361920,
+      "durationSeconds": 1.233,
+      "keyframes": 38,
+      "motionInspection": "duration and uncompressed keyframe count measured"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Knocked Down.fbx",
-      "sizeBytes": 550688
+      "sizeBytes": 550688,
+      "durationSeconds": 2.8,
+      "keyframes": 85,
+      "motionInspection": "duration and uncompressed keyframe count measured"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Punching.fbx",
-      "sizeBytes": 343024
+      "sizeBytes": 343024,
+      "durationSeconds": 1,
+      "keyframes": 31,
+      "motionInspection": "duration and uncompressed keyframe count measured"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Reloading.fbx",
-      "sizeBytes": 639200
+      "sizeBytes": 639200,
+      "durationSeconds": 3.3,
+      "keyframes": 100,
+      "motionInspection": "duration and uncompressed keyframe count measured"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Rifle Aiming Idle.fbx",
-      "sizeBytes": 596832
+      "sizeBytes": 596832,
+      "durationSeconds": 3.1,
+      "keyframes": 94,
+      "motionInspection": "duration and uncompressed keyframe count measured"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Rifle Run.fbx",
-      "sizeBytes": 342016
+      "sizeBytes": 342016,
+      "durationSeconds": 0.733,
+      "keyframes": 23,
+      "motionInspection": "duration and uncompressed keyframe count measured"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Running.fbx",
-      "sizeBytes": 332336
+      "sizeBytes": 332336,
+      "durationSeconds": 0.7,
+      "keyframes": 22,
+      "motionInspection": "duration and uncompressed keyframe count measured"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Sitting Idle.fbx",
-      "sizeBytes": 533152
+      "sizeBytes": 533152,
+      "durationSeconds": 4.3,
+      "keyframes": null,
+      "motionInspection": "duration measured; detailed keyframe extraction incomplete"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Sprint.fbx",
-      "sizeBytes": 316176
+      "sizeBytes": 316176,
+      "durationSeconds": 0.533,
+      "keyframes": 17,
+      "motionInspection": "duration and uncompressed keyframe count measured"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Standing Up.fbx",
-      "sizeBytes": 1222432
+      "sizeBytes": 1222432,
+      "durationSeconds": null,
+      "keyframes": null,
+      "motionInspection": "stack metadata not measured (large/unsupported binary payload)"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Walking (1).fbx",
-      "sizeBytes": 371248
+      "sizeBytes": 371248,
+      "durationSeconds": 1.367,
+      "keyframes": 42,
+      "motionInspection": "duration and uncompressed keyframe count measured"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Walking.fbx",
-      "sizeBytes": 365808
+      "sizeBytes": 365808,
+      "durationSeconds": 1.033,
+      "keyframes": 32,
+      "motionInspection": "duration and uncompressed keyframe count measured"
     },
     {
       "file": "data/models/npc/npc_core_001/animations/Waving.fbx",
-      "sizeBytes": 586928
+      "sizeBytes": 586928,
+      "durationSeconds": 3.167,
+      "keyframes": 96,
+      "motionInspection": "duration and uncompressed keyframe count measured"
     }
   ],
   "motionAudit": {
@@ -574,7 +658,8 @@
       "Sitting is seat-anchor snapping followed by Sitting Idle; there is no sit-down or chair stand-up transition.",
       "Knocked Down is a separate fall-to-ground action. Maintain explicit capsule/collision handoff and never let animation root motion silently move the physics body.",
       "Hard Landing is chosen from measured fall speed and synchronized with the actual contact frame."
-    ]
+    ],
+    "fileMeasurementNote": "Per-file stack duration and key counts are recorded in fileInventory where decoded. Values are extracted from FBX AnimationStack metadata; keyframes is the per-curve count observed in the main bone tracks, not a count of every scalar key in the file. Null means the binary payload was not fully inspectable in the remote fetch."
   },
   "missingForCurrentSet": [
     "No pistol-specific aim/fire/reload animation. Pistol animation support is excluded from this set.",
