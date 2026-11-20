@@ -155,9 +155,11 @@ export function buildObstacleClimbPath(options = {}) {
   const landing = { x: centerX, y: max.y, z: centerZ };
   let path;
   if (authored) {
-    if (distance3(authored[0].position, start) > 0.9) return null;
+    if (distance3(authored[0].position, start) > 0.55) return null;
     path = authored.map(point => ({ t: point.t, position: { ...point.position } }));
     path[0].position = { ...start };
+    const requestedLanding = point3(options.landing);
+    if (requestedLanding && distance3(path.at(-1).position, requestedLanding) > 0.16) return null;
   } else {
     path = [
       { t: 0, position: { ...start } },
@@ -191,6 +193,7 @@ export function buildLadderTraversalPath(options = {}) {
   const mountBottom = point3(options.mountBottom);
   const mountTop = point3(options.mountTop);
   const topOut = point3(options.topOut);
+  if (mountBottom && distance3(start, mountBottom) > 0.9) return null;
   const pathPoints = [start];
   for (const point of [mountBottom, ...climbPoints, mountTop, topOut]) {
     if (!point) continue;
@@ -217,5 +220,7 @@ export function buildLadderTraversalPath(options = {}) {
     landing: topOut || pathPoints.at(-1),
     rungSpacing,
     cycles,
+    boneContacts: Array.isArray(options.boneContacts) ? options.boneContacts : [],
+    bottomDismount: point3(options.bottomDismount),
   };
 }
