@@ -7,6 +7,7 @@ import {
   makeComponent,
   buildRoadProfiles,
 } from './asset-calibrator.mjs';
+import { hasAnchor } from './validate-asset-calibration.mjs';
 
 const bridgePath = 'data/models/assets/others/modular_bridge__low_poly__game_ready_/scene.gltf';
 const roadPackPath = 'data/models/assets/roads/road_pack/scene.gltf';
@@ -132,4 +133,12 @@ test('unknown road-shaped geometry never gets automatic straight endpoints', () 
   assert.equal(profile.surfaces[0].sectionKind, 'unknown-profile');
   assert.equal(profile.surfaces[0].connection.status, 'review-required');
   assert.equal(profile.surfaces[0].runtimeEnabled, false);
+});
+
+test('interaction validation accepts two-value door ranges and structured transforms', () => {
+  assert.equal(hasAnchor([0, 95]), true);
+  assert.equal(hasAnchor([0.4, 1.2, -0.3]), true);
+  assert.equal(hasAnchor({ position: [0.4, 1.2, -0.3] }), true);
+  assert.equal(hasAnchor({ position: { x: 0.4, y: 1.2, z: -0.3 } }), true);
+  assert.equal(hasAnchor([]), false);
 });
