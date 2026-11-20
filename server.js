@@ -3,10 +3,10 @@
 import express from 'express';
 import { createServer } from 'http';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { dirname, join, resolve, relative, isAbsolute, parse } from 'path';
 import { readdir, readFile, writeFile, unlink } from 'fs/promises';
 import { networkInterfaces } from 'os';
-import { randomInt } from 'crypto';
+import { randomInt, createHash } from 'crypto';
 import { Server } from 'socket.io';
 
 function getLanIp() {
@@ -56,6 +56,123 @@ app.post('/api/asset-overrides', async (req, res) => {
   } catch (e) { res.status(400).json({ error: String(e) }); }
 });
 
+
+// Asset calibration review persistence. Sidecars are written beside a known source
+// model only; the model itself is read-only and its SHA-256 must still match.
+const CALIBRATION_ROOTS = [
+  resolve(__dirname, 'data', 'models', 'assets'),
+  resolve(__dirname, 'data', 'models', 'cars'),
+];
+
+function resolveCalibrationSource(input) {
+  const raw = String(input || '').replace(/\\\\/g, '/').replace(/^\\/+/, '');
+  if (!raw || raw.includes('..') || !/\\.(glb|gltf)$/i.test(raw)) return null;
+  const absolute = resolve(__dirname, raw);
+  const allowed = CALIBRATION_ROOTS.some(root => {
+    const rel = relative(root, absolute);
+    return rel === '' || (rel !== '..' && !rel.startsWith('..' + process.platform === 'win32' ? '\\\\' : '/') && !isAbsolute(rel));
+  });
+  if (!allowed) return null;
+  return {
+    absolute,
+    assetPath: relative(__dirname, absolute).split('\\\\').join('/'),
+    sidecar: join(parse(absolute).dir, parse(absolute).name + '_calibration.json'),
+  };
+}
+
+function validCalibrationAnchor(value) {
+  if (typeof value === 'number') return Number.isFinite(value);
+  if (typeof value === 'string') return value.trim().length > 0 && Number.isFinite(Number(value));
+  if (Array.isArray(value)) return value.length >= 3 && value.slice(0, 3).every(item => Number.isFinite(Number(item)));
+  if (!value || typeof value !== 'object') return false;
+  if (Array.isArray(value.position)) return value.position.length >= 3 && value.position.slice(0, 3).every(item => Number.isFinite(Number(item)));
+  if (value.position && ['x', 'y', 'z'].every(key => Number.isFinite(Number(value.position[key])))) return true;
+  return ['x', 'y', 'z'].every(key => Number.isFinite(Number(value[key])));
+}
+
+function validateCalibrationWrite(data, assetPath, sourceHash) {
+  if (!data || data.schemaVersion !== 1 || data.kind !== 'open-world-asset-calibration') {
+    return 'unsupported calibration schema';
+  }
+  if (data.source?.assetUrl !== assetPath || data.source?.sha256 !== sourceHash
+    || data.collision?.sourceSha256 !== sourceHash) {
+    return 'source path or SHA-256 no longer matches this calibration';
+  }
+  if (!Array.isArray(data.components) || !Array.isArray(data.collision?.boxes)) {
+    return 'calibration is missing components or collision boxes';
+  }
+  const components = new Map();
+  for (const component of data.components) {
+    if (!component?.nodeKey || components.has(component.nodeKey)) return 'component node keys must be present and unique';
+    if (!component.role || !component.kind) return 'component role/kind is missing';
+    if (!Number.isFinite(Number(component.confidence)) || component.confidence < 0 || component.confidence > 1) {
+      return 'component confidence is invalid';
+    }
+    components.set(component.nodeKey, component);
+    if (component.interaction?.accepted === true) {
+      const anchors = component.interaction.anchors || {};
+      for (const key of component.interaction.requiredAnchors || []) {
+        if (!validCalibrationAnchor(anchors[key])) return 'accepted interaction is missing anchor: ' + key;
+      }
+    }
+  }
+  for (const surface of data.road?.surfaces || []) {
+    const component = components.get(surface.nodeKey);
+    if (!component) return 'road surface references an unknown component';
+    if (surface.connection?.accepted === true) {
+      if (surface.connection.status !== 'estimated' || surface.connection.requiresReview !== false
+        || surface.runtimeEnabled !== true || component.runtimeEnabled !== true) {
+        return 'accepted road connection is not runtime-enabled or still requires review';
+      }
+      const start = surface.connection.start?.position;
+      const end = surface.connection.end?.position;
+      if (!validCalibrationAnchor(start) || !validCalibrationAnchor(end)
+        || !(Number(surface.connection.width) > 0.5)) {
+        return 'accepted road connection has invalid endpoints or width';
+      }
+    }
+  }
+  return null;
+}
+
+app.get('/api/asset-calibration', async (req, res) => {
+  const source = resolveCalibrationSource(req.query.path);
+  if (!source) return res.status(400).json({ error: 'asset path must be a GLB/glTF inside data/models/assets or data/models/cars' });
+  try {
+    const sourceBytes = await readFile(source.absolute);
+    const sourceHash = createHash('sha256').update(sourceBytes).digest('hex');
+    let data = null;
+    try { data = JSON.parse(await readFile(source.sidecar, 'utf8')); }
+    catch (error) {
+      if (error?.code !== 'ENOENT') throw error;
+      return res.json({ exists: false, stale: false, assetPath: source.assetPath });
+    }
+    const stale = data?.source?.sha256 !== sourceHash || data?.source?.assetUrl !== source.assetPath;
+    res.json({ exists: true, stale, assetPath: source.assetPath, data });
+  } catch (error) {
+    if (error?.code === 'ENOENT') return res.status(404).json({ error: 'source asset not found' });
+    res.status(500).json({ error: String(error) });
+  }
+});
+
+app.post('/api/asset-calibration', async (req, res) => {
+  const source = resolveCalibrationSource(req.body?.path);
+  const raw = req.body?.data;
+  if (!source) return res.status(400).json({ error: 'asset path must be a GLB/glTF inside data/models/assets or data/models/cars' });
+  if (typeof raw !== 'string' || raw.length > 5000000) return res.status(400).json({ error: 'invalid calibration JSON payload' });
+  try {
+    const data = JSON.parse(raw);
+    const sourceBytes = await readFile(source.absolute);
+    const sourceHash = createHash('sha256').update(sourceBytes).digest('hex');
+    const validationError = validateCalibrationWrite(data, source.assetPath, sourceHash);
+    if (validationError) return res.status(400).json({ error: validationError });
+    await writeFile(source.sidecar, JSON.stringify(data, null, 2) + '\\n', 'utf8');
+    res.json({ ok: true, path: relative(__dirname, source.sidecar).split('\\\\').join('/'), sha256: sourceHash });
+  } catch (error) {
+    if (error?.code === 'ENOENT') return res.status(404).json({ error: 'source asset not found' });
+    res.status(400).json({ error: String(error) });
+  }
+});
 
 // map editor: list / load / save scene JSONs (data/worlds/*.json only)
 app.get('/api/scenes', async (req, res) => {
