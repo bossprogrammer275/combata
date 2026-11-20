@@ -126,6 +126,7 @@ export class WeaponSystem {
 
   update(dt, input, enemies, onKill, game) {
     const d = this.def, s = this.state;
+    if (game?.player) game.player.weaponType = d.id;
 
     // switching animation
     if (this.switching > 0) this.switching = Math.max(0, this.switching - dt * 4);
