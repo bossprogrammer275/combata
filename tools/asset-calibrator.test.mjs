@@ -78,6 +78,7 @@ test('known road-pack straight and corner modules get different connection polic
   assert.equal(straightSurface.connection.status, 'estimated');
   assert.equal(straightSurface.runtimeEnabled, true);
   assert.equal(cornerSurface.connection.status, 'review-required');
+  assert.equal(cornerSurface.sectionKind, 'curved-span');
   assert.equal(cornerSurface.runtimeEnabled, true);
 });
 
@@ -122,4 +123,13 @@ test('known street-road asphalt mesh is detected as an imported driveable surfac
   assert.equal(component.role, 'road-surface');
   assert.equal(component.runtimeEnabled, true);
   assert.equal(component.requiresReview, false);
+});
+test('unknown road-shaped geometry never gets automatic straight endpoints', () => {
+  const item = mesh('unnamed_plane', [8, 0.05, 5]);
+  const role = classifyComponent(item, 'road', 'data/models/assets/roads/incoming/road.glb');
+  const component = makeComponent(item, role, 0, 'road');
+  const profile = buildRoadProfiles('road', [component], new Map([[item.nodeKey, item]]));
+  assert.equal(profile.surfaces[0].sectionKind, 'unknown-profile');
+  assert.equal(profile.surfaces[0].connection.status, 'review-required');
+  assert.equal(profile.surfaces[0].runtimeEnabled, false);
 });
