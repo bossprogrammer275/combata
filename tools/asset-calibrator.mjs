@@ -183,7 +183,7 @@ function buildRoadProfiles(assetType, components, meshByKey) {
     const axis = section?.longitudinalAxis
       || (mesh && mesh.dimensions[0] >= mesh.dimensions[2] ? 'x' : 'z');
     const connection = mesh
-      ? localConnection(mesh, axis, section?.kind || (name.includes('curve') ? 'curved-span' : 'straight-span'))
+      ? localConnection(mesh, axis, section?.kind || (component.role === 'road-corner-module' || name.includes('curve') ? 'curved-span' : 'straight-span'))
       : { status: 'review-required' };
     return {
       id: component.id,
