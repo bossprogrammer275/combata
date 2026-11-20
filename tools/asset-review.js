@@ -41,10 +41,12 @@ let isolatedMesh = null;
 let currentCalibration = null;
 let currentCalibrationStale = false;
 let selectedCalibrationNodeKey = null;
+let selectedTraversalNodeKey = null;
 let calibrationOverlayRoot = null;
 let calibrationOverlayObjects = [];
 let showCollisionOverlay = false;
 let showSurfaceOverlay = true;
+let showTraversalOverlay = true;
 let resizeObserver;
 
 function resize() {
@@ -65,6 +67,7 @@ function disposeCurrent() {
   currentCalibration = null;
   currentCalibrationStale = false;
   selectedCalibrationNodeKey = null;
+  selectedTraversalNodeKey = null;
   currentMeshObjects = [];
   isolatedMesh = null;
   $('mesh-list')?.replaceChildren();
@@ -212,6 +215,10 @@ function selectedCalibrationSurface() {
   return currentCalibration?.road?.surfaces?.find(surface => surface.nodeKey === selectedCalibrationNodeKey) || null;
 }
 
+function selectedCalibrationTraversal() {
+  return currentCalibration?.traversal?.find(candidate => candidate.nodeKey === selectedTraversalNodeKey) || null;
+}
+
 function disposeOverlayObject(object) {
   object.traverse?.(child => {
     child.geometry?.dispose?.();
@@ -322,6 +329,32 @@ function renderCalibrationOverlay() {
     }
   }
 
+  if (showTraversalOverlay) {
+    const candidates = currentCalibration.traversal || [];
+    for (const candidate of candidates) {
+      const path = candidate.anchors?.rootPath || candidate.anchors?.climbPath || [];
+      const points = path.map(item => {
+        const point = Array.isArray(item) ? item : (item?.position || item);
+        if (!Array.isArray(point) || point.length < 3 || !point.slice(0, 3).every(value => Number.isFinite(Number(value)))) return null;
+        return new THREE.Vector3(Number(point[0]), Number(point[1]), Number(point[2]));
+      }).filter(Boolean);
+      if (points.length >= 2) {
+        const accepted = candidate.accepted === true && candidate.requiresReview === false;
+        const color = accepted ? 0x47d78b : 0xe1b65d;
+        points.forEach(point => addCalibrationMarker(point.toArray(), color, 0.12));
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        const material = new THREE.LineBasicMaterial({ color, depthTest: false });
+        const line = new THREE.Line(geometry, material);
+        line.renderOrder = 1003;
+        calibrationOverlayRoot.add(line);
+      }
+      const contacts = candidate.anchors?.boneContacts || [];
+      for (const contact of contacts) {
+        const point = contact.position;
+        if (Array.isArray(point)) addCalibrationMarker(point, 0x75b9ef, 0.1);
+      }
+    }
+  }
   const selected = selectedCalibrationComponent();
   if (selected?.bounds) addCalibrationBox(selected.bounds, 0x75b9ef, 1);
   current.updateMatrixWorld(true);
@@ -341,6 +374,7 @@ function updateCalibrationSummary() {
   $('calibration-boxes').textContent = currentCalibration.collision?.boxCount
     ?? currentCalibration.collision?.boxes?.length ?? 0;
   $('calibration-surfaces').textContent = surfaces.length;
+  $('calibration-traversals').textContent = currentCalibration.traversal?.length || 0;
   const status = currentCalibrationStale ? 'STALE SOURCE HASH · regenerate calibration before saving'
     : (currentCalibration.review?.status || 'needs-review').toUpperCase()
       + ' · ' + (currentCalibration.review?.outstanding?.length || 0) + ' outstanding';
@@ -374,6 +408,33 @@ function refreshCalibrationEditors() {
   $('calibration-json').value = component ? JSON.stringify(component, null, 2) : '';
   const surface = selectedCalibrationSurface();
   $('calibration-connection-json').value = surface?.connection ? JSON.stringify(surface.connection, null, 2) : '';
+  const traversalSelect = $('calibration-traversal');
+  const traversals = currentCalibration?.traversal || [];
+  const previousTraversal = selectedTraversalNodeKey;
+  traversalSelect.replaceChildren();
+  for (const candidate of traversals) {
+    const option = document.createElement('option');
+    option.value = candidate.nodeKey;
+    option.textContent = `${candidate.actionCandidate} · ${candidate.nodeKey} · ${candidate.requiresReview === false ? 'reviewed' : 'needs review'}`;
+    traversalSelect.append(option);
+  }
+  if (!traversals.length) {
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'No traversal candidates';
+    traversalSelect.append(option);
+    selectedTraversalNodeKey = null;
+  } else {
+    selectedTraversalNodeKey = traversals.some(item => item.nodeKey === previousTraversal)
+      ? previousTraversal : traversals[0].nodeKey;
+    traversalSelect.value = selectedTraversalNodeKey;
+  }
+  const traversal = selectedCalibrationTraversal();
+  $('calibration-traversal-json').value = traversal ? JSON.stringify(traversal, null, 2) : '';
+  const hasTraversal = !!traversal;
+  $('calibration-save-traversal').disabled = !hasTraversal || currentCalibrationStale;
+  $('calibration-accept-traversal').disabled = !hasTraversal || currentCalibrationStale;
+
   const hasComponent = !!component;
   const hasSurface = !!surface;
   $('calibration-save-component').disabled = !hasComponent || currentCalibrationStale;
@@ -398,11 +459,13 @@ async function loadCalibrationForCurrent() {
       $('calibration-components').textContent = '—';
       $('calibration-boxes').textContent = '—';
       $('calibration-surfaces').textContent = '—';
+      $('calibration-traversals').textContent = '—';
       $('calibration-component').replaceChildren();
+      $('calibration-traversal').replaceChildren();
       $('calibration-json').value = '';
       $('calibration-connection-json').value = '';
       setCalibrationStatus('No sidecar yet · run pnpm calibrate:asset -- ' + currentEntry.path, 'warning');
-      ['calibration-save-component','calibration-accept-component','calibration-save-connection','calibration-accept-connection'].forEach(id => { $(id).disabled = true; });
+      ['calibration-save-component','calibration-accept-component','calibration-save-connection','calibration-accept-connection','calibration-save-traversal','calibration-accept-traversal'].forEach(id => { $(id).disabled = true; });
       renderCalibrationOverlay();
       return;
     }
@@ -535,6 +598,93 @@ function acceptSelectedComponent() {
     setCalibrationStatus('Component accepted locally. Save the sidecar to make the decision persistent.', 'normal');
   } catch (error) {
     setCalibrationStatus('Acceptance rejected: ' + (error?.message || String(error)), 'error');
+  }
+}
+
+
+function saveSelectedTraversal() {
+  if (!currentCalibration || currentCalibrationStale) throw new Error('Calibration is missing or stale.');
+  const candidate = JSON.parse($('calibration-traversal-json').value);
+  if (candidate.nodeKey !== selectedTraversalNodeKey) throw new Error('Traversal nodeKey cannot be changed.');
+  const index = currentCalibration.traversal.findIndex(item => item.nodeKey === selectedTraversalNodeKey);
+  if (index < 0) throw new Error('Selected traversal candidate no longer exists.');
+  candidate.accepted = false;
+  candidate.runtimeEnabled = false;
+  candidate.requiresReview = true;
+  currentCalibration.traversal[index] = candidate;
+  recomputeCalibrationReview();
+  refreshCalibrationEditors();
+  renderCalibrationOverlay();
+  return candidate;
+}
+
+function saveTraversalEdits() {
+  try {
+    saveSelectedTraversal();
+    setCalibrationStatus('Traversal edits applied in memory. Validate the path overlay, then accept and save the sidecar.', 'normal');
+  } catch (error) {
+    setCalibrationStatus('Traversal edit rejected: ' + (error?.message || String(error)), 'error');
+  }
+}
+
+function acceptTraversalProfile() {
+  try {
+    const candidate = saveSelectedTraversal();
+    const anchors = candidate.anchors || {};
+    const vector = value => Array.isArray(value) && value.length >= 3
+      && value.slice(0, 3).every(item => Number.isFinite(Number(item)));
+    if (candidate.actionCandidate === 'obstacle-climb') {
+      const path = anchors.rootPath;
+      if (!vector(anchors.approach) || !vector(anchors.handContact)
+        || !vector(anchors.topOut) || !vector(anchors.landing)) {
+        throw new Error('Obstacle climb needs approach, handContact, topOut and landing XYZ anchors.');
+      }
+      if (!Array.isArray(path) || path.length < 4
+        || path.some(point => !Number.isFinite(Number(point.t)) || !vector(point.position))) {
+        throw new Error('Obstacle climb needs at least four timed rootPath points with normalized t and XYZ position.');
+      }
+      if (Math.abs(Number(path[0].t)) > 1e-5 || Math.abs(Number(path.at(-1).t) - 1) > 1e-5
+        || path.some((point, index) => index > 0 && Number(point.t) <= Number(path[index - 1].t))) {
+        throw new Error('rootPath times must increase strictly from 0 to 1.');
+      }
+      const contacts = anchors.boneContacts || [];
+      const allowedBones = new Set(['LeftHand', 'RightHand', 'LeftFoot', 'RightFoot', 'Hips']);
+      for (const contact of contacts) {
+        if (!allowedBones.has(contact.bone) || !Number.isFinite(Number(contact.t))
+          || !vector(contact.position)) {
+          throw new Error('boneContacts must use a supported bone name, normalized t and XYZ position.');
+        }
+      }
+      candidate.animation = { key: 'obstacle_climb', durationSeconds: 3.833, rootMotion: 'physics-owned-in-place' };
+      candidate.capabilities = { ...(candidate.capabilities || {}), obstacleClimbAnimation: true };
+    } else if (candidate.actionCandidate === 'ladder-climb') {
+      if (!vector(anchors.mountBottom) || !vector(anchors.mountTop) || !vector(anchors.topOut)
+        || !vector(anchors.bottomDismount)) {
+        throw new Error('Ladder needs mountBottom, mountTop, topOut and bottomDismount XYZ anchors.');
+      }
+      if (!Array.isArray(anchors.climbPath) || anchors.climbPath.length < 2 || anchors.climbPath.some(point => !vector(point))) {
+        throw new Error('Ladder climbPath needs at least two measured XYZ points along the ladder.');
+      }
+      const rungSpacing = Number(anchors.rungSpacing);
+      if (!Number.isFinite(rungSpacing) || rungSpacing < 0.12 || rungSpacing > 0.6) {
+        throw new Error('rungSpacing must be measured between 0.12m and 0.6m.');
+      }
+      if (!vector(anchors.planeNormal)) throw new Error('Ladder needs a measured outward planeNormal vector.');
+      candidate.animation = { key: 'ladder_climb_up', cycleSeconds: 0.767, rootMotion: 'rung-synchronized-physics' };
+      candidate.capabilities = { ...(candidate.capabilities || {}), ladderClimbUpAnimation: true, ladderClimbDown: false };
+    } else {
+      throw new Error('Only obstacle-climb and ladder-climb are supported by the downloaded clips. Vault, ledge and stair action profiles stay disabled.');
+    }
+    candidate.manual = true;
+    candidate.accepted = true;
+    candidate.runtimeEnabled = true;
+    candidate.requiresReview = false;
+    recomputeCalibrationReview();
+    refreshCalibrationEditors();
+    renderCalibrationOverlay();
+    setCalibrationStatus('Traversal profile accepted locally. Save the sidecar to enable it in the game after a world reload.', 'normal');
+  } catch (error) {
+    setCalibrationStatus('Traversal acceptance rejected: ' + (error?.message || String(error)), 'error');
   }
 }
 
@@ -780,6 +930,20 @@ async function init() {
   });
   $('calibration-save-component').addEventListener('click', saveSelectedComponent);
   $('calibration-accept-component').addEventListener('click', acceptSelectedComponent);
+  $('calibration-traversal').addEventListener('change', event => {
+    selectedTraversalNodeKey = event.target.value || null;
+    refreshCalibrationEditors();
+    renderCalibrationOverlay();
+    const mesh = currentMeshObjects.find(item => item.nodeKey === selectedTraversalNodeKey)?.object;
+    if (mesh) isolateMesh(mesh);
+  });
+  $('calibration-show-traversal').addEventListener('click', () => {
+    showTraversalOverlay = !showTraversalOverlay;
+    $('calibration-show-traversal').textContent = showTraversalOverlay ? 'Hide traversal path' : 'Show traversal path';
+    renderCalibrationOverlay();
+  });
+  $('calibration-save-traversal').addEventListener('click', saveTraversalEdits);
+  $('calibration-accept-traversal').addEventListener('click', acceptTraversalProfile);
   $('calibration-save-connection').addEventListener('click', saveSelectedConnection);
   $('calibration-accept-connection').addEventListener('click', approveSelectedRoadConnection);
   $('calibration-persist').addEventListener('click', persistCalibration);
