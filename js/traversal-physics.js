@@ -120,6 +120,105 @@ export function validateTraversalPath(path, isCapsuleClear, options = {}) {
   return true;
 }
 
+export function validateReviewedTraversalProfile(candidate, component) {
+  const vector = value => Array.isArray(value) && value.length >= 3
+    && value.slice(0, 3).every(item => Number.isFinite(Number(item)));
+  const distance = (a, b) => Math.hypot(
+    Number(a[0]) - Number(b[0]),
+    Number(a[1]) - Number(b[1]),
+    Number(a[2]) - Number(b[2]),
+  );
+  const invalid = message => message + ': ' + String(candidate?.nodeKey || 'unknown-component');
+  if (!candidate || !component) return invalid('Traversal candidate has no source component');
+
+  if (candidate.accepted !== true) {
+    if (candidate.runtimeEnabled === true || candidate.requiresReview === false) {
+      return invalid('Unaccepted traversal cannot be runtime-enabled or marked reviewed');
+    }
+    return null;
+  }
+
+  if (candidate.requiresReview !== false || candidate.runtimeEnabled !== true || candidate.manual !== true) {
+    return invalid('Accepted traversal must be manually reviewed and runtime-enabled');
+  }
+  if (component.requiresReview !== false || component.manual !== true) {
+    return invalid('Accepted traversal source component must also be manually reviewed');
+  }
+  if (candidate.coordinateSpace !== 'component-local') return invalid('Traversal anchors must be component-local');
+
+  const anchors = candidate.anchors || {};
+  const contacts = anchors.boneContacts || [];
+  const allowedBones = new Set(['LeftHand', 'RightHand', 'LeftFoot', 'RightFoot', 'Hips']);
+  const seenBones = new Set();
+  if (!Array.isArray(contacts) || contacts.length < 4) {
+    return invalid('Accepted traversal requires measured hand and foot bone contacts');
+  }
+  for (const contact of contacts) {
+    if (!allowedBones.has(contact.bone) || !Number.isFinite(Number(contact.t))
+      || Number(contact.t) < 0 || Number(contact.t) > 1 || !vector(contact.position)) {
+      return invalid('Traversal bone contact has an invalid bone, time or position');
+    }
+    seenBones.add(contact.bone);
+  }
+  for (const bone of ['LeftHand', 'RightHand', 'LeftFoot', 'RightFoot']) {
+    if (!seenBones.has(bone)) return invalid('Traversal is missing the ' + bone + ' contact');
+  }
+
+  if (candidate.actionCandidate === 'obstacle-climb') {
+    if (component.kind !== 'obstacle' || candidate.animation?.key !== OBSTACLE_CLIMB_ANIMATION
+      || Number(candidate.animation?.durationSeconds) !== OBSTACLE_CLIMB_DURATION) {
+      return invalid('Obstacle traversal must use the downloaded obstacle_climb animation');
+    }
+    for (const key of ['approach', 'handContact', 'topOut', 'landing']) {
+      if (!vector(anchors[key])) return invalid('Obstacle traversal is missing its ' + key + ' anchor');
+    }
+    const path = anchors.rootPath;
+    if (!Array.isArray(path) || path.length < 4
+      || path.some(point => !Number.isFinite(Number(point.t)) || !vector(point.position))) {
+      return invalid('Obstacle traversal requires at least four timed rootPath points');
+    }
+    if (Math.abs(Number(path[0].t)) > 1e-5 || Math.abs(Number(path.at(-1).t) - 1) > 1e-5
+      || path.some((point, index) => index > 0 && Number(point.t) <= Number(path[index - 1].t))) {
+      return invalid('Obstacle rootPath times must increase strictly from 0 to 1');
+    }
+    if (distance(path[0].position, anchors.approach) > 0.12
+      || distance(path.at(-1).position, anchors.landing) > 0.12) {
+      return invalid('Obstacle rootPath must begin at approach and end at landing');
+    }
+    if (candidate.capabilities?.obstacleClimbAnimation !== true
+      || candidate.capabilities?.vaultAnimation === true
+      || candidate.capabilities?.mantleAnimation === true) {
+      return invalid('Unsupported vault/mantle capabilities cannot be enabled');
+    }
+    return null;
+  }
+
+  if (candidate.actionCandidate === 'ladder-climb') {
+    if (component.kind !== 'ladder' || candidate.animation?.key !== LADDER_CLIMB_ANIMATION
+      || Number(candidate.animation?.cycleSeconds) !== LADDER_CYCLE_DURATION) {
+      return invalid('Ladder traversal must use the downloaded ladder_climb_up cycle');
+    }
+    for (const key of ['mountBottom', 'mountTop', 'topOut', 'bottomDismount', 'planeNormal']) {
+      if (!vector(anchors[key])) return invalid('Ladder traversal is missing its ' + key + ' anchor');
+    }
+    if (!Array.isArray(anchors.climbPath) || anchors.climbPath.length < 2
+      || anchors.climbPath.some(point => !vector(point))) {
+      return invalid('Ladder traversal requires measured rung-path points');
+    }
+    const rungSpacing = Number(anchors.rungSpacing);
+    if (!Number.isFinite(rungSpacing) || rungSpacing < 0.12 || rungSpacing > 0.6) {
+      return invalid('Ladder rung spacing is outside the supported range');
+    }
+    if (candidate.capabilities?.ladderClimbUpAnimation !== true
+      || candidate.capabilities?.ladderClimbDown !== false) {
+      return invalid('Only upward ladder climbing is supported; reverse descent remains experimental');
+    }
+    return null;
+  }
+
+  return invalid('Only obstacle-climb and ladder-climb profiles can be runtime-enabled');
+}
+
 export function buildObstacleClimbPath(options = {}) {
   const start = point3(options.start);
   const min = point3(options.bounds?.min);
