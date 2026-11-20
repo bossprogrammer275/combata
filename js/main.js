@@ -1563,7 +1563,9 @@ class Game {
 
   // ===== MAIN LOOP =====
   tick() {
-    const dt = Math.min(this.clock.getDelta(), .05);
+    const rawFrameDt = Math.max(0, this.clock.getDelta());
+    this._rawFrameDt = rawFrameDt;
+    const dt = Math.min(rawFrameDt, .05);
     this.applyRemoteControllerInput();
     if (this.state === 'playing') this.tickPlaying(dt);
     else if (this.state === 'menu') this.tickMenu(dt);
@@ -1663,7 +1665,9 @@ class Game {
     }
 
     const streamingPosition = this.vehicles?.driver?.pos || this.player?.pos;
-    if (streamingPosition) this.world.updateStreaming(streamingPosition, dt);
+    if (streamingPosition) this.world.updateStreaming(
+      streamingPosition, this._rawFrameDt || dt,
+    );
 
     // update atmospheric sky (time-of-day, lighting, clouds)
     if (this.world.atmosphere) {

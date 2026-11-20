@@ -1223,7 +1223,7 @@ export class World {
       return this.getStreamingStats();
     }
 
-    this._streamingElapsed += THREE.MathUtils.clamp(Number(dt) || 0, 0, 0.1);
+    this._streamingElapsed += Math.max(0, Number(dt) || 0);
     if (this._streamingElapsed < this._streamingConfig.updateInterval) return null;
     this._streamingElapsed = 0;
 
