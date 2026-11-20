@@ -97,6 +97,29 @@ function isCollisionProxyComponent(item) {
     || pathParts.some(part => /^door_[^/]+$/.test(part));
   return item?.collisionProxy === true && !explicitDoor;
 }
+function isNativeCollisionProxy(item) {
+  if (item?.collisionProxy !== true) return false;
+  const name = String(item?.name || '').trim().toLowerCase();
+  const pathParts = String(item?.nodePath || '').toLowerCase().split(' / ').map(part => part.trim());
+  return name.startsWith('col_')
+    || pathParts.some(part => part.startsWith('col_') || part === 'collision_proxies');
+}
+
+function buildNativeCollisionProxyRecords(meshDetails) {
+  return (meshDetails || []).filter(isNativeCollisionProxy).map(item => ({
+    nodeKey: item.nodeKey,
+    nodePath: item.nodePath,
+    name: item.name,
+    bounds: {
+      min: item.boundsMin,
+      max: item.boundsMax,
+      size: item.dimensions,
+    },
+    source: 'authored-col-mesh',
+    runtimeAuthority: 'world-native-col-proxy',
+  }));
+}
+
 function isPlausibleWheelGeometry(item) {
   const dimensions = vectorSize(item).map(Math.abs).sort((a, b) => a - b);
   if (dimensions.length !== 3 || dimensions[0] <= 1e-8 || dimensions[2] <= 1e-8) return false;
@@ -683,7 +706,11 @@ async function calibrateOne(file) {
   }
 
   const collisionBoxes = isVehicle ? [] : scanned.manifest.boxes;
-  const collisionMode = isVehicle ? 'dynamic-vehicle-runtime' : road ? 'hybrid-static-and-surface' : 'static-boxes';
+  const nativeCollisionProxies = isVehicle ? [] : buildNativeCollisionProxyRecords(scanned.meshDetails);
+  const collisionMode = isVehicle ? 'dynamic-vehicle-runtime'
+    : road ? 'hybrid-static-and-surface'
+      : nativeCollisionProxies.length ? 'authored-proxies-plus-generated-boxes'
+        : 'static-boxes';
   const calibration = {
     schemaVersion: 1,
     kind: 'open-world-asset-calibration',
@@ -714,6 +741,9 @@ async function calibrateOne(file) {
       coordinateSpace: 'model-local',
       boxes: collisionBoxes,
       boxCount: collisionBoxes.length,
+      nativeProxies: nativeCollisionProxies,
+      nativeProxyCount: nativeCollisionProxies.length,
+      nativeProxyAuthority: nativeCollisionProxies.length ? 'source-mesh-col-prefixes-consumed-by-world-runtime' : null,
       excludedDriveableMeshKeys: components.filter(c => c.runtimeEnabled === true).map(c => c.nodeKey),
       exactSurfacePhysics: !!road,
       sourceSha256: hash,
@@ -825,7 +855,7 @@ async function main() {
   if (failed) process.exitCode = 1;
 }
 
-export { calibrateOne, classifyAssetType, classifyComponent, isCollisionProxyComponent, isPlausibleWheelGeometry, aggregateVehicleWheelGroups, aggregateLadderGroups, aggregateNamedAssetSeat, localConnection, interactionSpec, makeComponent, buildRoadProfiles, buildBridgeProfile };
+export { calibrateOne, classifyAssetType, classifyComponent, isCollisionProxyComponent, isPlausibleWheelGeometry, aggregateVehicleWheelGroups, aggregateLadderGroups, aggregateNamedAssetSeat, isNativeCollisionProxy, buildNativeCollisionProxyRecords, localConnection, interactionSpec, makeComponent, buildRoadProfiles, buildBridgeProfile };
 
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : '';
 if (invokedPath && import.meta.url === pathToFileURL(invokedPath).href) {
