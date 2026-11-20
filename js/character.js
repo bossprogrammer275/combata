@@ -241,6 +241,9 @@ export class Character {
   }
 
   applyWeaponPose(dt = 1 / 60) {
+    // This downloaded animation set is rifle-only. Never fake a pistol pose
+    // from the rifle's static arm offsets.
+    if (this.weaponType !== 'rifle') return;
     if (['rifle_aim_idle', 'walk_aim', 'rifle_run', 'crouch_aim_idle', 'crouch_walk_aim'].includes(this._poseMode)) return;
     if (!this._weaponBones?.length) return;
     // The player uses the rig's own relaxed idle and locomotion arm motion.
