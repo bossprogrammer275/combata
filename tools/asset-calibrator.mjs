@@ -241,6 +241,39 @@ function unionMeshDetails(items, nodeKey, nodePath, name) {
   };
 }
 
+function commonNodeAncestor(items) {
+  if (!items.length) return { nodeKey: '', nodePath: '' };
+  const keyPaths = items.map(item => String(item.nodeKey || '').split('/'));
+  const namePaths = items.map(item => String(item.nodePath || '').split(' / '));
+  let count = 0;
+  const limit = Math.min(...keyPaths.map(parts => parts.length));
+  while (count < limit && keyPaths.every(parts => parts[count] === keyPaths[0][count])) count++;
+  // The last common element may itself be a mesh leaf only when all entries
+  // refer to the same mesh. Keep the common group, otherwise use its parent.
+  const leafMatch = items.length === 1;
+  if (!leafMatch && count === limit) count = Math.max(0, count - 1);
+  return {
+    nodeKey: keyPaths[0].slice(0, count).join('/'),
+    nodePath: namePaths[0].slice(0, Math.min(count, namePaths[0].length)).join(' / '),
+  };
+}
+
+function aggregateNamedAssetSeat(meshDetails, assetPath) {
+  const baseName = String(assetPath).split('/').at(-1).toLowerCase();
+  if (baseName !== 'plastic_chair.glb') return null;
+  const visibleParts = meshDetails.filter(item => !isCollisionProxyComponent(item));
+  if (!visibleParts.length) return null;
+  const ancestor = commonNodeAncestor(visibleParts);
+  const fallback = visibleParts[0];
+  const nodeKey = ancestor.nodeKey || fallback.nodeKey;
+  const nodePath = ancestor.nodePath || fallback.nodePath;
+  const item = unionMeshDetails(visibleParts, nodeKey, nodePath, 'PlasticChair_Seat');
+  return item ? {
+    item,
+    role: { role: 'seat', kind: 'seat', confidence: 0.72, source: 'asset-file-name-and-mesh-group' },
+  } : null;
+}
+
 function aggregateVehicleWheelGroups(meshDetails) {
   const groups = new Map();
   for (const item of meshDetails) {
@@ -518,7 +551,7 @@ async function calibrateOne(file) {
   const aggregatedLadders = aggregateLadderGroups(scanned.meshDetails);
   const groupedLadderKeys = new Set(aggregatedLadders.map(item => item.nodeKey));
   const vehicleWheels = assetType === 'vehicle' ? aggregateVehicleWheelGroups(scanned.meshDetails) : [];
-  const groupedWheelKeys = new Set(vehicleWheels.map(entry => entry.item.nodeKey));
+  const assetSeat = assetType === 'world-prop' ? aggregateNamedAssetSeat(scanned.meshDetails, assetPath) : null;
 
   for (const item of scanned.meshDetails) {
     if (isCollisionProxyComponent(item)) continue;
@@ -536,6 +569,9 @@ async function calibrateOne(file) {
   }
   for (const entry of vehicleWheels) {
     components.push(makeComponent(entry.item, entry.role, components.length, assetType));
+  }
+  if (assetSeat && !components.some(component => component.kind === 'seat')) {
+    components.push(makeComponent(assetSeat.item, assetSeat.role, components.length, assetType));
   }
   const road = buildRoadProfiles(assetType, components, meshByKey);
   const bridge = assetType === 'bridge' ? buildBridgeProfile(components, meshByKey) : null;
@@ -789,7 +825,7 @@ async function main() {
   if (failed) process.exitCode = 1;
 }
 
-export { calibrateOne, classifyAssetType, classifyComponent, isCollisionProxyComponent, isPlausibleWheelGeometry, aggregateVehicleWheelGroups, aggregateLadderGroups, localConnection, interactionSpec, makeComponent, buildRoadProfiles, buildBridgeProfile };
+export { calibrateOne, classifyAssetType, classifyComponent, isCollisionProxyComponent, isPlausibleWheelGeometry, aggregateVehicleWheelGroups, aggregateLadderGroups, aggregateNamedAssetSeat, localConnection, interactionSpec, makeComponent, buildRoadProfiles, buildBridgeProfile };
 
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : '';
 if (invokedPath && import.meta.url === pathToFileURL(invokedPath).href) {
