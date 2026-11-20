@@ -289,6 +289,13 @@ test('authored col_* meshes are recorded as native collision authority, not gene
   assert.equal(isNativeCollisionProxy(items[0]), true);
   assert.equal(isNativeCollisionProxy(items[1]), false);
   assert.equal(isNativeCollisionProxy(items[2]), false);
+  const nestedButNotNative = {
+    ...mesh('wall_mesh', [2, 2, 0.2], { collisionProxy: false }),
+    nodeKey: 'Root[0]/collision_proxies[0]/wall_mesh[0]',
+    nodePath: 'Root / collision_proxies / wall_mesh',
+    collisionProxy: false,
+  };
+  assert.equal(isNativeCollisionProxy(nestedButNotNative), false);
   const proxies = buildNativeCollisionProxyRecords(items);
   assert.equal(proxies.length, 1);
   assert.equal(proxies[0].nodeKey, items[0].nodeKey);
