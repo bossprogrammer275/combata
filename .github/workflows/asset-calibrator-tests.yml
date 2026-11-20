@@ -6,6 +6,15 @@ on:
     paths:
       - 'tools/asset-calibrator.mjs'
       - 'tools/asset-calibrator.test.mjs'
+      - 'js/player.js'
+      - 'js/character.js'
+      - 'js/npc-system/core-assets.js'
+      - 'js/npc-system/animation-controller.js'
+      - 'js/npc-system/npc-instance.js'
+      - 'tools/asset-review.html'
+      - 'tools/asset-review.js'
+      - 'tools/traversal-physics.test.mjs'
+      - 'js/traversal-physics.js'
       - 'tools/process-glbs.js'
       - 'tools/validate-asset-calibration.mjs'
       - 'js/asset-calibration.js'
@@ -53,11 +62,19 @@ jobs:
         run: |
           node --check tools/asset-calibrator.mjs
           node --check tools/asset-calibrator.test.mjs
+          node --check tools/traversal-physics.test.mjs
+          node --check js/traversal-physics.js
+          node --check js/player.js
+          node --check js/character.js
+          node --check js/npc-system/core-assets.js
+          node --check js/npc-system/animation-controller.js
+          node --check js/npc-system/npc-instance.js
           node --check tools/process-glbs.js
           node --check tools/validate-asset-calibration.mjs
           node --check js/asset-calibration.js
           node --check js/world.js
           node --check js/physics.js
           node --check js/vehicles.js
+          node --check tools/asset-review.js
           node --check tools/asset-review.js
           node --check server.js
