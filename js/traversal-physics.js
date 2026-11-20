@@ -294,12 +294,14 @@ export function buildLadderTraversalPath(options = {}) {
   if (!start || climbPoints.length < 2 || climbPoints.some(point => !point)) return null;
   const rungSpacing = Number(options.rungSpacing);
   if (!Number.isFinite(rungSpacing) || rungSpacing < 0.12 || rungSpacing > 0.6) return null;
+  const approach = point3(options.approach);
   const mountBottom = point3(options.mountBottom);
   const mountTop = point3(options.mountTop);
   const topOut = point3(options.topOut);
-  if (mountBottom && distance3(start, mountBottom) > 0.9) return null;
+  if (approach && distance3(start, approach) > 0.55) return null;
+  if (mountBottom && distance3(approach || start, mountBottom) > 0.9) return null;
   const pathPoints = [start];
-  for (const point of [mountBottom, ...climbPoints, mountTop, topOut]) {
+  for (const point of [approach, mountBottom, ...climbPoints, mountTop, topOut]) {
     if (!point) continue;
     if (distance3(pathPoints.at(-1), point) > 0.04) pathPoints.push(point);
   }
