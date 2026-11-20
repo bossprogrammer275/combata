@@ -1,170 +1,55 @@
-// The player, enemies and civilian population all use the canonical civilian_002 rig.
-// Mixamo clips are applied to that rig; the old npc1 body is no longer a runtime model.
+// Player and combatants share the npc_core_001 humanoid rig.
 import * as THREE from 'three';
-import { FBXLoader } from './lib/FBXLoader.js';
-import { NPC_MODELS, NPC_GLOBAL_CONFIG } from './npc-config.js';
+import { loadNpcCoreBase, cloneNpcCoreModel, preloadNpcCoreAnimations } from './npc-system/core-assets.js';
 import { resolvePlayerAnimation, jumpStartOffset } from './player-animation.js';
 
-const MODEL = NPC_MODELS[NPC_GLOBAL_CONFIG.modelId];
-const ANIM_URLS = {
-  idle: MODEL.animations.idle,
-  walk: MODEL.animations.walk,
-  run: MODEL.animations.run,
-  sprint: MODEL.animations.sprint,
-  crouch: MODEL.animations.crouch_idle,
-  crouchWalk: MODEL.animations.crouch_walk,
-  jump: MODEL.animations.jump,
-  talk: MODEL.animations.talk,
-  phone: MODEL.animations.phone,
-  sitIdle: MODEL.animations.sit_idle,
-  fallDeath: MODEL.animations.fall_death,
-  getUp: MODEL.animations.get_up,
-  wave: MODEL.animations.wave,
-  sitDown: MODEL.animations.sit_down,
-};
-const loader = new FBXLoader();
+const MODEL = Object.freeze({ id: 'npc_core_001', displayName: 'NPC Core 001', targetHeight: 1.74 });
+const PLAYER_ANIMATION_KEYS = Object.freeze([
+  'idle', 'walk', 'walk_aim', 'run', 'rifle_run', 'sprint',
+  'crouch_idle', 'crouch_walk', 'crouch_walk_aim',
+  'rifle_aim_idle', 'crouch_aim_idle', 'reload_idle', 'jump_idle'
+]);
 let _baseGroup = null;
 let _clips = {};
 let _loadingPromise = null;
 
 function findSkinnedMesh(group) {
   let found = null;
-  group.traverse(o => { if (o.isSkinnedMesh && !found) found = o; });
-  if (!found) group.traverse(o => { if (o.isMesh && !found) found = o; });
+  group.traverse((node) => { if (node.isSkinnedMesh && !found) found = node; });
   return found;
 }
-
 function findBone(group, keywords) {
-  let out = null;
-  group.traverse(o => {
-    if (out || !o.isBone) return;
-    const n = (o.name || '').toLowerCase();
-    if (keywords.some(k => n.includes(k.toLowerCase()))) out = o;
+  let found = null;
+  group.traverse((node) => {
+    if (found || !node.isBone) return;
+    const name = (node.name || '').toLowerCase();
+    if (keywords.some((key) => name.includes(key.toLowerCase()))) found = node;
   });
-  return out;
+  return found;
 }
-
-function stripRootMotion(clip) {
-  for (let i = clip.tracks.length - 1; i >= 0; i--) {
-    const track = clip.tracks[i];
-    if (track.name.includes('Hips') && track.name.includes('.position')) clip.tracks.splice(i, 1);
-  }
-  return clip;
-}
-
 function cloneModel() {
   if (!_baseGroup) return null;
-  const clone = _baseGroup.clone(true);
-  clone.updateMatrixWorld(true);
-  const boneMap = new Map();
-  clone.traverse(o => { if (o.isBone && !boneMap.has(o.name)) boneMap.set(o.name, o); });
-  clone.traverse(o => {
-    if (o.isSkinnedMesh && o.skeleton) {
-      const bones = o.skeleton.bones.map(b => boneMap.get(b.name));
-      if (bones.some(b => !b)) throw new Error('civilian_002 skeleton clone has an unresolved bone');
-      const skeleton = new THREE.Skeleton(bones, o.skeleton.boneInverses.map(m => m.clone()));
-      o.bind(skeleton, o.bindMatrix.clone());
-      o.bindMode = o.bindMode || 'attached';
-    }
-    if (!o.isMesh && !o.isSkinnedMesh) return;
-    o.castShadow = true;
-    // Prevent low-resolution city shadows from blackening the character body.
-    o.receiveShadow = false;
-    o.frustumCulled = false;
-    const sourceMats = Array.isArray(o.material) ? o.material : [o.material];
-    const clonedMats = sourceMats.map(source => {
-      if (!source) return source;
-      const mat = source.clone();
-      mat.side = THREE.DoubleSide;
-      mat.transparent = false;
-      mat.opacity = 1;
-      mat.depthWrite = true;
-      mat.depthTest = true;
-      if (mat.map) {
-        mat.map.colorSpace = THREE.SRGBColorSpace;
-        mat.map.needsUpdate = true;
-        // The diffuse texture contains the skin/outfit colour. A white material
-        // multiplier avoids applying a second dark tint over the texture.
-        mat.color?.setHex(0xffffff);
-      } else if (mat.color && mat.color.getHex() === 0x000000) {
-        mat.color.setHex(0xc8a88a);
-      }
-      if (mat.emissiveMap) mat.emissiveMap.colorSpace = THREE.SRGBColorSpace;
-      if (mat.emissive) {
-        mat.emissive.setRGB(0.012, 0.010, 0.008);
-        mat.emissiveIntensity = 0.12;
-      }
-      mat.needsUpdate = true;
-      return mat;
-    });
-    o.material = sourceMats.length === 1 ? clonedMats[0] : clonedMats;
-  });
-  return clone;
+  return cloneNpcCoreModel(_baseGroup);
 }
-
-function loadFbx(url) {
-  return new Promise((resolve, reject) => loader.load(url, resolve, undefined, reject));
-}
-
-async function loadAnimation(url, key) {
-  const fbx = await loadFbx(url);
-  const clip = fbx.animations && fbx.animations.length ? fbx.animations[0].clone() : null;
-  fbx.traverse(o => {
-    if (o.geometry) o.geometry.dispose();
-    if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { try { m.dispose(); } catch {} });
-  });
-  if (!clip || !clip.tracks.length) throw new Error('Animation file contains no usable tracks: ' + key);
-  clip.name = key;
-  const manifestKey = key === 'crouchWalk' ? 'crouch_walk' : key;
-  if (MODEL.inPlace.includes(manifestKey)) stripRootMotion(clip);
-  clip.optimize();
-  return clip;
-}
-
 async function ensureLoaded() {
-  if (_baseGroup && Object.keys(_clips).length === Object.keys(ANIM_URLS).length) return;
+  if (_baseGroup && _clips.idle) return;
   if (_loadingPromise) return _loadingPromise;
   _loadingPromise = (async () => {
-    const rig = await loadFbx(MODEL.modelUrl);
-    rig.updateMatrixWorld(true);
-    const bounds = new THREE.Box3().setFromObject(rig);
-    const height = bounds.max.y - bounds.min.y;
-    if (!Number.isFinite(height) || height < 0.5) throw new Error('civilian_002 rig has invalid height');
-    rig.scale.setScalar(MODEL.targetHeight / height);
-    rig.updateMatrixWorld(true);
-    const fitted = new THREE.Box3().setFromObject(rig);
-    rig.position.y -= fitted.min.y;
-    rig.updateMatrixWorld(true);
-    rig.traverse(o => {
-      if (!o.isMesh && !o.isSkinnedMesh) return;
-      o.castShadow = true;
-      o.receiveShadow = false;
-      if (o.geometry && !o.geometry.attributes.normal) o.geometry.computeVertexNormals();
-      const mats = Array.isArray(o.material) ? o.material : [o.material];
-      for (const mat of mats) {
-        if (!mat) continue;
-        if (mat.map) { mat.map.colorSpace = THREE.SRGBColorSpace; mat.map.needsUpdate = true; }
-        if (mat.emissiveMap) mat.emissiveMap.colorSpace = THREE.SRGBColorSpace;
-      }
-    });
-    _baseGroup = rig;
-    const results = await Promise.allSettled(
-      Object.entries(ANIM_URLS).map(([key, url]) => loadAnimation(url, key).then(clip => ({ key, clip })))
-    );
-    const failures = [];
-    for (const result of results) {
-      if (result.status === 'fulfilled') _clips[result.value.key] = result.value.clip;
-      else failures.push(result.reason?.message || String(result.reason));
-    }
-    const missing = Object.keys(ANIM_URLS).filter(key => !_clips[key]);
-    if (missing.length) throw new Error('civilian_002 required player clips failed: ' + missing.join(', ') + '; ' + failures.join('; '));
-    console.info('[Character] civilian_002 player/enemy rig ready; loaded ' + Object.keys(_clips).length + ' Mixamo clips');
+    _baseGroup = await loadNpcCoreBase();
+    _clips = await preloadNpcCoreAnimations(PLAYER_ANIMATION_KEYS);
+    if (!_clips.idle) throw new Error('npc_core_001 failed its required idle animation load');
+    console.info('[Character] npc_core_001 ready; loaded ' + Object.keys(_clips).length
+      + '/' + PLAYER_ANIMATION_KEYS.length + ' player animations');
   })();
-  try { return await _loadingPromise; }
-  catch (error) { _loadingPromise = null; _baseGroup = null; _clips = {}; throw error; }
+  try { await _loadingPromise; }
+  catch (error) {
+    _loadingPromise = null;
+    _baseGroup = null;
+    _clips = {};
+    throw error;
+  }
 }
-
-ensureLoaded().catch(error => console.error('[Character] civilian_002 preload failed:', error));
+ensureLoaded().catch((error) => console.error('[Character] npc_core_001 preload failed:', error));
 
 export const WEAPON_POSES = {
   rifle: { hip: { uaL: [-1.1,0.08,-0.08], uaR: [-1.1,-0.08,0.08], faL:-0.8, faR:-0.8, shL:0.12, shR:-0.12 }, aim: { uaL:[-1.2,0.1,-0.1], uaR:[-1.2,-0.1,0.1], faL:-0.95, faR:-0.95, shL:0.15, shR:-0.15 }},
@@ -185,7 +70,7 @@ export class Character {
   constructor(appearance = {}) {
     this.appearance = Object.assign({ weaponType: 'rifle', weaponTint: [0.18, 0.18, 0.20], modelYawOffset: Math.PI, runThreshold: 0.48 }, appearance);
     this.root = new THREE.Group();
-    this.root.name = 'Character_civilian_002';
+    this.root.name = 'Character_npc_core_001';
     this.weaponType = this.appearance.weaponType || 'rifle';
     this._firstPerson = false;
     this._mixer = null;
@@ -208,7 +93,7 @@ export class Character {
     await ensureLoaded();
     if (this._isBuilt) return;
     const clone = cloneModel();
-    if (!clone) throw new Error('civilian_002 player rig could not be cloned');
+    if (!clone) throw new Error('npc_core_001 player rig could not be cloned');
     this._model = clone;
     this.root.add(clone);
     this._rightHand = findBone(clone, ['RightHand', 'mixamorig:RightHand', 'Hand_R']);
@@ -239,24 +124,17 @@ export class Character {
     ].filter(entry => entry.bone);
 
     this._mixer = new THREE.AnimationMixer(clone);
-    const aliases = {
-      crouch: 'crouch', crouchWalk: 'crouchWalk', sitIdle: 'sitIdle',
-      fallDeath: 'fallDeath', getUp: 'getUp', sitDown: 'sitDown',
-    };
     for (const [key, clip] of Object.entries(_clips)) {
       const action = this._mixer.clipAction(clip, clone);
       action.enabled = true;
-      const oneShot = key === 'jump';
+      const oneShot = key === 'jump_idle' || key === 'reload_idle';
       action.setLoop(oneShot ? THREE.LoopOnce : THREE.LoopRepeat, oneShot ? 1 : Infinity);
       action.clampWhenFinished = oneShot;
       action.reset();
       action.setEffectiveWeight(key === 'idle' ? 1 : 0);
       action.play();
-      const actionName = aliases[key] || key;
-      this._actions[actionName] = action;
+      this._actions[key] = action;
     }
-    // Traversal/ladder/stair clips are not part of this character's approved set.
-    // Their gameplay state uses the civilian_002 walk/run cycle instead.
     this._isBuilt = true;
     if (this._pendingState) {
       const state = this._pendingState;
@@ -310,7 +188,15 @@ export class Character {
   applyPose(state = {}, dt = 1 / 60) {
     if (!this._mixer || !this._model) return;
 
-    const desired = resolvePlayerAnimation(state, this._poseMode || 'idle');
+    let desired = resolvePlayerAnimation(state, this._poseMode || 'idle');
+    if (!this._actions[desired]) {
+      const fallback = {
+        walk_aim: 'walk', rifle_run: 'run',
+        crouch_walk_aim: 'crouch_walk', crouch_aim_idle: 'crouch_idle',
+        rifle_aim_idle: 'idle', reload_idle: 'idle', jump_idle: this._poseMode || 'idle'
+      };
+      desired = this._actions[fallback[desired]] ? fallback[desired] : 'idle';
+    }
     const groundSpeed = Math.max(0, Number(state.groundSpeed) || 0);
     const moving = groundSpeed > 0.14;
     const aiming = Number(state.aim) > 0.1;
@@ -328,7 +214,7 @@ export class Character {
         // reset() restores Three.js action weight to 1; explicitly zero it so
         // ordinary clip changes crossfade instead of stacking two full poses.
         next.setEffectiveWeight(0);
-        if (desired === 'jump') next.time = jumpStartOffset(next.getClip().duration);
+        if (desired === 'jump_idle') next.time = jumpStartOffset(next.getClip().duration);
         next.play();
       }
       this._poseMode = desired;
@@ -337,7 +223,7 @@ export class Character {
     // Locomotion gets a short crossfade. Jump is exclusive: do not blend the
     // old walk/run cycle into the takeoff pose.
     const blend = 1 - Math.exp(-Math.max(0, Math.min(dt, 0.1)) * 24);
-    const poseBlend = desired === 'jump' ? 1 : blend;
+    const poseBlend = desired === 'jump_idle' ? 1 : blend;
     const speed = Number(state.speed) || 0;
     for (const [name, action] of Object.entries(this._actions)) {
       const target = name === desired ? 1 : 0;
@@ -345,8 +231,8 @@ export class Character {
       action.setEffectiveWeight(current + (target - current) * poseBlend);
       if (target > 0) action.setEffectiveTimeScale(
         name === 'sprint' ? THREE.MathUtils.clamp(speed * 2.1, 0.92, 1.32)
-          : name === 'run' ? THREE.MathUtils.clamp(speed * 2.0, 0.82, 1.28)
-            : name === 'walk' || name === 'crouchWalk' ? THREE.MathUtils.clamp(speed * 2.2, 0.68, 1.2) : 1
+          : name === 'run' || name === 'rifle_run' ? THREE.MathUtils.clamp(speed * 2.0, 0.82, 1.28)
+            : name === 'walk' || name === 'walk_aim' || name === 'crouch_walk' || name === 'crouch_walk_aim' ? THREE.MathUtils.clamp(speed * 2.2, 0.68, 1.2) : 1
       );
     }
 
@@ -355,6 +241,7 @@ export class Character {
   }
 
   applyWeaponPose(dt = 1 / 60) {
+    if (['rifle_aim_idle', 'walk_aim', 'rifle_run', 'crouch_aim_idle', 'crouch_walk_aim'].includes(this._poseMode)) return;
     if (!this._weaponBones?.length) return;
     // The player uses the rig's own relaxed idle and locomotion arm motion.
     // Apply the held-weapon correction only when aiming so it cannot force
