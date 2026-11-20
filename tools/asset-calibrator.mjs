@@ -398,6 +398,25 @@ async function calibrateOne(file) {
     }
   }
 
+  if (bridge) {
+    const previousSections = new Map((old?.bridge?.sections || []).map(section => [section.id, section]));
+    for (const section of bridge.sections) {
+      const previous = previousSections.get(section.id);
+      if (previous?.connection?.accepted === true && previous.connection.requiresReview === false) {
+        section.connection = previous.connection;
+        section.requiresReview = false;
+      }
+      const deckKey = section.deckComponent?.nodeKey;
+      const reviewedSurface = (road?.surfaces || []).find(surface => surface.nodeKey === deckKey);
+      if (reviewedSurface?.connection?.accepted === true
+        && reviewedSurface.connection.requiresReview === false) {
+        section.connection = reviewedSurface.connection;
+        section.requiresReview = false;
+      }
+    }
+    bridge.requiresReview = bridge.sections.some(section => section.requiresReview !== false);
+  }
+
   const collisionBoxes = isVehicle ? [] : scanned.manifest.boxes;
   const collisionMode = isVehicle ? 'dynamic-vehicle-runtime' : road ? 'hybrid-static-and-surface' : 'static-boxes';
   const calibration = {
