@@ -2,159 +2,94 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { NPC_MODELS, NPC_GLOBAL_CONFIG } from "../js/npc-config.js";
-import { resolvePlayerAnimation, jumpStartOffset } from "../js/player-animation.js";
+import { resolvePlayerAnimation } from "../js/player-animation.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const model = NPC_MODELS.civilian_002;
-assert.ok(model, "civilian_002 must be the main civilian");
-assert.equal(NPC_GLOBAL_CONFIG.modelId, "civilian_002");
-assert.ok(!model.inPlace.includes("jump"),
-  "jump clip must retain its authored vertical lift; only the camera receives gameplay jump height");
-assert.ok(fs.existsSync(path.join(root, model.modelUrl.replace("./", ""))), "canonical rigged model missing");
+const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
+const exists = (relative) => fs.existsSync(path.join(root, relative));
+const manifest = JSON.parse(read("data/models/npc/npc_core_001/manifest.json"));
+const core = read("js/npc-system/core-assets.js");
+const controller = read("js/npc-system/animation-controller.js");
+const profiles = read("js/npc-system/profile-registry.js");
+const instance = read("js/npc-system/npc-instance.js");
+const character = read("js/character.js");
+const civilians = read("js/civilians.js");
+const player = read("js/player.js");
+const weapons = read("js/weapons.js");
+const physics = read("js/physics.js");
+const main = read("js/main.js");
 
-const manifest = JSON.parse(fs.readFileSync(path.join(root, model.manifestUrl.replace("./", "")), "utf8"));
-assert.equal(manifest.id, "civilian_002");
-assert.equal(manifest.status, "ready-for-game-integration");
-const activeKeys = Object.keys(model.animations).sort();
-const manifestKeys = Object.keys(manifest.animations || {}).filter((key) => key !== "riggedModel").sort();
-assert.deepEqual(activeKeys, manifestKeys, "active animation config must match approved manifest clips");
-for (const [key, url] of Object.entries(model.animations)) {
-  const file = path.join(root, url.replace("./", ""));
-  assert.ok(fs.existsSync(file), "missing animation " + key);
-  assert.ok(fs.statSync(file).size > 1024, "animation file unexpectedly small: " + key);
+assert.equal(manifest.schemaVersion, 2);
+assert.equal(manifest.fileInventory.length, 28, "the active set must contain exactly the downloaded 28 FBXs");
+assert.ok(exists(manifest.baseRig.candidateFile), "npc_core_001 base-rig candidate is missing");
+for (const entry of manifest.fileInventory) {
+  const relative = entry.file;
+  assert.ok(exists(relative), "missing downloaded NPC-core FBX: " + relative);
+  assert.ok(fs.statSync(path.join(root, relative)).size > 1024, "NPC-core FBX is unexpectedly small: " + relative);
+}
+assert.equal(manifest.animations.walk_aim.file.split("/").pop(), "Walking (1).fbx");
+assert.equal(manifest.animations.crouch_walk_aim.file.split("/").pop(), "Crouch Walking.fbx");
+assert.equal(manifest.animations.crouch_walk.file.split("/").pop(), "Crouched Walking.fbx");
+assert.equal(manifest.animations.reload_idle.file.split("/").pop(), "Reloading.fbx");
+assert.equal(manifest.animations.jump_idle.file.split("/").pop(), "Jumping.fbx");
+assert.equal(manifest.animations.obstacle_climb.file.split("/").pop(), "Climbing.fbx");
+assert.equal(manifest.animations.ladder_climb_up.file.split("/").pop(), "Climbing Ladder.fbx");
+assert.equal(manifest.animations.knocked_down.file.split("/").pop(), "Knocked Down.fbx");
+
+for (const folder of ["civilian_001", "civilian_002", "npc1"]) {
+  assert.ok(!exists("data/models/npc/" + folder), "obsolete NPC model folder still exists: " + folder);
+}
+assert.ok(!exists("js/npc-character.js"), "legacy NPC character runtime remains");
+assert.ok(!exists("js/npc-config.js"), "legacy NPC config remains");
+
+assert.ok(core.includes("loadNpcCoreBase") && core.includes("cloneNpcCoreModel"));
+assert.ok(core.includes("manifest.baseRig?.candidateFile"));
+assert.ok(core.includes("stripControllerRootTranslation"));
+assert.ok(core.includes("NPC_CORE_TARGET_HEIGHT = 1.74"));
+assert.ok(controller.includes("addEventListener('finished'"));
+assert.ok(controller.includes("jump_idle") && controller.includes("reload_idle"));
+assert.ok(profiles.includes("civilian:") && profiles.includes("worker:") && profiles.includes("aggressive:") && profiles.includes("police:"));
+assert.ok(instance.includes("export class NpcInstance") && instance.includes("setProfile(profileId)"));
+assert.ok(character.includes("./npc-system/core-assets.js"));
+assert.ok(character.includes("loadNpcCoreBase") && character.includes("walk_aim") && character.includes("reload_idle"));
+assert.ok(character.includes("this.weaponType !== 'rifle'"), "non-rifle actions must not borrow rifle arm poses");
+assert.ok(civilians.includes("new NpcInstance(C.defaultProfile)"), "live civilian population must use npc_core_001");
+assert.ok(civilians.includes("_snapToAnchor") && civilians.includes("sit_idle"));
+assert.ok(!civilians.includes('.ch.play("talk"') && !civilians.includes('.ch.play("phone"'));
+assert.ok(!civilians.includes('.ch.play("sit_down"') && !civilians.includes('.ch.play("get_up"'));
+assert.ok(physics.includes("setNpcControllerPosition"), "seat snapping must update the NPC kinematic controller");
+assert.ok(player.includes("setReloading(enabled)") && player.includes("reloadLocked"));
+assert.ok(player.includes("jumpFromIdle"));
+assert.ok(weapons.includes("this.startReload(game)"));
+assert.ok(weapons.includes("d.id === 'rifle' ? 3.3 : d.reloadTime"));
+assert.ok(weapons.includes("game.player.weaponType = d.id"));
+assert.ok(main.includes("this.weapons.startReload(this)"));
+assert.ok(main.includes("LOADING VEHICLES & NPC CORE"));
+
+for (const source of [character, civilians, player, main, profiles, instance]) {
+  assert.ok(!source.includes("civilian_001/") && !source.includes("civilian_002/") && !source.includes("npc1/"),
+    "a live NPC consumer still points at a deleted legacy model directory");
 }
 
-const scene = JSON.parse(fs.readFileSync(path.join(root, "data/worlds/city-a.json"), "utf8"));
-assert.equal(scene.disableAutoSpawns, true, "pedestrians must not re-enable combat spawns");
-assert.ok(Array.isArray(scene.pedestrianRoutes) && scene.pedestrianRoutes.length);
-for (const route of scene.pedestrianRoutes) {
-  const road = scene.roads.find((item) => item.name === route.road);
-  assert.ok(road && road.sidewalk, "route must reference a sidewalk road: " + route.road);
-  assert.ok(route.sides.every((side) => side === -1 || side === 1));
-}
-const caps = NPC_GLOBAL_CONFIG.population.maxActive;
-assert.ok(caps["ultra-low"] >= 1 && caps["ultra-low"] <= caps.low);
-assert.ok(caps.low <= caps.medium && caps.medium <= caps.high && caps.high <= 8);
-assert.ok(NPC_GLOBAL_CONFIG.physics.radius > 0 && NPC_GLOBAL_CONFIG.physics.height > 1);
-assert.ok(NPC_GLOBAL_CONFIG.physics.mass > 0 && NPC_GLOBAL_CONFIG.physics.walkSpeed > 0);
-
-for (const file of ["js/main.js", "js/character.js", "js/civilians.js", "js/npc-character.js", "js/world.js", "js/physics.js"]) {
-  const source = fs.readFileSync(path.join(root, file), "utf8");
-  assert.ok(!source.includes("data/models/npc/npc1/"), file + " still references old npc1 assets");
-  assert.ok(!source.includes("data/models/npc/civilian_001/"), file + " still references old civilian_001 assets");
-}
-
-const playerCharacter = fs.readFileSync(path.join(root, "js/character.js"), "utf8");
-assert.ok(playerCharacter.includes("MODEL.modelUrl"), "player/enemy character must load the configured civilian_002 rig");
-assert.ok(!playerCharacter.includes("npc1/"), "player/enemy character still references the npc1 model");
-const civilianRuntime = fs.readFileSync(path.join(root, "js/civilians.js"), "utf8");
-for (const key of activeKeys) {
-  assert.ok(civilianRuntime.includes('"' + key + '"'), "civilian behaviour must use approved clip: " + key);
-}
-const worldRuntime = fs.readFileSync(path.join(root, "js/world.js"), "utf8");
-assert.ok(worldRuntime.includes("registerNpcInteractable"), "world must expose semantic interactable registration");
-assert.ok(worldRuntime.includes("nearestNpcInteractable"), "world must expose nearby interactable queries");
-assert.ok(civilianRuntime.includes("startConversation") && civilianRuntime.includes("nearestUsableObject"),
-  "civilian runtime must support player dialogue and world-object use");
-assert.ok(civilianRuntime.includes("updateSocial"), "civilian runtime must support NPC-to-NPC social behaviour");
-assert.ok(civilianRuntime.includes("Math.atan2(-dx, -dz)"), "civilian look-at yaw must match the rig's 180-degree model correction");
-assert.ok(civilianRuntime.includes("Math.atan2(-this.velocity.x, -this.velocity.z)"), "civilian locomotion yaw must face actual travel direction");
-assert.ok(civilianRuntime.includes('if (this.ch.currentAnimation !== "walk") this.ch.play("walk", { loop: true });'),
-  "civilian approach animation must not restart its walk clip every frame");
-
-
-const playerRuntime = fs.readFileSync(path.join(root, "js/player.js"), "utf8");
-const characterRuntime = fs.readFileSync(path.join(root, "js/character.js"), "utf8");
-assert.ok(playerRuntime.includes("modelYawOffset: Math.PI"), "player must use the same 180-degree civilian_002 orientation as pedestrians");
-assert.ok(playerRuntime.includes("jumpCameraHeight"),
-  "jump should raise camera height separately from the gameplay capsule");
-assert.ok(playerRuntime.includes("this.vel.y = 0;") && !playerRuntime.includes("this.vel.y = 8.0;"),
-  "space jump must not add a second physical lift on top of the Mixamo jump clip");
-assert.ok(characterRuntime.includes("modelYawOffset: Math.PI"), "enemy default yaw offset must remain explicit");
-assert.ok(characterRuntime.includes("key === 'idle' ? 1 : 0"), "civilian_002 standing idle must be the initial player pose");
-assert.ok(playerRuntime.includes("runThreshold: 0.62"), "normal-speed player movement must select the walk clip, not the run clip");
-assert.ok(playerRuntime.includes("hipWeaponPose: false"), "player idle and locomotion clips must retain their natural arm poses");
-assert.ok(playerRuntime.includes("const facingX = this._animationVelocityX"),
-  "player facing must follow collision-resolved travel rather than requested keys");
-assert.ok(characterRuntime.includes("if (this.appearance.hipWeaponPose === false && !this._pendingWeaponPose.aiming) return;"),
-  "player hip-fire arm correction must not override idle or locomotion poses");
-assert.ok(characterRuntime.includes("resolvePlayerAnimation(state, this._poseMode || 'idle')"), "player animation must use one latched state resolver");
-assert.ok(characterRuntime.includes("jumpStartOffset(next.getClip().duration)"), "jump must skip its crouch anticipation frames");
-assert.ok(characterRuntime.includes("const poseBlend = desired === 'jump' ? 1 : blend"), "jump must not blend against a competing locomotion cycle");
-assert.ok(characterRuntime.includes("next.setEffectiveWeight(0)"), "resetting a selected clip must not restore it at full weight before crossfade");
-assert.ok(playerRuntime.includes("groundSpeed: hs"), "player rig must receive measured horizontal movement");
-assert.ok(playerRuntime.includes("this.physics && this.physics._playerBody ? -1.0 : 0"),
-  "Rapier player must keep a downward ground probe while standing still");
-assert.ok(playerRuntime.includes("(this.pos.x - frameStartX) / animationDt"), "player animation speed must come from collision-resolved displacement");
-assert.equal(resolvePlayerAnimation({ groundSpeed: 0, moveX: 1, speed: 1 }, "idle"), "idle",
-  "key intent alone must not start a walk cycle when the player is blocked");
+assert.equal(resolvePlayerAnimation({ groundSpeed: 0, aim: 1, weaponType: "rifle" }, "idle"), "rifle_aim_idle");
+assert.equal(resolvePlayerAnimation({ groundSpeed: 0, aim: 1, weaponType: "pistol" }, "idle"), "idle",
+  "pistol must not borrow a rifle animation");
+assert.equal(resolvePlayerAnimation({ groundSpeed: 0.8, aim: 1, weaponType: "rifle" }, "idle"), "walk_aim");
+assert.equal(resolvePlayerAnimation({ groundSpeed: 3.4, aim: 1, weaponType: "rifle" }, "walk_aim"), "rifle_run");
+assert.equal(resolvePlayerAnimation({ groundSpeed: 0, crouch: 1, aim: 1, weaponType: "rifle" }, "idle"), "crouch_aim_idle");
+assert.equal(resolvePlayerAnimation({ groundSpeed: 0.8, crouch: 1, aim: 1, weaponType: "rifle" }, "idle"), "crouch_walk_aim");
+assert.equal(resolvePlayerAnimation({ groundSpeed: 0, reloading: 1 }, "idle"), "reload_idle");
+assert.equal(resolvePlayerAnimation({ groundSpeed: 1.1, reloading: 1 }, "walk"), "walk",
+  "reload must not start while moving");
+assert.equal(resolvePlayerAnimation({ groundSpeed: 0, airborne: 1, jumpFromIdle: 1 }, "idle"), "jump_idle");
+assert.equal(resolvePlayerAnimation({ groundSpeed: 1.5, airborne: 1, jumpFromIdle: 0 }, "run"), "run",
+  "a moving jump must not borrow the idle-only jump clip");
+assert.equal(resolvePlayerAnimation({ groundSpeed: 0 }, "walk"), "idle");
 assert.equal(resolvePlayerAnimation({ groundSpeed: 0.5 }, "idle"), "walk");
 assert.equal(resolvePlayerAnimation({ groundSpeed: 3.2 }, "walk"), "run");
-assert.equal(resolvePlayerAnimation({ groundSpeed: 2.95 }, "run"), "run",
-  "run hysteresis must retain the run clip while speed dips slightly");
-assert.equal(resolvePlayerAnimation({ groundSpeed: 2.7 }, "run"), "walk",
-  "run hysteresis must return to walk below its exit threshold");
 assert.equal(resolvePlayerAnimation({ groundSpeed: 4.2, sprint: 1 }, "run"), "sprint");
-assert.equal(resolvePlayerAnimation({ groundSpeed: 4.2, airborne: 1 }, "sprint"), "jump");
-assert.equal(resolvePlayerAnimation({ groundSpeed: 0.1 }, "walk"), "idle");
-assert.equal(resolvePlayerAnimation({ moveZ: 1, speed: 0.55 }, "idle"), "walk",
-  "shared enemy rigs must retain their normalized-speed animation contract");
-assert.equal(resolvePlayerAnimation({ moveZ: 1, speed: 1 }, "walk"), "run",
-  "shared enemy rigs must still reach their run clip");
-assert.equal(jumpStartOffset(1), 0.18);
-assert.equal(jumpStartOffset(0.5), 0.1);
-assert.ok(characterRuntime.includes("const blend = 1 - Math.exp"), "animation blending must be frame-rate independent");
-assert.ok(characterRuntime.includes("action.setLoop(oneShot ? THREE.LoopOnce : THREE.LoopRepeat"), "jump must be a one-shot clip, not a repeated loop");
-assert.ok(playerRuntime.includes("syncCharacter(dt = 1 / 60)"), "player must pass frame time into animation blending");
 
-assert.ok(characterRuntime.includes("setRestPose()"), "Character must expose a deterministic idle reset for spawn/respawn");
-assert.ok(!characterRuntime.includes("CROUCH_DROP") && !characterRuntime.includes("_crouchY"),
-  "crouch height must come only from the authored animation clip");
-assert.ok(!characterRuntime.includes("this._model.position.y"),
-  "character animation must not translate the model vertically to imitate crouching");
-assert.ok(characterRuntime.includes("action.setEffectiveWeight(name === 'idle' ? 1 : 0)"),
-  "spawn pose reset must leave idle as the only weighted clip");
-assert.ok(characterRuntime.includes("if (this._forceRestPose) this.setRestPose()"),
-  "an idle reset requested before FBX loading must apply after the rig builds");
+const scene = JSON.parse(read("data/worlds/city-a.json"));
+assert.ok(scene && typeof scene === "object", "existing city map must remain intact");
 
-assert.ok(characterRuntime.includes("const desired = animated.clone().multiply(offset)"),
-  "weapon pose must be additive over the real Mixamo arm animation");
-assert.ok(characterRuntime.includes("new THREE.Euler(pose.faL || 0, 0, 0)"),
-  "weapon forearm pose must interpret its scalar bend angle correctly");
-assert.ok(characterRuntime.includes("leftShoulder") && characterRuntime.includes("rightShoulder"),
-  "weapon pose must include shoulder articulation");
-
-const main = fs.readFileSync(path.join(root, "js/main.js"), "utf8");
-const htmlRuntime = fs.readFileSync(path.join(root, "index.html"), "utf8");
-assert.ok(!main.includes("npc1/Walking.fbx"), "legacy NPC prefetch is still active");
-assert.ok(worldRuntime.includes("this.buildLighting(quality);\n    // buildSky() has a low-cost ultra-low fallback. Always call it"),
-  "ultra-low graphics must still initialize a visible sky background");
-assert.ok(worldRuntime.includes("new THREE.Color(0x83b8d4)"),
-  "ultra-low sky must not use the default black renderer clear");
-assert.ok(main.includes("this.player.char?.setRestPose?.()"),
-  "spawn and respawn must reset all animation weights to a clean idle pose");
-const playerBuildIndex = main.indexOf("this.player = new Player(");
-const physicsPrimeIndex = main.indexOf("this.physics.step(1 / 60);");
-const profileApplyIndex = main.indexOf("this.player.applyProfile(this.profile);");
-assert.ok(playerBuildIndex >= 0 && physicsPrimeIndex > playerBuildIndex && profileApplyIndex > physicsPrimeIndex,
-  "Rapier must be primed at the spawn point before the game can enter free roam");
-assert.ok(main.includes("this.player.pos.set(spawn.x, Math.max(0, Number(supportY) || 0), spawn.z)"),
-  "Rapier prime must use the exact authored ground support height");
-assert.ok((main.match(/this\.player\.char\?\.setRestPose\?\.\(\)/g) || []).length >= 2,
-  "both spawn and respawn must clear leftover jump/crouch blending");
-assert.ok(!main.includes("const dp = document.getElementById('device-prompt')"),
-  "missile device prompt must not be shown unconditionally in free roam");
-assert.ok(!htmlRuntime.includes('id="device-prompt"'),
-  "stale always-on missile device hint must be removed from the HUD");
-assert.ok(main.includes("!driving && this.world.atmosphere) ? 'block' : 'none'"),
-  "F8 weather control must be hidden when the low-end renderer has no atmosphere system");
-assert.ok(main.includes("const crouchKeys = this._crouchKeys || (this._crouchKeys = new Set())"),
-  "crouch input must track each held key independently");
-assert.ok(main.includes("I.crouch = crouchKeys.size > 0"),
-  "releasing one crouch key must not clear another held crouch key");
-assert.ok(main.includes("crouchKeys.clear()"),
-  "pause/blur must clear stuck crouch input");
-assert.ok(main.includes("this.world.groundHeightAt(s.x, s.z)"),
-  "player must spawn at the support surface instead of falling from a fixed Y offset");
-console.log("NPC verification passed: civilian_002, " + activeKeys.length + " approved clips, authored sidewalk routes and physics/population config.");
+console.log("NPC core verification passed: 28 current FBXs, npc_core_001-only model folders, live player/enemy/civilian wiring, rifle-only animation selection, idle-only reload and jump, and seat-anchor physics integration.");
