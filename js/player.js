@@ -3,6 +3,11 @@
 // This state object is also suitable for network replication later.
 import * as THREE from 'three';
 import { Character } from './character.js';
+import {
+  buildObstacleClimbPath,
+  buildLadderTraversalPath,
+  sampleTimedPath,
+} from './traversal-physics.js';
 
 export class Player {
   constructor(camera, world, audio, physics = null) {
@@ -54,6 +59,7 @@ export class Player {
     this._climbCol = null;
     this._climbStart = null;
     this._climbWallNormal = null;
+    this._traversal = null;
     this._portalCooldown = 0;
     this.nearPortal = null;
     this.insideBuilding = false;
@@ -120,6 +126,8 @@ export class Player {
       canopy: this.canopy || 0,
       climbing: this.climbing ? 1 : 0,
       stairClimb: this.stairClimbing ? 1 : 0,
+      traversalAnimation: this._traversal?.plan?.animation || null,
+      traversalAnimationTimeScale: 1,
     };
   }
 
@@ -256,13 +264,19 @@ export class Player {
     if (this._climbPhase) {
       this.handleClimb(dt, k);
       const headY = this.pos.y + 1.55;
-      const origin = new THREE.Vector3(this.pos.x, headY, this.pos.z);
-      const boom = 4.4;
-      const camPos = origin.clone().add(new THREE.Vector3(0, 1.5, boom));
-      this.camera.position.lerp(camPos, Math.min(1, dt * 6));
-      this.camera.lookAt(this.pos.x, headY + 0.3, this.pos.z);
+      const normal = this._traversal?.normal || this._climbWallNormal || new THREE.Vector3(0, 0, 1);
+      const camPos = new THREE.Vector3(
+        this.pos.x + normal.x * 4.2,
+        headY + 1.55,
+        this.pos.z + normal.z * 4.2,
+      );
+      this.camera.position.lerp(camPos, Math.min(1, dt * 5.5));
+      this.camera.lookAt(this.pos.x - normal.x * 0.35, headY + 0.15, this.pos.z - normal.z * 0.35);
       this.syncCharacter(dt);
       if (this.char.update) this.char.update(dt);
+      this._applyTraversalBoneContacts();
+      if (this._traversal?.completed) this._finishTraversal(false);
+      else if (this._traversal?.aborted) this._finishTraversal(true);
       return;
     }
 
@@ -407,11 +421,19 @@ export class Player {
 
     // climb trigger — GTA-style: press F to start climbing, then all controls are disabled
     if (k.climb && this.onGround && !this.skydive && !this._climbPhase && !this.nearPortal) {
-      // First check explicit climbable objects (fences, etc.)
-      let c = this.world.climbableAt(this.pos, this.radius + 1.5);
-      // Then check any wall within reach via ray forward
-      if (!c) c = this.world.findClimbWall(this.pos, this.yaw, 1.8, 0.5, 2.8);
-      if (c) { this._startClimb(c); return; }
+      let hit = null;
+      let collider = this.world.climbableAt(this.pos, this.radius + 1.5);
+      if (collider) hit = this.world.findClimbableHit?.(this.pos, collider) || null;
+      if (!collider) {
+        const rayHit = this.world.findClimbWallHit?.(this.pos, this.yaw, 1.8, 0.5, 2.8);
+        if (rayHit) { collider = rayHit.collider; hit = rayHit; }
+        else collider = this.world.findClimbWall(this.pos, this.yaw, 1.8, 0.5, 2.8);
+      }
+      if (collider && !hit) hit = this.world.findClimbableHit?.(this.pos, collider) || null;
+      if (collider) {
+        const calibrated = this.world.getTraversalCandidateForCollider?.(collider, this.pos) || null;
+        if (this._startClimb(collider, hit, calibrated)) return;
+      }
     }
 
     // eye height & head bob
@@ -538,25 +560,161 @@ export class Player {
     }
   }
 
-  handleClimb(dt, k) {
-    // Instant climb (no animation state machine) — nothing to update here.
-    return false;
-  }
-
-  _startClimb(c) {
-    // Instant action — no climb animation.
-    if (c.type === 'fence') {
-      // Fence: teleport straight to the other side.
-      this._crossFence(c);
-    } else {
-      // Wall/crate/building: pull straight up onto the top.
-      this.pos.y = c.max.y + 0.02;
-      this.vel.set(0, 0, 0);
-      this.onGround = true;
+  handleClimb(dt) {
+    const state = this._traversal;
+    if (!state || state.completed || state.aborted) return;
+    const plan = state.plan;
+    state.elapsed = Math.min(plan.duration, state.elapsed + Math.min(Math.max(dt, 0), 0.05));
+    const progress = THREE.MathUtils.clamp(state.elapsed / plan.duration, 0, 1);
+    const next = sampleTimedPath(plan.path, progress);
+    if (!next || !this.world.isCapsuleClearAt(next, this.radius, this.height)) {
+      state.aborted = true;
+      return;
     }
+
+    this.pos.set(next.x, next.y, next.z);
+    this.vel.set(0, 0, 0);
+    this.onGround = false;
+    state.lastSafePosition.copy(this.pos);
     if (this.physics) this.physics.setPlayerPosition(this.pos.x, this.pos.y, this.pos.z);
+
+    if (progress >= 1 - 1e-5) {
+      const landing = plan.landing || this.pos;
+      if (!this.world.hasTraversalSupport(landing, this.radius)) {
+        state.aborted = true;
+        return;
+      }
+      this.pos.set(landing.x, landing.y, landing.z);
+      this.onGround = true;
+      state.completed = true;
+      if (this.physics) this.physics.setPlayerPosition(this.pos.x, this.pos.y, this.pos.z);
+    }
   }
 
+  _applyTraversalBoneContacts() {
+    const state = this._traversal;
+    if (!state || !Array.isArray(state.plan.boneContacts) || !this.char?.getBoneOffsetFromRoot) return;
+    const progress = THREE.MathUtils.clamp(state.elapsed / state.plan.duration, 0, 1);
+    for (let index = 0; index < state.plan.boneContacts.length; index++) {
+      if (state.appliedContacts.has(index)) continue;
+      const contact = state.plan.boneContacts[index];
+      const t = Number(contact?.t);
+      const target = contact?.position;
+      if (!Number.isFinite(t) || !target || progress + 0.012 < t) continue;
+      state.appliedContacts.add(index);
+      const offset = this.char.getBoneOffsetFromRoot(contact.bone);
+      if (!offset) { state.contactMisses++; continue; }
+      const desired = new THREE.Vector3(
+        Number(target.x) - offset.x,
+        Number(target.y) - offset.y,
+        Number(target.z) - offset.z,
+      );
+      const correction = desired.distanceTo(this.pos);
+      const maxCorrection = Math.max(0.05, Math.min(0.45, Number(contact.maxCorrection) || 0.28));
+      if (correction > maxCorrection || !this.world.isCapsuleClearAt(desired, this.radius, this.height)) {
+        state.contactMisses++;
+        continue;
+      }
+      this.pos.copy(desired);
+      state.lastSafePosition.copy(desired);
+      if (this.physics) this.physics.setPlayerPosition(this.pos.x, this.pos.y, this.pos.z);
+      this.syncCharacter(0);
+    }
+  }
+
+  _finishTraversal(aborted = false) {
+    const state = this._traversal;
+    if (!state) return;
+    if (aborted) {
+      this.pos.copy(state.lastSafePosition);
+      const supportY = this.world.groundHeightAt(this.pos.x, this.pos.z, this.pos.y + 0.25);
+      if (Math.abs(supportY - this.pos.y) <= 0.2) {
+        this.pos.y = supportY;
+        this.onGround = true;
+      } else {
+        this.onGround = false;
+      }
+    }
+    this._traversal = null;
+    this._climbPhase = null;
+    this.climbing = false;
+    this.climbTarget = null;
+    this._climbCol = null;
+    this._climbStart = null;
+    this._climbWallNormal = null;
+    this.vel.set(0, 0, 0);
+    this._animationVelocityX = 0;
+    this._animationVelocityZ = 0;
+    this._jumpFromIdle = false;
+    this.landDip = aborted ? 0.04 : 0.11;
+    if (!aborted) this.audio?.footstep?.();
+    if (this.physics) this.physics.setPlayerPosition(this.pos.x, this.pos.y, this.pos.z);
+    this.bodyYaw = this.yaw;
+  }
+
+  _startClimb(collider, hit = null, calibrated = null) {
+    if (!collider || this._traversal) return false;
+    const normal = hit?.normal?.clone?.()
+      || new THREE.Vector3(this.pos.x - (collider.min.x + collider.max.x) * 0.5, 0,
+        this.pos.z - (collider.min.z + collider.max.z) * 0.5);
+    normal.y = 0;
+    if (normal.lengthSq() < 1e-5) return false;
+    normal.normalize();
+
+    let plan = null;
+    const anchors = calibrated?.anchors || {};
+    if (calibrated?.actionCandidate === 'ladder-climb') {
+      plan = buildLadderTraversalPath({
+        start: this.pos,
+        climbPath: anchors.climbPath,
+        topOut: anchors.topOut,
+        rungSpacing: anchors.rungSpacing,
+      });
+    } else {
+      plan = buildObstacleClimbPath({
+        start: this.pos,
+        bounds: collider,
+        normal,
+        radius: this.radius,
+        height: this.height,
+        maxRise: Math.min(2.35, this.height + 0.55),
+        rootPath: calibrated?.accepted ? anchors.rootPath : null,
+        handContact: anchors.handContact,
+        landing: anchors.landing,
+        boneContacts: calibrated?.accepted ? anchors.boneContacts : [],
+        duration: calibrated?.animation?.durationSeconds || 3.833,
+      });
+    }
+    if (!plan || !this.world.isTraversalPathClear(plan.path, this.radius, this.height)) return false;
+    if (!this.world.hasTraversalSupport(plan.landing, this.radius)) return false;
+
+    const facingYaw = Math.atan2(normal.x, normal.z);
+    this.yaw = facingYaw;
+    this.bodyYaw = facingYaw;
+    this.aimAmount = 0;
+    this.sprinting = false;
+    this.crouched = false;
+    this.vel.set(0, 0, 0);
+    this.climbing = true;
+    this.climbTarget = collider;
+    this._climbCol = collider;
+    this._climbStart = this.pos.clone();
+    this._climbWallNormal = normal.clone();
+    this._climbPhase = 'traversal';
+    this._traversal = {
+      plan,
+      candidate: calibrated,
+      normal: normal.clone(),
+      elapsed: 0,
+      lastSafePosition: this.pos.clone(),
+      appliedContacts: new Set(),
+      contactMisses: 0,
+      completed: false,
+      aborted: false,
+    };
+    if (this.physics) this.physics.setPlayerPosition(this.pos.x, this.pos.y, this.pos.z);
+    return true;
+  }
   _crossFence(c) {
     const w = c.max.x - c.min.x;
     const d = c.max.z - c.min.z;
