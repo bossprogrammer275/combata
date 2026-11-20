@@ -97,7 +97,7 @@ export function createGroundRendererMaterial(THREE, options = {}) {
       'groundColor *= 0.94 + groundGrain * 0.15 * groundLod;\n' +
       'float groundSlope = 1.0 - clamp(vGroundNormal.y, 0.0, 1.0);\n' +
       'groundColor = mix(groundColor, vec3(0.32, 0.29, 0.25), smoothstep(0.22, 0.68, groundSlope) * 0.38);\n' +
-      'if (groundLod > 0.01) {\n' +
+      'if (uGroundDetail > 0.5 && groundLod > 0.01) {\n' +
       '  vec2 groundCells = groundCell(groundP * 2.8);\n' +
       '  float groundStone = (1.0 - smoothstep(0.04, 0.22, groundCells.x)) * 0.075;\n' +
       '  groundColor *= 1.0 - groundStone;\n' +

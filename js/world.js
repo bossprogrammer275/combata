@@ -2753,7 +2753,7 @@ export class World {
           arms.push({
             dx: dir[0], dz: dir[1],
             halfWidth: chain.W * 0.5 + shoulder,
-            reach: entry.hit.radius + shoulder + 0.45,
+            reach: Math.max(entry.hit.radius, Number(entry.hit.endpointOffset) || 0) + shoulder + 0.45,
           });
         }
       }
@@ -2899,7 +2899,7 @@ export class World {
             dx: direction[0],
             dz: direction[1],
             halfWidth: entry.chain.W * 0.5,
-            reach: Math.max(entry.hit.radius + 0.35, entry.chain.W * 0.5 + 1.1),
+            reach: Math.max(Number(entry.hit.endpointOffset) || 0, entry.hit.radius, entry.chain.W * 0.5 + 1.1) + 0.35,
           });
         }
       }
@@ -3312,10 +3312,74 @@ export class World {
     const hits = chains.map(() => []);
     const addHit = (ia, da, ib, db, x, z) => {
       const radius = Math.max(chains[ia].W, chains[ib].W) * 0.5 + 1.4;
-      hits[ia].push({ distance: da, radius, x, z });
-      hits[ib].push({ distance: db, radius, x, z });
+      hits[ia].push({ distance: da, radius, x, z, endpointOffset: 0 });
+      hits[ib].push({ distance: db, radius, x, z, endpointOffset: 0 });
     };
     const cross = (ax, az, bx, bz) => ax * bz - az * bx;
+
+    const connectEndpointsToChain = (sourceIndex, targetIndex) => {
+      const source = chains[sourceIndex], target = chains[targetIndex];
+      const sourceMeta = metadata[sourceIndex], targetMeta = metadata[targetIndex];
+      if (source.pts.length < 2 || target.pts.length < 2) return;
+
+      for (const endpoint of [
+        { point: source.pts[0], distance: 0 },
+        { point: source.pts[source.pts.length - 1], distance: sourceMeta.total },
+      ]) {
+        let best = null;
+        for (let segment = 0; segment < target.pts.length - 1; segment++) {
+          const a = target.pts[segment], b = target.pts[segment + 1];
+          const dx = b.x - a.x, dz = b.z - a.z;
+          const lengthSq = dx * dx + dz * dz;
+          if (lengthSq < 1e-6) continue;
+          const t = THREE.MathUtils.clamp(
+            ((endpoint.point.x - a.x) * dx + (endpoint.point.z - a.z) * dz) / lengthSq,
+            0, 1,
+          );
+          const x = a.x + dx * t, z = a.z + dz * t;
+          const distance = Math.hypot(endpoint.point.x - x, endpoint.point.z - z);
+          if (!best || distance < best.distance) {
+            best = { x, z, distance, segment, t, segmentLength: Math.sqrt(lengthSq) };
+          }
+        }
+        if (!best) continue;
+
+        // Roads are first trimmed to the outer edge of a crossing street. Snap
+        // that cut-back endpoint to the actual crossing centreline, not just to
+        // a 1–2m endpoint tolerance, so T junctions remain connected.
+        const snapLimit = source.W * 0.5 + target.W * 0.5 + 1.25;
+        if (best.distance > snapLimit) continue;
+        const targetPoint = target.pts[best.segment];
+        const targetNext = target.pts[best.segment + 1];
+        const sourceY = Number(endpoint.point.y) || 0;
+        const targetY = THREE.MathUtils.lerp(
+          Number(targetPoint.y) || 0,
+          Number(targetNext.y) || 0,
+          best.t,
+        );
+        if (Math.abs(sourceY - targetY) > 1.25) continue;
+
+        const targetDistance = targetMeta.cumulative[best.segment] + best.segmentLength * best.t;
+        const radius = Math.max(source.W, target.W) * 0.5 + 1.4;
+        const endpointRadius = best.distance > 0.8
+          ? 0.12
+          : Math.max(0.12, Math.min(0.42, source.W * 0.025));
+        hits[sourceIndex].push({
+          distance: endpoint.distance,
+          radius: endpointRadius,
+          x: best.x,
+          z: best.z,
+          endpointOffset: best.distance,
+        });
+        hits[targetIndex].push({
+          distance: targetDistance,
+          radius,
+          x: best.x,
+          z: best.z,
+          endpointOffset: 0,
+        });
+      }
+    };
 
     for (let ia = 0; ia < chains.length; ia++) {
       const a = chains[ia], ma = metadata[ia];
@@ -3324,7 +3388,7 @@ export class World {
         const b = chains[ib], mb = metadata[ib];
         if (b.pts.length < 2) continue;
 
-        // Find proper intersections between centre-line segments, including T-junctions.
+        // Proper segment intersections catch continuous crossings.
         for (let ai = 0; ai < a.pts.length - 1; ai++) {
           const p = a.pts[ai], p2 = a.pts[ai + 1];
           const rx = p2.x - p.x, rz = p2.z - p.z;
@@ -3344,36 +3408,21 @@ export class World {
             const tA = THREE.MathUtils.clamp(ta, 0, 1);
             const tB = THREE.MathUtils.clamp(tb, 0, 1);
             const x = p.x + rx * tA, z = p.z + rz * tA;
-            const yA = THREE.MathUtils.lerp(p.y || 0, p2.y || 0, tA);
-            const yB = THREE.MathUtils.lerp(q.y || 0, q2.y || 0, tB);
+            const yA = THREE.MathUtils.lerp(Number(p.y) || 0, Number(p2.y) || 0, tA);
+            const yB = THREE.MathUtils.lerp(Number(q.y) || 0, Number(q2.y) || 0, tB);
             if (Math.abs(yA - yB) > 1.25) continue;
-            addHit(ia, ma.cumulative[ai] + rLen * tA, ib, mb.cumulative[bi] + sLen * tB, x, z);
+            addHit(
+              ia, ma.cumulative[ai] + rLen * tA,
+              ib, mb.cumulative[bi] + sLen * tB,
+              x, z,
+            );
           }
         }
 
-        // Map data often has endpoints a metre or so away from the cross street.
-        // Snap those near misses into a junction zone too.
-        for (const endpoint of [
-          { p: a.pts[0], dist: 0 },
-          { p: a.pts[a.pts.length - 1], dist: ma.total },
-        ]) {
-          let best = null;
-          for (let bi = 0; bi < b.pts.length - 1; bi++) {
-            const q = b.pts[bi], q2 = b.pts[bi + 1];
-            const vx = q2.x - q.x, vz = q2.z - q.z;
-            const ll = vx * vx + vz * vz;
-            if (ll < 1e-6) continue;
-            const t = THREE.MathUtils.clamp(((endpoint.p.x - q.x) * vx + (endpoint.p.z - q.z) * vz) / ll, 0, 1);
-            const x = q.x + vx * t, z = q.z + vz * t;
-            const distance = Math.hypot(endpoint.p.x - x, endpoint.p.z - z);
-            if (!best || distance < best.distance) best = { x, z, distance, segment: bi, t, length: Math.sqrt(ll) };
-          }
-          const tolerance = Math.max(0.85, Math.min(2.1, (a.W + b.W) * 0.055));
-          if (best && best.distance <= tolerance) {
-            const db = mb.cumulative[best.segment] + best.length * best.t;
-            addHit(ia, endpoint.dist, ib, db, (endpoint.p.x + best.x) / 2, (endpoint.p.z + best.z) / 2);
-          }
-        }
+        // Check endpoints in both directions. A T-junction's side road often
+        // ends exactly at the other carriageway's outer edge after trimming.
+        connectEndpointsToChain(ia, ib);
+        connectEndpointsToChain(ib, ia);
       }
     }
     return hits;
