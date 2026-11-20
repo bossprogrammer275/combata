@@ -122,8 +122,11 @@ jobs:
           node --check js/character.js
           node --check js/vehicles.js
           node --check js/civilians.js
-          node --check js/npc-config.js
-          node --check js/npc-character.js
+          node --check js/player-animation.js
+          node --check js/npc-system/core-assets.js
+          node --check js/npc-system/profile-registry.js
+          node --check js/npc-system/animation-controller.js
+          node --check js/npc-system/npc-instance.js
           node --check tools/verify-npcs.mjs
           node --check js/world-kit.js
           node --check tools/verify-world-kit.mjs
@@ -147,5 +150,5 @@ jobs:
         run: node tools/verify-collisions.mjs
       - name: Verify vehicle models and Rapier basics
         run: node tools/verify-vehicles.mjs
-      - name: Verify civilian model integration
+      - name: Verify npc_core_001 model and runtime integration
         run: node tools/verify-npcs.mjs
