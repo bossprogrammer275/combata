@@ -258,6 +258,7 @@ function makeComponent(item, role, index, assetType) {
     nodeKey: item.nodeKey,
     nodePath: item.nodePath,
     name: item.name,
+    sectionId: role?.sectionId || null,
     role: role?.role || 'unclassified',
     kind: role?.kind || 'unknown',
     confidence: role?.confidence || 0,
