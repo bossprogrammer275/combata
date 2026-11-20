@@ -1139,7 +1139,7 @@ export class World {
       const d = Math.max(0.12, Number(obstacle.d) || 0.5);
       const ry = Number(obstacle.ry) || 0;
       this.box(x, y, z, w, h, d, concrete, false, ry);
-      const c = Math.abs(Math.cos(ry), sn = Math.abs(Math.sin(ry));
+      const c = Math.abs(Math.cos(ry)), sn = Math.abs(Math.sin(ry));
       this.addCollider(x, y, z, w * c + d * sn, h, w * sn + d * c,
         obstacle.climbable === true, obstacle.type || 'test_obstacle');
       if (obstacle.name) this.namedLocations.push({ x, z, name: obstacle.name, color: '#e2c76b' });
