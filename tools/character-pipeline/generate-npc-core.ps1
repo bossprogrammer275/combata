@@ -98,7 +98,7 @@ Write-Host ""
 Write-Host "Animation search, ranking, selection and FBX downloads are autonomous." -ForegroundColor Green
 Write-Host "Only the initial Mixamo auto-rig marker placement remains interactive." -ForegroundColor Yellow
 Write-Host "Missing or unsuitable clips are recorded in the manifest for later review." -ForegroundColor Yellow
-Write-Host "Original civilian_002 and civilian_001 folders are not modified." -ForegroundColor Green
+Write-Host "npc_core_001 is the sole active humanoid model; generation writes only to its folder." -ForegroundColor Green
 Write-Host ""
 
 # Use a hashtable for named PowerShell parameters. Array splatting here can
