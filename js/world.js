@@ -1,6 +1,6 @@
 // World — GLB-only city with authored roads.
 import * as THREE from 'three';
-import { validateTraversalPath } from './traversal-physics.js';
+import { validateTraversalPath, capsuleIntersectsAabb } from './traversal-physics.js';
 
 function yieldStreamingWork() {
   return new Promise(resolve => {
@@ -5304,28 +5304,26 @@ export class World {
       : this.colliders;
     for (const collider of candidates) {
       if (collider.surfaceOnly || collider.type === 'road_surface') continue;
-      // A support collider may touch the capsule's feet; treat its top 20cm as a contact band, not a penetrating wall.
-      if (position.y >= collider.max.y - 0.2 || position.y + height <= collider.min.y + 0.015) continue;
-      let dx, dz;
       if (collider.orientedBox) {
         const box = collider.orientedBox;
         const ox = position.x - box.center.x, oz = position.z - box.center.z;
         const cosine = Math.cos(box.yaw), sine = Math.sin(box.yaw);
-        const localX = ox * cosine - oz * sine;
-        const localZ = ox * sine + oz * cosine;
-        const closestX = THREE.MathUtils.clamp(localX, -box.halfExtents.x, box.halfExtents.x);
-        const closestZ = THREE.MathUtils.clamp(localZ, -box.halfExtents.z, box.halfExtents.z);
-        dx = localX - closestX; dz = localZ - closestZ;
-      } else {
-        const closestX = THREE.MathUtils.clamp(position.x, collider.min.x, collider.max.x);
-        const closestZ = THREE.MathUtils.clamp(position.z, collider.min.z, collider.max.z);
-        dx = position.x - closestX; dz = position.z - closestZ;
+        const localPosition = {
+          x: ox * cosine - oz * sine,
+          y: position.y,
+          z: ox * sine + oz * cosine,
+        };
+        const localBounds = {
+          min: { x: -box.halfExtents.x, y: collider.min.y, z: -box.halfExtents.z },
+          max: { x: box.halfExtents.x, y: collider.max.y, z: box.halfExtents.z },
+        };
+        if (capsuleIntersectsAabb(localPosition, radius, height, localBounds)) return false;
+      } else if (capsuleIntersectsAabb(position, radius, height, collider)) {
+        return false;
       }
-      if (dx * dx + dz * dz < radius * radius - 1e-5) return false;
     }
     return true;
   }
-
   hasTraversalSupport(position, radius = 0.42) {
     if (!position) return false;
     const ground = this.groundHeightAt(position.x, position.z, position.y + 0.25);
