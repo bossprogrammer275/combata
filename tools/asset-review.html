@@ -65,12 +65,24 @@ dl{display:grid;grid-template-columns:115px minmax(0,1fr);gap:7px 9px;font-size:
 <div class="stat"><span>Components</span><strong id="calibration-components">—</strong></div>
 <div class="stat"><span>Box colliders</span><strong id="calibration-boxes">—</strong></div>
 <div class="stat"><span>Road surfaces</span><strong id="calibration-surfaces">—</strong></div>
+<div class="stat"><span>Traversal candidates</span><strong id="calibration-traversals">—</strong></div>
 </div>
 <label class="field-label" for="calibration-component">Detected component</label>
 <select id="calibration-component" style="width:100%"><option value="">No components</option></select>
 <div class="calibration-actions">
 <button id="calibration-show-collision" type="button">Show collision boxes</button>
 <button id="calibration-show-surfaces" type="button">Show road profiles</button>
+</div>
+<label class="field-label" for="calibration-traversal">Traversal candidate</label>
+<select id="calibration-traversal" style="width:100%"><option value="">No traversal candidates</option></select>
+<div class="calibration-actions">
+<button id="calibration-show-traversal" type="button">Show traversal path</button>
+</div>
+<label class="field-label" for="calibration-traversal-json">Traversal profile · approach, hand/rung contacts, timed root path</label>
+<textarea id="calibration-traversal-json" spellcheck="false" placeholder="Select an obstacle or ladder candidate…"></textarea>
+<div class="calibration-actions">
+<button id="calibration-save-traversal" type="button">Apply traversal edits</button>
+<button id="calibration-accept-traversal" class="primary" type="button">Accept traversal profile</button>
 </div>
 <label class="field-label" for="calibration-json">Component record · edit anchors / role / review flags</label>
 <textarea id="calibration-json" spellcheck="false" placeholder="Select a calibrated component…"></textarea>
