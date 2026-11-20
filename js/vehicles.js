@@ -40,9 +40,9 @@ function collectVehicleInteractionAnchors(model, vehicleRoot) {
     const world = node.localToWorld(new THREE.Vector3(values[0], values[1], values[2]));
     return vehicleRoot.worldToLocal(world.clone());
   };
-  const directionToVehicleRoot = (node, value) => {
-    const direction = Array.isArray(value) ? value
-      : (value?.forward || value?.facing || value?.direction || value);
+  const directionToVehicleRoot = (node, value, allowVector = false) => {
+    const direction = value?.forward || value?.facing || value?.direction
+      || (allowVector ? value : null);
     const values = Array.isArray(direction)
       ? direction : direction ? [direction.x, direction.y, direction.z] : null;
     if (!values || values.length < 3
@@ -68,7 +68,9 @@ function collectVehicleInteractionAnchors(model, vehicleRoot) {
       if (resolved) output[key] = resolved;
     }
     for (const key of ['entry', 'exit', 'seatFacing']) {
-      const resolved = directionToVehicleRoot(node, anchors[key]);
+      // Entry/exit are positions. Facing must be an explicit .forward/.facing
+      // vector; only seatFacing may itself be supplied as an XYZ vector.
+      const resolved = directionToVehicleRoot(node, anchors[key], key === 'seatFacing');
       if (resolved && !output[key + 'Forward']) output[key + 'Forward'] = resolved;
     }
     if (spec.kind === 'vehicle-door') {
@@ -76,7 +78,7 @@ function collectVehicleInteractionAnchors(model, vehicleRoot) {
         componentId: spec.componentId || null,
         node,
         hinge: pointToVehicleRoot(node, anchors.hinge),
-        hingeAxis: directionToVehicleRoot(node, anchors.hingeAxis),
+        hingeAxis: directionToVehicleRoot(node, anchors.hingeAxis, true),
         handle: pointToVehicleRoot(node, anchors.handle),
         entry: pointToVehicleRoot(node, anchors.entry),
         exit: pointToVehicleRoot(node, anchors.exit),
