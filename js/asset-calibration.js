@@ -89,13 +89,25 @@ export function applyAssetCalibration(root, calibration) {
     // Only manually accepted interaction anchors become runtime interactables.
     // Guessed seat centres/hinges must not silently move the player or NPC.
     if (component.interaction?.accepted === true && component.interaction.kind) {
-      node.userData.npcInteractable = {
-        kind: component.interaction.kind,
-        label: component.interaction.label || component.interaction.kind,
-        useRadius: component.interaction.useRadius,
-        approachOffset: component.interaction.approachOffset || null,
-        sitOffset: component.interaction.sitOffset || null,
-      };
+      const interaction = component.interaction;
+      if (String(interaction.kind).startsWith('vehicle-')
+        || interaction.kind === 'steering-wheel') {
+        node.userData.vehicleInteractable = {
+          ...interaction,
+          componentId: component.id || component.nodeKey,
+          componentRole: component.role || null,
+          coordinateSpace: 'component-local',
+        };
+      } else {
+        node.userData.npcInteractable = {
+          ...interaction,
+          kind: interaction.kind,
+          label: interaction.label || interaction.kind,
+          useRadius: interaction.useRadius,
+          approachOffset: interaction.approachOffset || null,
+          sitOffset: interaction.sitOffset || null,
+        };
+      }
     }
 
     let bucket = componentsByRole.get(record.role);
