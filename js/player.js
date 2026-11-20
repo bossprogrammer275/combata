@@ -226,8 +226,10 @@ export class Player {
     const k = this.reloadLocked
       ? { ...input, forward: 0, right: 0, sprint: false, jump: false, crouch: false, climb: false, ads: false, fire: false }
       : input;
-    const jumpPressed = !!k.jump && !this._jumpWasDown;
-    this._jumpWasDown = !!k.jump;
+    // Track the physical key even while controls are locked so holding Space
+    // through a reload cannot trigger a delayed jump when the reload ends.
+    const jumpPressed = !this.reloadLocked && !!input.jump && !this._jumpWasDown;
+    this._jumpWasDown = !!input.jump;
 
     // ---- SKYDIVE / PARACHUTE BRANCH (drop from the plane) ----
     if (this.skydive) {
