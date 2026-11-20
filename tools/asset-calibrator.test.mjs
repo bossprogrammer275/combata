@@ -7,7 +7,7 @@ import {
   makeComponent,
   buildRoadProfiles,
 } from './asset-calibrator.mjs';
-import { hasAnchor } from './validate-asset-calibration.mjs';
+import { hasAnchor, isRuntimeSurfaceRole } from './validate-asset-calibration.mjs';
 
 const bridgePath = 'data/models/assets/others/modular_bridge__low_poly__game_ready_/scene.gltf';
 const roadPackPath = 'data/models/assets/roads/road_pack/scene.gltf';
@@ -141,4 +141,14 @@ test('interaction validation accepts two-value door ranges and structured transf
   assert.equal(hasAnchor({ position: [0.4, 1.2, -0.3] }), true);
   assert.equal(hasAnchor({ position: { x: 0.4, y: 1.2, z: -0.3 } }), true);
   assert.equal(hasAnchor([]), false);
+});
+
+test('runtime surface allow-list includes trusted imported street-road surfaces', () => {
+  assert.equal(isRuntimeSurfaceRole('road-surface'), true);
+  assert.equal(isRuntimeSurfaceRole('bridge-deck'), true);
+  assert.equal(isRuntimeSurfaceRole('road-straight-module'), true);
+  assert.equal(isRuntimeSurfaceRole('road-corner-module'), true);
+  assert.equal(isRuntimeSurfaceRole('walkable-surface'), true);
+  assert.equal(isRuntimeSurfaceRole('road-surface-candidate'), false);
+  assert.equal(isRuntimeSurfaceRole('unclassified'), false);
 });
