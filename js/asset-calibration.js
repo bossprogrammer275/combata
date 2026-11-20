@@ -128,6 +128,8 @@ export function applyAssetCalibration(root, calibration) {
             hinge: anchorPosition(anchors.hinge),
             hingeAxis: anchors.hingeAxis || null,
             handle: anchorPosition(anchors.handle),
+            closedTransform: anchors.closedTransform || null,
+            openRange: anchors.openRange || null,
             openAngleDeg: Number.isFinite(Number(anchors.openAngleDeg)) ? Number(anchors.openAngleDeg) : null,
             accepted: true,
           };
