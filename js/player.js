@@ -576,23 +576,53 @@ export class Player {
       return;
     }
 
-    this.pos.set(next.x, next.y, next.z);
+    if (!this._moveTraversalPosition(next)) {
+      state.aborted = true;
+      return;
+    }
+    if (!this.world.isCapsuleClearAt(this.pos, this.radius, this.height)) {
+      state.aborted = true;
+      return;
+    }
     this.vel.set(0, 0, 0);
     this.onGround = false;
     state.lastSafePosition.copy(this.pos);
-    if (this.physics) this.physics.setPlayerPosition(this.pos.x, this.pos.y, this.pos.z);
 
     if (progress >= 1 - 1e-5) {
-      const landing = plan.landing || this.pos;
-      if (!this.world.hasTraversalSupport(landing, this.radius)) {
+      const landing = plan.landing || next;
+      if (Math.hypot(landing.x - this.pos.x, landing.y - this.pos.y, landing.z - this.pos.z) > 0.16
+        || !this.world.hasTraversalSupport(this.pos, this.radius)) {
         state.aborted = true;
         return;
       }
-      this.pos.set(landing.x, landing.y, landing.z);
       this.onGround = true;
       state.completed = true;
-      if (this.physics) this.physics.setPlayerPosition(this.pos.x, this.pos.y, this.pos.z);
     }
+  }
+
+  _moveTraversalPosition(target, tolerance = 0.12) {
+    if (!target) return false;
+    const deltaX = target.x - this.pos.x;
+    const deltaY = target.y - this.pos.y;
+    const deltaZ = target.z - this.pos.z;
+    const distance = Math.hypot(deltaX, deltaY, deltaZ);
+    if (distance < 1e-5) return true;
+
+    if (this.physics?._playerBody && this.physics?._playerController) {
+      const result = this.physics.movePlayer(deltaX, deltaY, deltaZ);
+      if (!result?.position) return false;
+      this.pos.copy(result.position);
+      return this.pos.distanceTo(target) <= tolerance;
+    }
+
+    const steps = Math.max(1, Math.ceil(distance / 0.075));
+    const sx = deltaX / steps, sy = deltaY / steps, sz = deltaZ / steps;
+    for (let index = 0; index < steps; index++) {
+      this.moveAxis(sx, 0, 0);
+      this.moveAxis(0, 0, sz);
+      this.moveAxis(0, sy, 0);
+    }
+    return this.pos.distanceTo(target) <= tolerance;
   }
 
   _applyTraversalBoneContacts() {
@@ -619,9 +649,11 @@ export class Player {
         state.contactMisses++;
         continue;
       }
-      this.pos.copy(desired);
-      state.lastSafePosition.copy(desired);
-      if (this.physics) this.physics.setPlayerPosition(this.pos.x, this.pos.y, this.pos.z);
+      if (!this._moveTraversalPosition(desired, 0.055)) {
+        state.contactMisses++;
+        continue;
+      }
+      state.lastSafePosition.copy(this.pos);
       this.syncCharacter(0);
     }
   }
