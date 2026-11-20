@@ -294,15 +294,25 @@ async function calibrateOne(file) {
   const sourceSize = fs.statSync(file).size;
   const baseName = path.parse(file).name;
   const outputPath = path.join(path.dirname(file), `${baseName}_calibration.json`);
+  const previousFile = fs.existsSync(outputPath)
+    ? (() => { try { return JSON.parse(fs.readFileSync(outputPath, 'utf8')); } catch { return null; } })()
+    : null;
+  // Manual calibration only survives while the exact source asset is unchanged.
+  const old = previousFile?.source?.sha256 === hash ? previousFile : null;
+  const priorAcceptedSurfaceKeys = new Set((old?.road?.surfaces || [])
+    .filter(surface => surface.runtimeEnabled === true)
+    .map(surface => surface.nodeKey));
 
   console.log(`[Calibrator] Scanning ${assetPath}`);
   const scanned = await processGLB(file, {
     write: false,
     log: false,
+    excludeNodeKeys: [...priorAcceptedSurfaceKeys],
     excludeMesh: item => {
       const role = classifyComponent(item, assetType, assetPath);
-      return (role?.source?.startsWith('world-kit') || role?.source === 'world-bridge-kit')
-        && ['bridge-deck', 'road-surface', 'road-straight-module', 'road-corner-module', 'walkable-surface'].includes(role.role);
+      return priorAcceptedSurfaceKeys.has(item.nodeKey)
+        || ((role?.source?.startsWith('world-kit') || role?.source === 'world-bridge-kit')
+          && ['bridge-deck', 'road-surface', 'road-straight-module', 'road-corner-module', 'walkable-surface'].includes(role.role));
     },
   });
 
@@ -338,9 +348,6 @@ async function calibrateOne(file) {
     note: 'Compare dimensions, capsule clearance, reach, landing space and the active NPC/player animation set before enabling traversal.',
   }));
 
-  const old = fs.existsSync(outputPath)
-    ? (() => { try { return JSON.parse(fs.readFileSync(outputPath, 'utf8')); } catch { return null; } })()
-    : null;
   const priorComponents = new Map((old?.components || []).map(component => [component.nodeKey, component]));
   for (const component of components) {
     const previous = priorComponents.get(component.nodeKey);
@@ -365,6 +372,29 @@ async function calibrateOne(file) {
       candidate.requiresReview = previous.requiresReview === false ? false : true;
       if (previous.anchors) candidate.anchors = previous.anchors;
       if (previous.manual === true) candidate.manual = true;
+    }
+  }
+
+  // Keep approved connection corrections and explicit surface activation when
+  // rescanning the same source. The corresponding source meshes were excluded
+  // from static boxes above and will be registered as exact triangle surfaces.
+  const priorRoadSurfaces = new Map((old?.road?.surfaces || []).map(surface => [surface.nodeKey, surface]));
+  for (const surface of road?.surfaces || []) {
+    const previous = priorRoadSurfaces.get(surface.nodeKey);
+    if (!previous) continue;
+    if (previous.runtimeEnabled === true) {
+      surface.runtimeEnabled = true;
+      const component = components.find(item => item.nodeKey === surface.nodeKey);
+      if (component) {
+        component.runtimeEnabled = true;
+        if (previous.requiresReview === false) component.requiresReview = false;
+      }
+    }
+    if (previous.connection?.accepted === true && previous.connection?.requiresReview === false) {
+      surface.connection = previous.connection;
+      surface.requiresReview = false;
+      const component = components.find(item => item.nodeKey === surface.nodeKey);
+      if (component) component.requiresReview = false;
     }
   }
 
@@ -438,6 +468,13 @@ async function calibrateOne(file) {
           nodeKey: candidate.nodeKey,
           role: candidate.actionCandidate,
           reason: 'Confirm animation contact, player capsule clearance and landing support before enabling traversal.',
+        })),
+        ...(road?.surfaces || []).filter(surface => surface.connection?.status !== 'estimated'
+          || surface.connection?.accepted !== true || surface.connection?.requiresReview !== false).map(surface => ({
+          componentId: surface.id,
+          nodeKey: surface.nodeKey,
+          role: surface.role,
+          reason: 'Review centreline/endpoints and approve the driveable connection before enabling custom tyre-surface sampling.',
         })),
       ];
       return {
