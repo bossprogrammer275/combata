@@ -46,6 +46,7 @@ assert.ok(core.includes("loadNpcCoreBase") && core.includes("cloneNpcCoreModel")
 assert.ok(core.includes("manifest.baseRig?.candidateFile"));
 assert.ok(core.includes("stripControllerRootTranslation"));
 assert.ok(core.includes("NPC_CORE_TARGET_HEIGHT = 1.74"));
+assert.ok(core.includes("REQUIRED_BODY_BONES") && core.includes("missingBones"), "base rig must contain required body landmarks");
 assert.ok(controller.includes("addEventListener('finished'"));
 assert.ok(controller.includes("jump_idle") && controller.includes("reload_idle"));
 assert.ok(profiles.includes("civilian:") && profiles.includes("worker:") && profiles.includes("aggressive:") && profiles.includes("police:"));
