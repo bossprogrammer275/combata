@@ -60,6 +60,7 @@ export class Player {
     this._climbStart = null;
     this._climbWallNormal = null;
     this._traversal = null;
+    this._traversalCooldown = 0;
     this._portalCooldown = 0;
     this.nearPortal = null;
     this.insideBuilding = false;
@@ -261,6 +262,7 @@ export class Player {
     }
 
     // ---- CLIMB STATE MACHINE — all user controls disabled during climb ----
+    this._traversalCooldown = Math.max(0, this._traversalCooldown - Math.min(Math.max(dt, 0), 0.05));
     if (this._climbPhase) {
       this.handleClimb(dt, k);
       const headY = this.pos.y + 1.55;
@@ -420,7 +422,7 @@ export class Player {
     }
 
     // climb trigger — GTA-style: press F to start climbing, then all controls are disabled
-    if (k.climb && this.onGround && !this.skydive && !this._climbPhase && !this.nearPortal) {
+    if (k.climb && this._traversalCooldown <= 0 && this.onGround && !this.skydive && !this._climbPhase && !this.nearPortal) {
       let hit = this.world.findTraversalCandidateHit?.(this.pos, this.yaw, 1.8) || null;
       let collider = hit?.collider || null;
       let calibrated = hit?.candidate || null;
@@ -677,6 +679,7 @@ export class Player {
       }
     }
     this._traversal = null;
+    this._traversalCooldown = aborted ? 0.6 : 0.18;
     this._climbPhase = null;
     this.climbing = false;
     this.climbTarget = null;
