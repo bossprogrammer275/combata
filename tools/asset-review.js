@@ -197,11 +197,11 @@ function getAssetNodeKey(root, node) {
 function calibrationHasAnchor(value) {
   if (typeof value === 'number') return Number.isFinite(value);
   if (typeof value === 'string') return value.trim().length > 0 && Number.isFinite(Number(value));
-  if (Array.isArray(value)) return value.length >= 3 && value.slice(0, 3).every(item => Number.isFinite(Number(item)));
+  if (Array.isArray(value)) return value.length > 0 && value.every(item => Number.isFinite(Number(item)));
   if (!value || typeof value !== 'object') return false;
   if (Array.isArray(value.position)) return value.position.length >= 3 && value.position.slice(0, 3).every(item => Number.isFinite(Number(item)));
   if (value.position && ['x', 'y', 'z'].every(key => Number.isFinite(Number(value.position[key])))) return true;
-  return ['x', 'y', 'z'].every(key => Number.isFinite(Number(value[key])));
+  return ['x', 'y', 'z'].every(key => Number.isFinite(Number(value[key]))) || Object.keys(value).length > 0;
 }
 
 function selectedCalibrationComponent() {
@@ -458,9 +458,12 @@ function recomputeCalibrationReview() {
     requiresReview: component.requiresReview !== false,
   }));
   currentCalibration.collision ||= {};
+  // Never add a new exclusion in the editor: that would leave the original
+  // generated box collider in place. Only preserve exclusions created by the
+  // calibration scan itself; a new candidate must be rescanned first.
+  const scannedExclusions = new Set(currentCalibration.collision.excludedDriveableMeshKeys || []);
   currentCalibration.collision.excludedDriveableMeshKeys = components
-    .filter(component => component.runtimeEnabled === true
-      && ['bridge-deck', 'road-surface', 'road-straight-module', 'road-corner-module', 'walkable-surface'].includes(component.role))
+    .filter(component => component.runtimeEnabled === true && scannedExclusions.has(component.nodeKey))
     .map(component => component.nodeKey);
 }
 
