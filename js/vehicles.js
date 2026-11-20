@@ -47,7 +47,7 @@ function collectVehicleInteractionAnchors(model, vehicleRoot) {
     }
     for (const key of ['entry', 'exit', 'seatFacing']) {
       const anchor = anchors[key];
-      const direction = anchor?.forward || anchor?.facing || anchor?.direction;
+      const direction = Array.isArray(anchor) ? anchor : (anchor?.forward || anchor?.facing || anchor?.direction);
       if (!direction || output[key + 'Forward']) continue;
       const values = Array.isArray(direction)
         ? direction
