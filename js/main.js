@@ -19,7 +19,7 @@ import { Physics } from './physics.js';
 import { resolveDriveAxes } from './vehicle-steering.js';
 import { prefetchPersistent } from './model-loader.js';
 
-const currentScene = new URLSearchParams(location.search).get('scene') || 'city-a.json';
+const currentScene = new URLSearchParams(location.search).get('scene') || 'test.json';
 const SCENE_URL = './data/worlds/' + currentScene;
 
 const GRAPHICS_PROFILES = Object.freeze({
@@ -213,7 +213,7 @@ class Game {
     await Promise.all([this.civilians.ready, vehicleStartup]);
     this.tools = new Tools(this);
     this.godMode = false;
-    this._hostileCap = 1;
+    this._hostileCap = sceneData?.disableHostiles ? 0 : 1;
     this._hostileTimer = 6;
     setLoad(0.85, 'FINALIZING…');
     this.hud.setQuality(quality);
@@ -1668,6 +1668,7 @@ class Game {
     }
     if (this.vehicles) {
       this.vehicles.syncDynamicBodies(dt, this.physics?.getInterpolationAlpha?.() ?? 1);
+      this.vehicles.updateTraffic(dt);
       if (this.vehicles.driver) {
         this.vehicles.updateChaseCamera(dt, this.input, this.player);
         if (this.audio && this.audio.updateVehicleEngine) {
