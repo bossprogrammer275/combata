@@ -14,6 +14,8 @@
 **Current stage:** Core gameplay systems and one test environment  
 **Not in scope yet:** Story mode, missions, narrative campaign, cutscene system, quest chains or a large production city.
 
+**Current NPC animation state (November 20, 2026):** 28 FBXs are downloaded. Section 4 and the NPC-core manifest are the source of truth for the active files, action restrictions and physics notes.
+
 ---
 
 ## 0. Handoff notes for the next chat — read first
@@ -25,11 +27,11 @@
 - The old guide `tools/new-npc.md` was read. It documents the current `civilian_002` implementation and its 14 registered clips. It is a historical reference, **not the specification for the new NPC system**.
 - The first new character is `npc_core_001`. Generate one good, correctly scaled, fully rigged base humanoid first. It will be the shared test character for player/NPC animation, weapon, chair, traversal and vehicle interaction testing.
 - Gameplay profiles (civilian, worker, aggressive, police, etc.) are switchable configurations over the new NPC layer. Do not generate a separate story character for every behaviour at this stage.
-- The user will run the MakeHuman/Mixamo generation pipeline locally on their Windows PC. The assistant must provide and maintain the generation script, then integrate and validate the resulting model/animation files after the user has run it.
+- The MakeHuman source model and 28 current NPC-core animation FBXs are now present. Section 4 and `data/models/npc/npc_core_001/manifest.json` map the actual downloads; they supersede the old proposed animation wishlist.
 - A new generation launcher has been added:
   - `tools/character-pipeline/generate-npc-core.ps1`
   - `tools/character-pipeline/generate-npc-core.bat`
-  - It defaults to `npc_core_001`, uses the existing MakeHuman + Mixamo pipeline, requests the new gameplay animation set and leaves generated files uncommitted/unpushed.
+  - It defaults to `npc_core_001` and leaves generated files uncommitted/unpushed. Its original requested animation list is historical only; use the actual 28-file inventory mapped in Section 4.
 - `tools/character-pipeline/animate_civilian.py` now has expanded animation search jobs for the new gameplay actions. It still requires the user to preview/approve the Mixamo result for each requested clip. A clip skipped or unavailable in Mixamo must be recorded as missing; never invent a clip or register a placeholder.
 - The local submodules and virtual environments are not stored in Git:
   - `tools/makehuman-core`
@@ -207,145 +209,99 @@ The launcher intentionally uses `-NoCommit -NoPush`. Inspect the generated chara
 
 ---
 
-## 4. Required gameplay animation library
+## 4. Downloaded gameplay animation library — current source of truth
 
-The animation system must be driven by stable keys rather than hardcoded Mixamo display names. Mixamo clip names/IDs belong in the generated manifest; runtime uses the stable keys below.
+**Current inventory:** 28 FBX files are present in `data/models/npc/npc_core_001/animations/`. The complete filename/size inventory and stable runtime keys are stored in `data/models/npc/npc_core_001/manifest.json`. This inventory replaces the old proposed animation wishlist. Do not bring in clips from `civilian_001`, `civilian_002`, `npc1` or other legacy NPC folders.
 
-### A. Normal movement
+### A. Locomotion
 
-- [ ] `idle`
-- [ ] `walk`
-- [ ] `run`
-- [ ] `sprint`
-- [ ] `turn_left` / `turn_right` or an equivalent turning solution
-- [ ] `start_walk` / `stop_walk` where a suitable clip exists
+| Runtime key | Downloaded file | Use |
+|---|---|---|
+| `idle` | `Idle.fbx` | Standing idle. At 20.5 MB, this is also the likely skinned base-character FBX; confirm mesh, skin, skeleton and idle take before treating it as the canonical rig. |
+| `walk` | `Walking.fbx` | Normal unarmed walk. 1.033 s, 32 keys; Hips Tz 0.01–1.97 raw FBX units. |
+| `walk_aim` | `Walking (1).fbx` | Walking while aiming, as confirmed by the user. 1.367 s, 42 keys; Hips Tz 0–1.46. |
+| `run` | `Running.fbx` | Normal running cycle. 0.700 s, 22 keys; Hips Tz 0.01–3.55. |
+| `rifle_run` | `Rifle Run.fbx` | Run with rifle posture. 0.733 s, 23 keys; Hips Tz 0–2.48. |
+| `sprint` | `Sprint.fbx` | Fast sprint cycle. 0.533 s, 17 keys; Hips Tz 0.01–3.51. |
 
-### B. Crouch movement and aiming
+These are raw FBX scene units, not metres. Confirm FBX unit scale, character height and forward axis before deriving world speed. The controller must not apply its own movement and the same FBX root displacement simultaneously.
 
-- [ ] `crouch_idle`
-- [ ] `crouch_walk`
-- [ ] `crouch_run`
-- [ ] `aim_idle`
-- [ ] `aim_walk`
-- [ ] `aim_shoot`
-- [ ] `crouch_aim`
-- [ ] `crouch_walk_aim`
-- [ ] `crouch_run_aim`
+### B. Crouch and rifle aiming
 
-Aiming must not break the lower-body movement. Use compatible full-body clips or upper-body animation layers/masks. Weapon muzzle direction must match the character's actual aim direction.
+| Runtime key | Downloaded file | Use |
+|---|---|---|
+| `crouch_idle` | `Crouching Idle.fbx` | Stationary crouch. 2.5 s; hips remain low with nearly no root travel. |
+| `crouch_walk` | `Crouched Walking.fbx` | Normal crouch walk. 1.033 s, 32 keys. |
+| `crouch_walk_aim` | `Crouch Walking.fbx` | Crouch walking while aiming, as confirmed by the user. 1.167 s, 36 keys. |
+| `rifle_aim_idle` | `Rifle Aiming Idle.fbx` | Standing rifle-aim idle. Root is effectively stationary. |
+| `crouch_aim_idle` | `Idle Crouching Aiming.fbx` | Crouched rifle-aim idle. Root is effectively stationary. |
 
-### C. Jump and falling
+**Weapon animation scope is rifle-only.** There is no pistol-specific aim, fire or reload animation in this inventory. Do not map rifle animations onto pistols or claim pistol animation support.
 
-- [ ] `jump_up`
-- [ ] `jump_down` / falling loop
-- [ ] `land`
-- [ ] Optional hard-landing / stumble reaction
+### C. Reload, jump and landing
 
-The game controller owns physical movement and collision. Animation timing must be aligned with takeoff, apex and landing; do not teleport the character to fake the jump.
+- `reload_idle` → `Reloading.fbx`, 3.3 s / 100 keys. **Standing idle only.** Start only from a standing idle state. Lock walking, running, sprinting, crouching and aiming until reloading completes.
+- `jump_idle` → `Jumping.fbx`, 1.233 s / 38 keys. **Idle-only jump.** Physics owns takeoff, gravity, apex, falling and landing. Do not apply FBX root translation on top of the physics trajectory.
+- `hard_landing` → `Hard Landing.fbx`, 2.5 s / 76 keys. Select based on actual fall velocity, align impact with collision contact, and adapt the root path to actual fall height.
 
-### D. Climbing and traversal
+### D. Obstacle climbing and ladders
 
-- [ ] `climb_mount`
-- [ ] `climb_up`
-- [ ] `climb_down`
-- [ ] `climb_top_out`
-- [ ] `vault_low`
-- [ ] `vault_medium`
-- [ ] `mantle_high`
-- [ ] `ledge_hang`
-- [ ] `ledge_shimmy`
-- [ ] `ledge_pull_up`
-- [ ] `drop_from_ledge`
+**`Climbing.fbx` is for climbing an obstacle slightly taller than the character and landing on top. It is not the ladder clip.**
 
-Ladder and ledge movement must be parameterised by actual asset anchors and measured geometry. A 3m ladder and an 8m ladder must use the same traversal logic at different distances/speeds. The body must align to handholds/footholds. No instant teleporting over fences or onto rooftops.
+- 3.833 s / 116 keys.
+- First-pass Hips range: Ty 1.32–3.28 and Tz -0.56–0.42 raw FBX units.
+- Use the calibrated obstacle's approach, hand-plant/top-edge, top-surface and landing anchors. Track both hands, pelvis and feet throughout the animation. Warp the motion to the measured obstacle, keep collision safe, and hand physics back only after landing. No teleporting to the top.
 
-### E. Sitting and ordinary prop interactions
+**`Climbing Ladder.fbx` is for ladder elements only.**
 
-- [ ] `sit_down`
-- [ ] `sit_idle`
-- [ ] `stand_up`
-- [ ] `talk`
-- [ ] `wave`
-- [ ] `phone`
-- [ ] `look_around`
-- [ ] `work_idle`
-- [ ] Optional pick-up/carry/set-down actions
+- 0.767 s / 24 keys; first-pass Hips Ty 1.90–2.44.
+- Use ladder rung spacing plus left/right hand and foot anchors to drive the climb.
+- No ladder-down clip was found. Reverse the same clip as a descent experiment, but do not mark it supported until hand/foot contact remains correct on every rung and top/bottom transitions are tested.
 
-Chair/bench interactions must align the character's pelvis, feet, body orientation and seat height with a calibrated seat anchor. The character must not float, intersect the chair or sit backwards.
+No downloaded vault, mantle, ledge-hang, shimmy or drop clip is present.
 
-### F. Unarmed combat and reactions
+### E. Sitting and ordinary interactions
 
-- [ ] `punch`
-- [ ] `kick`
-- [ ] `block`
-- [ ] `dodge`
-- [ ] `hit_reaction`
-- [ ] `fear_reaction`
-- [ ] `flee_run`
-- [ ] `fall_death`
-- [ ] `get_up`
+- `sit_idle` → `Sitting Idle.fbx`, 4.3 s.
+- There is **no sit-down or chair stand-up animation** in the active set. When the character chooses a seat, reserve it, align facing and snap pelvis/body directly to the calibrated seat anchor, then play `sit_idle`. When leaving, move to a clear seat-exit anchor and restore movement. Do not use `Standing Up.fbx` as a chair transition.
+- `Waving.fbx` is the current ordinary interaction clip.
+- `Standing Up.fbx` is unassigned until preview confirms whether it is a knocked-down recovery action.
 
-Combat hit events must have clear timing windows. Punch/kick hit detection should line up with the contact frame, not the start of the animation.
+### F. Combat and reactions
 
-### G. Weapon handling
+| Runtime key | Downloaded file | Use |
+|---|---|---|
+| `punch` | `Punching.fbx` | 1.0 s / 31 keys. Determine the hit window from actual fist/contact frames, not animation start. |
+| `block` | `Block.fbx` | 2.867 s / 87 keys. Defensive action. |
+| `hit_reaction` | `Hit Reaction.fbx` | 1.6 s / 49 keys. Match reaction direction and timing to physics impulse. |
+| `knocked_down` | `Knocked Down.fbx` | 2.8 s / 85 keys. Full fall-to-ground action, distinct from death. Hips ranges: Tx -0.80–0.07, Ty 0.15–1.03, Tz -1.76–0.04 raw units. Control root motion and capsule/collision handoff. |
+| `death_candidate` | `Dying.fbx` | Present (4.333 s); preview the entire motion before final assignment. |
+| `gunplay_candidate` | `Gunplay.fbx` | Very short (0.2 s / 7 keys). Preview to identify its exact motion before assigning a rifle fire/recoil event. Not a pistol animation. |
 
-- [ ] `weapon_draw`
-- [ ] `weapon_holster`
-- [ ] `aim_idle`
-- [ ] `aim_walk`
-- [ ] `aim_shoot`
-- [ ] `reload_rifle`
-- [ ] `reload_pistol`
-- [ ] Add weapon-specific reload/fire/aim clips only where a real suitable clip exists.
+No kick or dodge clip was downloaded.
 
-Weapon model connection contract:
+### G. Vehicle interactions
 
-- [ ] Right-hand grip socket.
-- [ ] Left-hand support/grip socket.
-- [ ] Weapon root/pivot and calibrated local transform.
-- [ ] Muzzle/fire origin.
-- [ ] Sight/optic alignment point.
-- [ ] Trigger-hand placement.
-- [ ] Magazine location and removal/insertion direction.
-- [ ] Bolt/slide interaction point where relevant.
-- [ ] Weapon-specific hand pose and aim offsets.
-- [ ] Fire/recoil event marker.
-- [ ] Reload event markers: magazine out, magazine in, bolt/slide action, reload finished.
-- [ ] Weapon switching must transition through draw/holster states.
-- [ ] Shooting direction must agree with the weapon muzzle and aim pose.
-- [ ] Third-person weapon must be attached to the character hand, not only to the camera.
+- `enter_vehicle` → `Entering Car.fbx`, 5.467 s. Match approach, door-handle reach, step-in path and seat target to vehicle anchors.
+- `exit_vehicle` → `Exiting Car.fbx`, 5.8 s. Align to door and exit anchors; restore physics after feet are grounded.
+- `vehicle_driver_idle` → `Driving.fbx`, 5.0 s. Anchor the character to the driver seat while vehicle physics moves the car.
+- Door movement is controlled by the vehicle's door mesh, hinge pivot and calibrated open/closed transforms.
 
-Initial weapon categories to test: pistol, rifle/assault rifle, SMG, shotgun, DMR/sniper and heavy/launcher where supported. Do not create a different animation set for each weapon if a shared compatible rig/pose can cover it.
+### H. Motion capture and physics rules
 
-**Current inventory note:** `js/weapons.js` currently constructs weapon viewmodels procedurally with JavaScript mesh-builder functions. A dedicated GLB weapon-model folder was not found in the repository tree during this audit. The new weapon-binding layer must be able to calibrate the current meshes and later support imported weapon GLBs through the same socket/profile contract.
+The first FBX binary pass measured animation-stack durations, available key counts, Hips translation ranges and moving-bone ranges for sampled clips. Multiple locomotion/combat files share the Mixamo `mixamorig:` layout (54 animated bone nodes, 315 curves and 159 bone-channel tracks in inspected samples). This confirms the sampled layout, not successful runtime binding of every clip.
 
-### H. Vehicle interaction animations
+- Record actual root, pelvis, hand and foot positions across every keyframe before finalising movement speeds, contact windows or traversal forces. The manifest currently stores first-pass measurements; the FBXs remain the complete motion source.
+- Controller-owned locomotion must be in-place or use a deliberate root-motion mode, never both controller movement and duplicate FBX root translation.
+- Jump is idle-only and physics-driven. Reload is standing-idle-only. Sitting is seat-anchor snapping.
+- Obstacle climb and ladder ascent/descent must be checked frame-by-frame against calibrated handholds, footholds, rungs, edges, platform heights and collision geometry.
+- Knockdown and hard landing need explicit physics/capsule handoff. Do not let animation root motion move a physics body invisibly.
+- Measure actual punch contact, landing contact, grip, foot plant, reload hand movement and vehicle entry/exit phases. Do not infer contact timing from clip duration.
 
-- [ ] `enter_vehicle`
-- [ ] `exit_vehicle`
-- [ ] `vehicle_idle` / seated driver pose
-- [ ] Door reach/open motion where a suitable clip is available.
-- [ ] Door close motion where a suitable clip is available.
-- [ ] Driver and passenger entry/exit variants if needed.
+### Current unavailable actions
 
-Vehicle-door movement itself is a **vehicle mesh animation**, not just a character animation. See Section 7.
+No pistol animation set or reload, dedicated ladder-down clip, crouch-running-aim, kick, dodge, chair sit-down/stand-up transition, draw/holster, vault, mantle, ledge-hang, ledge-shimmy or drop clip. Treat these as unavailable. Do not import an old NPC clip or register a placeholder.
 
-### Animation processing and runtime acceptance
-
-- [ ] Every registered clip physically exists.
-- [ ] Every clip uses the same compatible skeleton as `npc_core_001`.
-- [ ] Bone names/tracks bind correctly.
-- [ ] Locomotion root motion is in-place where the game controller owns world movement.
-- [ ] Traversal clips are calibrated to anchor-driven movement.
-- [ ] Foot sliding, ground contact, knee bends and hand placement are inspected.
-- [ ] Animation start/end poses are compatible with transitions.
-- [ ] Crossfades do not cause body snaps.
-- [ ] Action priority/interruption works (e.g. hit reaction interrupts idle, not an irreversible transition).
-- [ ] Missing clips are shown in NPC Lab and do not crash runtime.
-- [ ] Clips are cached once; each character gets its own mixer/skeleton instance.
-- [ ] Low-memory settings do not preload the entire library unnecessarily.
-
----
 
 ## 5. Weapon model ↔ character animation integration
 
@@ -371,15 +327,15 @@ Each weapon model/profile should define:
 
 ### Test requirements
 
-- [ ] Equip and holster.
+- [ ] Equip/holster may be tested as non-animated state changes only; no draw/holster clip is currently available.
 - [ ] Hold at hip.
 - [ ] Aim while standing.
 - [ ] Walk while aiming.
-- [ ] Crouch, crouch-walk and crouch-run while aiming.
-- [ ] Fire while standing and moving.
-- [ ] Fire while crouched.
-- [ ] Reload rifle.
-- [ ] Reload pistol.
+- [ ] Crouch aim and crouch-walk aim are available; crouch-running-aim is not downloaded.
+- [ ] Preview `Gunplay.fbx` first; no confirmed firing/recoil clip is assigned yet.
+- [ ] No dedicated crouched-fire clip is present; validate the available crouch-aim pose separately.
+- [ ] Reload rifle only from standing idle; reject reload while moving, crouched or aiming.
+- [ ] Pistol reload/animation is unavailable and outside current scope.
 - [ ] Switch weapons.
 - [ ] Confirm the left hand does not float away from the weapon.
 - [ ] Confirm the muzzle points along the aim direction.
@@ -403,9 +359,9 @@ Each seat needs:
 - [ ] Seat height and depth.
 - [ ] Pelvis alignment target.
 - [ ] Foot placement/clearance target where needed.
-- [ ] Sit-down animation key.
+- [ ] No sit-down animation key; seat by snapping to the calibrated seat anchor.
 - [ ] Sitting idle animation key.
-- [ ] Stand-up animation key.
+- [ ] No chair stand-up animation key; exit using the seat-exit anchor.
 - [ ] Exit/stand position.
 - [ ] Collision state and reservation/occupancy state.
 
@@ -434,8 +390,8 @@ Anchors are stored relative to the asset/model, so rotation and placement in the
 
 - [ ] Approach a chair.
 - [ ] Align body and facing with its seat anchor.
-- [ ] Play sit-down and blend into sit idle.
-- [ ] Stand up and move clear of the chair.
+- [ ] Reserve the seat, snap pelvis/orientation to the calibrated seat anchor, then play `Sitting Idle.fbx` directly; no sit-down transition.
+- [ ] Move from the seat anchor to a clear seat-exit anchor; no chair stand-up transition.
 - [ ] Test different chair/bench heights.
 - [ ] Test seat interactions on different ground elevations.
 - [ ] Ensure two NPCs cannot reserve the same seat simultaneously.
@@ -527,7 +483,7 @@ The map/editor/runtime must support asset-specific handholds, footholds and land
 - [ ] Rung spacing.
 - [ ] Ladder plane and facing normal.
 - [ ] Climb-up path.
-- [ ] Climb-down path.
+- [ ] Test ladder descent by reverse playback of `Climbing Ladder.fbx`; accept only after every rung hand/foot contact is validated.
 - [ ] Top-out platform point.
 - [ ] Bottom dismount point.
 - [ ] Ladder length in metres.
@@ -965,7 +921,7 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 
 - [ ] User runs `generate-npc-core.ps1` locally.
 - [ ] Confirm `npc_core_001` source/rigged files exist.
-- [ ] Inspect manifest and list clips actually downloaded.
+- [x] Inspect manifest and list clips actually downloaded (28 files inventoried; see Section 4 and the manifest).
 - [ ] Fix failed/invalid clips before runtime integration.
 
 ### Phase 2 — New NPC profile/animation runtime
@@ -980,13 +936,13 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 
 - [ ] Define weapon sockets/metadata.
 - [ ] Calibrate current procedural weapon meshes and attachment points.
-- [ ] Connect aim, shoot, reload, draw and holster actions.
+- [ ] Connect the downloaded rifle aim/walk/run and idle-only reload clips. `Gunplay.fbx` remains a preview candidate; no pistol, draw or holster animation is available.
 - [ ] Test both first-person and third-person alignment.
 
 ### Phase 4 — Object/seat interactions
 
 - [ ] Add asset-local anchor contract.
-- [ ] Calibrate chairs/benches and sit/stand actions.
+- [ ] Calibrate chairs/benches and implement seat-anchor snapping with `Sitting Idle.fbx`; no sit-down/stand-up transition clips.
 - [ ] Validate object approach, occupancy and exit.
 
 ### Phase 5 — Vehicle doors and entry/exit
@@ -1000,7 +956,7 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 ### Phase 6 — Traversal system
 
 - [ ] Add ladder/fence/wall/ledge metadata.
-- [ ] Connect mount/climb/top-out/vault/mantle/drop animations.
+- [ ] Connect `Climbing.fbx` to obstacle top-out/landing anchors and `Climbing Ladder.fbx` to ladder ascent. Reverse ladder playback for descent only after contact validation; vault/mantle/ledge actions remain unavailable.
 - [ ] Use geometry-driven distances and anchor alignment.
 - [ ] Verify no teleporting, floating or collision traps.
 
@@ -1049,7 +1005,7 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 The core gameplay/test stage is not complete until:
 
 - [ ] `npc_core_001` is a correctly scaled, grounded, working humanoid rig.
-- [ ] The required movement, crouch, jump, aim, shoot, reload, combat, sit, climb and vehicle clips exist or are explicitly marked unavailable with a replacement decision.
+- [ ] The 28 current FBXs are inventoried and mapped in Section 4 and the manifest. Pistol, draw/holster, kick/dodge, ladder-down, vault/mantle/ledge and chair-transition clips are explicitly unavailable; idle-only reload/jump and seat-snapping rules are enforced.
 - [ ] NPC profiles can be switched in-game.
 - [ ] Every registered animation is compatible with the rig.
 - [ ] Weapons align with hands, aim direction and muzzle.
@@ -1057,7 +1013,7 @@ The core gameplay/test stage is not complete until:
 - [ ] Chairs align to seat anchors.
 - [ ] Vehicle doors have calibrated pivots and open/close correctly.
 - [ ] Vehicle entry/exit aligns with door, seat and exit anchors.
-- [ ] Ladders, fences and ledges use real geometry anchors and no teleport shortcuts.
+- [ ] Obstacle climbing and ladder ascent use calibrated geometry anchors; ladder descent reverse playback remains experimental until contact-tested. No teleport shortcuts.
 - [ ] The unified calibrator integrates the existing collision workflow and emits valid engine-readable asset profiles.
 - [ ] Door hinges, stair/platform geometry and player-aware traversal requirements are detected or explicitly flagged for editor review.
 - [ ] Imported bridge/road profiles expose a correct driveable deck, supports/barriers, endpoint connections and smooth vehicle transitions.
