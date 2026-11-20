@@ -85,6 +85,7 @@ main{min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:12p
       <div class="kv" style="margin-top:10px">
         <span>Skinned meshes</span><span id="skinCount">—</span>
         <span>Unique bones</span><span id="boneCount">—</span>
+        <span>Required body bones</span><span id="requiredBones">—</span>
         <span>Model height</span><span id="modelHeight">—</span>
         <span>Materials / textures</span><span id="materialCount">—</span>
         <span>Texture maps</span><span id="textureCount">—</span>
@@ -206,6 +207,14 @@ function disposeImportedGroup(group) {
     }
   });
 }
+const REQUIRED_BODY_BONES = [
+  'hips', 'spine', 'head', 'leftarm', 'rightarm', 'leftforearm', 'rightforearm',
+  'lefthand', 'righthand', 'leftupleg', 'rightupleg', 'leftleg', 'rightleg',
+  'leftfoot', 'rightfoot'
+];
+function normalizeBoneName(name) {
+  return String(name || '').toLowerCase().replace(/[^a-z]/g, '').replace(/^mixamorig/, '');
+}
 function analyzeRig(model) {
   const skinned = [];
   const bones = new Set();
@@ -235,7 +244,10 @@ function analyzeRig(model) {
   model.updateMatrixWorld(true);
   const bounds = new THREE.Box3().setFromObject(model);
   const height = bounds.max.y - bounds.min.y;
-  return { skinnedCount: skinned.length, boneCount: bones.size, materialCount: materials.size, textureCount: textures.size, bounds, height, takes: model.animations || [] };
+  const normalized = new Set([...bones].map(normalizeBoneName));
+  const missingBones = REQUIRED_BODY_BONES.filter((name) => !normalized.has(name));
+  return { skinnedCount: skinned.length, boneCount: bones.size, materialCount: materials.size,
+    textureCount: textures.size, missingBones, bounds, height, takes: model.animations || [] };
 }
 function resetCamera(bounds, height) {
   const center = bounds.getCenter(new THREE.Vector3());
@@ -395,16 +407,17 @@ async function boot() {
     const report = analyzeRig(imported);
     $('skinCount').textContent = String(report.skinnedCount);
     $('boneCount').textContent = String(report.boneCount);
+    $('requiredBones').textContent = (REQUIRED_BODY_BONES.length - report.missingBones.length) + ' / ' + REQUIRED_BODY_BONES.length;
     $('modelHeight').textContent = Number.isFinite(report.height) ? report.height.toFixed(3) + ' source units' : 'invalid';
     $('materialCount').textContent = String(report.materialCount) + ' materials';
     $('textureCount').textContent = String(report.textureCount);
     $('baseTakes').textContent = String(report.takes.length);
     const hasIdleTake = report.takes.some((take) => (take.tracks || []).length > 0);
-    const rigValid = report.skinnedCount > 0 && report.boneCount > 0 && report.materialCount > 0 && hasIdleTake;
+    const rigValid = report.skinnedCount > 0 && report.boneCount > 0 && report.missingBones.length === 0 && report.materialCount > 0 && hasIdleTake;
     $('rigStatus').textContent = rigValid ? 'Skinned rig detected' : 'Rig incomplete';
     $('rigStatus').className = 'pill ' + (rigValid ? 'ok' : 'bad');
     if (!rigValid || !Number.isFinite(report.height) || report.height < 0.5) {
-      throw new Error('Idle.fbx failed rig verification: skinned meshes=' + report.skinnedCount + ', unique bones=' + report.boneCount + ', materials=' + report.materialCount + ', playable takes=' + report.takes.filter((take) => (take.tracks || []).length > 0).length + ', height=' + report.height);
+      throw new Error('Idle.fbx failed rig verification: skinned meshes=' + report.skinnedCount + ', unique bones=' + report.boneCount + ', missing body bones=' + report.missingBones.join(', ') + ', materials=' + report.materialCount + ', playable takes=' + report.takes.filter((take) => (take.tracks || []).length > 0).length + ', height=' + report.height);
     }
     const scale = 1.74 / report.height;
     imported.scale.setScalar(scale);
@@ -425,7 +438,7 @@ async function boot() {
     resetCamera(fittedBounds, 1.74);
     $('rigStatus').textContent = 'Verified skinned rig';
     $('rigStatus').className = 'pill ok';
-    $('rigNote').textContent = 'Runtime check passed: Idle.fbx contains ' + report.skinnedCount + ' skinned mesh(es), ' + report.boneCount + ' unique bones, ' + report.materialCount + ' materials, ' + report.textureCount + ' texture map(s) and a playable animation take. Normalized preview height: 1.74m.';
+    $('rigNote').textContent = 'Runtime check passed: Idle.fbx contains ' + report.skinnedCount + ' skinned mesh(es), ' + report.boneCount + ' unique bones, all ' + REQUIRED_BODY_BONES.length + ' required body bones, ' + report.materialCount + ' materials, ' + report.textureCount + ' texture map(s) and a playable animation take. Normalized preview height: 1.74m.';
     $('clipSelect').disabled = false;
     log('Rig passed: ' + report.skinnedCount + ' skinned mesh(es), ' + report.boneCount + ' bones; source height ' + report.height.toFixed(3) + ', normalized to 1.74m.');
     await selectAnimation('idle');
