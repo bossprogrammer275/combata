@@ -1,7 +1,6 @@
 // Player: pointer-lock third-person controller with capsule-vs-AABB collision.
-// Physics/collision live here; the visible civilian_002 FBX rig (see character.js)
-// is driven by getState(). This same state object is what remote
-// multiplayer players will receive later, so the body language stays identical.
+// Physics/collision and the npc_core_001 character adapter are kept separate.
+// This state object is also suitable for network replication later.
 import * as THREE from 'three';
 import { Character } from './character.js';
 
@@ -26,8 +25,7 @@ export class Player {
     this.onGround = true;
     this.reloadLocked = false;
     this._jumpFromIdle = false;
-    // The jump animation lifts the visible rig. Gameplay keeps the capsule
-    // grounded and raises only the camera to match that animation.
+    // Retained as zero-valued compatibility fields; jump displacement is physical.
     this.jumpCameraHeight = 0;
     this.jumpCameraVelocity = 0;
     this._jumpWasDown = false;
@@ -70,8 +68,7 @@ export class Player {
       skin: [0.82, 0.62, 0.48], pants: [0.20, 0.22, 0.30], shirt: this.clothesPalette[0],
       boots: [0.14, 0.12, 0.10], vest: [0.28, 0.32, 0.22], cap: [0.20, 0.22, 0.26],
       showCap: false, pack: true, helmet: false, weaponTint: [0.18, 0.18, 0.20],
-      // Match the pedestrian rig orientation: civilian_002's visible
-      // forward direction needs the same 180-degree root correction.
+      // Match the npc_core_001 forward axis with a 180-degree root correction.
       modelYawOffset: Math.PI,
       // Use the actual walk cycle at normal speed; the run/sprint clips are
       // reserved for faster movement and explicit sprint input.
