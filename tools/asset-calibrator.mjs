@@ -102,7 +102,7 @@ function isNativeCollisionProxy(item) {
   const name = String(item?.name || '').trim().toLowerCase();
   const pathParts = String(item?.nodePath || '').toLowerCase().split(' / ').map(part => part.trim());
   return name.startsWith('col_')
-    || pathParts.some(part => part.startsWith('col_') || part === 'collision_proxies');
+    || pathParts.some(part => part.startsWith('col_'));
 }
 
 function buildNativeCollisionProxyRecords(meshDetails) {
@@ -708,9 +708,11 @@ async function calibrateOne(file) {
   const collisionBoxes = isVehicle ? [] : scanned.manifest.boxes;
   const nativeCollisionProxies = isVehicle ? [] : buildNativeCollisionProxyRecords(scanned.meshDetails);
   const collisionMode = isVehicle ? 'dynamic-vehicle-runtime'
-    : road ? 'hybrid-static-and-surface'
-      : nativeCollisionProxies.length ? 'authored-proxies-plus-generated-boxes'
-        : 'static-boxes';
+    : road && nativeCollisionProxies.length ? 'hybrid-surface-and-authored-proxies'
+      : road ? 'hybrid-static-and-surface'
+        : nativeCollisionProxies.length && collisionBoxes.length ? 'authored-proxies-plus-generated-boxes'
+          : nativeCollisionProxies.length ? 'authored-native-proxies'
+            : 'static-boxes';
   const calibration = {
     schemaVersion: 1,
     kind: 'open-world-asset-calibration',
