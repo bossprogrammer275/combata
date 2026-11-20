@@ -239,7 +239,7 @@ function buildBridgeProfile(components, meshByKey) {
       deckThicknessSourceUnits: mesh?.dimensions?.[1] ?? null,
       referenceDeckHeightMetres: WORLD_KIT_DECK_HEIGHT,
       connection,
-      requiresReview: !deck || !structure || connection.status !== 'estimated',
+      requiresReview: !deck || !structure || connection.requiresReview === true,
     });
   }
   return {
