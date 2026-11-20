@@ -1089,7 +1089,7 @@ export class World {
     const trackedArrays = [
       'colliders', 'climbables', 'interiors', 'portals', 'roofAccess',
       'npcInteractables', 'reactiveObjects', 'coverPoints', 'worldKitComponents',
-      '_buildingData', 'vehicleSpawns', 'roadPhysicsMeshes', 'calibratedRoadChains', 'calibratedTraversalCandidates',
+      '_buildingData', 'vehicleSpawns', 'roadPhysicsMeshes', 'calibratedRoadChains', 'calibratedTraversalCandidates', 'calibratedTraversalCandidates',
     ];
     const before = Object.create(null);
     for (const name of trackedArrays) before[name] = this[name].length;
