@@ -59,7 +59,6 @@ export class Civilian {
     this.activityObject = null;
     this.activityTarget = null;
     this.socialPartner = null;
-    this.phoneCooldown = 7 + Math.random() * 14;
     this.ch = new NpcInstance(C.defaultProfile);
     this.root = this.ch.root;
     this.root.name = "NPC_Core_Civilian";
@@ -448,7 +447,7 @@ export class Civilian {
     this.root.position.copy(this.pos);
     this.root.rotation.y = this.yaw + Math.PI;
 
-    const animation = this.jumpT > 0 ? "jump"
+    const animation = this.jumpT > 0 && this.ch.currentAnimation === "jump_idle" ? "jump_idle"
       : this.fleeT > 0 ? (moved.speed >= P.sprintSpeed * 0.92 ? "sprint" : (this.ch.currentAnimation === "crouch_walk" && moved.collided ? "crouch_walk" : "run"))
         : moved.speed > 0.25 ? (this.state === "walk" ? "walk" : (moved.speed > P.runSpeed ? "run" : "walk")) : "idle";
     this.jumpT = Math.max(0, this.jumpT - d);
