@@ -331,17 +331,25 @@ function renderCalibrationOverlay() {
 
   if (showTraversalOverlay) {
     const candidates = currentCalibration.traversal || [];
+    current.updateMatrixWorld(true);
+    const toReviewRoot = (candidate, value) => {
+      const source = currentMeshObjects.find(entry => entry.nodeKey === candidate.nodeKey)?.object;
+      if (!source) return null;
+      const raw = Array.isArray(value) ? value : (value?.position || value);
+      if (!Array.isArray(raw) || raw.length < 3
+        || !raw.slice(0, 3).every(item => Number.isFinite(Number(item)))) return null;
+      const worldPoint = source.localToWorld(new THREE.Vector3(Number(raw[0]), Number(raw[1]), Number(raw[2])));
+      return current.worldToLocal(worldPoint.clone());
+    };
     for (const candidate of candidates) {
       const path = candidate.anchors?.rootPath || candidate.anchors?.climbPath || [];
-      const points = path.map(item => {
-        const point = Array.isArray(item) ? item : (item?.position || item);
-        if (!Array.isArray(point) || point.length < 3 || !point.slice(0, 3).every(value => Number.isFinite(Number(value)))) return null;
-        return new THREE.Vector3(Number(point[0]), Number(point[1]), Number(point[2]));
-      }).filter(Boolean);
+      const points = path.map(item => toReviewRoot(candidate, item?.position || item)).filter(Boolean);
       if (points.length >= 2) {
-        const accepted = candidate.accepted === true && candidate.requiresReview === false;
-        const color = accepted ? 0x47d78b : 0xe1b65d;
-        points.forEach(point => addCalibrationMarker(point.toArray(), color, 0.12));
+        const accepted = candidate.accepted === true && candidate.runtimeEnabled === true
+          && candidate.requiresReview === false;
+        const selected = candidate.nodeKey === selectedTraversalNodeKey;
+        const color = selected ? 0x75b9ef : accepted ? 0x47d78b : 0xe1b65d;
+        points.forEach(point => addCalibrationMarker(point.toArray(), color, selected ? 0.14 : 0.1));
         const geometry = new THREE.BufferGeometry().setFromPoints(points);
         const material = new THREE.LineBasicMaterial({ color, depthTest: false });
         const line = new THREE.Line(geometry, material);
@@ -350,8 +358,12 @@ function renderCalibrationOverlay() {
       }
       const contacts = candidate.anchors?.boneContacts || [];
       for (const contact of contacts) {
-        const point = contact.position;
-        if (Array.isArray(point)) addCalibrationMarker(point, 0x75b9ef, 0.1);
+        const point = toReviewRoot(candidate, contact.position);
+        if (point) addCalibrationMarker(point.toArray(), 0x75b9ef, 0.1);
+      }
+      for (const key of ['approach', 'handContact', 'topOut', 'landing', 'mountBottom', 'mountTop', 'bottomDismount']) {
+        const point = toReviewRoot(candidate, candidate.anchors?.[key]);
+        if (point) addCalibrationMarker(point.toArray(), 0x75b9ef, 0.13);
       }
     }
   }
@@ -611,7 +623,15 @@ function saveSelectedTraversal() {
   candidate.accepted = false;
   candidate.runtimeEnabled = false;
   candidate.requiresReview = true;
+  candidate.accepted = false;
+  candidate.runtimeEnabled = false;
+  candidate.requiresReview = true;
   currentCalibration.traversal[index] = candidate;
+  const component = currentCalibration.components.find(item => item.nodeKey === selectedTraversalNodeKey);
+  if (component && !component.interaction?.accepted) {
+    component.manual = false;
+    component.requiresReview = true;
+  }
   recomputeCalibrationReview();
   refreshCalibrationEditors();
   renderCalibrationOverlay();
@@ -624,6 +644,30 @@ function saveTraversalEdits() {
     setCalibrationStatus('Traversal edits applied in memory. Validate the path overlay, then accept and save the sidecar.', 'normal');
   } catch (error) {
     setCalibrationStatus('Traversal edit rejected: ' + (error?.message || String(error)), 'error');
+  }
+}
+
+function vectorDistance(a, b) {
+  return Math.hypot(Number(a[0]) - Number(b[0]), Number(a[1]) - Number(b[1]), Number(a[2]) - Number(b[2]));
+}
+
+function validateTraversalBoneContacts(contacts) {
+  if (!Array.isArray(contacts) || contacts.length < 4) {
+    throw new Error('Add timed bone contacts for both hands and both feet.');
+  }
+  const allowedBones = new Set(['LeftHand', 'RightHand', 'LeftFoot', 'RightFoot', 'Hips']);
+  const seen = new Set();
+  for (const contact of contacts) {
+    if (!allowedBones.has(contact.bone) || !Number.isFinite(Number(contact.t))
+      || Number(contact.t) < 0 || Number(contact.t) > 1
+      || !Array.isArray(contact.position) || contact.position.length < 3
+      || !contact.position.slice(0, 3).every(value => Number.isFinite(Number(value)))) {
+      throw new Error('boneContacts require a supported bone, normalized t in 0..1, and local XYZ position.');
+    }
+    seen.add(contact.bone);
+  }
+  for (const bone of ['LeftHand', 'RightHand', 'LeftFoot', 'RightFoot']) {
+    if (!seen.has(bone)) throw new Error('Missing measured contact for ' + bone + '.');
   }
 }
 
@@ -647,14 +691,12 @@ function acceptTraversalProfile() {
         || path.some((point, index) => index > 0 && Number(point.t) <= Number(path[index - 1].t))) {
         throw new Error('rootPath times must increase strictly from 0 to 1.');
       }
-      const contacts = anchors.boneContacts || [];
-      const allowedBones = new Set(['LeftHand', 'RightHand', 'LeftFoot', 'RightFoot', 'Hips']);
-      for (const contact of contacts) {
-        if (!allowedBones.has(contact.bone) || !Number.isFinite(Number(contact.t))
-          || !vector(contact.position)) {
-          throw new Error('boneContacts must use a supported bone name, normalized t and XYZ position.');
-        }
+      if (vectorDistance(path[0].position, anchors.approach) > 0.12
+        || vectorDistance(path.at(-1).position, anchors.landing) > 0.12) {
+        throw new Error('rootPath must begin at approach and end at landing.');
       }
+      const contacts = anchors.boneContacts || [];
+      validateTraversalBoneContacts(contacts);
       candidate.animation = { key: 'obstacle_climb', durationSeconds: 3.833, rootMotion: 'physics-owned-in-place' };
       candidate.capabilities = { ...(candidate.capabilities || {}), obstacleClimbAnimation: true };
     } else if (candidate.actionCandidate === 'ladder-climb') {
@@ -670,6 +712,7 @@ function acceptTraversalProfile() {
         throw new Error('rungSpacing must be measured between 0.12m and 0.6m.');
       }
       if (!vector(anchors.planeNormal)) throw new Error('Ladder needs a measured outward planeNormal vector.');
+      validateTraversalBoneContacts(anchors.boneContacts || []);
       candidate.animation = { key: 'ladder_climb_up', cycleSeconds: 0.767, rootMotion: 'rung-synchronized-physics' };
       candidate.capabilities = { ...(candidate.capabilities || {}), ladderClimbUpAnimation: true, ladderClimbDown: false };
     } else {
@@ -679,6 +722,11 @@ function acceptTraversalProfile() {
     candidate.accepted = true;
     candidate.runtimeEnabled = true;
     candidate.requiresReview = false;
+    const component = currentCalibration.components.find(item => item.nodeKey === candidate.nodeKey);
+    if (component) {
+      component.manual = true;
+      component.requiresReview = false;
+    }
     recomputeCalibrationReview();
     refreshCalibrationEditors();
     renderCalibrationOverlay();
