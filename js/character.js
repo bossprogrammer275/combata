@@ -171,6 +171,12 @@ export class Character {
   }
 
   setState(state, dt = 1 / 60) {
+    if (state.weaponType && state.weaponType !== this.weaponType) {
+      this.weaponType = state.weaponType;
+      if (this.weaponMount) {
+        this.buildWeapon(this.weaponType, this.appearance.weaponTint || [0.18, 0.18, 0.20]);
+      }
+    }
     const yaw = Number.isFinite(state.yaw) ? state.yaw : 0;
     const yawOffset = Number.isFinite(this.appearance.modelYawOffset) ? this.appearance.modelYawOffset : Math.PI;
     if (!this._isBuilt) {
