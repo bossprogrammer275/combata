@@ -699,6 +699,10 @@ export class Player {
 
     let plan = null;
     const anchors = calibrated?.anchors || {};
+    if (calibrated?.accepted === true && anchors.approach
+      && Math.hypot(this.pos.x - anchors.approach.x, this.pos.y - anchors.approach.y, this.pos.z - anchors.approach.z) > 0.85) {
+      return false;
+    }
     if (calibrated?.actionCandidate === 'ladder-climb') {
       plan = buildLadderTraversalPath({
         start: this.pos,
@@ -706,7 +710,9 @@ export class Player {
         mountTop: anchors.mountTop,
         climbPath: anchors.climbPath,
         topOut: anchors.topOut,
+        bottomDismount: anchors.bottomDismount,
         rungSpacing: anchors.rungSpacing,
+        boneContacts: anchors.boneContacts,
       });
     } else {
       plan = buildObstacleClimbPath({
