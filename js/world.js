@@ -3851,6 +3851,8 @@ export class World {
           sourceDeckHeight: prefab.sourceDeckHeight,
           supportFootContacts: prefab.supportFootContacts || [],
           longitudinalAxis: prefab.longitudinalAxis,
+          assetCalibration: prefab.assetCalibration || null,
+          assetCalibrationStatus: this._bridgeKitCalibration?.review?.status || 'no-sidecar',
         };
         assembly.add(component);
 
@@ -3867,6 +3869,8 @@ export class World {
           sourceDeckHeight: prefab.sourceDeckHeight,
           longitudinalAxis: prefab.longitudinalAxis,
           supportFootContacts: prefab.supportFootContacts || [],
+          assetCalibration: prefab.assetCalibration || null,
+          assetCalibrationStatus: this._bridgeKitCalibration?.review?.status || 'no-sidecar',
           scale: { x: sx, y: sy, z: sz },
           mesh: component,
         };
@@ -3880,6 +3884,8 @@ export class World {
           meshCount: 1,
           assemblyId: id,
           position: { x: component.position.x, y: component.position.y, z: component.position.z },
+          calibrationStatus: record.assetCalibrationStatus,
+          calibrationConnection: record.assetCalibration?.connection || null,
         });
 
         const sectionId = record.sectionId;
@@ -4180,6 +4186,9 @@ export class World {
           deckAlignmentError,
           structureBounds: structure.bounds,
           deckBounds: deck.bounds,
+          calibrationStatus: deck.assetCalibrationStatus || 'no-sidecar',
+          calibrationConnection: deck.assetCalibration?.connection || null,
+          calibrationRequiresReview: deck.assetCalibration?.requiresReview !== false,
         });
       }
 
@@ -4194,6 +4203,8 @@ export class World {
             source: 'imported-bridge-component',
             componentId: record.componentId,
             sectionId: record.sectionId,
+            frictionHint: record.role === 'bridge-deck' ? 0.76 : 0.82,
+            calibrationStatus: record.assetCalibrationStatus,
             geometry,
           });
         }
