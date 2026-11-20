@@ -705,7 +705,7 @@ export class Player {
     let plan = null;
     const anchors = calibrated?.anchors || {};
     if (calibrated?.accepted === true && anchors.approach
-      && Math.hypot(this.pos.x - anchors.approach.x, this.pos.y - anchors.approach.y, this.pos.z - anchors.approach.z) > 0.85) {
+      && Math.hypot(this.pos.x - anchors.approach.x, this.pos.y - anchors.approach.y, this.pos.z - anchors.approach.z) > 0.55) {
       return false;
     }
     if (calibrated?.actionCandidate === 'ladder-climb') {
