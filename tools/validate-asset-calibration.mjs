@@ -42,6 +42,97 @@ function hasAnchor(value) {
   return !!value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length > 0;
 }
 
+function vectorDistance(a, b) {
+  return Math.hypot(Number(a[0]) - Number(b[0]), Number(a[1]) - Number(b[1]), Number(a[2]) - Number(b[2]));
+}
+
+function validateTraversalCandidate(candidate, component) {
+  if (!candidate || !component) fail('Traversal candidate has no source component');
+  if (candidate.accepted !== true) {
+    if (candidate.runtimeEnabled === true || candidate.requiresReview === false) {
+      fail('Unaccepted traversal candidate cannot be runtime-enabled or review-complete: ' + candidate.nodeKey);
+    }
+    return;
+  }
+  if (candidate.requiresReview !== false || candidate.runtimeEnabled !== true || candidate.manual !== true) {
+    fail('Accepted traversal must be manually reviewed and runtime-enabled: ' + candidate.nodeKey);
+  }
+  if (component.requiresReview !== false || component.manual !== true) {
+    fail('Accepted traversal source component must also be manually reviewed: ' + candidate.nodeKey);
+  }
+  if (candidate.coordinateSpace !== 'component-local') fail('Traversal anchors must be component-local: ' + candidate.nodeKey);
+  const anchors = candidate.anchors || {};
+  const contacts = anchors.boneContacts || [];
+  const allowedBones = new Set(['LeftHand', 'RightHand', 'LeftFoot', 'RightFoot', 'Hips']);
+  const seen = new Set();
+  if (!Array.isArray(contacts) || contacts.length < 4) {
+    fail('Accepted traversal requires measured hand and foot bone contacts: ' + candidate.nodeKey);
+  }
+  for (const contact of contacts) {
+    if (!allowedBones.has(contact.bone) || !Number.isFinite(Number(contact.t))
+      || Number(contact.t) < 0 || Number(contact.t) > 1 || !finiteVector(contact.position)) {
+      fail('Traversal bone contact has an invalid bone, time or position: ' + candidate.nodeKey);
+    }
+    seen.add(contact.bone);
+  }
+  for (const bone of ['LeftHand', 'RightHand', 'LeftFoot', 'RightFoot']) {
+    if (!seen.has(bone)) fail('Traversal is missing the ' + bone + ' contact: ' + candidate.nodeKey);
+  }
+
+  if (candidate.actionCandidate === 'obstacle-climb') {
+    if (component.kind !== 'obstacle' || candidate.animation?.key !== 'obstacle_climb'
+      || Number(candidate.animation?.durationSeconds) !== 3.833) {
+      fail('Obstacle traversal must use the downloaded obstacle_climb clip: ' + candidate.nodeKey);
+    }
+    for (const key of ['approach', 'handContact', 'topOut', 'landing']) {
+      if (!finiteVector(anchors[key])) fail('Obstacle traversal is missing its ' + key + ' anchor: ' + candidate.nodeKey);
+    }
+    const path = anchors.rootPath;
+    if (!Array.isArray(path) || path.length < 4
+      || path.some(point => !Number.isFinite(Number(point.t)) || !finiteVector(point.position))) {
+      fail('Obstacle traversal requires at least four timed rootPath points: ' + candidate.nodeKey);
+    }
+    if (Math.abs(Number(path[0].t)) > 1e-5 || Math.abs(Number(path.at(-1).t) - 1) > 1e-5
+      || path.some((point, index) => index > 0 && Number(point.t) <= Number(path[index - 1].t))) {
+      fail('Obstacle rootPath times must increase strictly from 0 to 1: ' + candidate.nodeKey);
+    }
+    if (vectorDistance(path[0].position, anchors.approach) > 0.12
+      || vectorDistance(path.at(-1).position, anchors.landing) > 0.12) {
+      fail('Obstacle rootPath must begin at approach and end at landing: ' + candidate.nodeKey);
+    }
+    if (candidate.capabilities?.obstacleClimbAnimation !== true
+      || candidate.capabilities?.vaultAnimation === true
+      || candidate.capabilities?.mantleAnimation === true) {
+      fail('Unsupported vault/mantle capabilities cannot be enabled: ' + candidate.nodeKey);
+    }
+    return;
+  }
+
+  if (candidate.actionCandidate === 'ladder-climb') {
+    if (component.kind !== 'ladder' || candidate.animation?.key !== 'ladder_climb_up'
+      || Number(candidate.animation?.cycleSeconds) !== 0.767) {
+      fail('Ladder traversal must use the downloaded ladder_climb_up cycle: ' + candidate.nodeKey);
+    }
+    for (const key of ['mountBottom', 'mountTop', 'topOut', 'bottomDismount', 'planeNormal']) {
+      if (!finiteVector(anchors[key])) fail('Ladder traversal is missing its ' + key + ' anchor: ' + candidate.nodeKey);
+    }
+    if (!Array.isArray(anchors.climbPath) || anchors.climbPath.length < 2
+      || anchors.climbPath.some(point => !finiteVector(point))) {
+      fail('Ladder traversal requires measured rung-path points: ' + candidate.nodeKey);
+    }
+    const rungSpacing = Number(anchors.rungSpacing);
+    if (!Number.isFinite(rungSpacing) || rungSpacing < 0.12 || rungSpacing > 0.6) {
+      fail('Ladder rung spacing is outside the supported range: ' + candidate.nodeKey);
+    }
+    if (candidate.capabilities?.ladderClimbUpAnimation !== true
+      || candidate.capabilities?.ladderClimbDown !== false) {
+      fail('Only the upward ladder cycle is approved; reverse descent remains experimental: ' + candidate.nodeKey);
+    }
+    return;
+  }
+  fail('Only obstacle-climb and ladder-climb profiles can be runtime-enabled: ' + candidate.nodeKey);
+}
+
 function assertBounds(bounds, label) {
   if (!bounds || !finiteVector(bounds.min) || !finiteVector(bounds.max)) fail(label + ': missing finite min/max bounds');
   const size = bounds.size || bounds.max.map((value, index) => value - bounds.min[index]);
@@ -182,10 +273,9 @@ function validateAsset(sourceFile) {
   }
 
   for (const candidate of data.traversal || []) {
-    if (!componentByKey.has(candidate.nodeKey)) fail('Traversal candidate references unknown component: ' + candidate.nodeKey);
-    if (candidate.accepted === true && candidate.requiresReview !== false) {
-      fail('Traversal candidate cannot be accepted while review is required: ' + candidate.nodeKey);
-    }
+    const component = componentByKey.get(candidate.nodeKey);
+    if (!component) fail('Traversal candidate references unknown component: ' + candidate.nodeKey);
+    validateTraversalCandidate(candidate, component);
   }
 
   if (data.vehicle) {
