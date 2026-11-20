@@ -128,10 +128,10 @@ Names may be refined during implementation, but keep the new layer isolated. Do 
 
 These are lightweight gameplay configurations over the new core model and animation library, not separate story characters:
 
-- **Civilian:** normal movement, conversations, phone, sitting, fear, flee and basic reactions.
-- **Worker:** work idle, carrying/using props, sitting, standing and basic reactions.
-- **Aggressive:** unarmed punch/kick/block/dodge, weapon handling, hit reactions and pursuit.
-- **Police:** patrol/idle, radio, aim/shoot, chase, take-cover and arrest/hold actions.
+- **Civilian (current clips):** normal movement, seat-anchor sitting, waving, hit reaction, knockdown and vehicle interaction where the clips pass preview.
+- **Worker (current clips):** normal movement, seat-anchor sitting, waving and basic hit/knockdown reactions. No work-idle or carry animation is currently downloaded.
+- **Aggressive (current clips):** punch, block, hit reaction, knockdown and rifle aim/movement. Kick and dodge clips are not present.
+- **Police (current clips):** patrol using normal locomotion, rifle aim/walk/run and idle-only reload. Gunplay is a preview candidate; radio, take-cover and restraint clips are not present.
 
 The same profile selector must allow adding more profiles later. For the initial test, one base rig is enough. Model/appearance variants can be generated after the common rig and animation library are proven.
 
@@ -144,10 +144,10 @@ Required functions:
 - Switch between the gameplay profiles without reloading the map.
 - Select and preview every available animation clip.
 - Trigger actions from buttons/keys and inspect the resulting pose.
-- Switch weapon type and test grip/aim/reload/fire.
-- Test chair sit/stand interaction.
+- Test rifle grip, aim and idle-only reload. Preview `Gunplay.fbx` before enabling firing animation; no pistol animation support.
+- Test seat-anchor snapping, seated idle and exit-anchor placement; no sit/stand transition clips.
 - Test vehicle enter/exit and door operation.
-- Test ladder, vault, mantle, ledge and landing sequences.
+- Test obstacle climbing, ladder ascent, hard landing, knockdown and seat/vehicle interactions. Reverse ladder descent is experimental; vault/mantle/ledge actions must remain marked unavailable.
 - Display missing animation clips and missing asset anchors.
 - Remove the test character and reset the scene.
 - Show the current model ID, selected profile, current animation and current interaction target.
@@ -900,10 +900,10 @@ Each surface type supplies rendering material, collision/physics properties, veh
 
 ## 12. NPC behaviour profiles for testing (not story content)
 
-- [ ] Civilian preset: idle, route movement, phone, sit, greet, avoid vehicles, fear and flee.
-- [ ] Worker preset: stationary/short route, work idle, interact with chair/counter/prop, greet and react.
-- [ ] Aggressive preset: approach, threaten, punch/kick/block/dodge, hit reaction, pursue and stop.
-- [ ] Police preset: patrol, radio, alert, chase, aim/shoot, take cover and restrain.
+- [ ] Civilian preset: idle, walk/run/sprint, route movement, seat-anchor sit, wave, hit reaction, knockdown and vehicle entry/exit after preview. Phone/fear/flee clips are unavailable.
+- [ ] Worker preset: idle, short routes, seat-anchor sit, wave and basic hit/knockdown reactions. Work-idle/carry clips are unavailable.
+- [ ] Aggressive preset: approach, punch, block, hit reaction, knockdown, pursue and stop. Kick/dodge clips are unavailable.
+- [ ] Police preset: patrol, chase, rifle aim/walk/run and standing-idle rifle reload. Gunplay remains a preview candidate; radio/take-cover/restrain clips are unavailable.
 - [ ] Runtime profile switching without world reload.
 - [ ] Each profile uses the same movement/animation/interaction contracts where possible.
 - [ ] NPCs cannot walk outside the test region.
@@ -919,10 +919,10 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 
 ### Phase 1 — New NPC asset generation
 
-- [ ] User runs `generate-npc-core.ps1` locally.
-- [ ] Confirm `npc_core_001` source/rigged files exist.
+- [x] MakeHuman source project and source OBJ were generated for `npc_core_001`; current animation FBXs were downloaded manually.
+- [ ] Verify `Idle.fbx` contains the skinned base humanoid mesh and Mixamo skeleton; the source OBJ alone is not a rigged runtime character.
 - [x] Inspect manifest and list clips actually downloaded (28 files inventoried; see Section 4 and the manifest).
-- [ ] Fix failed/invalid clips before runtime integration.
+- [ ] Preview candidate clips and verify every downloaded FBX binds to the same base skeleton before runtime registration.
 
 ### Phase 2 — New NPC profile/animation runtime
 
