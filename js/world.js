@@ -1567,7 +1567,7 @@ export class World {
         ? assetCalibration.collision.boxes : null;
       // Custom tyre sampling is allowed only for an accepted, reviewed route
       // and only when source-root transforms can be represented by this mapping.
-      const canUseCalibratedRoadConnections = uniformRootScale && !rootTilted && !hasMeshEdits;
+      const canUseCalibratedRoadConnections = scaleFactor > 0 && uniformRootScale && !rootTilted && !hasMeshEdits;
       const isRoad = collisionProfile === 'road-surface' || calibratedRoadByKey.size > 0;
       const hasNoCollision = !!a.noCollision || (collisionProfile === 'no-collision'
         && !calibratedCollisionBoxes?.length && !calibratedRoadByKey.size);
@@ -2575,37 +2575,43 @@ export class World {
     };
     let best = null;
     let bestScore = Infinity;
+
+    // Existing authored road chains stay first-class. Reviewed imported
+    // calibration chains join the same query path without a second vehicle
+    // physics implementation.
     for (let sourceIndex = 0; sourceIndex < 2; sourceIndex++) {
-      const chains = sourceIndex === 0 ? (this._roadChains || []) : (this.calibratedRoadChains || []);
+      const chains = sourceIndex === 0
+        ? (this._roadChains || [])
+        : (this.calibratedRoadChains || []);
       for (const chain of chains) {
-      const pts = chain.pts || [];
-      if (pts.length < 2) continue;
-      const count = pts.length - 1 + (chain.closed ? 1 : 0);
-      for (let i = 0; i < count; i++) {
-        const a = pts[i], b = pts[(i + 1) % pts.length];
-        const dx = b.x - a.x, dz = b.z - a.z;
-        const lenSq = dx * dx + dz * dz;
-        if (lenSq < 1e-8) continue;
-        const t = THREE.MathUtils.clamp(((x - a.x) * dx + (z - a.z) * dz) / lenSq, 0, 1);
-        const px = a.x + dx * t, pz = a.z + dz * t;
-        const lateral = Math.hypot(x - px, z - pz);
-        const edge = (chain.W || 12) * 0.5;
-        let key = String(chain.surface || 'asphalt').toLowerCase();
-        if (lateral > edge + 0.25) {
-          if (chain.sidewalk && lateral <= edge + 3.55) key = 'concrete';
-          else continue;
+        const pts = chain.pts || [];
+        if (pts.length < 2) continue;
+        const count = pts.length - 1 + (chain.closed ? 1 : 0);
+        for (let i = 0; i < count; i++) {
+          const a = pts[i], b = pts[(i + 1) % pts.length];
+          const dx = b.x - a.x, dz = b.z - a.z;
+          const lenSq = dx * dx + dz * dz;
+          if (lenSq < 1e-8) continue;
+          const t = THREE.MathUtils.clamp(((x - a.x) * dx + (z - a.z) * dz) / lenSq, 0, 1);
+          const px = a.x + dx * t, pz = a.z + dz * t;
+          const lateral = Math.hypot(x - px, z - pz);
+          const edge = (chain.W || 12) * 0.5;
+          let key = String(chain.surface || 'asphalt').toLowerCase();
+          if (lateral > edge + 0.25) {
+            if (chain.sidewalk && lateral <= edge + 3.55) key = 'concrete';
+            else continue;
+          }
+          if (key === 'off-road') key = 'offroad';
+          if (!profiles[key]) key = 'asphalt';
+          const height = THREE.MathUtils.lerp(Number(a.y) || 0, Number(b.y) || 0, t) + (chain.roadY ?? 0.06);
+          const verticalDelta = Math.abs(height - y);
+          if (verticalDelta > 1.25) continue;
+          const score = lateral + verticalDelta * 2.0;
+          if (score < bestScore) {
+            bestScore = score;
+            best = { key, height, distance: lateral, verticalDelta };
+          }
         }
-        if (key === 'off-road') key = 'offroad';
-        if (!profiles[key]) key = 'asphalt';
-        const height = THREE.MathUtils.lerp(Number(a.y) || 0, Number(b.y) || 0, t) + (chain.roadY ?? 0.06);
-        const verticalDelta = Math.abs(height - y);
-        if (verticalDelta > 1.25) continue; // Ignore a road above/below the vehicle.
-        const score = lateral + verticalDelta * 2.0;
-        if (score < bestScore) {
-          bestScore = score;
-          best = { key, height, distance: lateral, verticalDelta };
-        }
-      }
       }
     }
     if (!best) {
