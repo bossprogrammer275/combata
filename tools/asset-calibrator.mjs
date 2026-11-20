@@ -499,7 +499,7 @@ async function main() {
   if (failed) process.exitCode = 1;
 }
 
-export { calibrateOne, classifyAssetType, classifyComponent, buildRoadProfiles };
+export { calibrateOne, classifyAssetType, classifyComponent, localConnection, interactionSpec, makeComponent, buildRoadProfiles, buildBridgeProfile };
 
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : '';
 if (invokedPath && import.meta.url === pathToFileURL(invokedPath).href) {
