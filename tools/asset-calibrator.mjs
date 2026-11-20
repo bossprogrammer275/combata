@@ -114,7 +114,7 @@ function classifyComponent(item, assetType, assetPath) {
   const pathTokens = normalizedNameTokens(item.nodePath || '');
   const has = (...values) => hasNameToken(tokens, ...values);
   const hasInPath = (...values) => hasNameToken(pathTokens, ...values);
-  const key = String(item.nodePath || '').toLowerCase().replace(/[\\s-]+/g, '_');
+  const key = String(item.nodePath || '').toLowerCase().replaceAll(' ', '_').replaceAll('-', '_');
 
   // These project-owned profiles are tied to exact node identities, not fuzzy
   // words. Their node names and mesh dimensions are the calibration authority.
@@ -174,8 +174,8 @@ function classifyComponent(item, assetType, assetPath) {
   }
   // Some supplied single-mesh props have generic mesh names. The source file
   // itself is a legitimate semantic label, but it remains review-only.
-  if (/\\/(?:stair|stairs)(?:[-_][^/]*)?\\.glb$/i.test(assetPath)
-    && !assetPath.includes('/roads/')) {
+  const sourceBaseName = String(assetPath).split('/').at(-1).toLowerCase();
+  if (['stair.glb', 'stairs.glb'].includes(sourceBaseName) && !assetPath.includes('/roads/')) {
     return { role: 'stairs', kind: 'stairs', confidence: 0.78, source: 'asset-file-name' };
   }
   if (has('ledge', 'hangpoint', 'climbedge')) {
