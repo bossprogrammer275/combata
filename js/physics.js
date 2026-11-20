@@ -236,7 +236,9 @@ export class Physics {
         ? Uint32Array.from(sourceIndex.array)
         : Uint32Array.from({ length: attr.count }, (_, i) => i);
       if (indices.length < 3) continue;
-      const friction = source.kind === 'road' ? 0.72 : source.kind === 'sidewalk' ? 0.82 : 0.76;
+      const friction = Number.isFinite(source.frictionHint)
+        ? THREE.MathUtils.clamp(source.frictionHint, 0.2, 1.5)
+        : source.kind === 'road' ? 0.72 : source.kind === 'sidewalk' ? 0.82 : 0.76;
       const collider = this.world.createCollider(
         RAPIER.ColliderDesc.trimesh(vertices, indices).setFriction(friction).setRestitution(0),
         body,
