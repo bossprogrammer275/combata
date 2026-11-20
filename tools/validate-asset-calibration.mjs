@@ -138,6 +138,14 @@ function validateAsset(sourceFile) {
     }
   }
 
+  for (const key of excluded) {
+    const component = componentByKey.get(key);
+    const surface = roadSurfaces.find(item => item.nodeKey === key);
+    if (!component || component.runtimeEnabled !== true || !surface || surface.runtimeEnabled !== true) {
+      fail('Collision exclusion does not resolve to an enabled calibrated surface: ' + key);
+    }
+  }
+
   if (data.bridge) {
     if (data.bridge.sectionCount !== data.bridge.sections?.length) fail('Bridge section count does not match its profile');
     for (const section of data.bridge.sections || []) {
