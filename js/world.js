@@ -15,6 +15,7 @@ import { Atmosphere } from './atmosphere.js';
 import { loadAssetOverrides, applyAssetOverrides } from './asset-overrides.js';
 import { annotateWorldKitInstance, classifyWorldKitMesh, getWorldKitPlacementOffset, getWorldKitScalePlan, getWorldKitDoorMarkers, getWorldKitDoorGroups, getWorldKitCollisionManifest, getWorldKitDefinition, WORLD_KIT_ROAD_PACK_PARTS, WORLD_KIT_ROAD_PACK_SCALE, WORLD_KIT_SIDEWALK_COMPONENTS } from './world-kit.js';
 import { extractWorldBridgeKit, WORLD_BRIDGE_KIT_URL } from './world-bridge-kit.js';
+import { loadAssetCalibration, applyAssetCalibration, getAssetNodeKey } from './asset-calibration.js';
 
 function rng(a, b) { return a + Math.random() * (b - a); }
 
@@ -56,6 +57,7 @@ export class World {
     this.roofAccess = [];     // {x,z,y,rx,rz} walkable rooftops
     this.reactiveObjects = []; // {mesh, kind, base, sway, ...}
     this.npcInteractables = []; // semantic seats, phones, counters and other civilian-use nodes
+    this.calibratedTraversalCandidates = []; // reviewed asset geometry candidates for player traversal
     this.vehicleSpawns = [];  // {x,z,ry,kind} parked/drivable vehicles
     this._buildingData = [];  // {url,min,max,x,z,doors[],interior} — auto-detected from GLB
     this.worldKitComponents = []; // imported component instances with semantic role metadata
@@ -1465,6 +1467,26 @@ export class World {
       };
       this.worldKitComponents.push(worldKitInstance);
       model.updateMatrixWorld(true);
+      const assetCalibration = await loadAssetCalibration(a.url);
+      const appliedCalibration = applyAssetCalibration(model, assetCalibration);
+      worldKitInstance.calibrationStatus = assetCalibration?.review?.status || 'no-sidecar';
+      worldKitInstance.calibratedComponentCount = appliedCalibration.componentsByRole
+        ? [...appliedCalibration.componentsByRole.values()].reduce((sum, items) => sum + items.length, 0) : 0;
+      if (assetCalibration?.traversal?.length) {
+        for (const candidate of assetCalibration.traversal) {
+          const component = (assetCalibration.components || []).find(item => item.nodeKey === candidate.nodeKey);
+          const node = appliedCalibration.nodesByKey.get(candidate.nodeKey);
+          if (!node || !component) continue;
+          node.updateWorldMatrix(true, false);
+          const candidateBounds = new THREE.Box3().setFromObject(node);
+          this.calibratedTraversalCandidates.push({
+            assetUrl: a.url, componentId: candidate.componentId, nodeKey: candidate.nodeKey,
+            actionCandidate: candidate.actionCandidate, capabilities: candidate.capabilities,
+            min: candidateBounds.min.clone(), max: candidateBounds.max.clone(),
+            accepted: candidate.accepted === true, requiresReview: candidate.requiresReview !== false,
+          });
+        }
+      }
       this._registerAssetNpcInteractables(model);
 
       // Enhance all materials for realism
@@ -1519,8 +1541,15 @@ export class World {
       // Road collision is assigned only to assets explicitly registered as
       // drivable road surfaces. A filename containing "road" is not enough:
       // road barriers, bumps and small marked panels are ordinary props/details.
-      const isRoad = collisionProfile === 'road-surface';
-      const hasNoCollision = !!a.noCollision || collisionProfile === 'no-collision';
+      const calibratedRoadRecords = Array.isArray(assetCalibration?.road?.surfaces) ? assetCalibration.road.surfaces : [];
+      const calibratedRoadByKey = new Map(calibratedRoadRecords
+        .filter(surface => surface.runtimeEnabled === true)
+        .map(surface => [surface.nodeKey, surface]));
+      const calibratedCollisionBoxes = Array.isArray(assetCalibration?.collision?.boxes)
+        ? assetCalibration.collision.boxes : null;
+      const isRoad = collisionProfile === 'road-surface' || calibratedRoadByKey.size > 0;
+      const hasNoCollision = !!a.noCollision || (collisionProfile === 'no-collision'
+        && !calibratedCollisionBoxes?.length && !calibratedRoadByKey.size);
 
       // Imported street-road surfaces supply their own detailed tyre-contact
       // geometry. Only the authored asphalt planes enter the road physics mesh
@@ -1534,12 +1563,22 @@ export class World {
             if (node.name) names.unshift(node.name);
           }
           const sourceName = names.join('/').toLowerCase();
-          if (!sourceName.includes('two_lane_road') || sourceName.includes('side_texture')) return;
+          const nodeKey = getAssetNodeKey(model, o);
+          const calibratedSurface = calibratedRoadByKey.get(nodeKey);
+          const legacyRoadSurface = calibratedRoadByKey.size === 0
+            && sourceName.includes('two_lane_road') && !sourceName.includes('side_texture');
+          if (calibratedRoadByKey.size ? !calibratedSurface : !legacyRoadSurface) return;
           const geometry = o.geometry.clone();
           geometry.applyMatrix4(o.matrixWorld);
           geometry.computeBoundingBox();
           geometry.computeBoundingSphere();
-          const roadSurface = { kind: 'imported_road', geometry };
+          const roadSurface = {
+            kind: calibratedSurface?.kind || 'road',
+            geometry,
+            nodeKey,
+            calibrationId: calibratedSurface?.id || null,
+            frictionHint: calibratedSurface?.physics?.frictionHint ?? null,
+          };
           if (streamChunk) roadSurface._streamChunkKey = streamChunk.key;
           this.roadPhysicsMeshes.push(roadSurface);
           o.userData.worldKit ||= {};
@@ -1701,9 +1740,13 @@ export class World {
       // Prefer usable authored col_* meshes. Avoid fetching a manifest when a
       // dedicated proxy type or explicit per-world collision dimensions win.
       const collisionManifestUrl = getWorldKitCollisionManifest(a.url, a);
-      const collisionManifest = collisionManifestUrl && !usableCollisionProxyBoxes.length && !isTree && !isLamp && !hasNoCollision &&
-        !a.collisionSize && !a.collisionH && !hasMeshEdits && uniformRootScale && !rootTilted
-        ? await this._loadCollisionManifest({ ...a, collisionManifest: collisionManifestUrl })
+      const canUseCalibratedCollision = Array.isArray(calibratedCollisionBoxes)
+        && assetCalibration?.collision?.sourceSha256 === assetCalibration?.source?.sha256;
+      const canLoadCollision = !usableCollisionProxyBoxes.length && !isTree && !isLamp && !hasNoCollision
+        && !a.collisionSize && !a.collisionH && !hasMeshEdits && uniformRootScale && !rootTilted;
+      const collisionManifest = canLoadCollision
+        ? (canUseCalibratedCollision ? assetCalibration.collision
+          : collisionManifestUrl ? await this._loadCollisionManifest({ ...a, collisionManifest: collisionManifestUrl }) : null)
         : null;
       // True only if this loading path actually injected sidecar colliders.
       // Merely finding a sidecar must not suppress floor_/stairs_ fallbacks when
@@ -1713,7 +1756,7 @@ export class World {
       let collisionSource = hasNoCollision ? 'no-collision' : isRoad ? 'road-surface' : 'unresolved';
       let generatedCollisionProxyCount = 0;
 
-      if (!hasNoCollision && !isRoad && !bbox.isEmpty()) {
+      if (!hasNoCollision && (!isRoad || collisionManifest?.boxes?.length) && !bbox.isEmpty()) {
         const size = bbox.getSize(new THREE.Vector3());
         const center = bbox.getCenter(new THREE.Vector3());
         if (size.x > 0.1 && size.y > 0.1 && size.z > 0.1) {
@@ -3662,8 +3705,18 @@ export class World {
     this._bridgeKitPromise = (async () => {
       const loader = this._gltfLoader || (this._gltfLoader = new GLTFLoader());
       const gltf = await loader.loadAsync(WORLD_BRIDGE_KIT_URL);
+      const calibration = await loadAssetCalibration(WORLD_BRIDGE_KIT_URL);
+      const applied = applyAssetCalibration(gltf.scene, calibration);
+      this._bridgeKitCalibration = calibration;
       this._bridgeKit = extractWorldBridgeKit(gltf.scene);
-      console.info('[WorldKit] Imported bridge components:', [...this._bridgeKit.keys()].join(', '));
+      for (const prefab of this._bridgeKit.values()) {
+        const section = calibration?.bridge?.sections?.find(item => item.id === prefab.sectionId) || null;
+        prefab.assetCalibration = section;
+        prefab.mesh.userData.assetCalibration = section;
+        prefab.mesh.userData.assetCalibrationStatus = calibration?.review?.status || 'no-sidecar';
+      }
+      console.info('[WorldKit] Imported bridge components:', [...this._bridgeKit.keys()].join(', '),
+        '| calibrated:', applied.componentsByRole ? [...applied.componentsByRole.values()].reduce((sum, items) => sum + items.length, 0) : 0);
       return this._bridgeKit;
     })().catch(error => {
       this._bridgeKitPromise = null;
