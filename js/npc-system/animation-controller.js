@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { loadNpcCoreClip, resolveNpcAnimationKey } from './core-assets.js';
 
-const LOOPING = new Set(['idle','walk','walk_aim','run','rifle_run','sprint','crouch_idle',
+const LOOPING = new Set(['idle','walk','walk_aim','run','rifle_run','sprint','ladder_climb_up','crouch_idle',
   'crouch_walk','crouch_walk_aim','rifle_aim_idle','crouch_aim_idle','sit_idle','vehicle_driver_idle']);
 
 export class NpcAnimationController {
@@ -17,7 +17,7 @@ export class NpcAnimationController {
     this.disposed = false;
     this.autoReturnActions = new Set([
       'wave', 'jump_idle', 'reload_idle', 'hard_landing',
-      'hit_reaction', 'punch', 'block', 'knockdown_recovery_candidate'
+      'hit_reaction', 'punch', 'block', 'obstacle_climb', 'knockdown_recovery_candidate'
     ]);
     this._onFinished = (event) => {
       if (this.disposed || event.action !== this.currentAction) return;
