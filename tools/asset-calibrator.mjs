@@ -95,7 +95,7 @@ function classifyComponent(item, assetType, assetPath) {
 
   // Vehicle seat/door groups use many vendor naming conventions. Token-based
   // matching avoids relying on a single exact mesh label.
-  const tokens = key.split(/[^a-z0-9]+/).filter(Boolean);
+  const tokens = pathText.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
   const hasToken = (...values) => values.some(value => tokens.includes(value));
   if (assetType === 'vehicle' && hasToken('seat', 'chair', 'bench', 'sofa', 'stool', 'couch', 'driverseat', 'passengerseat')) {
     return { role: 'vehicle-seat', kind: 'seat', confidence: 0.86, source: 'node-name' };
@@ -115,11 +115,20 @@ function classifyComponent(item, assetType, assetPath) {
     [/guard.?rail|hand.?rail|barrier|kerb|curb|rail_/, 'barrier', 'barrier'],
     [/fence|wall|parapet/, 'obstacle', 'obstacle'],
     [/pier|abutment|support|column|beam|foundation/, 'bridge-support', 'support'],
-    [/^(?:.*_)?(?:asphalt|carriageway|road|lane|deck|driveable|drivable|pavement)(?:_.*)?$/, assetType === 'bridge' ? 'bridge-deck-candidate' : 'road-surface', 'driveable-surface'],
     [/handle|switch|button|lever|grip/, 'interaction-part', 'interaction'],
   ];
   for (const [pattern, role, kind] of tests) {
     if (pattern.test(key)) return { role, kind, confidence: 0.86, source: 'node-name' };
+  }
+
+  if ((assetType === 'bridge' || assetType === 'road')
+    && hasToken('asphalt', 'carriageway', 'road', 'lane', 'deck', 'driveable', 'drivable', 'pavement')) {
+    return {
+      role: assetType === 'bridge' ? 'bridge-deck-candidate' : 'road-surface-candidate',
+      kind: 'driveable-surface',
+      confidence: 0.82,
+      source: 'node-name',
+    };
   }
 
   if ((assetType === 'bridge' || assetType === 'road') && isFlatHorizontal(item)) {
