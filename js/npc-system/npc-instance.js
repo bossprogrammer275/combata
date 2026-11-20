@@ -57,6 +57,12 @@ export class NpcInstance {
   update(dt) { this.animation?.update(dt); }
   dispose() {
     this.animation?.dispose();
+    // Instance materials are unique; the base mesh geometry and textures are shared.
+    this.model?.traverse((node) => {
+      if (!node.material) return;
+      const materials = Array.isArray(node.material) ? node.material : [node.material];
+      materials.forEach((material) => material?.dispose?.());
+    });
     this.root.removeFromParent();
     this.model = null;
     this.mixer = null;
