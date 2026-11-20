@@ -421,9 +421,13 @@ export class Player {
 
     // climb trigger — GTA-style: press F to start climbing, then all controls are disabled
     if (k.climb && this.onGround && !this.skydive && !this._climbPhase && !this.nearPortal) {
-      let hit = null;
-      let collider = this.world.climbableAt(this.pos, this.radius + 1.5);
-      if (collider) hit = this.world.findClimbableHit?.(this.pos, collider) || null;
+      let hit = this.world.findTraversalCandidateHit?.(this.pos, this.yaw, 1.8) || null;
+      let collider = hit?.collider || null;
+      let calibrated = hit?.candidate || null;
+      if (!collider) {
+        collider = this.world.climbableAt(this.pos, this.radius + 1.5);
+        if (collider) hit = this.world.findClimbableHit?.(this.pos, collider) || null;
+      }
       if (!collider) {
         const rayHit = this.world.findClimbWallHit?.(this.pos, this.yaw, 1.8, 0.5, 2.8);
         if (rayHit) { collider = rayHit.collider; hit = rayHit; }
@@ -431,7 +435,7 @@ export class Player {
       }
       if (collider && !hit) hit = this.world.findClimbableHit?.(this.pos, collider) || null;
       if (collider) {
-        const calibrated = this.world.getTraversalCandidateForCollider?.(collider, this.pos) || null;
+        calibrated ||= this.world.getTraversalCandidateForCollider?.(collider, this.pos) || null;
         if (this._startClimb(collider, hit, calibrated)) return;
       }
     }
@@ -666,6 +670,8 @@ export class Player {
     if (calibrated?.actionCandidate === 'ladder-climb') {
       plan = buildLadderTraversalPath({
         start: this.pos,
+        mountBottom: anchors.mountBottom,
+        mountTop: anchors.mountTop,
         climbPath: anchors.climbPath,
         topOut: anchors.topOut,
         rungSpacing: anchors.rungSpacing,
@@ -688,7 +694,8 @@ export class Player {
     if (!plan || !this.world.isTraversalPathClear(plan.path, this.radius, this.height)) return false;
     if (!this.world.hasTraversalSupport(plan.landing, this.radius)) return false;
 
-    const facingYaw = Math.atan2(normal.x, normal.z);
+    const facing = calibrated?.anchors?.planeNormal || normal;
+    const facingYaw = Math.atan2(facing.x, facing.z);
     this.yaw = facingYaw;
     this.bodyYaw = facingYaw;
     this.aimAmount = 0;
