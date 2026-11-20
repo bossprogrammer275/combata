@@ -2375,9 +2375,14 @@ export class World {
       this.addPortal(interiorPos, outward.clone(), exitPos, 'exit', buildingIdx);
       const calibratedDoor = door.calibratedDoor;
       const resolveLocalPoint = value => {
-        if (!door.mesh || !Array.isArray(value) || value.length < 3) return null;
+        if (!door.mesh) return null;
+        const point = Array.isArray(value) ? value
+          : Array.isArray(value?.position) ? value.position
+            : value?.position ? [value.position.x, value.position.y, value.position.z]
+              : value ? [value.x, value.y, value.z] : null;
+        if (!point || point.length < 3 || !point.slice(0, 3).every(item => Number.isFinite(Number(item)))) return null;
         return door.mesh.localToWorld(new THREE.Vector3(
-          Number(value[0]) || 0, Number(value[1]) || 0, Number(value[2]) || 0,
+          Number(point[0]), Number(point[1]), Number(point[2]),
         ));
       };
       const resolveLocalDirection = value => {
@@ -2399,6 +2404,8 @@ export class World {
         hinge: resolveLocalPoint(calibratedDoor?.hinge),
         hingeAxis: resolveLocalDirection(calibratedDoor?.hingeAxis),
         handle: resolveLocalPoint(calibratedDoor?.handle),
+        closedTransform: calibratedDoor?.closedTransform || null,
+        openRange: calibratedDoor?.openRange || null,
         openAngleDeg: Number.isFinite(calibratedDoor?.openAngleDeg) ? calibratedDoor.openAngleDeg : null,
       };
       bd.doors.push(doorRecord);
