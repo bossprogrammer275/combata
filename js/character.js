@@ -7,7 +7,8 @@ const MODEL = Object.freeze({ id: 'npc_core_001', displayName: 'NPC Core 001', t
 const PLAYER_ANIMATION_KEYS = Object.freeze([
   'idle', 'walk', 'walk_aim', 'run', 'rifle_run', 'sprint',
   'crouch_idle', 'crouch_walk', 'crouch_walk_aim',
-  'rifle_aim_idle', 'crouch_aim_idle', 'reload_idle', 'jump_idle'
+  'rifle_aim_idle', 'crouch_aim_idle', 'reload_idle', 'jump_idle',
+  'obstacle_climb', 'ladder_climb_up'
 ]);
 let _baseGroup = null;
 let _clips = {};
@@ -127,7 +128,7 @@ export class Character {
     for (const [key, clip] of Object.entries(_clips)) {
       const action = this._mixer.clipAction(clip, clone);
       action.enabled = true;
-      const oneShot = key === 'jump_idle' || key === 'reload_idle';
+      const oneShot = key === 'jump_idle' || key === 'reload_idle' || key === 'obstacle_climb';
       action.setLoop(oneShot ? THREE.LoopOnce : THREE.LoopRepeat, oneShot ? 1 : Infinity);
       action.clampWhenFinished = oneShot;
       action.reset();
@@ -194,7 +195,8 @@ export class Character {
   applyPose(state = {}, dt = 1 / 60) {
     if (!this._mixer || !this._model) return;
 
-    let desired = resolvePlayerAnimation(state, this._poseMode || 'idle');
+    let desired = this._actions[state.traversalAnimation] ? state.traversalAnimation
+      : resolvePlayerAnimation(state, this._poseMode || 'idle');
     if (!this._actions[desired]) {
       const fallback = {
         walk_aim: 'walk', rifle_run: 'run',
@@ -236,14 +238,33 @@ export class Character {
       const current = action.getEffectiveWeight();
       action.setEffectiveWeight(current + (target - current) * poseBlend);
       if (target > 0) action.setEffectiveTimeScale(
-        name === 'sprint' ? THREE.MathUtils.clamp(speed * 2.1, 0.92, 1.32)
-          : name === 'run' || name === 'rifle_run' ? THREE.MathUtils.clamp(speed * 2.0, 0.82, 1.28)
-            : name === 'walk' || name === 'walk_aim' || name === 'crouch_walk' || name === 'crouch_walk_aim' ? THREE.MathUtils.clamp(speed * 2.2, 0.68, 1.2) : 1
+        name === 'obstacle_climb' ? 1
+          : name === 'ladder_climb_up' ? THREE.MathUtils.clamp(Number(state.traversalAnimationTimeScale) || 1, 0.6, 1.4)
+            : name === 'sprint' ? THREE.MathUtils.clamp(speed * 2.1, 0.92, 1.32)
+              : name === 'run' || name === 'rifle_run' ? THREE.MathUtils.clamp(speed * 2.0, 0.82, 1.28)
+                : name === 'walk' || name === 'walk_aim' || name === 'crouch_walk' || name === 'crouch_walk_aim' ? THREE.MathUtils.clamp(speed * 2.2, 0.68, 1.2) : 1
       );
     }
 
     // Crouch height is authored in the Mixamo crouch/crouch-walk clips.
     // Do not translate the model as well or the visual crouch is doubled.
+  }
+
+  getBoneOffsetFromRoot(name, target = new THREE.Vector3()) {
+    if (!this._model || !name) return null;
+    const aliases = {
+      LeftHand: ['LeftHand', 'mixamorig:LeftHand'],
+      RightHand: ['RightHand', 'mixamorig:RightHand'],
+      LeftFoot: ['LeftFoot', 'mixamorig:LeftFoot'],
+      RightFoot: ['RightFoot', 'mixamorig:RightFoot'],
+      Hips: ['Hips', 'mixamorig:Hips', 'Pelvis'],
+    };
+    const bone = findBone(this._model, aliases[name] || [String(name)]);
+    if (!bone) return null;
+    this.root.updateWorldMatrix(true, true);
+    bone.getWorldPosition(target);
+    const rootWorld = this.root.getWorldPosition(new THREE.Vector3());
+    return target.sub(rootWorld);
   }
 
   applyWeaponPose(dt = 1 / 60) {
