@@ -435,7 +435,8 @@ function recomputeCalibrationReview() {
     if (surface?.connection?.accepted === true && surface.connection.requiresReview === false) {
       section.connection = surface.connection;
       section.requiresReview = false;
-    } else if (section.requiresReview !== false) {
+    } else {
+      if (surface?.connection) section.connection = surface.connection;
       section.requiresReview = true;
     }
   }
@@ -483,14 +484,7 @@ function recomputeCalibrationReview() {
     confidence: component.confidence,
     requiresReview: component.requiresReview !== false,
   }));
-  currentCalibration.collision ||= {};
-  // Never add a new exclusion in the editor: that would leave the original
-  // generated box collider in place. Only preserve exclusions created by the
-  // calibration scan itself; a new candidate must be rescanned first.
-  const scannedExclusions = new Set(currentCalibration.collision.excludedDriveableMeshKeys || []);
-  currentCalibration.collision.excludedDriveableMeshKeys = components
-    .filter(component => component.runtimeEnabled === true && scannedExclusions.has(component.nodeKey))
-    .map(component => component.nodeKey);
+  // Collision exclusions are scan-owned and are never edited from this review panel.
 }
 
 function saveParsedComponent() {
@@ -499,6 +493,14 @@ function saveParsedComponent() {
   if (component.nodeKey !== selectedCalibrationNodeKey) throw new Error('Component nodeKey cannot be changed.');
   const index = currentCalibration.components.findIndex(item => item.nodeKey === selectedCalibrationNodeKey);
   if (index < 0) throw new Error('Selected component no longer exists.');
+  const previous = currentCalibration.components[index];
+  const scannedExclusions = new Set(currentCalibration.collision?.excludedDriveableMeshKeys || []);
+  const wasExcludedByScan = scannedExclusions.has(selectedCalibrationNodeKey);
+  if (component.runtimeEnabled !== previous.runtimeEnabled
+    || (wasExcludedByScan && (component.role !== previous.role || component.kind !== previous.kind))
+    || (component.runtimeEnabled === true && !wasExcludedByScan)) {
+    throw new Error('Collision roles and runtimeEnabled are fixed by the scan. Change source geometry and rerun calibration instead.');
+  }
   currentCalibration.components[index] = component;
   recomputeCalibrationReview();
   refreshCalibrationEditors();
@@ -544,7 +546,10 @@ function saveSelectedConnection() {
     const connection = JSON.parse($('calibration-connection-json').value);
     surface.connection = connection;
     const component = selectedCalibrationComponent();
-    if (component && connection.accepted !== true) component.requiresReview = true;
+    if (connection.accepted !== true) {
+      surface.requiresReview = true;
+      if (component) component.requiresReview = true;
+    }
     recomputeCalibrationReview();
     refreshCalibrationEditors();
     renderCalibrationOverlay();
