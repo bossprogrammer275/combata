@@ -47,6 +47,7 @@ function classifyAssetType(assetPath) {
   const value = assetPath.toLowerCase().replace(/\\/g, '/');
   if (value.includes('/cars/')) return 'vehicle';
   if (/bridge/.test(value)) return 'bridge';
+  if (value.endsWith('/road.glb')) return 'road';
   if (/roads?\//.test(value) || /street.?road|road.?pack/.test(value)) return 'road';
   return 'world-prop';
 }
