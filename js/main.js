@@ -45,6 +45,11 @@ class Game {
     this.nearLoot = null;
     this.ismailg = false;
     this.overview = null;
+    // Reuse hot-path arrays/contexts/callbacks instead of creating garbage every frame.
+    this._hittableBuffer = [];
+    this._onWeaponKill = (enemy, hit, damage) => this.registerKill(enemy, hit, damage);
+    this._onPlayerDamage = (damage, source) => this.damagePlayer(damage, source);
+    this._civilianUpdateContext = { player: null, vehicles: null, aiming: false, camera: null, gunshot: false };
 
     window.__getCoins = () => this.profile ? this.profile.coins : 0;
     window.__transitPick = (idx) => {
@@ -1758,25 +1763,28 @@ class Game {
     }
 
     this.updateAmbient(dt);
-    const hittables = this.civilians ? [...this.enemyMgr.enemies, ...this.civilians.alive()] : this.enemyMgr.enemies;
     if (!this.player.skydive && !driving) {
-      this.weapons.update(dt, this.input, hittables, (e, h, d) => this.registerKill(e, h, d), this);
-      this.enemyMgr.update(dt, this.player, (dmg, from) => this.damagePlayer(dmg, from), this);
-    } else {
-      this.enemyMgr.update(dt, this.player, (dmg, from) => this.damagePlayer(dmg, from), this);
+      const hittables = this._hittableBuffer;
+      hittables.length = 0;
+      for (const enemy of this.enemyMgr.enemies) hittables.push(enemy);
+      if (this.civilians) {
+        for (const civilian of this.civilians.list) if (civilian.alive) hittables.push(civilian);
+      }
+      this.weapons.update(dt, this.input, hittables, this._onWeaponKill, this);
     }
+    this.enemyMgr.update(dt, this.player, this._onPlayerDamage, this);
     if (this.civilians) {
       const shots = this.stats.shotsFired || 0;
       const playerFired = shots > (this._lastCivilianShotCount || 0);
       this._lastCivilianShotCount = shots;
       if (playerFired) this.civilians.fleeFrom(this.player.pos, 25);
-      this.civilians.update(dt, {
-        player: this.player,
-        vehicles: this.vehicles,
-        aiming: this.weapons.adsT > 0.45,
-        camera: this.camera,
-        gunshot: playerFired,
-      });
+      const context = this._civilianUpdateContext;
+      context.player = this.player;
+      context.vehicles = this.vehicles;
+      context.aiming = this.weapons.adsT > 0.45;
+      context.camera = this.camera;
+      context.gunshot = playerFired;
+      this.civilians.update(dt, context);
     }
     this.tools.update(dt);
     this.input.jump = false;

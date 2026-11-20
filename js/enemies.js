@@ -529,6 +529,12 @@ export class EnemyManager {
     this.scene = scene; this.world = world;
     this.fx = effects; this.audio = audio; this.camera = camera; this.hud = hud;
     this.enemies = [];
+    this._currentPlayer = null;
+    this._onEnemyHitBot = (shooter, target, damage) => {
+      const died = target.takeDamage(damage, false);
+      if (died && this.onBotKilled) this.onBotKilled(shooter, target);
+    };
+    this._onEnemyFire = (position, range) => this.alertBots(position, range, this._currentPlayer);
     this._aiSkip = quality === 'ultra-low' ? 2 : quality === 'low' ? 1 : 0;
     this._aiFrame = 0;
     this.layer = document.createElement('div');
@@ -584,7 +590,11 @@ export class EnemyManager {
     setTimeout(() => el.remove(), 800);
   }
 
-  aliveCount() { return this.enemies.filter(e => e.alive).length; }
+  aliveCount() {
+    let count = 0;
+    for (const enemy of this.enemies) if (enemy.alive) count++;
+    return count;
+  }
 
   onBotKilled = null;
 
@@ -601,6 +611,7 @@ export class EnemyManager {
   }
 
   update(dt, player, onPlayerHit) {
+    this._currentPlayer = player;
     this._aiFrame++;
     if (this._aiSkip && this._aiFrame % (this._aiSkip + 1) !== 0) {
       for (let i = this.enemies.length - 1; i >= 0; i--) {
@@ -631,11 +642,8 @@ export class EnemyManager {
         }
         e.aggro = true;
       }
-      e._onHitBot = (shooter, tgt, dmg) => {
-        const died = tgt.takeDamage(dmg, false);
-        if (died && this.onBotKilled) this.onBotKilled(shooter, tgt);
-      };
-      e._onFire = (pos, range) => { this.alertBots(pos, range, player); };
+      e._onHitBot = this._onEnemyHitBot;
+      e._onFire = this._onEnemyFire;
       const keep = e.update(dt, player, this.fx, this.audio, onPlayerHit, this.enemies);
       if (!keep) {
         this.scene.remove(e.group);
