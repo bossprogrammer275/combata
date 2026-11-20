@@ -43,8 +43,9 @@ function hasAnchor(value) {
 function assertBounds(bounds, label) {
   if (!bounds || !finiteVector(bounds.min) || !finiteVector(bounds.max)) fail(label + ': missing finite min/max bounds');
   const size = bounds.size || bounds.max.map((value, index) => value - bounds.min[index]);
-  if (!finiteVector(size) || size.slice(0, 3).some(value => Number(value) <= 0)) {
-    fail(label + ': bounds have a zero or negative extent');
+  if (!finiteVector(size) || size.slice(0, 3).some(value => Number(value) < 0)
+    || Math.max(...size.slice(0, 3).map(Number)) <= 0) {
+    fail(label + ': bounds have negative or fully degenerate extents');
   }
 }
 
