@@ -95,8 +95,9 @@ Write-Host "Appearance: $Gender | age $Age | weight $Weight | muscle $Muscle | h
 Write-Host "Animation requests: $($AnimationKeys.Split(',').Count)" -ForegroundColor Gray
 Write-Host "Output: $outputPath" -ForegroundColor Gray
 Write-Host ""
-Write-Host "The Mixamo stage will ask you to preview and approve clips one by one." -ForegroundColor Yellow
-Write-Host "Skip a clip when Mixamo has no suitable result. The manifest records what was actually downloaded." -ForegroundColor Yellow
+Write-Host "Animation search, ranking, selection and FBX downloads are autonomous." -ForegroundColor Green
+Write-Host "Only the initial Mixamo auto-rig marker placement remains interactive." -ForegroundColor Yellow
+Write-Host "Missing or unsuitable clips are recorded in the manifest for later review." -ForegroundColor Yellow
 Write-Host "Original civilian_002 and civilian_001 folders are not modified." -ForegroundColor Green
 Write-Host ""
 
@@ -119,6 +120,7 @@ $runnerParams = @{
     Animations = $AnimationKeys
     Fps = [int]$Fps
     Output = $outputRelative
+    AutoAnimations = $true
     NoCommit = $true
     NoPush = $true
 }
