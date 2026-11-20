@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate civilian_001 using the local headless MakeHuman core."""
+"""Generate npc_core_001 using the local headless MakeHuman core."""
 from __future__ import annotations
 import argparse
 import json
@@ -9,8 +9,8 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT = ROOT / "data" / "models" / "npc" / "civilian_001"
-CHARACTER_ID = "civilian_001"
+OUT = ROOT / "data" / "models" / "npc" / "npc_core_001"
+CHARACTER_ID = "npc_core_001"
 
 def norm(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", str(value).lower()).strip()
@@ -75,8 +75,8 @@ def copy_material_textures(material_path: str, texture_dir: Path) -> list[str]:
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Generate the Open World civilian with MakeHuman.")
-    parser.add_argument("--id", default="civilian_001")
-    parser.add_argument("--display-name", default="Ilorin Civilian 001")
+    parser.add_argument("--id", default="npc_core_001")
+    parser.add_argument("--display-name", default="NPC Core 001")
     parser.add_argument("--age", type=float, default=21)
     parser.add_argument("--gender", choices=("male", "female"), default="male")
     parser.add_argument("--weight", type=float, default=0.54)
