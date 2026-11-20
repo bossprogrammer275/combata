@@ -106,15 +106,19 @@ export function applyAssetCalibration(root, calibration) {
             : value?.position && ['x', 'y', 'z'].every(key => Number.isFinite(Number(value.position[key])))
               ? [Number(value.position.x), Number(value.position.y), Number(value.position.z)]
               : null;
+        const anchorOffset = value => {
+          const position = anchorPosition(value);
+          return position ? { x: Number(position[0]), y: Number(position[1]), z: Number(position[2]) } : null;
+        };
         node.userData.npcInteractable = {
           ...interaction,
           kind: interaction.kind,
           label: interaction.label || interaction.kind,
           useRadius: interaction.useRadius,
-          approachOffset: interaction.approachOffset || anchorPosition(anchors.approach),
-          sitOffset: interaction.sitOffset || anchorPosition(anchors.pelvis || anchors.sit),
+          approachOffset: interaction.approachOffset || anchorOffset(anchors.approach),
+          sitOffset: interaction.sitOffset || anchorOffset(anchors.pelvis || anchors.sit),
           seatFacing: anchors.seatFacing || null,
-          exitOffset: anchorPosition(anchors.exit),
+          exitOffset: anchorOffset(anchors.exit),
         };
         if (interaction.kind === 'door') {
           node.userData.worldKit ||= {};
