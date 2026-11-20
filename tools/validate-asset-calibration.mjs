@@ -113,8 +113,9 @@ function validateAsset(sourceFile) {
     }
     if (surface.connection?.status === 'estimated') {
       if (surface.connection.accepted === true) {
-        if (surface.connection.requiresReview !== false) {
-          fail('An accepted connection must clear its review flag: ' + surface.nodeKey);
+        if (surface.connection.requiresReview !== false
+          || surface.connection.method !== 'manual-reviewed-socket') {
+          fail('An accepted connection must be explicitly reviewed and carry the manual-reviewed-socket method: ' + surface.nodeKey);
         }
         if (surface.runtimeEnabled !== true || component.runtimeEnabled !== true) {
           fail('An accepted road connection must have its source surface enabled: ' + surface.nodeKey);
@@ -136,11 +137,17 @@ function validateAsset(sourceFile) {
       const deck = section.deckComponent && componentByKey.get(section.deckComponent.nodeKey);
       const structure = section.structureComponent && componentByKey.get(section.structureComponent.nodeKey);
       if (!deck || !structure) fail('Bridge section is missing its source deck or structure: ' + section.id);
-      if (/curved|sloped|ramp/i.test(section.kind) && section.connection?.status === 'estimated') {
-        fail('Curved or sloped bridge section has been assigned an unsafe straight endpoint estimate: ' + section.id);
+      if (/curved|sloped|ramp/i.test(section.kind) && section.connection?.status === 'estimated'
+        && !(section.connection.accepted === true
+          && section.connection.requiresReview === false
+          && section.connection.method === 'manual-reviewed-socket')) {
+        fail('Curved or sloped bridge section has an unsafe straight estimate instead of manually reviewed sockets: ' + section.id);
       }
-      if (section.connection?.status !== 'estimated' && section.requiresReview !== true) {
-        fail('Bridge section requiring geometric review was marked approved: ' + section.id);
+      if (section.requiresReview === false
+        && !(section.connection?.accepted === true
+          && section.connection.requiresReview === false
+          && section.connection.method === 'manual-reviewed-socket')) {
+        fail('Bridge section was marked approved without an accepted connection: ' + section.id);
       }
     }
   }
