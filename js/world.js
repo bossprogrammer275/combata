@@ -411,6 +411,22 @@ export class World {
     } else {
       record.sitPosition.copy(record.approachPosition);
     }
+    if (metadata.exitOffset) {
+      const offset = metadata.exitOffset;
+      const local = new THREE.Vector3(Number(offset.x) || 0, Number(offset.y) || 0, Number(offset.z) || 0);
+      mesh.localToWorld(local);
+      record.exitPosition = local;
+    }
+    if (metadata.seatFacing) {
+      const facing = metadata.seatFacing;
+      const direction = Array.isArray(facing)
+        ? new THREE.Vector3(Number(facing[0]) || 0, Number(facing[1]) || 0, Number(facing[2]) || 0)
+        : new THREE.Vector3(Number(facing.x) || 0, Number(facing.y) || 0, Number(facing.z) || 0);
+      if (direction.lengthSq() > 1e-6) {
+        mesh.updateWorldMatrix(true, false);
+        record.seatFacing = direction.transformDirection(mesh.matrixWorld).normalize();
+      }
+    }
     this.npcInteractables.push(record);
     return record;
   }
