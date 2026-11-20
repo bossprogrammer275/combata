@@ -30,42 +30,65 @@ function readVehicleAnchorPosition(value) {
 }
 
 function collectVehicleInteractionAnchors(model, vehicleRoot) {
-  const output = {};
+  const output = { doors: [] };
   model.updateWorldMatrix(true, true);
   vehicleRoot.updateWorldMatrix(true, true);
   const keys = ['entry', 'exit', 'occupant', 'seat', 'handle', 'hinge'];
+  const pointToVehicleRoot = (node, value) => {
+    const values = readVehicleAnchorPosition(value);
+    if (!values) return null;
+    const world = node.localToWorld(new THREE.Vector3(values[0], values[1], values[2]));
+    return vehicleRoot.worldToLocal(world.clone());
+  };
+  const directionToVehicleRoot = (node, value) => {
+    const direction = Array.isArray(value) ? value
+      : (value?.forward || value?.facing || value?.direction || value);
+    const values = Array.isArray(direction)
+      ? direction : direction ? [direction.x, direction.y, direction.z] : null;
+    if (!values || values.length < 3
+      || !values.slice(0, 3).every(item => Number.isFinite(Number(item)))) return null;
+    const origin = node.localToWorld(new THREE.Vector3());
+    const target = node.localToWorld(new THREE.Vector3(
+      Number(values[0]), Number(values[1]), Number(values[2]),
+    ));
+    const localOrigin = vehicleRoot.worldToLocal(origin.clone());
+    const localTarget = vehicleRoot.worldToLocal(target.clone());
+    const result = localTarget.sub(localOrigin);
+    result.y = 0;
+    return result.lengthSq() > 1e-6 ? result.normalize() : null;
+  };
+
   model.traverse(node => {
     const spec = node.userData?.vehicleInteractable;
     if (!spec || spec.accepted !== true || spec.coordinateSpace !== 'component-local') return;
     const anchors = spec.anchors || {};
     for (const key of keys) {
       if (output[key]) continue;
-      const values = readVehicleAnchorPosition(anchors[key]);
-      if (!values) continue;
-      const world = node.localToWorld(new THREE.Vector3(values[0], values[1], values[2]));
-      output[key] = vehicleRoot.worldToLocal(world.clone());
+      const resolved = pointToVehicleRoot(node, anchors[key]);
+      if (resolved) output[key] = resolved;
     }
     for (const key of ['entry', 'exit', 'seatFacing']) {
-      const anchor = anchors[key];
-      const direction = Array.isArray(anchor) ? anchor : (anchor?.forward || anchor?.facing || anchor?.direction);
-      if (!direction || output[key + 'Forward']) continue;
-      const values = Array.isArray(direction)
-        ? direction
-        : [direction.x, direction.y, direction.z];
-      if (values.length < 3 || !values.slice(0, 3).every(value => Number.isFinite(Number(value)))) continue;
-      const origin = node.localToWorld(new THREE.Vector3());
-      const target = node.localToWorld(new THREE.Vector3(
-        Number(values[0]), Number(values[1]), Number(values[2]),
-      ));
-      const localOrigin = vehicleRoot.worldToLocal(origin.clone());
-      const localTarget = vehicleRoot.worldToLocal(target.clone());
-      const forward = localTarget.sub(localOrigin);
-      forward.y = 0;
-      if (forward.lengthSq() > 1e-6) output[key + 'Forward'] = forward.normalize();
+      const resolved = directionToVehicleRoot(node, anchors[key]);
+      if (resolved && !output[key + 'Forward']) output[key + 'Forward'] = resolved;
+    }
+    if (spec.kind === 'vehicle-door') {
+      output.doors.push({
+        componentId: spec.componentId || null,
+        node,
+        hinge: pointToVehicleRoot(node, anchors.hinge),
+        hingeAxis: directionToVehicleRoot(node, anchors.hingeAxis),
+        handle: pointToVehicleRoot(node, anchors.handle),
+        entry: pointToVehicleRoot(node, anchors.entry),
+        exit: pointToVehicleRoot(node, anchors.exit),
+        openAngleDeg: Number.isFinite(Number(anchors.openAngleDeg)) ? Number(anchors.openAngleDeg) : null,
+        closedTransform: anchors.closedTransform || null,
+        openRange: anchors.openRange || null,
+      });
     }
     output.sourceComponentId ||= spec.componentId || null;
   });
-  return Object.keys(output).length ? output : null;
+  return Object.keys(output).some(key => key === 'doors' ? output.doors.length > 0 : !!output[key])
+    ? output : null;
 }
 
 export { VEHICLE_COORDINATES };
