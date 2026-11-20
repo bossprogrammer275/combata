@@ -920,9 +920,10 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 ### Phase 1 — New NPC asset generation
 
 - [x] MakeHuman source project and source OBJ were generated for `npc_core_001`; current animation FBXs were downloaded manually.
-- [ ] Verify `Idle.fbx` contains the skinned base humanoid mesh and Mixamo skeleton; the source OBJ alone is not a rigged runtime character.
+- [x] Added isolated browser inspection page at `npc-lab.html`. It reads the current manifest, loads the `Idle.fbx` candidate, checks for skinned meshes and a Mixamo skeleton, normalizes the preview to 1.74m, and lazily previews one selected clip at a time with track-binding diagnostics. It does not modify the live player, civilian or physics systems.
+- [ ] Open `/npc-lab.html` and verify `Idle.fbx` contains a skinned base humanoid mesh, Mixamo skeleton, materials and playable idle take; the source OBJ alone is not a rigged runtime character.
 - [x] Inspect manifest and list clips actually downloaded (28 files inventoried; see Section 4 and the manifest).
-- [ ] Preview candidate clips and verify every downloaded FBX binds to the same base skeleton before runtime registration.
+- [ ] Preview every current FBX in the lab and verify it binds to the same base skeleton before runtime registration.
 
 ### Phase 2 — New NPC profile/animation runtime
 
