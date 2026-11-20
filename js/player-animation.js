@@ -12,6 +12,9 @@ export function resolvePlayerAnimation(state = {}, previous = 'idle') {
   const aiming = rifle && Number(state.aim) > 0.1;
 
   if (Number(state.reloading) > 0.5) {
+    // Reloading.fbx is the only downloaded rifle reload. Other weapon classes
+    // retain their current pose instead of borrowing a rifle-specific action.
+    if (!rifle) return previous || 'idle';
     return !moving && !crouched && Number(state.airborne) < 0.5 ? 'reload_idle' : previous;
   }
 
