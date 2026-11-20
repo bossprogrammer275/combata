@@ -84,6 +84,9 @@ dl{display:grid;grid-template-columns:115px minmax(0,1fr);gap:7px 9px;font-size:
 <button id="calibration-save-connection" type="button">Apply connection edits</button>
 <button id="calibration-accept-connection" class="primary" type="button">Approve tyre route</button>
 </div>
+<div class="calibration-actions">
+<button id="calibration-persist" class="primary" type="button">Save calibration sidecar</button>
+</div>
 <p class="note">Approving a tyre route requires finite endpoints and width, a recognised driveable surface, and a matching collision exclusion. Curves and ramps must be corrected into a reviewed profile first. Saving never edits the source GLB/GLTF.</p>
 </section>
 <p class="note">Mesh nodes are renderable pieces inside the imported model. They are not automatically separate gameplay components. Calibration roles and interaction anchors remain reviewable until explicitly accepted.</p>
