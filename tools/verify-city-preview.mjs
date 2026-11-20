@@ -896,7 +896,21 @@ try {
   assert.ok(report.roadPackSurfaceMeshCount >= 2,
     'imported Road Pack material variants should be merged into visible road meshes');
   assert.ok(report.roadPackJunctionCount > 0,
-    'road tiles must stop at intersections and be replaced by clean asphalt junction aprons');
+    'road tiles must stop at intersections and be replaced by connected asphalt junction surfaces');
+  assert.ok(report.roadJunctionTypeCounts.tJunction > 0,
+    'road network must produce at least one connected three-arm T-junction');
+  assert.ok(report.roadJunctionTypeCounts.crossroads > 0,
+    'road network must produce at least one connected four-arm crossroads');
+  assert.ok(report.streetBaseCount >= 8 && report.streetBaseJunctionCount > 0,
+    'ground-level roads and junctions must have a continuous subgrade/shoulder base');
+  assert.equal(report.streetBaseMeshCount, 1,
+    'street base geometry must merge into one mesh to limit draw calls');
+  assert.ok(report.roadStopLineCount > 0,
+    'authored stop-line approaches must render stop bars at road junctions');
+  assert.equal(report.groundRenderer?.engine, 'world-space-procedural-pbr',
+    'terrain must use the uploaded world-space PBR ground renderer');
+  assert.equal(report.roadCornerPrefabCount, 2,
+    'both imported Road Pack corner components must be loaded and available');
   assert.equal(report.legacyRoadSurfaceCount, 0,
     'City A must not render the previous procedural asphalt road texture');
   assert.equal(report.glbAssetCount, map.glbAssets.length, 'runtime GLB placement count differs from authored map');
@@ -974,6 +988,8 @@ try {
     ['roadKit', 'city-a-gra-road-kit.png'],
     ['roadPackBoulevard', 'city-a-road-pack-boulevard.png'],
     ['roadPackResidential', 'city-a-road-pack-residential.png'],
+    ['roadJunctions', 'city-a-connected-junctions.png'],
+    ['roadBases', 'city-a-street-base-detail.png'],
     ['mainBridgeExit', 'city-a-main-bridge-exit.png'],
     ['fateBridgeExit', 'city-a-fate-bridge-exit.png'],
     ['mainBridgeDrive', 'city-a-main-bridge-driving-view.png'],

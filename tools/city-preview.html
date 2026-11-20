@@ -46,6 +46,8 @@
       <button data-view="roadKit">GRA road kit</button>
       <button data-view="roadPackBoulevard">Road Pack boulevard</button>
       <button data-view="roadPackResidential">Road Pack residential</button>
+      <button data-view="roadJunctions">Connected junctions</button>
+      <button data-view="roadBases">Street base detail</button>
       <button data-view="mainBridgeExit">Main bridge exit</button>
       <button data-view="fateBridgeExit">Fate bridge exit</button>
       <button data-view="mainBridgeDrive">Main bridge drive</button>
@@ -96,6 +98,8 @@
       roadKit: { target: [-88, 0.5, 112], distance: 72, yaw: 0.72, pitch: 0.42 },
       roadPackBoulevard: { target: [0, 0.6, 38], distance: 62, yaw: 0.62, pitch: 0.28 },
       roadPackResidential: { target: [-88, 0.5, 112], distance: 34, yaw: 0.72, pitch: 0.32 },
+      roadJunctions: { target: [-8, 0.5, 34], distance: 42, yaw: 0.72, pitch: 0.34 },
+      roadBases: { target: [-88, 0.4, 112], distance: 22, yaw: 0.72, pitch: 0.2 },
       mainBridgeExit: { target: [-6, 5.4, -114], distance: 48, yaw: Math.PI / 2, pitch: 0.2 },
       fateBridgeExit: { target: [194, 2.1, 102], distance: 42, yaw: Math.PI / 2, pitch: 0.2 },
       mainBridgeDrive: { target: [-10, 7.06, -58], distance: 78, yaw: 0, pitch: 0.08 },
@@ -264,6 +268,19 @@
         roadPackRoadSkippedNames: world.roadPackRoadSkippedNames || [],
         roadPackSurfaceMeshCount: world.roadPackSurfaceMeshes?.length || 0,
         roadPackJunctionCount: world.roadPackJunctionCount || 0,
+        roadJunctionTypeCounts: world.roadJunctionTypeCounts || {},
+        streetBaseCount: world.streetBaseCount || 0,
+        streetBaseSegmentCount: world.streetBaseSegmentCount || 0,
+        streetBaseJunctionCount: world.streetBaseJunctionCount || 0,
+        streetBaseMeshCount: world.streetBaseMeshes?.length || 0,
+        roadStopLineCount: world.roadStopLineCount || 0,
+        groundRenderer: (() => {
+          const ground = world.group.children.find(child => child.name === 'world_ground_with_drainage_cutouts');
+          return ground?.material?.userData?.groundRenderer || null;
+        })(),
+        roadCornerPrefabCount: [...(world._roadPackPrefabs?.values() || [])].filter(prefab =>
+          prefab.id.startsWith('road-corner-')
+        ).length,
         legacyRoadSurfaceCount: world.legacyRoadSurfaceCount || 0,
         bridgeAssemblyInputCount: map.bridgeAssemblies?.length || 0,
         bridgeKitLoaded: !!world._bridgeKit,
