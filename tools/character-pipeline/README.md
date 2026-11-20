@@ -17,3 +17,16 @@ MakeHuman produces the native project and the Y-up OBJ/MTL/texture bundle for Mi
 Only register clips that were successfully downloaded, inspected on the same skeleton and recorded in the character manifest. Download walk, run, sprint and crouch-walk in-place. The game owns the NPC's world motion and collision.
 
 The installed MakeHuman asset pack contains complete outfit proxies rather than separate T-shirts and jeans; the selected clothing is recorded in the generated manifest. Check every source asset's licence before shipping.
+
+
+## NPC core autonomous animation mode
+
+`generate-npc-core.ps1` enables autonomous Mixamo animation discovery. It searches the configured terms for each requested animation, ranks candidates against the movement/action requirements, selects the strongest match and downloads the FBX without per-clip console approval. Unmatched or failed clips are recorded in `manifest.json`; they are not silently treated as complete.
+
+Resume the existing `npc_core_001` build without regenerating its MakeHuman source:
+
+```powershell
+.\tools\character-pipeline\generate-npc-core.ps1 -Resume
+```
+
+The first Mixamo auto-rig still requires the eight body landmarks and the initial Next action. Once the rig exists, animation selection and downloads run unattended. The upload helper now detects available file inputs and uses semantic fallbacks rather than depending on one exact Mixamo button label.
