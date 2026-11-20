@@ -1,3 +1,7 @@
+> **DEPRECATED LEGACY GUIDE — DO NOT USE FOR THE ACTIVE GAME RUNTIME**
+>
+> This document describes the removed `civilian_002` NPC architecture and its old asset set. The only active humanoid model is now `npc_core_001`. Use `checklist.md`, `data/models/npc/npc_core_001/manifest.json` and `tools/character-pipeline/README.md` as the current source of truth.
+
 # Adding an NPC to STRIKE COMMAND
 
 This is the NPC equivalent of \`tools/new-car.md\`. Every production pedestrian, worker or guard must use this asset/config/physics pipeline. NPC meshes are authored assets, not procedural runtime geometry.
