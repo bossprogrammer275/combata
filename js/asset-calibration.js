@@ -121,6 +121,7 @@ export function applyAssetCalibration(root, calibration) {
           exitOffset: anchorOffset(anchors.exit),
         };
         if (interaction.kind === 'door') {
+          node.userData.npcInteractable = false;
           node.userData.worldKit ||= {};
           node.userData.worldKit.role = 'door';
           node.userData.worldKit.calibratedDoor = {
