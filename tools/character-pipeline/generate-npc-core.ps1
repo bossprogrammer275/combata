@@ -100,30 +100,33 @@ Write-Host "Skip a clip when Mixamo has no suitable result. The manifest records
 Write-Host "Original civilian_002 and civilian_001 folders are not modified." -ForegroundColor Green
 Write-Host ""
 
-$runnerArgs = @(
-    "-Id", $Id,
-    "-DisplayName", $DisplayName,
-    "-Age", "$Age",
-    "-Gender", $Gender,
-    "-Weight", "$Weight",
-    "-Muscle", "$Muscle",
-    "-Height", "$Height",
-    "-Skin", "african,dark,brown,black,deep",
-    "-Hair", "short,fade,buzz,afro",
-    "-Top", "t shirt,tshirt,tee,polo,hoodie,casual shirt,shirt",
-    "-Bottom", "jeans,trousers,pants,denim",
-    "-Shoes", "sneaker,trainers,shoes,footwear",
-    "-Animations", $AnimationKeys,
-    "-Fps", $Fps,
-    "-Output", $outputRelative,
-    "-NoCommit",
-    "-NoPush"
-)
+# Use a hashtable for named PowerShell parameters. Array splatting here can
+# shift values when strings contain spaces (for example, the display name),
+# causing Age to receive the literal "-DisplayName" token.
+$runnerParams = @{
+    Id = $Id
+    DisplayName = $DisplayName
+    Age = $Age
+    Gender = $Gender
+    Weight = $Weight
+    Muscle = $Muscle
+    Height = $Height
+    Skin = "african,dark,brown,black,deep"
+    Hair = "short,fade,buzz,afro"
+    Top = "t shirt,tshirt,tee,polo,hoodie,casual shirt,shirt"
+    Bottom = "jeans,trousers,pants,denim"
+    Shoes = "sneaker,trainers,shoes,footwear"
+    Animations = $AnimationKeys
+    Fps = [int]$Fps
+    Output = $outputRelative
+    NoCommit = $true
+    NoPush = $true
+}
 
-if ($BuildOnly) { $runnerArgs += "-BuildOnly" }
-if ($Resume) { $runnerArgs += "-AnimateOnly" }
+if ($BuildOnly) { $runnerParams.BuildOnly = $true }
+if ($Resume) { $runnerParams.AnimateOnly = $true }
 
-& $pipeline @runnerArgs
+& $pipeline @runnerParams
 if ($LASTEXITCODE -ne 0) {
     throw "NPC generation pipeline failed with exit code $LASTEXITCODE. Inspect $outputPath\manifest.json and the Mixamo diagnostics before resuming."
 }
