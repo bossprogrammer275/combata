@@ -2,7 +2,7 @@
   "id": "npc_core_001",
   "displayName": "Open World NPC Core 001",
   "description": "Nigerian male civilian, age 24, everyday casual streetwear.",
-  "ageTarget": 24.0,
+  "ageTarget": 24,
   "body": {
     "gender": "male",
     "weight": 0.56,
@@ -10,7 +10,12 @@
     "heightMacro": 0.62
   },
   "source": "MakeHuman core",
-  "skeleton": "Unrigged MakeHuman mesh; submitted to Mixamo Auto-Rigger",
+  "skeleton": {
+    "rigFamily": "Mixamo",
+    "observedBonePrefix": "mixamorig:",
+    "observedAnimatedBones": 54,
+    "status": "animation FBXs show Mixamo bone channels; base skinned rig still needs direct model-load verification"
+  },
   "sourceModel": "data/models/npc/npc_core_001/npc_core_001_source.obj",
   "mixamoSourceModel": "data/models/npc/npc_core_001/npc_core_001_source.obj",
   "mixamoSourceBundle": "data/models/npc/npc_core_001/npc_core_001_mixamo_source.zip",
@@ -61,6 +66,532 @@
   "copiedTextures": [
     "textures/middleage_darkskinned_male_diffuse.png"
   ],
-  "animations": {},
-  "status": "character-generated-awaiting-mixamo"
+  "animations": {
+    "idle": {
+      "file": "data/models/npc/npc_core_001/animations/Idle.fbx",
+      "category": "locomotion",
+      "role": "standing idle; same file is the current base-rig candidate",
+      "durationSeconds": null,
+      "verification": "large-file-mesh-and-take-inspection-required"
+    },
+    "walk": {
+      "file": "data/models/npc/npc_core_001/animations/Walking.fbx",
+      "category": "locomotion",
+      "role": "normal unarmed walk",
+      "durationSeconds": 1.033,
+      "keyframes": 32,
+      "rootMotionRaw": {
+        "hipsTyRange": [
+          0.97,
+          1.06
+        ],
+        "hipsTzRange": [
+          0.01,
+          1.97
+        ]
+      }
+    },
+    "walk_aim": {
+      "file": "data/models/npc/npc_core_001/animations/Walking (1).fbx",
+      "category": "rifle-locomotion",
+      "role": "walk while aiming; user-confirmed",
+      "durationSeconds": 1.367,
+      "keyframes": 42,
+      "rootMotionRaw": {
+        "hipsTyRange": [
+          0.98,
+          1.01
+        ],
+        "hipsTzRange": [
+          0,
+          1.46
+        ]
+      }
+    },
+    "run": {
+      "file": "data/models/npc/npc_core_001/animations/Running.fbx",
+      "category": "locomotion",
+      "role": "normal run",
+      "durationSeconds": 0.7,
+      "keyframes": 22,
+      "rootMotionRaw": {
+        "hipsTyRange": [
+          0.97,
+          1.06
+        ],
+        "hipsTzRange": [
+          0.01,
+          3.55
+        ]
+      }
+    },
+    "rifle_run": {
+      "file": "data/models/npc/npc_core_001/animations/Rifle Run.fbx",
+      "category": "rifle-locomotion",
+      "role": "run with rifle posture; not a pistol clip",
+      "durationSeconds": 0.733,
+      "keyframes": 23,
+      "rootMotionRaw": {
+        "hipsTyRange": [
+          0.88,
+          0.97
+        ],
+        "hipsTzRange": [
+          0,
+          2.48
+        ]
+      }
+    },
+    "sprint": {
+      "file": "data/models/npc/npc_core_001/animations/Sprint.fbx",
+      "category": "locomotion",
+      "role": "fast sprint cycle",
+      "durationSeconds": 0.533,
+      "keyframes": 17,
+      "rootMotionRaw": {
+        "hipsTyRange": [
+          0.94,
+          1.02
+        ],
+        "hipsTzRange": [
+          0.01,
+          3.51
+        ]
+      }
+    },
+    "crouch_idle": {
+      "file": "data/models/npc/npc_core_001/animations/Crouching Idle.fbx",
+      "category": "crouch",
+      "role": "stationary crouched idle",
+      "durationSeconds": 2.5,
+      "keyframes": 76,
+      "rootMotionRaw": {
+        "hipsTyRange": [
+          0.54,
+          0.54
+        ],
+        "hipsTzRange": [
+          0,
+          0.01
+        ]
+      }
+    },
+    "crouch_walk": {
+      "file": "data/models/npc/npc_core_001/animations/Crouched Walking.fbx",
+      "category": "crouch",
+      "role": "normal crouch walking without the aiming intent",
+      "durationSeconds": 1.033,
+      "keyframes": 32,
+      "rootMotionRaw": {
+        "hipsTyRange": [
+          0.85,
+          0.96
+        ],
+        "hipsTzRange": [
+          -0.01,
+          1.55
+        ]
+      }
+    },
+    "crouch_walk_aim": {
+      "file": "data/models/npc/npc_core_001/animations/Crouch Walking.fbx",
+      "category": "rifle-locomotion",
+      "role": "crouch-walk while aiming; user-confirmed",
+      "durationSeconds": 1.167,
+      "keyframes": 36,
+      "rootMotionRaw": {
+        "hipsTyRange": [
+          0.79,
+          0.83
+        ],
+        "hipsTzRange": [
+          0.02,
+          1.55
+        ]
+      }
+    },
+    "rifle_aim_idle": {
+      "file": "data/models/npc/npc_core_001/animations/Rifle Aiming Idle.fbx",
+      "category": "rifle-aim",
+      "role": "standing rifle aim idle",
+      "durationSeconds": 3.1,
+      "keyframes": 94,
+      "rootMotionRaw": {
+        "hipsTranslation": "effectively stationary"
+      }
+    },
+    "crouch_aim_idle": {
+      "file": "data/models/npc/npc_core_001/animations/Idle Crouching Aiming.fbx",
+      "category": "rifle-aim",
+      "role": "crouched rifle aim idle",
+      "durationSeconds": 2.1,
+      "keyframes": 64,
+      "rootMotionRaw": {
+        "hipsTranslation": "effectively stationary"
+      }
+    },
+    "reload_idle": {
+      "file": "data/models/npc/npc_core_001/animations/Reloading.fbx",
+      "category": "rifle-action",
+      "role": "reload is allowed only from standing idle; movement and crouch states are locked out until clip completion",
+      "durationSeconds": 3.3,
+      "keyframes": 100,
+      "rootMotionRaw": {
+        "hipsTranslation": "near zero"
+      }
+    },
+    "jump_idle": {
+      "file": "data/models/npc/npc_core_001/animations/Jumping.fbx",
+      "category": "jump",
+      "role": "jump animation only starts from idle; physics owns the actual jump trajectory",
+      "durationSeconds": 1.233,
+      "keyframes": 38,
+      "rootMotionRaw": {
+        "hipsTyRange": [
+          0.92,
+          1.64
+        ],
+        "hipsTzRange": [
+          -0.01,
+          1.62
+        ]
+      }
+    },
+    "hard_landing": {
+      "file": "data/models/npc/npc_core_001/animations/Hard Landing.fbx",
+      "category": "landing",
+      "role": "select by fall velocity; align impact frame and root path to actual collision contact",
+      "durationSeconds": 2.5,
+      "keyframes": 76,
+      "rootMotionRaw": {
+        "hipsTyRange": [
+          0.52,
+          2.77
+        ],
+        "hipsTzRange": [
+          -0.01,
+          1.32
+        ]
+      }
+    },
+    "obstacle_climb": {
+      "file": "data/models/npc/npc_core_001/animations/Climbing.fbx",
+      "category": "traversal",
+      "role": "climb an obstacle slightly taller than the character and land on its top; anchor-warp hands, pelvis, feet and final landing",
+      "durationSeconds": 3.833,
+      "keyframes": 116,
+      "rootMotionRaw": {
+        "hipsTyRange": [
+          1.32,
+          3.28
+        ],
+        "hipsTzRange": [
+          -0.56,
+          0.42
+        ]
+      },
+      "requiresObstacleAnchors": true
+    },
+    "ladder_climb_up": {
+      "file": "data/models/npc/npc_core_001/animations/Climbing Ladder.fbx",
+      "category": "ladder",
+      "role": "ladder elements only; rung contact points drive the climb",
+      "durationSeconds": 0.767,
+      "keyframes": 24,
+      "rootMotionRaw": {
+        "hipsTyRange": [
+          1.9,
+          2.44
+        ],
+        "hipsTzRange": [
+          0.44,
+          0.48
+        ]
+      },
+      "requiresRungAnchors": true
+    },
+    "ladder_climb_down_experiment": {
+      "file": "data/models/npc/npc_core_001/animations/Climbing Ladder.fbx",
+      "category": "ladder-experiment",
+      "role": "reverse the same ladder cycle to test descent; do not claim supported until hand and foot contacts are verified",
+      "playback": "reverse",
+      "status": "experimental",
+      "requiresContactValidation": true
+    },
+    "knocked_down": {
+      "file": "data/models/npc/npc_core_001/animations/Knocked Down.fbx",
+      "category": "reaction",
+      "role": "fall-to-ground knockdown; distinct from death; root/capsule/collision handoff must be controlled",
+      "durationSeconds": 2.8,
+      "keyframes": 85,
+      "rootMotionRaw": {
+        "hipsTxRange": [
+          -0.8,
+          0.07
+        ],
+        "hipsTyRange": [
+          0.15,
+          1.03
+        ],
+        "hipsTzRange": [
+          -1.76,
+          0.04
+        ]
+      },
+      "requiresControlledRootMotion": true
+    },
+    "death_candidate": {
+      "file": "data/models/npc/npc_core_001/animations/Dying.fbx",
+      "category": "death-candidate",
+      "role": "file exists; preview full body motion before assigning final death behaviour",
+      "durationSeconds": 4.333,
+      "status": "preview-required"
+    },
+    "punch": {
+      "file": "data/models/npc/npc_core_001/animations/Punching.fbx",
+      "category": "melee",
+      "role": "unarmed punch; damage window must be measured at actual fist contact frames",
+      "durationSeconds": 1,
+      "keyframes": 31
+    },
+    "block": {
+      "file": "data/models/npc/npc_core_001/animations/Block.fbx",
+      "category": "melee",
+      "role": "blocking action",
+      "durationSeconds": 2.867,
+      "keyframes": 87
+    },
+    "hit_reaction": {
+      "file": "data/models/npc/npc_core_001/animations/Hit Reaction.fbx",
+      "category": "reaction",
+      "role": "hit reaction; align direction and timing with physics impulse",
+      "durationSeconds": 1.6,
+      "keyframes": 49
+    },
+    "gunplay_candidate": {
+      "file": "data/models/npc/npc_core_001/animations/Gunplay.fbx",
+      "category": "rifle-action-candidate",
+      "role": "very short motion; preview to identify exact firing/recoil intent before use; not for pistol",
+      "durationSeconds": 0.2,
+      "keyframes": 7,
+      "status": "preview-required"
+    },
+    "sit_idle": {
+      "file": "data/models/npc/npc_core_001/animations/Sitting Idle.fbx",
+      "category": "seat-interaction",
+      "role": "directly snap character pelvis and facing to seat anchor then play seated idle; no sit-down or chair stand-up transition",
+      "durationSeconds": 4.3,
+      "status": "preview-required"
+    },
+    "wave": {
+      "file": "data/models/npc/npc_core_001/animations/Waving.fbx",
+      "category": "interaction",
+      "role": "wave in place",
+      "durationSeconds": 3.167,
+      "keyframes": 96
+    },
+    "vehicle_driver_idle": {
+      "file": "data/models/npc/npc_core_001/animations/Driving.fbx",
+      "category": "vehicle-interaction",
+      "role": "driver seated pose; character follows calibrated seat anchor while vehicle physics moves the car",
+      "durationSeconds": 5,
+      "status": "preview-required"
+    },
+    "enter_vehicle": {
+      "file": "data/models/npc/npc_core_001/animations/Entering Car.fbx",
+      "category": "vehicle-interaction",
+      "role": "align approach, handle, step-in and seat positions to actual vehicle anchors",
+      "durationSeconds": 5.467,
+      "status": "preview-required"
+    },
+    "exit_vehicle": {
+      "file": "data/models/npc/npc_core_001/animations/Exiting Car.fbx",
+      "category": "vehicle-interaction",
+      "role": "align door exit path to seat and ground anchors; restore physics when feet are grounded",
+      "durationSeconds": 5.8,
+      "status": "preview-required"
+    },
+    "knockdown_recovery_candidate": {
+      "file": "data/models/npc/npc_core_001/animations/Standing Up.fbx",
+      "category": "recovery-candidate",
+      "role": "not a chair transition; preview to confirm whether it recovers a knocked-down character",
+      "status": "preview-required"
+    }
+  },
+  "status": "animation-inventory-mapped-awaiting-base-rig-and-runtime-motion-validation",
+  "schemaVersion": 2,
+  "baseRig": {
+    "candidateFile": "data/models/npc/npc_core_001/animations/Idle.fbx",
+    "candidateSizeBytes": 20546976,
+    "likelyContainsSkinnedCharacter": true,
+    "verified": false,
+    "verify": "Load Idle.fbx in the game/model inspector and confirm it contains the skinned humanoid mesh, Mixamo skeleton, materials and a playable idle take before assigning it as the canonical rig"
+  },
+  "fileInventory": [
+    {
+      "file": "data/models/npc/npc_core_001/animations/Block.fbx",
+      "sizeBytes": 571616
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Climbing Ladder.fbx",
+      "sizeBytes": 340688
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Climbing.fbx",
+      "sizeBytes": 630480
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Crouch Walking.fbx",
+      "sizeBytes": 356528
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Crouched Walking.fbx",
+      "sizeBytes": 345728
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Crouching Idle.fbx",
+      "sizeBytes": 515824
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Driving.fbx",
+      "sizeBytes": 581040
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Dying.fbx",
+      "sizeBytes": 580016
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Entering Car.fbx",
+      "sizeBytes": 754368
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Exiting Car.fbx",
+      "sizeBytes": 783520
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Gunplay.fbx",
+      "sizeBytes": 318896
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Hard Landing.fbx",
+      "sizeBytes": 518528
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Hit Reaction.fbx",
+      "sizeBytes": 443456
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Idle Crouching Aiming.fbx",
+      "sizeBytes": 427584
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Idle.fbx",
+      "sizeBytes": 20546976
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Jumping.fbx",
+      "sizeBytes": 361920
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Knocked Down.fbx",
+      "sizeBytes": 550688
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Punching.fbx",
+      "sizeBytes": 343024
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Reloading.fbx",
+      "sizeBytes": 639200
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Rifle Aiming Idle.fbx",
+      "sizeBytes": 596832
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Rifle Run.fbx",
+      "sizeBytes": 342016
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Running.fbx",
+      "sizeBytes": 332336
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Sitting Idle.fbx",
+      "sizeBytes": 533152
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Sprint.fbx",
+      "sizeBytes": 316176
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Standing Up.fbx",
+      "sizeBytes": 1222432
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Walking (1).fbx",
+      "sizeBytes": 371248
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Walking.fbx",
+      "sizeBytes": 365808
+    },
+    {
+      "file": "data/models/npc/npc_core_001/animations/Waving.fbx",
+      "sizeBytes": 586928
+    }
+  ],
+  "motionAudit": {
+    "method": "Parsed FBX 7.7 animation stacks and uncompressed keyframe arrays in sampled assets",
+    "timebaseTicksPerSecond": 46186158000,
+    "rawTranslationUnits": "FBX scene units; do not convert to metres until global unit scale and model scale are confirmed",
+    "sampledStructure": "Multiple movement/combat files expose 54 Mixamo animated bone nodes, 315 animation curves and 159 bone channel tracks",
+    "measuredClips": [
+      "walk",
+      "walk_aim",
+      "run",
+      "rifle_run",
+      "sprint",
+      "crouch_idle",
+      "crouch_walk",
+      "crouch_walk_aim",
+      "rifle_aim_idle",
+      "crouch_aim_idle",
+      "reload_idle",
+      "jump_idle",
+      "hard_landing",
+      "obstacle_climb",
+      "ladder_climb_up",
+      "knocked_down"
+    ],
+    "reviewGate": "Root min/max and durations are first-pass measurements, not yet a complete per-frame contact schedule. The runtime inspector must sample hand/foot/root trajectories at every keyframe before final physics tuning.",
+    "physicsConstraints": [
+      "Controller-owned locomotion must not double-apply FBX root translation. Derive cycle speed from root displacement, then use in-place playback or an explicit root-motion controller.",
+      "Jump can start only from idle; physics owns takeoff, gravity, apex and landing. Do not layer the FBX root translation on top of physics.",
+      "Reload can start only from standing idle; lock movement, crouch and aim states until the action ends.",
+      "Obstacle climbing uses Climbing.fbx for a slightly taller obstacle and landing on top. Align the full pose trajectory to approach, hand-plant, top edge, top surface and landing anchors.",
+      "Ladder climb uses Climbing Ladder.fbx only. Reverse playback is only an experiment for descent until hand and foot rung contact is validated.",
+      "Sitting is seat-anchor snapping followed by Sitting Idle; there is no sit-down or chair stand-up transition.",
+      "Knocked Down is a separate fall-to-ground action. Maintain explicit capsule/collision handoff and never let animation root motion silently move the physics body.",
+      "Hard Landing is chosen from measured fall speed and synchronized with the actual contact frame."
+    ]
+  },
+  "missingForCurrentSet": [
+    "No pistol-specific aim/fire/reload animation. Pistol animation support is excluded from this set.",
+    "No dedicated ladder-down animation; reverse playback of Climbing Ladder is experimental.",
+    "No crouch-running-aim clip.",
+    "No kick or dodge clip.",
+    "No sit-down or chair stand-up transition; seating uses direct seat-anchor snapping.",
+    "No draw/holster animation.",
+    "No dedicated vault, mantle, ledge-hang, ledge-shimmy or drop clip."
+  ],
+  "currentRules": {
+    "animationWeaponScope": "rifle animations only; no pistol-specific animation support",
+    "reload": "standing idle only",
+    "jump": "idle only; physics controller owns trajectory",
+    "sitting": "snap pelvis/orientation to calibrated seat anchor then play sit_idle; no up/down transition animation",
+    "obstacleClimb": "Climbing.fbx is for an obstacle slightly taller than the player and landing on top",
+    "ladder": "Climbing Ladder.fbx is for ladder elements only; reverse playback for descent remains experimental",
+    "assetScope": "only the 28 files listed in fileInventory are current; ignore unavailable and legacy-folder clips"
+  }
 }
