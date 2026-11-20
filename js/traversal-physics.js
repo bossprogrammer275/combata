@@ -203,7 +203,7 @@ export function validateReviewedTraversalProfile(candidate, component) {
       || Number(candidate.animation?.cycleSeconds) !== LADDER_CYCLE_DURATION) {
       return invalid('Ladder traversal must use the downloaded ladder_climb_up cycle');
     }
-    for (const key of ['mountBottom', 'mountTop', 'topOut', 'bottomDismount', 'planeNormal']) {
+    for (const key of ['approach', 'mountBottom', 'mountTop', 'topOut', 'bottomDismount', 'planeNormal']) {
       if (!vector(anchors[key])) return invalid('Ladder traversal is missing its ' + key + ' anchor');
     }
     if (!Array.isArray(anchors.climbPath) || anchors.climbPath.length < 2
