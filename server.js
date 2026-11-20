@@ -3,7 +3,7 @@
 import express from 'express';
 import { createServer } from 'http';
 import { fileURLToPath } from 'url';
-import { dirname, join, resolve, relative, isAbsolute, parse } from 'path';
+import { dirname, join, resolve, relative, isAbsolute, parse, sep } from 'path';
 import { readdir, readFile, writeFile, unlink } from 'fs/promises';
 import { networkInterfaces } from 'os';
 import { randomInt, createHash } from 'crypto';
@@ -70,7 +70,7 @@ function resolveCalibrationSource(input) {
   const absolute = resolve(__dirname, raw);
   const allowed = CALIBRATION_ROOTS.some(root => {
     const rel = relative(root, absolute);
-    return rel === '' || (rel !== '..' && !rel.startsWith('..' + process.platform === 'win32' ? '\\\\' : '/') && !isAbsolute(rel));
+    return rel === '' || (rel !== '..' && !rel.startsWith('..' + sep) && !isAbsolute(rel));
   });
   if (!allowed) return null;
   return {
@@ -83,11 +83,12 @@ function resolveCalibrationSource(input) {
 function validCalibrationAnchor(value) {
   if (typeof value === 'number') return Number.isFinite(value);
   if (typeof value === 'string') return value.trim().length > 0 && Number.isFinite(Number(value));
-  if (Array.isArray(value)) return value.length >= 3 && value.slice(0, 3).every(item => Number.isFinite(Number(item)));
+  if (Array.isArray(value)) return value.length > 0 && value.every(item => Number.isFinite(Number(item)));
   if (!value || typeof value !== 'object') return false;
   if (Array.isArray(value.position)) return value.position.length >= 3 && value.position.slice(0, 3).every(item => Number.isFinite(Number(item)));
   if (value.position && ['x', 'y', 'z'].every(key => Number.isFinite(Number(value.position[key])))) return true;
-  return ['x', 'y', 'z'].every(key => Number.isFinite(Number(value[key])));
+  return ['x', 'y', 'z'].every(key => Number.isFinite(Number(value[key])))
+    || Object.keys(value).length > 0;
 }
 
 function validateCalibrationWrite(data, assetPath, sourceHash) {
