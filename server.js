@@ -65,7 +65,7 @@ const CALIBRATION_ROOTS = [
 ];
 
 function resolveCalibrationSource(input) {
-  const raw = String(input || '').replace(/\\\\/g, '/').replace(/^\\/+/, '');
+  const raw = String(input || '').replace(/\\/g, '/').replace(/^\/+/, '');
   if (!raw || raw.includes('..') || !/\\.(glb|gltf)$/i.test(raw)) return null;
   const absolute = resolve(__dirname, raw);
   const allowed = CALIBRATION_ROOTS.some(root => {
@@ -75,7 +75,7 @@ function resolveCalibrationSource(input) {
   if (!allowed) return null;
   return {
     absolute,
-    assetPath: relative(__dirname, absolute).split('\\\\').join('/'),
+    assetPath: relative(__dirname, absolute).split(sep).join('/'),
     sidecar: join(parse(absolute).dir, parse(absolute).name + '_calibration.json'),
   };
 }
