@@ -49,10 +49,18 @@ test('the modular bridge kit resolves its named deck and structure components', 
 });
 
 test('curved and sloped bridge sections never get straight endpoint guesses', () => {
-  const item = mesh('deck', [12, 0.2, 4]);
+  const item = mesh('deck', [12, 0.2, 4], {
+    boundsMin: [0, -2, -2],
+    boundsMax: [12, -1.8, 2],
+  });
   assert.equal(localConnection(item, 'x', 'curved-span').status, 'review-required');
   assert.equal(localConnection(item, 'x', 'sloped-end-abutment').status, 'review-required');
-  assert.equal(localConnection(item, 'z', 'straight-span').status, 'estimated');
+  const straight = localConnection(item, 'z', 'straight-span');
+  assert.equal(straight.status, 'estimated');
+  assert.equal(straight.accepted, false);
+  assert.equal(straight.requiresReview, true);
+  assert.equal(straight.start.elevation, -1.8);
+  assert.equal(straight.end.elevation, -1.8);
 });
 
 test('known road-pack straight and corner modules get different connection policies', () => {
@@ -104,4 +112,14 @@ test('NPC seats retain approach, pelvis, facing and exit anchor requirements', (
   const chair = makeComponent(chairItem, chairRole, 0, 'world-prop');
   assert.equal(chair.interaction.kind, 'seat');
   assert.deepEqual(chair.interaction.requiredAnchors, ['approach', 'pelvis', 'seatFacing', 'exit']);
+});
+
+
+test('known street-road asphalt mesh is detected as an imported driveable surface', () => {
+  const streetRoadPath = 'data/models/assets/roads/street_road/scene.gltf';
+  const role = classifyComponent(mesh('two_lane_road'), 'road', streetRoadPath);
+  const component = makeComponent(mesh('two_lane_road'), role, 0, 'road');
+  assert.equal(component.role, 'road-surface');
+  assert.equal(component.runtimeEnabled, true);
+  assert.equal(component.requiresReview, false);
 });
