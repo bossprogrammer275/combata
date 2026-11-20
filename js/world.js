@@ -5229,6 +5229,29 @@ export class World {
     return this.findClimbWallHit(pos, yaw, maxDist, minH, maxH)?.collider || null;
   }
 
+  findTraversalCandidateHit(pos, yaw, maxDist = 1.8) {
+    const direction = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+    const origin = new THREE.Vector3(pos.x, pos.y + 0.9, pos.z);
+    let best = null;
+    for (const candidate of this.calibratedTraversalCandidates || []) {
+      if (!candidate.accepted || candidate.requiresReview) continue;
+      if (!['obstacle-climb', 'ladder-climb'].includes(candidate.actionCandidate)) continue;
+      const hit = rayAABB(origin, direction, candidate, maxDist);
+      if (!hit || hit.dist < 0.08) continue;
+      const height = candidate.max.y - candidate.min.y;
+      if (candidate.actionCandidate === 'obstacle-climb' && (height < 0.45 || height > 2.8)) continue;
+      if (!best || hit.dist < best.dist) {
+        const collider = (this.colliders || []).find(item =>
+          Math.min(item.max.x, candidate.max.x) > Math.max(item.min.x, candidate.min.x) + 0.02
+          && Math.min(item.max.y, candidate.max.y) > Math.max(item.min.y, candidate.min.y) + 0.02
+          && Math.min(item.max.z, candidate.max.z) > Math.max(item.min.z, candidate.min.z) + 0.02
+        ) || candidate;
+        best = { ...hit, collider, candidate };
+      }
+    }
+    return best;
+  }
+
   getTraversalCandidateForCollider(collider, position = null) {
     if (!collider) return null;
     const ccx = (collider.min.x + collider.max.x) * 0.5;
