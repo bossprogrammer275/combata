@@ -185,7 +185,7 @@ function classifyComponent(item, assetType, assetPath) {
     return { role: 'obstacle', kind: 'obstacle', confidence: 0.82, source: 'node-name' };
   }
   if (has('guardrail', 'handrail', 'barrier', 'kerb', 'curb', 'rail')) {
-    return { role: 'barrier', kind: 'barrier', confidence: 0.82, source: 'node-name' };
+    return { role: 'barrier', kind: 'obstacle', confidence: 0.82, source: 'node-name' };
   }
   // Generic tall building walls are structural geometry, not climb targets.
   if (has('wall')) {
@@ -523,7 +523,8 @@ async function calibrateOne(file) {
     // A ladder built from separate rails/rungs is one climbable object, not a
     // collection of five independently climbable fragments.
     if (aggregatedLadders.some(group => item.nodeKey.startsWith(group.nodeKey + '/'))) continue;
-    if (groupedWheelKeys.has(item.nodeKey)) continue;
+    if (vehicleWheels.some(entry => item.nodeKey === entry.item.nodeKey
+      || item.nodeKey.startsWith(entry.item.nodeKey + '/'))) continue;
     const role = classifyComponent(item, assetType, assetPath);
     if (role) components.push(makeComponent(item, role, components.length, assetType));
   }
