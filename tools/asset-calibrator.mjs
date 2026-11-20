@@ -122,9 +122,14 @@ function classifyComponent(item, assetType, assetPath) {
   return null;
 }
 
-function localConnection(item, longitudinalAxis, sectionKind = 'straight-span') {
-  if (sectionKind.includes('curve') || sectionKind.includes('sloped') || sectionKind.includes('ramp') || !['x', 'z'].includes(longitudinalAxis)) {
-    return { status: 'review-required', method: 'not-estimated-for-curved-or-unknown-axis', requiresReview: true };
+function localConnection(item, longitudinalAxis, sectionKind = 'unknown-profile') {
+  const supportedStraight = sectionKind === 'straight-span' || sectionKind === 'short-pier-starter';
+  if (!supportedStraight || !['x', 'z'].includes(longitudinalAxis)) {
+    return {
+      status: 'review-required',
+      method: 'manual-centreline-required-for-curved-sloped-or-unknown-profile',
+      requiresReview: true,
+    };
   }
   const min = item.boundsMin;
   const max = item.boundsMax;
@@ -188,14 +193,20 @@ function buildRoadProfiles(assetType, components, meshByKey) {
     const section = WORLD_KIT_BRIDGE_SECTIONS.find(s => s.id === component.sectionId);
     const axis = section?.longitudinalAxis
       || (mesh && mesh.dimensions[0] >= mesh.dimensions[2] ? 'x' : 'z');
+    const sectionKind = section?.kind
+      || (component.role === 'road-corner-module' || name.includes('curve') ? 'curved-span'
+        : component.role === 'road-straight-module' || component.detection === 'world-kit-street-road'
+          ? 'straight-span' : 'unknown-profile');
     const connection = mesh
-      ? localConnection(mesh, axis, section?.kind || (component.role === 'road-corner-module' || name.includes('curve') ? 'curved-span' : 'straight-span'))
-      : { status: 'review-required' };
+      ? localConnection(mesh, axis, sectionKind)
+      : { status: 'review-required', requiresReview: true };
     return {
       id: component.id,
       nodeKey: component.nodeKey,
       nodePath: component.nodePath,
       role: component.role,
+      sectionId: component.sectionId || null,
+      sectionKind,
       kind: isSidewalk ? 'sidewalk' : isBridge ? 'bridge-deck' : 'road',
       physics: {
         collider: 'triangle-surface',
