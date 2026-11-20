@@ -13,6 +13,7 @@ import {
   localConnection,
   makeComponent,
   buildRoadProfiles,
+  preserveReviewedCalibration,
 } from './asset-calibrator.mjs';
 import { hasAnchor, isRuntimeSurfaceRole } from './validate-asset-calibration.mjs';
 import { compareCollisionSidecars } from './compare-asset-calibrations.mjs';
@@ -344,3 +345,228 @@ test('legacy collision comparison reports identical boxes and rejects stale sour
   assert.equal(stale.status, 'source-hash-mismatch');
   assert.equal(stale.sameSource, false);
 });
+
+test('approved interaction, traversal, road and bridge edits survive an unchanged-source rescan', () => {
+  const doorKey = 'Root[0]/Door[0]';
+  const ladderKey = 'Root[0]/Ladder[0]';
+  const deckKey = 'Root[0]/BridgeDeck[0]';
+  const doorAnchors = {
+    hinge: [0.9, 0.8, 0],
+    hingeAxis: [0, 1, 0],
+    handle: [0.35, 0.9, 0.2],
+    openAngleDeg: 78,
+  };
+  const approvedRoadConnection = {
+    status: 'approved',
+    accepted: true,
+    requiresReview: false,
+    start: { position: [-4, 2, 0], tangent: [1, 0, 0] },
+    end: { position: [4, 3, 0], tangent: [1, 0, 0] },
+    centreline: [[-4, 2, 0], [0, 2.5, 0], [4, 3, 0]],
+  };
+  const approvedBridgeConnection = {
+    status: 'approved',
+    accepted: true,
+    requiresReview: false,
+    start: { position: [0, 2, -4], tangent: [0, 0, 1] },
+    end: { position: [0, 2, 4], tangent: [0, 0, 1] },
+  };
+  const previousCalibration = {
+    source: { sha256: 'unchanged-source' },
+    components: [
+      {
+        nodeKey: doorKey,
+        role: 'vehicle-door',
+        kind: 'door',
+        manual: true,
+        runtimeEnabled: true,
+        requiresReview: false,
+        interaction: {
+          kind: 'vehicle-door',
+          accepted: true,
+          anchors: doorAnchors,
+        },
+      },
+      {
+        nodeKey: deckKey,
+        role: 'bridge-deck',
+        kind: 'driveable-surface',
+        runtimeEnabled: true,
+        requiresReview: false,
+      },
+    ],
+    traversal: [
+      {
+        nodeKey: ladderKey,
+        accepted: true,
+        runtimeEnabled: true,
+        requiresReview: false,
+        manual: true,
+        anchors: { mountBottom: [0, 0, 0], mountTop: [0, 3, 0], rungSpacing: 0.3 },
+        animation: { key: 'ladder-climb', loop: true },
+        capabilities: { ladderClimbUpAnimation: true, ladderClimbDown: false },
+        coordinateSpace: 'component-local',
+      },
+    ],
+    road: {
+      surfaces: [{
+        nodeKey: deckKey,
+        runtimeEnabled: true,
+        requiresReview: false,
+        connection: approvedRoadConnection,
+      }],
+    },
+    bridge: {
+      sections: [
+        { id: 'bridge-main', connection: approvedBridgeConnection },
+      ],
+    },
+  };
+
+  const components = [
+    {
+      nodeKey: doorKey,
+      role: 'unclassified',
+      kind: 'unknown',
+      manual: false,
+      runtimeEnabled: false,
+      requiresReview: true,
+      interaction: { kind: 'vehicle-door', accepted: false },
+    },
+    {
+      nodeKey: deckKey,
+      role: 'bridge-deck',
+      kind: 'driveable-surface',
+      runtimeEnabled: false,
+      requiresReview: true,
+    },
+  ];
+  const traversal = [{
+    nodeKey: ladderKey,
+    accepted: false,
+    runtimeEnabled: false,
+    requiresReview: true,
+    manual: false,
+    anchors: {},
+    animation: null,
+    capabilities: {},
+    coordinateSpace: 'component-local',
+  }];
+  const road = {
+    surfaces: [{
+      nodeKey: deckKey,
+      runtimeEnabled: false,
+      requiresReview: true,
+      connection: { status: 'estimated', accepted: false, requiresReview: true },
+    }],
+  };
+  const bridge = {
+    requiresReview: true,
+    sections: [
+      {
+        id: 'bridge-main',
+        deckComponent: { nodeKey: deckKey },
+        connection: { status: 'estimated', accepted: false, requiresReview: true },
+        requiresReview: true,
+      },
+    ],
+  };
+
+  assert.equal(preserveReviewedCalibration({
+    sourceHash: 'unchanged-source',
+    previousCalibration,
+    components,
+    traversal,
+    road,
+    bridge,
+  }), true);
+
+  assert.equal(components[0].manual, true);
+  assert.equal(components[0].runtimeEnabled, true);
+  assert.equal(components[0].requiresReview, false);
+  assert.deepEqual(components[0].interaction.anchors, doorAnchors);
+  assert.equal(traversal[0].accepted, true);
+  assert.equal(traversal[0].runtimeEnabled, true);
+  assert.deepEqual(traversal[0].anchors, previousCalibration.traversal[0].anchors);
+  assert.deepEqual(traversal[0].animation, previousCalibration.traversal[0].animation);
+  assert.equal(road.surfaces[0].runtimeEnabled, true);
+  assert.deepEqual(road.surfaces[0].connection, approvedRoadConnection);
+  assert.equal(components[1].runtimeEnabled, true);
+  assert.equal(components[1].requiresReview, false);
+  assert.deepEqual(bridge.sections[0].connection, approvedRoadConnection);
+  assert.equal(bridge.requiresReview, false);
+});
+
+test('a changed source hash discards all old approvals and leaves new geometry review-only', () => {
+  const previousCalibration = {
+    source: { sha256: 'old-source' },
+    components: [{
+      nodeKey: 'Root[0]/Door[0]',
+      manual: true,
+      runtimeEnabled: true,
+      requiresReview: false,
+      interaction: { kind: 'vehicle-door', accepted: true, anchors: { hinge: [1, 0, 0] } },
+    }],
+    traversal: [{
+      nodeKey: 'Root[0]/Ladder[0]',
+      accepted: true,
+      runtimeEnabled: true,
+      requiresReview: false,
+      manual: true,
+      anchors: { mountBottom: [0, 0, 0] },
+    }],
+    road: { surfaces: [{
+      nodeKey: 'Root[0]/Deck[0]',
+      runtimeEnabled: true,
+      requiresReview: false,
+      connection: { accepted: true, requiresReview: false },
+    }] },
+    bridge: { sections: [{ id: 'main', connection: { accepted: true, requiresReview: false } }] },
+  };
+  const components = [{
+    nodeKey: 'Root[0]/Door[0]',
+    role: 'door-panel',
+    kind: 'door',
+    manual: false,
+    runtimeEnabled: false,
+    requiresReview: true,
+  }];
+  const traversal = [{
+    nodeKey: 'Root[0]/Ladder[0]',
+    accepted: false,
+    runtimeEnabled: false,
+    requiresReview: true,
+    manual: false,
+    anchors: {},
+  }];
+  const road = { surfaces: [{
+    nodeKey: 'Root[0]/Deck[0]',
+    runtimeEnabled: false,
+    requiresReview: true,
+    connection: { accepted: false, requiresReview: true },
+  }] };
+  const bridge = {
+    requiresReview: true,
+    sections: [{ id: 'main', requiresReview: true, connection: { accepted: false, requiresReview: true } }],
+  };
+
+  assert.equal(preserveReviewedCalibration({
+    sourceHash: 'new-source',
+    previousCalibration,
+    components,
+    traversal,
+    road,
+    bridge,
+  }), false);
+
+  assert.equal(components[0].manual, false);
+  assert.equal(components[0].runtimeEnabled, false);
+  assert.equal(components[0].requiresReview, true);
+  assert.equal(components[0].interaction, undefined);
+  assert.equal(traversal[0].accepted, false);
+  assert.equal(traversal[0].runtimeEnabled, false);
+  assert.equal(road.surfaces[0].runtimeEnabled, false);
+  assert.equal(road.surfaces[0].connection.accepted, false);
+  assert.equal(bridge.sections[0].connection.accepted, false);
+});
+
