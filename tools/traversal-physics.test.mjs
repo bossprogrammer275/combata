@@ -64,6 +64,9 @@ test('manual root paths retain authored times and landing anchor', () => {
 test('ladder traversal maps rung spacing to the downloaded repeating climb cycle', () => {
   const plan = buildLadderTraversalPath({
     start: [0, 0, 1],
+    approach: [0, 0, 1],
+    mountBottom: [0, 0.2, 0.55],
+    mountTop: [0, 2.8, 0.55],
     climbPath: [[0, 0.2, 0.55], [0, 1, 0.55], [0, 2, 0.55], [0, 3, 0.55]],
     topOut: [0, 3, 0],
     rungSpacing: 0.3,
@@ -138,6 +141,7 @@ test('ladder profiles are upward-only and require rung, mount, dismount and four
     coordinateSpace: 'component-local', accepted: true, runtimeEnabled: true,
     requiresReview: false, manual: true,
     anchors: {
+      approach: [0, 0, 1],
       mountBottom: [0, 0, 0.4],
       mountTop: [0, 2.8, 0],
       topOut: [0, 3, -0.35],
