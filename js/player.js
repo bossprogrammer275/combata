@@ -612,7 +612,12 @@ export class Player {
       const result = this.physics.movePlayer(deltaX, deltaY, deltaZ);
       if (!result?.position) return false;
       this.pos.copy(result.position);
-      return this.pos.distanceTo(target) <= tolerance;
+      const reached = this.pos.distanceTo(target) <= tolerance;
+      // A traversal may apply several limb contacts in one render update.
+      // Commit only the character-controller-resolved position so the next
+      // small contact correction starts from the current kinematic pose.
+      this.physics.setPlayerPosition(this.pos.x, this.pos.y, this.pos.z);
+      return reached;
     }
 
     const steps = Math.max(1, Math.ceil(distance / 0.075));
