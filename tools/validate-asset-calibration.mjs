@@ -243,4 +243,4 @@ if (invokedPath && import.meta.url === pathToFileURL(invokedPath).href) {
   }
 }
 
-export { validateAsset, hasAnchor, isRuntimeSurfaceRole };
+export { validateAsset, hasAnchor };
