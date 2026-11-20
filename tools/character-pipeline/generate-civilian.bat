@@ -1,9 +1,7 @@
 @echo off
 setlocal
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0run-civilian.ps1" %*
-set "RESULT=%ERRORLEVEL%"
-if not "%RESULT%"=="0" (
-  echo.
-  echo Civilian generation failed with exit code %RESULT%.
-)
-exit /b %RESULT%
+echo The legacy civilian generator is deprecated.
+echo Open World now uses npc_core_001 as its only humanoid model.
+echo Starting the npc_core_001 generation launcher...
+call "%~dp0generate-npc-core.bat" %*
+exit /b %ERRORLEVEL%
