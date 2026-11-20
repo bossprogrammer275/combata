@@ -700,20 +700,22 @@
       "crouchWalkAim": "Crouch Walking.fbx",
       "normalCrouchWalk": "Crouched Walking.fbx",
       "reload": "Reloading.fbx; standing idle only; player controls are locked until its 3.3 second action completes",
-      "jump": "Jumping.fbx; only when the jump starts from idle; physics/camera owns the trajectory",
+      "jump": "Jumping.fbx only for jumps that start from idle; Rapier/AABB character-controller vertical movement owns the world trajectory, gravity, collision and landing. Hips root translation is stripped to prevent double motion.",
       "rifleAim": "Rifle-specific aim/walk/run clips are used only for the rifle; non-rifle weapons do not borrow rifle poses",
       "sitting": "Snap to the authored seat anchor, play Sitting Idle.fbx, then snap to exit/stand anchor; no sit-down/stand-up transition",
       "oneShots": "Wave, jump, reload, hard landing, hit reaction, punch and block return to idle after completion; knockdown and death remain separate held states",
       "talkAndPhone": "No downloaded talk or phone clip; dialogue and phone routines retain UI/behaviour but use idle pose",
       "ladder": "Climbing Ladder.fbx is ladder-only; reverse descent is experimental",
-      "obstacleClimb": "Climbing.fbx is reserved for obstacle top-out/landing with calibrated anchors; traversal physics/anchor integration is still pending"
+      "obstacleClimb": "Climbing.fbx is reserved for obstacle top-out/landing with calibrated anchors; traversal physics/anchor integration is still pending",
+      "death": "Knocked Down.fbx is currently used for the downed body state. Dying.fbx remains a preview candidate and is not assigned as the final death animation until reviewed."
     },
     "validation": {
       "staticIntegration": "Implemented",
       "browserRuntime": "Pending",
       "baseRigVerified": false,
       "allClipBindingsVerified": false,
-      "physicsAndContactValidation": false
+      "physicsAndContactValidation": false,
+      "physicsJump": "Character-controller jump displacement is wired; runtime collision/landing verification is still pending."
     }
   }
 }
