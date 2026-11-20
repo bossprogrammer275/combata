@@ -829,7 +829,12 @@ export class Civilians {
     ]);
   }
 
-  limit() { return POP.maxActive[this.quality] || POP.maxActive.medium; }
+  limit() {
+    const configured = Number(this.world.sceneData?.npcLimit);
+    return Number.isFinite(configured)
+      ? Math.max(1, Math.min(12, Math.floor(configured)))
+      : (POP.maxActive[this.quality] || POP.maxActive.medium);
+  }
 
   locations() {
     const points = [];
@@ -840,6 +845,26 @@ export class Civilians {
   }
 
   populateInitial() {
+    const authoredSpawns = Array.isArray(this.world.sceneData?.npcSpawns)
+      ? this.world.sceneData.npcSpawns.slice(0, this.limit()) : null;
+    if (authoredSpawns?.length && this.routes.length) {
+      const routePoints = this.locations();
+      const used = [];
+      for (const spawn of authoredSpawns) {
+        const x = Number(spawn.x), z = Number(spawn.z);
+        if (!Number.isFinite(x) || !Number.isFinite(z)) continue;
+        const candidates = routePoints
+          .map(item => ({ ...item, distance: Math.hypot(item.point.x - x, item.point.z - z) }))
+          .filter(item => item.distance < 24 && !used.some(other =>
+            Math.hypot(other.point.x - item.point.x, other.point.z - item.point.z) < 4.5))
+          .sort((a, b) => a.distance - b.distance);
+        const selected = candidates[0];
+        if (!selected) continue;
+        used.push(selected);
+        this.spawnAt(selected, spawn.profile || 'civilian');
+      }
+      if (this.list.length) return;
+    }
     const origin = this.world.startPoint || { x: 0, z: 0 };
     const items = this.locations().sort((a, b) =>
       Math.hypot(a.point.x - origin.x, a.point.z - origin.z) - Math.hypot(b.point.x - origin.x, b.point.z - origin.z)
@@ -854,9 +879,25 @@ export class Civilians {
     for (const item of selected) this.spawnAt(item);
   }
 
-  spawnAt(item) {
+  spawnAt(item, profileId = 'civilian') {
     const npc = new Civilian(this, item.route, item.index, item.point);
-    npc.ready.catch(error => console.error("[NPC] Civilian 002 instance failed.", error));
+    const profileNames = {
+      civilian: 'Civilian Pedestrian',
+      aggressive: 'Aggressive Local',
+      worker: 'Shop Worker',
+      police: 'Police Officer',
+    };
+    npc.profileId = profileId;
+    npc.name = profileNames[profileId] || 'Civilian Pedestrian';
+    if (profileId !== 'civilian') {
+      npc.ready = npc.ready.then(() => {
+        if (!npc.ch.setProfile(profileId)) {
+          console.warn('[NPC] Could not apply authored test profile:', profileId);
+        }
+        return npc;
+      });
+    }
+    npc.ready.catch(error => console.error("[NPC] Civilian Core instance failed.", error));
     this.list.push(npc);
     return npc;
   }
