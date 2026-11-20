@@ -6,7 +6,7 @@ import { NpcAnimationController } from './animation-controller.js';
 export async function preloadNpcBase() {
   return loadNpcCoreBase();
 }
-export async function preloadNpcAnimations(_modelId, keys = ['idle','walk','run','sprint','crouch_idle','crouch_walk','wave']) {
+export async function preloadNpcAnimations(_modelId, keys = ['idle','walk','run','sprint','crouch_idle','crouch_walk','wave','obstacle_climb','ladder_climb_up']) {
   return preloadNpcCoreAnimations(keys);
 }
 
@@ -43,6 +43,27 @@ export class NpcInstance {
     const basic = ['idle','walk','run','sprint','crouch_idle','crouch_walk','sit_idle','wave','death_candidate','jump_idle','knocked_down','obstacle_climb','ladder_climb_up'];
     if (!this.profile.allowedActions.includes(normalized) && !basic.includes(normalized)) return false;
     return this.animation.play(normalized, options);
+  }
+  getBoneOffsetFromRoot(name, target = new THREE.Vector3()) {
+    if (!this.model || !this.root || !name) return null;
+    const aliases = {
+      LeftHand: ['LeftHand', 'mixamorig:LeftHand'],
+      RightHand: ['RightHand', 'mixamorig:RightHand'],
+      LeftFoot: ['LeftFoot', 'mixamorig:LeftFoot'],
+      RightFoot: ['RightFoot', 'mixamorig:RightFoot'],
+      Hips: ['Hips', 'mixamorig:Hips', 'Pelvis'],
+    };
+    const names = aliases[name] || [String(name)];
+    let bone = null;
+    this.model.traverse(node => {
+      if (!bone && node.isBone && names.some(alias => (node.name || '').toLowerCase().includes(alias.toLowerCase()))) {
+        bone = node;
+      }
+    });
+    if (!bone) return null;
+    this.root.updateWorldMatrix(true, true);
+    bone.getWorldPosition(target);
+    return target.sub(this.root.getWorldPosition(new THREE.Vector3()));
   }
   setTimeScale(value) { this.animation?.setTimeScale(value); }
   setProfile(profileId) {
