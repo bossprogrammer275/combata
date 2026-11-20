@@ -17,6 +17,7 @@ param(
     [switch]$Help,
     [switch]$BuildOnly,
     [switch]$AnimateOnly,
+    [switch]$AutoAnimations,
     [switch]$NoCommit,
     [switch]$NoPush,
     [switch]$Overwrite
@@ -90,6 +91,7 @@ $buildArgs = @(
     "--bottom", "$Bottom", "--shoes", "$Shoes", "--output", $Output
 )
 $animationArgs = @($mixamoScript, "--id", $Id, "--animations", $Animations, "--fps", "$Fps", "--output", $Output)
+if ($AutoAnimations) { $animationArgs += "--auto" }
 $mixamoExitCode = 0
 
 if (-not $AnimateOnly) {
@@ -113,11 +115,14 @@ if (-not $AnimateOnly) {
 if (-not $BuildOnly) {
     Write-Host ""
     Write-Host "[2/2] Rigging civilian and downloading selected animation FBXs..." -ForegroundColor Cyan
-    Write-Host "The saved Mixamo profile will open. Place all 8 rigging markers and click Next in the browser." -ForegroundColor Yellow
-    Write-Host "Place all 8 markers and click Next yourself; then confirm Y in this console." -ForegroundColor Yellow
-    Write-Host "Confirm Y again before accepting a rig or downloading the base model." -ForegroundColor Yellow
-    Write-Host "Choose each animation in this console; press D to approve its FBX download." -ForegroundColor Yellow
-    Write-Host "No response listener or automatic marker / Next click is used." -ForegroundColor Yellow
+    Write-Host "The saved Mixamo profile will open for the initial character auto-rig." -ForegroundColor Yellow
+    if ($AutoAnimations) {
+        Write-Host "Animation search, candidate ranking, selection and FBX downloads run autonomously." -ForegroundColor Green
+        Write-Host "The first auto-rig still requires placing the 8 Mixamo body markers and clicking Next." -ForegroundColor Yellow
+    } else {
+        Write-Host "Place all 8 markers and click Next yourself; then confirm Y in this console." -ForegroundColor Yellow
+        Write-Host "Choose each animation in this console; press D to approve its FBX download." -ForegroundColor Yellow
+    }
     & $mixamoPython @animationArgs
     $mixamoExitCode = $LASTEXITCODE
 
