@@ -1,6 +1,11 @@
 import * as THREE from "./lib/three.module.js";
-import { NpcInstance, preloadNpcBase } from "./npc-system/npc-instance.js";
+import { NpcInstance, preloadNpcBase, preloadNpcAnimations } from "./npc-system/npc-instance.js";
 import { NPC_SYSTEM_CONFIG as C, NPC_DEFAULT_ROUTES } from "./npc-system/profile-registry.js";
+import {
+  buildObstacleClimbPath,
+  buildLadderTraversalPath,
+  sampleTimedPath,
+} from "./traversal-physics.js";
 
 const P = C.physics;
 const POP = C.population;
@@ -59,6 +64,7 @@ export class Civilian {
     this.activityObject = null;
     this.activityTarget = null;
     this.socialPartner = null;
+    this._traversal = null;
     this.ch = new NpcInstance(C.defaultProfile);
     this.root = this.ch.root;
     this.root.name = "NPC_Core_Civilian";
@@ -500,7 +506,7 @@ export class Civilians {
   }
 
   async initialize() {
-    await preloadNpcBase();
+    await Promise.all([preloadNpcBase(), preloadNpcAnimations(C.modelId, ['obstacle_climb', 'ladder_climb_up'])]);
     this.buildRoutes();
     this.createUi();
     this.populateInitial();
