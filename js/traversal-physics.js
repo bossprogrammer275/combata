@@ -185,6 +185,11 @@ export function validateReviewedTraversalProfile(candidate, component) {
       || distance(path.at(-1).position, anchors.landing) > 0.12) {
       return invalid('Obstacle rootPath must begin at approach and end at landing');
     }
+    const handContactMatches = contacts.some(contact =>
+      (contact.bone === 'LeftHand' || contact.bone === 'RightHand')
+      && distance(contact.position, anchors.handContact) <= 0.55
+    );
+    if (!handContactMatches) return invalid('Obstacle handContact must match a timed hand-bone contact');
     if (candidate.capabilities?.obstacleClimbAnimation !== true
       || candidate.capabilities?.vaultAnimation === true
       || candidate.capabilities?.mantleAnimation === true) {
