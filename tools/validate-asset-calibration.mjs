@@ -32,11 +32,12 @@ function finiteVector(value, length = 3) {
 }
 
 function hasAnchor(value) {
-  if (Number.isFinite(Number(value)) && value !== null && value !== '') return true;
+  if (typeof value === 'number' && Number.isFinite(value)) return true;
+  if (typeof value === 'string' && value.trim() && Number.isFinite(Number(value))) return true;
   if (finiteVector(value)) return true;
   if (finiteVector(value?.position)) return true;
   if (value?.position && ['x', 'y', 'z'].every(key => Number.isFinite(Number(value.position[key])))) return true;
-  if (['x', 'y', 'z'].every(key => Number.isFinite(Number(value?.[key])))) return true;
+  if (value && ['x', 'y', 'z'].every(key => Number.isFinite(Number(value[key])))) return true;
   return !!value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length > 0;
 }
 
