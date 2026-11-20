@@ -368,15 +368,20 @@ async function calibrateOne(file) {
     playerProfileRequired: 'npc_core_001',
     capabilities: {
       ladderClimbUpAnimation: component.kind === 'ladder',
-      ladderClimbDown: 'experimental-reverse-clip',
+      ladderClimbDown: false,
       obstacleClimbAnimation: component.kind === 'obstacle',
       vaultAnimation: false,
       mantleAnimation: false,
       ledgeHangAnimation: false,
     },
+    coordinateSpace: 'component-local',
+    anchors: {},
+    animation: null,
+    manual: false,
     accepted: false,
+    runtimeEnabled: false,
     requiresReview: true,
-    note: 'Compare dimensions, capsule clearance, reach, landing space and the active NPC/player animation set before enabling traversal.',
+    note: 'Measure approach, full timed root path, hand/foot contacts, mount/rung points, capsule clearance and supported landing before enabling traversal.',
   }));
 
   const priorComponents = new Map((old?.components || []).map(component => [component.nodeKey, component]));
@@ -398,11 +403,16 @@ async function calibrateOne(file) {
   for (const candidate of traversal) {
     const previous = priorTraversal.get(candidate.nodeKey);
     if (!previous) continue;
-    if (previous.accepted === true) {
+    if (previous.accepted === true && previous.requiresReview === false
+      && previous.runtimeEnabled === true && previous.manual === true) {
       candidate.accepted = true;
-      candidate.requiresReview = previous.requiresReview === false ? false : true;
+      candidate.runtimeEnabled = true;
+      candidate.requiresReview = false;
+      candidate.manual = true;
       if (previous.anchors) candidate.anchors = previous.anchors;
-      if (previous.manual === true) candidate.manual = true;
+      if (previous.animation) candidate.animation = previous.animation;
+      if (previous.capabilities) candidate.capabilities = previous.capabilities;
+      if (previous.coordinateSpace) candidate.coordinateSpace = previous.coordinateSpace;
     }
   }
 
