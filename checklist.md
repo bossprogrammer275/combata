@@ -41,6 +41,7 @@
 - The user wants the map `data/worlds/test.json` created and made the default map. Keep `city-a.json` intact.
 - The test map must represent every unique available world/vehicle asset once where practical, not duplicate the same model all over the scene. Asset dependencies, textures, collision sidecars and animation clips are not separate world placements.
 - World geometry direction: individually authored road/ground/surface geometry rather than relying on reusable completed road/ground modules. Reusable material definitions, profile schemas, collision algorithms, editing tools and runtime batching are still allowed.
+- A unified automatic asset calibrator is planned in Section 8A. It must absorb the existing collision workflow, detect gameplay geometry (doors, stairs, platforms, climbables, seats and vehicle parts), detect imported road/bridge profiles and connections, calculate player-profile traversal requirements and export engine-readable metadata. The user will write the calibrator; this is planning only and does not change the current NPC-core task.
 - The test world is a laboratory for validating gameplay, not a production city. Build the systems and test map first. Start the full city only after the core test gates pass.
 - The target development machine has 4 GB RAM. Share model geometry/material/texture and animation clip caches where possible. Do not eagerly load every high-cost asset or duplicate every animation mixer/asset buffer unnecessarily.
 - The user uses a local GitHub auto-sync workflow. Work directly on `main` when repository edits are requested. Preserve existing work and do not force-push, rewrite history or silently overwrite large binaries.
@@ -579,6 +580,233 @@ Author simple calibration geometry directly when a downloaded model is unnecessa
 
 ---
 
+
+## 8A. Unified automatic asset-calibration system — planned design only
+
+**Status:** Planned, not implemented. The user will write the calibrator. Do not implement it as part of the current NPC-core task unless the user explicitly changes the active task.
+
+### Goal
+
+Build one automatic asset-calibration pipeline that scans imported world assets, merges the existing collision-generation workflow into that same pipeline, detects useful gameplay geometry/interactions, and writes structured calibration metadata the game engine can read directly. This must not become a second, disconnected collision generator: collision generation/profile selection is one stage of the unified calibrator.
+
+### A. Unified scan pipeline
+
+1. **Asset intake:** identify source model, format, node hierarchy, meshes, materials, dependencies and existing collision sidecars.
+2. **Transform/scale inspection:** inspect local/world transforms, bounds, dimensions, origin, ground offset, forward/up axes and likely unit scale. Report suspicious scale/orientation; do not destructively rescale the source asset.
+3. **Geometry analysis:** inspect connected components, bounds, normals, thickness, repeated geometry, symmetry, openings, planar surfaces and candidate pivots/anchors.
+4. **Collision integration:** run the existing collision workflow as an internal stage. Reuse and improve its asset-specific collision-profile selection rather than maintaining two competing systems.
+5. **Semantic detection:** identify candidate doors, stairs, platforms, ladders, climbable walls/ledges, seats, handles, walkable/driveable surfaces, roads, bridges, vehicle parts and other interaction geometry.
+6. **Gameplay parameter generation:** convert detections into structured properties the engine/runtime consumes.
+7. **Confidence/review:** label results with confidence and explain uncertain detections. Ambiguous detections must be reviewable in the editor, not silently accepted.
+8. **Validation/export:** validate dimensions, transforms, collider coverage, anchors, road connections and references, then write a versioned sidecar without modifying the original model.
+
+### B. Merge with the existing collision workflow
+
+- [ ] Locate and document the current collision-generation scripts, profile rules, output format and existing sidecar files before changing anything.
+- [ ] Make the existing collision process an internal stage of the unified calibrator, not a separate manual pipeline.
+- [ ] Preserve current asset-specific collision-profile logic and improve it where scans reveal bad dimensions or unsuitable shapes.
+- [ ] Support appropriate collider types: box, capsule, convex hull, compound and static triangle mesh where justified.
+- [ ] Detect when an asset needs multiple collider components instead of one oversized solid collider.
+- [ ] Preserve dedicated rules for roads, ground/surface meshes, bridges, poles, lights, signs, vegetation, fences, dedicated kits and other special categories.
+- [ ] Never apply generic solid collision blindly to roads, bridge decks, poles, vegetation or assets requiring specialised profiles.
+- [ ] Keep render geometry and collision geometry separate where that improves performance or physical correctness.
+- [ ] Record collider source, shape, dimensions, local transform, collision layer/mask, static/dynamic status and simplification.
+- [ ] Preserve source assets and supporting files. Calibration output must be reversible and must not overwrite original geometry.
+- [ ] Provide a comparison report between old collision results and unified-calibrator results to identify regressions.
+
+### C. Door and movable-panel detection
+
+Inspect node names, hierarchy, connected mesh components, geometry separation, symmetry and likely hinge edges.
+
+For each detected door/panel, attempt to generate:
+
+- [ ] Node and mesh/component references.
+- [ ] Category: vehicle door, building/interior door, gate, hatch, shutter or other panel.
+- [ ] Closed local transform.
+- [ ] Candidate hinge/pivot position and hinge axis.
+- [ ] Open direction and candidate open angle/range.
+- [ ] Bounds, thickness and approximate dimensions.
+- [ ] Handle/interaction point, approach point and character hand-contact point where geometry supports detection.
+- [ ] Closed-state collision and a safe open-state collision strategy.
+- [ ] Parent/body relationship and whether the panel is independently movable.
+- [ ] Confidence score and editor-review flag when hinge/opening direction is uncertain.
+
+A door-looking shape merged into one static building mesh must not be treated as a working animated door automatically. Flag it for mesh separation or editor correction. Do not invent a hinge pivot without geometric evidence.
+
+### D. Stair, step and platform detection
+
+Identify repeated stair treads/risers and separate landing/platform geometry. Also detect standalone steps, ramps, raised walkways and platform edges.
+
+For each stair flight/platform, attempt to calculate:
+
+- [ ] Bounds and local orientation.
+- [ ] Number of visible steps.
+- [ ] Average and per-step riser height.
+- [ ] Tread depth and usable width.
+- [ ] Total rise and horizontal run.
+- [ ] Slope/grade and direction of travel.
+- [ ] Bottom/top entry points.
+- [ ] Intermediate landing positions and elevations.
+- [ ] Walkable surface polygons or collision references.
+- [ ] Side clearance, head clearance and rail/obstruction information where detectable.
+- [ ] Classification: normal walkable stair, steep stair, ramp, ladder-like traversal object or decorative/non-walkable mesh.
+
+Generate engine-required parameters such as walkable surfaces, step-height limits, tread/riser measurements, slope limits, landing elevations, traversal direction and collision references. Exported field names must match the runtime contract; do not create metadata the engine never reads. Stairs and landings must be distinct usable surfaces where needed. Do not represent an entire stair flight as one invisible solid block that prevents walking up it.
+
+### E. Imported road and bridge profile detection
+
+The calibrator must recognise imported road assets and complete bridge models as driveable/connected infrastructure, not just generic static props. A bridge GLB/GLTF may contain a road deck, approach ramps, rails, piers, support beams and separate collision pieces in one hierarchy.
+
+For each candidate road/bridge asset, inspect and attempt to classify:
+
+- [ ] Driveable road/deck surface mesh or surface region.
+- [ ] Road shoulders, sidewalks, curbs and pedestrian walkways.
+- [ ] Bridge deck, deck thickness and underside.
+- [ ] Entry and exit transitions/ramps at both ends.
+- [ ] Road lane count, lane widths, lane direction and approximate centreline where geometry permits.
+- [ ] Road width, usable driveable width and shoulder width.
+- [ ] Start/end connection positions, endpoint heights, forward tangents and connection directions.
+- [ ] Surface slope, longitudinal grade, crossfall/camber and banking.
+- [ ] Bridge span, approach length, deck elevation and measurable clearance beneath the bridge.
+- [ ] Expansion joints, seams, gaps and discontinuities that could affect vehicles.
+- [ ] Side barriers, guardrails, kerbs and collision boundaries.
+- [ ] Piers, columns, foundations, beams and support structures as separate non-driveable collision components.
+- [ ] Tunnel/underpass clearance and overhead obstructions where present.
+- [ ] Road material candidates and physics tags for tyre grip, rolling resistance, wet response and audio.
+- [ ] Vehicle and pedestrian collision surfaces separately where required.
+- [ ] Road-surface continuity across the deck and both approach transitions.
+
+Generate an engine-readable road/bridge profile containing measured dimensions and connection data. At minimum it should carry:
+
+- Driveable deck/component references and separate support/barrier component references.
+- Driveable surface boundary/polygon.
+- Road centreline or sampled centreline points.
+- Road width and lane/shoulder metadata where detectable.
+- Start/end connection sockets with local position, elevation, tangent/forward direction and width.
+- Deck height, grade, camber/crossfall and transition measurements.
+- Collision references for deck, barriers, supports and underside.
+- Surface material/physics tags.
+- Clearance data, confidence scores and warnings.
+
+**Connection requirement:** the engine/editor must connect an imported bridge deck to individually authored roads or other imported road assets without a visible height step, gap, sideways offset or abrupt grade change. Use endpoint measurements and tangents to validate alignment. Do not assume the bridge model origin is at the road start or its local forward axis is correct.
+
+**Do not flatten the bridge into one generic collider.** The deck must be driveable; barriers must appropriately block vehicles; piers/supports must collide as structural obstacles without blocking the deck. If the deck is merged with other geometry and cannot be reliably separated, flag it for editor correction or source-mesh separation.
+
+Support imported bridge models as well as simpler road segments, junctions, ramps, overpasses and underpasses. This does not replace the individually authored road/ground workflow; it makes imported road infrastructure measurable and compatible with it.
+
+### F. Player-aware climbability and traversal requirements
+
+Climbability must be evaluated against the dimensions/capabilities of the selected player/NPC profile, not simply labelled climbable for everyone.
+
+For each candidate obstacle inspect:
+
+- [ ] Height, width, thickness and shape.
+- [ ] Top-edge/ledge position and usable handhold area.
+- [ ] Candidate handholds and footholds.
+- [ ] Approach space and take-off position.
+- [ ] Far-side landing area and clearance.
+- [ ] Overhead/head clearance and nearby collision obstruction.
+- [ ] Supported action: low vault, medium vault, high mantle, ladder climb, ledge hang, shimmy, pull-up or not traversable.
+- [ ] Whether required animation keys and traversal anchors exist for the current rig.
+
+The calibration output must provide measurable requirements, not just a yes/no flag:
+
+- Obstacle height and traversal category.
+- Minimum player capability required for the action.
+- Maximum supported obstacle height for that action/profile.
+- Required standing reach and/or jump reach where relevant.
+- Required animation/action capability (vault, mantle, ladder climb, ledge pull-up).
+- Required approach, hand-contact, foothold and landing anchors.
+- Reason when traversal is not safe/supported.
+
+Use profile capability data such as character height, capsule height/radius, standing reach, jump reach, vault limit, mantle limit and climb capability. Character height alone is not enough: reach, animation capability, collision clearance and landing space also matter. At runtime, compare the selected player/NPC profile with calibrated requirements, choose the highest valid traversal action, or reject traversal cleanly. Keep thresholds configurable per profile, not one universal climb height.
+
+### G. Other geometry and gameplay properties
+
+- [ ] **Scale/placement:** model bounds, dimensions, unit scale, ground contact, origin, forward/up axes and suspicious offsets.
+- [ ] **Walkable surfaces:** floors, roofs, sidewalks, bridge decks, ramps, platforms and terrain; surface normal, slope, boundary and walkability.
+- [ ] **Steps/curbs:** height, width, step-up suitability and collision response.
+- [ ] **Ladders:** plane, rung spacing, mount point, climb path, top-out point, bottom dismount point and direction.
+- [ ] **Ledges:** hangable edge, handhold path, shimmy range, pull-up position and drop/landing point.
+- [ ] **Fences/walls:** height, thickness, top edge, material/category, vault/mantle suitability and far-side landing clearance.
+- [ ] **Platforms/fire escapes:** elevation, walkable area, stair/ladder connections, rails, entry/exit points and connected traversal routes.
+- [ ] **Seats/benches:** seat surface, height/depth, facing, approach point, pelvis anchor, foot clearance and stand/exit point.
+- [ ] **Vehicle components:** body, doors, hinges, wheels, wheel axes/radius, seats, steering wheel, entry/exit points and ground clearance.
+- [ ] **Interaction points:** handles, hand-contact points, switches, controls, grips, ladders, seat anchors and useful local-space anchors.
+- [ ] **Obstacles/cover:** waist-height/full-height cover candidates, thickness, safe approach positions and collision coverage.
+- [ ] **Material/physics classification:** candidate surface tags for grip, friction, sound and footsteps. Uncertain labels must be reviewable; visual colour alone is insufficient evidence.
+- [ ] **Clearance/navigation:** doorway dimensions, corridor clearance, headroom, narrow passages, blocked paths and usable approach/exit zones.
+- [ ] **Collision quality:** holes, missing regions, excess collider volume, bad normals, thin surfaces, disconnected components and collision meshes outside render bounds.
+- [ ] **Special categories:** vegetation, poles, wires, signs, props, glass, fences and decorative meshes receive category-appropriate collision and interaction treatment.
+
+### H. Calibration data contract
+
+Export a versioned, engine-readable sidecar per source asset or logical asset. Its path/name must be deterministic and resolvable by the asset registry and editor.
+
+The result should include:
+
+- [ ] Schema/calibrator version and stable asset ID.
+- [ ] Source path/hash, scan date and scan status.
+- [ ] Local bounds, dimensions, origin, scale and axis convention.
+- [ ] Detected nodes/components and semantic roles.
+- [ ] Collision profiles and collider component definitions.
+- [ ] Door/panel definitions and hinge/open-state data.
+- [ ] Stair/step/platform measurements and walkable-surface references.
+- [ ] Road/bridge profiles, driveable regions, endpoints, centreline and connection measurements.
+- [ ] Ladder, ledge, fence and traversal definitions.
+- [ ] Seat and general interaction anchors.
+- [ ] Vehicle part/wheel references where available.
+- [ ] Surface/material/physics tags.
+- [ ] Player/NPC capability requirements and supported traversal ranges.
+- [ ] Confidence values, warnings, unsupported detections and required manual reviews.
+- [ ] Manual overrides that survive a rescan when the source asset has not changed.
+
+The engine consumes the profile directly. Runtime must not rescan raw geometry every time an asset spawns.
+
+### I. Map editor integration
+
+The map editor is the review/correction surface for generated calibration data:
+
+- [ ] Show per-asset status: not scanned, scanning, calibrated, needs review or failed.
+- [ ] Run/re-run calibration for one asset or a batch.
+- [ ] Preview generated collision shapes over the original model.
+- [ ] Toggle render mesh, collision mesh, bounds, axes, component IDs and detected semantic parts.
+- [ ] Preview door hinges, swing axes, closed/open positions and collision changes.
+- [ ] Preview stair treads, risers, landings, walkable surfaces and dimensions.
+- [ ] Preview road/bridge driveable deck, lanes, centreline, endpoints, tangents, approaches, supports, barriers and underpass clearance.
+- [ ] Preview road/bridge alignment against other road assets and authored road geometry.
+- [ ] Preview ladder rungs, ledge anchors, handholds, footholds, vault/mantle points and landing zones.
+- [ ] Show minimum/maximum obstacle capability requirements.
+- [ ] Select a player/NPC profile or capability preset and preview whether that character can traverse an object.
+- [ ] Show the exact reason a traversal or road connection is accepted/rejected.
+- [ ] Edit/add/remove/reposition generated anchors and semantic classifications.
+- [ ] Correct road endpoint positions, tangents, width, grade and connection data.
+- [ ] Correct collider type, dimensions, local transform and collision category.
+- [ ] Preserve manual overrides on rescan unless the source asset changed and the override is explicitly invalidated.
+- [ ] Compare before/after calibration and restore a previous result.
+- [ ] Save corrected metadata in the same engine-readable schema; editor-only data must not be the only copy.
+
+### J. Calibration validation and safety gates
+
+- [ ] Scan representative buildings, vehicles, chairs, stairs, ladders, fences, props, road pieces, imported bridges, ground meshes, poles and vegetation before batch calibration.
+- [ ] Validate against known reference dimensions and the 1m test cube.
+- [ ] Test collision contact in the actual physics engine, not only in a viewer.
+- [ ] Test door operation against detected hinges and nearby geometry.
+- [ ] Walk stairs and onto platforms without invisible blocking volumes.
+- [ ] Test player-aware vault/mantle/climb decisions with multiple capability profiles.
+- [ ] Test ladder/ledge anchors against the actual animation rig and clips.
+- [ ] Drive across imported bridges in both directions at low and normal speed; test approach entry, deck continuity and exit transition.
+- [ ] Verify vehicles do not catch on bridge joints, collider seams, invisible supports or abrupt deck-height changes.
+- [ ] Verify bridge barriers prevent falling without blocking/narrowing the usable deck.
+- [ ] Verify road profiles connect correctly to authored roads and other imported road assets.
+- [ ] Verify colliders, interaction anchors and road sockets remain aligned after asset rotation, scale and placement.
+- [ ] Verify runtime reads generated parameters rather than recomputing different values.
+- [ ] Keep uncertain detections reviewable and source assets/old collision sidecars recoverable until new results pass.
+
+### K. Completion criteria
+
+The unified calibrator is ready for production use only when it scans representative assets, reuses the existing collision workflow, produces correct engine-readable collision/interaction metadata, detects doors and stairs, measures imported road/bridge profiles and endpoints, calculates player-profile traversal requirements, exposes uncertainty in the editor and passes runtime tests without damaging source assets.
+
 ## 9. New test map and world foundation
 
 ### New map
@@ -683,7 +911,11 @@ Each surface type supplies rendering material, collision/physics properties, veh
 - [ ] Material/physics painter.
 - [ ] Collision visualiser.
 - [ ] Asset profile editor.
+- [ ] Unified asset-calibrator status, scan and review panel.
+- [ ] Collision/component preview and semantic-detection correction tools.
+- [ ] Door hinge, stair/platform, road/bridge and player-aware traversal calibration views.
 - [ ] Interaction-anchor editor.
+- [ ] Road/bridge endpoint, tangent, width, grade and connection editor.
 - [ ] Traversal graph editor.
 - [ ] Vehicle door/seat calibration view.
 - [ ] Chair/prop anchor editor.
@@ -772,6 +1004,18 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 - [ ] Use geometry-driven distances and anchor alignment.
 - [ ] Verify no teleporting, floating or collision traps.
 
+### Phase 6A — Unified asset calibration (planned; user-authored)
+
+- [ ] User implements the calibrator described in Section 8A.
+- [ ] Merge the existing collision-generation workflow into its scan pipeline.
+- [ ] Add scale/bounds/origin inspection and category-specific collision output.
+- [ ] Add door/panel, stair/platform, ladder/ledge and player-aware climbability detection.
+- [ ] Add imported road/bridge profile detection, endpoint/centreline extraction and connection validation.
+- [ ] Export versioned engine-readable calibration sidecars.
+- [ ] Add map-editor review, correction, preview and manual-override support.
+- [ ] Validate output against representative assets and actual runtime physics.
+- [ ] Do not replace the existing collision workflow until the unified result passes acceptance tests.
+
 ### Phase 7 — Test world and surface engine
 
 - [ ] Create `test.json`.
@@ -814,6 +1058,10 @@ The core gameplay/test stage is not complete until:
 - [ ] Vehicle doors have calibrated pivots and open/close correctly.
 - [ ] Vehicle entry/exit aligns with door, seat and exit anchors.
 - [ ] Ladders, fences and ledges use real geometry anchors and no teleport shortcuts.
+- [ ] The unified calibrator integrates the existing collision workflow and emits valid engine-readable asset profiles.
+- [ ] Door hinges, stair/platform geometry and player-aware traversal requirements are detected or explicitly flagged for editor review.
+- [ ] Imported bridge/road profiles expose a correct driveable deck, supports/barriers, endpoint connections and smooth vehicle transitions.
+- [ ] Calibration results remain correct after asset placement transforms and are validated in runtime physics.
 - [ ] Test map is `test.json` and is the default.
 - [ ] Unique assets are represented without needless duplicates.
 - [ ] Authored ground/road/surface meshes collide and report correct material tags.
