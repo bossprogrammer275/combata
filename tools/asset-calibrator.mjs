@@ -115,7 +115,7 @@ function classifyComponent(item, assetType, assetPath) {
     [/guard.?rail|hand.?rail|barrier|kerb|curb|rail_/, 'barrier', 'barrier'],
     [/fence|wall|parapet/, 'obstacle', 'obstacle'],
     [/pier|abutment|support|column|beam|foundation/, 'bridge-support', 'support'],
-    [/^|_)(asphalt|carriageway|road|lane|deck|driveable|drivable|pavement)(_|$)/, assetType === 'bridge' ? 'bridge-deck-candidate' : 'road-surface', 'driveable-surface'],
+    [/^(?:.*_)?(?:asphalt|carriageway|road|lane|deck|driveable|drivable|pavement)(?:_.*)?$/, assetType === 'bridge' ? 'bridge-deck-candidate' : 'road-surface', 'driveable-surface'],
     [/handle|switch|button|lever|grip/, 'interaction-part', 'interaction'],
   ];
   for (const [pattern, role, kind] of tests) {
