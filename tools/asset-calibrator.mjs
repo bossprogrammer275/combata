@@ -88,16 +88,15 @@ function hasNameToken(tokens, ...values) {
 
 function isCollisionProxyComponent(item) {
   const name = String(item?.name || '').trim().toLowerCase();
-  const path = String(item?.nodePath || '').toLowerCase();
-  if (/^(?:col_|trim_|window_|roof_detail|sign|awning)/.test(name) || /^room_\\d+_marker$/.test(name)) return true;
-  if (/(?:^|\\s\\/\\s|\\/)collision_proxies(?:\\s\\/\\s|\\/|$)/i.test(path)) return true;
+  const pathParts = String(item?.nodePath || '').toLowerCase().split(' / ').map(part => part.trim());
+  if (/^(?:col_|trim_|window_|roof_detail|sign|awning)/.test(name) || /^room_\d+_marker$/.test(name)) return true;
+  if (pathParts.some(part => part === 'collision_proxies' || part.startsWith('col_'))) return true;
   // process-glbs marks door meshes as collisionProxy so they do not become
   // solid boxes. They must remain visible to semantic door calibration.
   const explicitDoor = /^(?:door|doorpanel|door_panel)(?:_|$)/.test(name)
-    || /(?:^|\\s\\/\\s)door_[^/]*(?:\\s\\/\\s|$)/.test(path);
+    || pathParts.some(part => /^door_[^/]+$/.test(part));
   return item?.collisionProxy === true && !explicitDoor;
 }
-
 function isPlausibleWheelGeometry(item) {
   const dimensions = vectorSize(item).map(Math.abs).sort((a, b) => a - b);
   if (dimensions.length !== 3 || dimensions[0] <= 1e-8 || dimensions[2] <= 1e-8) return false;
