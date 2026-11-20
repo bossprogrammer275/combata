@@ -675,6 +675,18 @@ export class Civilians {
 
   playerPosition() { return this.player?.pos || new THREE.Vector3(); }
 
+  cycleNearbyProfile(position = this.playerPosition(), maxDistance = 8) {
+    const nearby = this.nearest(position, maxDistance)?.civilian;
+    if (!nearby?.ch?.setProfile) return null;
+    const order = ['civilian', 'worker', 'aggressive', 'police'];
+    const current = nearby.ch.profile?.id || 'civilian';
+    const index = Math.max(0, order.indexOf(current));
+    const next = order[(index + 1) % order.length];
+    if (!nearby.ch.setProfile(next)) return null;
+    nearby.profileId = next;
+    return { npc: nearby, profileId: next };
+  }
+
   nearest(position = this.playerPosition(), maxDistance = P.interactionLookRadius) {
     let best = null, distance = maxDistance;
     for (const npc of this.list) {
