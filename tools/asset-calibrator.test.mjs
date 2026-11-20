@@ -419,6 +419,7 @@ test('approved interaction, traversal, road and bridge edits survive an unchange
     bridge: {
       sections: [
         { id: 'bridge-main', connection: approvedBridgeConnection },
+        { id: 'bridge-abutment', connection: approvedBridgeConnection },
       ],
     },
   };
@@ -469,6 +470,11 @@ test('approved interaction, traversal, road and bridge edits survive an unchange
         connection: { status: 'estimated', accepted: false, requiresReview: true },
         requiresReview: true,
       },
+      {
+        id: 'bridge-abutment',
+        connection: { status: 'estimated', accepted: false, requiresReview: true },
+        requiresReview: true,
+      },
     ],
   };
 
@@ -494,6 +500,7 @@ test('approved interaction, traversal, road and bridge edits survive an unchange
   assert.equal(components[1].runtimeEnabled, true);
   assert.equal(components[1].requiresReview, false);
   assert.deepEqual(bridge.sections[0].connection, approvedRoadConnection);
+  assert.deepEqual(bridge.sections[1].connection, approvedBridgeConnection);
   assert.equal(bridge.requiresReview, false);
 });
 
