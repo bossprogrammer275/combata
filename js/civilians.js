@@ -1,6 +1,6 @@
 import * as THREE from "./lib/three.module.js";
-import { NpcCharacter, preloadNpcBase, preloadNpcAnimations } from "./npc-character.js";
-import { NPC_GLOBAL_CONFIG as C, NPC_DEFAULT_ROUTES } from "./npc-config.js";
+import { NpcInstance, preloadNpcBase } from "./npc-system/npc-instance.js";
+import { NPC_SYSTEM_CONFIG as C, NPC_DEFAULT_ROUTES } from "./npc-system/profile-registry.js";
 
 const P = C.physics;
 const POP = C.population;
@@ -33,8 +33,8 @@ export class Civilian {
     this.manager = manager;
     this.scene = manager.scene;
     this.world = manager.world;
-    this.modelId = "civilian_002";
-    this.name = "Civilian 002";
+    this.modelId = C.modelId;
+    this.name = "Ilorin Civilian";
     this.route = route;
     this.routeIndex = index;
     this.pos = new THREE.Vector3(point.x, point.y, point.z);
@@ -60,9 +60,9 @@ export class Civilian {
     this.activityTarget = null;
     this.socialPartner = null;
     this.phoneCooldown = 7 + Math.random() * 14;
-    this.ch = new NpcCharacter(C.modelId);
+    this.ch = new NpcInstance(C.defaultProfile);
     this.root = this.ch.root;
-    this.root.name = "civilian_002";
+    this.root.name = "NPC_Core_Civilian";
     this.root.position.copy(this.pos);
     this.root.rotation.y = Math.PI;
     this.scene.add(this.root);
@@ -78,6 +78,20 @@ export class Civilian {
     if (this.activityObject?.reservedBy === this) this.activityObject.reservedBy = null;
     this.activityObject = null;
     this.activityTarget = null;
+  }
+
+  _snapToAnchor(anchor) {
+    if (!anchor) return false;
+    const point = anchor.clone ? anchor.clone() : new THREE.Vector3(
+      Number(anchor.x) || 0,
+      Number.isFinite(anchor.y) ? anchor.y : this.pos.y,
+      Number(anchor.z) || 0
+    );
+    const snapped = this.manager.physics?.setNpcControllerPosition?.(this.body, point.x, point.y, point.z);
+    this.pos.copy(snapped || point);
+    this.velocity.set(0, 0, 0);
+    this.root.position.copy(this.pos);
+    return true;
   }
 
   fleeFrom(source, radius = P.fleeRadius) {
@@ -153,7 +167,7 @@ export class Civilian {
       this.velocity.set(0, 0, 0);
       this._releaseObject();
       this.manager.endSocial(this);
-      this.ch.play("fall_death", { loop: false });
+      this.ch.play("death_candidate", { loop: false });
       this.manager.onCasualty?.(this);
       return true;
     }
@@ -183,7 +197,7 @@ export class Civilian {
         this.vehicleSource = vehicle.pos;
         if (distance < edge + 0.9 && this.jumpT <= 0) {
           this.jumpT = 0.72;
-          this.ch.play("jump", { loop: false });
+          if (this.ch.currentAnimation === "idle") this.ch.play("jump_idle", { loop: false, fromIdle: true });
         }
       }
     }
@@ -258,13 +272,16 @@ export class Civilian {
         this.face(this.activityObject?.position || this.activityTarget);
         const kind = this.activityObject?.kind;
         if (kind === "seat") {
-          this.activity = "sitDown";
-          this.activityT = 1.15;
-          this.ch.play("sit_down", { loop: false });
+          const seat = this.activityObject;
+          this._snapToAnchor(seat.sitPosition || this.activityTarget);
+          this.face(seat.position || this.activityTarget);
+          this.activity = "seated";
+          this.activityT = 6 + Math.random() * 10;
+          this.ch.play("sit_idle", { loop: true });
         } else {
           this.activity = "using";
           this.activityT = kind === "phone" ? 4.2 : 3.4;
-          this.ch.play(kind === "phone" ? "phone" : "talk", { loop: true });
+          this.ch.play("idle", { loop: true });
         }
       } else {
         const desired = delta.normalize().multiplyScalar(P.walkSpeed);
@@ -280,15 +297,10 @@ export class Civilian {
       return true;
     }
     this.activityT -= dt;
-    if (this.activity === "sitDown" && this.activityT <= 0) {
-      this.activity = "seated";
-      this.activityT = 6 + Math.random() * 10;
-      this.ch.play("sit_idle", { loop: true });
-    } else if (this.activity === "seated" && this.activityT <= 0) {
-      this.activity = "standing";
-      this.activityT = 1.1;
-      this.ch.play("get_up", { loop: false });
-    } else if (this.activity === "standing" && this.activityT <= 0) {
+    if (this.activity === "seated" && this.activityT <= 0) {
+      const seat = this.activityObject;
+      const exitAnchor = seat?.exitPosition || seat?.standPosition || seat?.approachPosition || this.activityTarget;
+      this._snapToAnchor(exitAnchor);
       this._finishActivity();
     } else if (this.activity === "using" && this.activityT <= 0) {
       this._finishActivity();
@@ -345,10 +357,6 @@ export class Civilian {
     if (this.interactionT > 0 && this.fleeT <= 0 && player) {
       this.interactionT -= d;
       this.face(player.pos);
-      if (this.interactionPhase === "wave" && this.interactionT < C.interaction.duration - C.interaction.waveSeconds) {
-        this.interactionPhase = "talk";
-        this.ch.play("talk", { loop: true });
-      }
       if (this.interactionT <= 0) {
         this.interactionPhase = "";
         this.state = "idle";
@@ -427,16 +435,6 @@ export class Civilian {
       const object = this.manager.nearestUsableObject(this.pos, C.behaviour.objectUseDistance);
       if (object) this.startObjectActivity(object);
     }
-    if (this.fleeT <= 0 && this.state === "idle") {
-      this.phoneCooldown -= d;
-      if (this.phoneCooldown <= 0 && Math.random() < d * 0.5) {
-        this.activity = "using";
-        this.activityT = 3.5 + Math.random() * 2;
-        this.ch.play("phone", { loop: true });
-        this.phoneCooldown = C.behaviour.phoneCooldownMin + Math.random() * (C.behaviour.phoneCooldownMax - C.behaviour.phoneCooldownMin);
-      }
-    }
-
     const cap = this.fleeT > 0 ? P.fleeSpeed : (this.state === "walk" ? P.walkSpeed : 0);
     if (this.desired.lengthSq() > cap * cap) this.desired.setLength(cap);
     const routeY = this.route?.[this.routeIndex]?.y ?? this.pos.y;
@@ -454,8 +452,8 @@ export class Civilian {
       : this.fleeT > 0 ? (moved.speed >= P.sprintSpeed * 0.92 ? "sprint" : (this.ch.currentAnimation === "crouch_walk" && moved.collided ? "crouch_walk" : "run"))
         : moved.speed > 0.25 ? (this.state === "walk" ? "walk" : (moved.speed > P.runSpeed ? "run" : "walk")) : "idle";
     this.jumpT = Math.max(0, this.jumpT - d);
-    if (animation !== this.ch.currentAnimation && !["wave", "talk", "fall_death", "phone", "sit_down", "sit_idle", "get_up"].includes(this.ch.currentAnimation)) {
-      this.ch.play(animation, { loop: animation !== "jump" });
+    if (animation !== this.ch.currentAnimation && !["wave", "death_candidate", "sit_idle", "jump_idle"].includes(this.ch.currentAnimation)) {
+      this.ch.play(animation, { loop: animation !== "jump_idle", fromIdle: animation === "jump_idle" });
     }
     if (moved.speed > 0.1 && ["walk", "run", "sprint"].includes(animation)) {
       const reference = animation === "sprint" ? P.sprintSpeed : animation === "run" ? P.runSpeed : P.walkSpeed;
@@ -495,20 +493,18 @@ export class Civilians {
     this.currentConversation = null;
     this.ready = this.initialize().catch(error => {
       this.loadError = error;
-      console.error("[NPC] civilian_002 initialization failed.", error);
+      console.error("[NPC Core] civilian population initialization failed.", error);
       this.setPrompt("", false);
       return this;
     });
   }
 
   async initialize() {
-    await preloadNpcBase(C.modelId);
-    // Load every real clip from civilian_002's manifest, not only locomotion.
-    await preloadNpcAnimations(C.modelId);
+    await preloadNpcBase();
     this.buildRoutes();
     this.createUi();
     this.populateInitial();
-    console.info("[NPC] civilian_002 population ready: " + this.list.length);
+    console.info("[NPC Core] civilian population ready: " + this.list.length);
     return this;
   }
 
