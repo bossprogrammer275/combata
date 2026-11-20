@@ -1704,6 +1704,10 @@ export class World {
                 nodeKey,
                 _streamChunkKey: streamChunk?.key || null,
               });
+              // The rendered road GLB is still the authoritative Rapier
+              // triangle collider. These narrow proxies only answer ground
+              // height queries for pedestrians, traversal landings and steps.
+              this._addRoadSurfaceColliders(points, width, 0, false, 0.045);
             }
           }
           importedRoadMeshes++;
