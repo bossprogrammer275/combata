@@ -14,6 +14,60 @@ import {
   getCockpitLookAngles, resolveCockpitCameraProfile,
 } from './vehicle-cockpit.js';
 
+
+function readVehicleAnchorPosition(value) {
+  if (Array.isArray(value) && value.length >= 3
+    && value.slice(0, 3).every(Number.isFinite)) return value;
+  if (Array.isArray(value?.position) && value.position.length >= 3
+    && value.position.slice(0, 3).every(Number.isFinite)) return value.position;
+  if (value?.position && ['x', 'y', 'z'].every(key => Number.isFinite(Number(value.position[key])))) {
+    return [Number(value.position.x), Number(value.position.y), Number(value.position.z)];
+  }
+  if (value && ['x', 'y', 'z'].every(key => Number.isFinite(Number(value[key])))) {
+    return [Number(value.x), Number(value.y), Number(value.z)];
+  }
+  return null;
+}
+
+function collectVehicleInteractionAnchors(model, vehicleRoot) {
+  const output = {};
+  model.updateWorldMatrix(true, true);
+  vehicleRoot.updateWorldMatrix(true, true);
+  const keys = ['entry', 'exit', 'occupant', 'seat', 'handle', 'hinge'];
+  model.traverse(node => {
+    const spec = node.userData?.vehicleInteractable;
+    if (!spec || spec.accepted !== true || spec.coordinateSpace !== 'component-local') return;
+    const anchors = spec.anchors || {};
+    for (const key of keys) {
+      if (output[key]) continue;
+      const values = readVehicleAnchorPosition(anchors[key]);
+      if (!values) continue;
+      const world = node.localToWorld(new THREE.Vector3(values[0], values[1], values[2]));
+      output[key] = vehicleRoot.worldToLocal(world.clone());
+    }
+    for (const key of ['entry', 'exit', 'seatFacing']) {
+      const anchor = anchors[key];
+      const direction = anchor?.forward || anchor?.facing || anchor?.direction;
+      if (!direction || output[key + 'Forward']) continue;
+      const values = Array.isArray(direction)
+        ? direction
+        : [direction.x, direction.y, direction.z];
+      if (values.length < 3 || !values.slice(0, 3).every(value => Number.isFinite(Number(value)))) continue;
+      const origin = node.localToWorld(new THREE.Vector3());
+      const target = node.localToWorld(new THREE.Vector3(
+        Number(values[0]), Number(values[1]), Number(values[2]),
+      ));
+      const localOrigin = vehicleRoot.worldToLocal(origin.clone());
+      const localTarget = vehicleRoot.worldToLocal(target.clone());
+      const forward = localTarget.sub(localOrigin);
+      forward.y = 0;
+      if (forward.lengthSq() > 1e-6) output[key + 'Forward'] = forward.normalize();
+    }
+    output.sourceComponentId ||= spec.componentId || null;
+  });
+  return Object.keys(output).length ? output : null;
+}
+
 export { VEHICLE_COORDINATES };
 
 export const CAR_MODELS = {
@@ -1788,6 +1842,7 @@ export class VehicleSystem {
       });
       root.updateMatrixWorld(true);
       clone.updateMatrixWorld(true);
+      const interactionAnchors = collectVehicleInteractionAnchors(clone, root);
       const rootInverse = root.matrixWorld.clone().invert();
       clone.traverse((o) => {
         if (!(o.userData && o.userData.wheelPivot)) return;
@@ -1928,6 +1983,7 @@ export class VehicleSystem {
         def, root, rapierBody: null, physicsDynamic: false, suspensionReady,
         physicsCenterY, physicsBox, physicsWheels, physicsProfile, wheelCalibration,
         kind, wheels, steeringWheel, colBoxes, bodyBox, half,
+        interactionAnchors,
         yawOffset, parkedCol: null,
         baseInteriorCamera: { ...baseInteriorCamera },
         interiorCamera,
