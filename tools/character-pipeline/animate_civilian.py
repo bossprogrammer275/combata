@@ -177,6 +177,39 @@ def choose_animation_automatically(page, animations_mod, job):
         return None
 
 
+
+
+def wait_for_mixamo_page_ready(page):
+    """Give Mixamo's client app and account session time to finish hydrating."""
+    print("[Mixamo] Waiting for the page and account session to finish loading...")
+    try:
+        page.wait_for_load_state("domcontentloaded", timeout=60000)
+    except Exception as exc:
+        print(f"[Mixamo] DOM load wait reached its limit: {exc}")
+    try:
+        page.wait_for_function(
+            "() => document.readyState === 'complete'",
+            timeout=60000,
+        )
+    except Exception:
+        print("[Mixamo] Document did not report complete within 60s; continuing with app checks.")
+    # Mixamo loads several client-side resources after DOMContentLoaded. Give
+    # those resources time to hydrate; networkidle is best-effort because its
+    # analytics/session connections can remain active indefinitely.
+    try:
+        page.wait_for_load_state("networkidle", timeout=30000)
+    except Exception:
+        print("[Mixamo] Network did not become fully idle; continuing after the extended wait.")
+    page.wait_for_timeout(15000)
+    try:
+        page.wait_for_function(
+            "() => !!document.body && document.body.innerText.length > 20",
+            timeout=30000,
+        )
+    except Exception:
+        pass
+    print("[Mixamo] Extended page-load wait complete.")
+
 def robust_upload_file(page, path: str):
     """Upload without relying on Mixamo's old exact button label."""
     p = Path(path).resolve()
@@ -816,8 +849,8 @@ def main():
     page = browser.start()
     # No browser response listener is registered; the console owns all approvals.
     try:
-        page.goto("https://www.mixamo.com/", wait_until="domcontentloaded")
-        page.wait_for_load_state("networkidle")
+        page.goto("https://www.mixamo.com/", wait_until="domcontentloaded", timeout=90000)
+        wait_for_mixamo_page_ready(page)
         print(f"[Mixamo] Uploading Y-up OBJ package {SOURCE_BUNDLE.name}...")
         try:
             robust_upload_file(page, str(SOURCE_BUNDLE))
