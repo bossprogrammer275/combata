@@ -977,7 +977,9 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 - [x] Pass accepted building-door hinge/axis/handle metadata into building door records. Actual panel rotation and open/closed collision switching remain unfinished.
 - [x] Pass accepted vehicle occupant/entry/exit anchors into player vehicle interactions. Keep the existing wheel detector and dynamic chassis collision authoritative; vehicle-door hinge data is diagnostic only until door motion is implemented.
 - [x] Add unit-test coverage for trusted bridge/Road Pack/street-road classifications, curve/ramp policy, unknown road geometry, and NPC/vehicle anchor contracts.
-- [ ] Run `pnpm test:asset-calibration` and fix any failing cases.
+- [x] Run the calibration regression suite in GitHub Actions. Initial run exposed two classifier issues; token-safe road detection and explicit vehicle seat/door token detection were fixed. The corrected run passed all 9 tests.
+- [x] Run `node --check` for the calibrator, collision scan, validator, asset-calibration bridge, world, physics, vehicles, Asset Review UI and server through the same GitHub Actions job.
+- [x] Add `.github/workflows/asset-calibrator-tests.yml` so relevant future changes rerun the regression and syntax checks.
 - [ ] Generate, validate and visually review sidecars for the modular bridge kit, Road Pack, street-road asset, sidewalk pack, representative building/prop assets and all current vehicle GLBs/GLTFs.
 - [ ] Compare generated unified collision boxes against existing `*_col.json` sidecars and actual world behaviour before migrating or replacing any legacy sidecar.
 - [ ] Complete scale/origin/up-axis inference using trustworthy reference dimensions. Do not auto-rescale assets with unknown source units.
@@ -998,7 +1000,7 @@ pnpm test:asset-calibration
 pnpm dev
 ```
 
-The calibrator writes `scene_calibration.json` beside the source glTF and does not rewrite the model. The test command, calibrator and save API are committed, but they have not been executed against the actual asset files or game runtime in this session.
+The calibrator writes `scene_calibration.json` beside the source glTF and does not rewrite the model. The 9-case regression suite and syntax sweep passed in GitHub Actions run [44807947456](https://github.com/bossprogrammer275/combata/actions/runs/44807947456). No source-asset sidecars have yet been generated or reviewed, and no in-game collision/interaction test has been run.
 
 ### Phase 7 — Test world and surface engine
 
@@ -1061,8 +1063,8 @@ The core gameplay/test stage is not complete until:
 1. Read this entire `checklist.md` first.
 2. Treat `npc_core_001` as the only active humanoid asset; do not recreate the deleted legacy model folders or runtime modules.
 3. Inspect the current GitHub `main` branch and actual files before editing.
-4. Continue Phase 6A from its first unchecked item: run `pnpm test:asset-calibration`, generate and validate sidecars for the bridge kit, Road Pack, street-road, sidewalks, representative buildings/props and current vehicle assets, then inspect them in `/tools/asset-review.html`.
-5. Next implement actual door swing/open-state collision and the player/NPC traversal state machine that consumes the calibrated obstacle/ladder anchors and available NPC-core clips. Then run the map/browser physics tests for road grip, bridge support/deck/approach transitions, NPC seating, player collision and vehicle entry/exit. Do not mark any of those runtime gates complete until observed in-game.
+4. Continue Phase 6A from its first unchecked item: generate and validate sidecars for the bridge kit, Road Pack, street-road, sidewalks, representative buildings/props and current vehicle assets, then inspect/correct them in `/tools/asset-review.html`. The 9 regression tests and syntax check are already green in GitHub Actions run [44807947456](https://github.com/bossprogrammer275/combata/actions/runs/44807947456).
+5. Next implement actual door swing/open-state collision and the player/NPC traversal state machine that consumes calibrated obstacle/ladder anchors and the available NPC-core clips. Then run map/browser physics tests for road grip, bridge support/deck/approach transitions, NPC seating, player collision and vehicle entry/exit. Do not mark runtime gates complete until observed in-game.
 6. Keep NPC base-rig/animation verification open until its browser tests pass.
 6. Keep the scope on the core NPC/player foundation and compact test world. No story-mode work until the user changes scope.
 
