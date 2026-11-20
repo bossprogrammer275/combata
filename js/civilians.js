@@ -235,6 +235,8 @@ export class Civilian {
     let collided = false;
     if (moved?.position) {
       this.pos.copy(moved.position);
+      const actual = moved.movement || new THREE.Vector3();
+      collided = Math.hypot(dx - actual.x, dz - actual.z) > 0.075;
     } else {
       const steps = Math.max(1, Math.ceil(Math.hypot(dx, dz) / P.collisionSubstep));
       for (let i = 0; i < steps; i++) {
@@ -249,7 +251,191 @@ export class Civilian {
       }
       this.pos.y += (targetY - this.pos.y) * (1 - Math.exp(-8 * dt));
     }
-    return { speed: Math.hypot(this.velocity.x, this.velocity.z), collided };
+    if (collided) this._tryStartTraversal(desired);
+    return { speed: Math.hypot(this.velocity.x, this.velocity.z), collided, traversalStarted: !!this._traversal };
+  }
+
+  _tryStartTraversal(direction) {
+    if (this._traversal || !this.world?.findTraversalCandidateHit) return false;
+    const heading = direction?.lengthSq?.() > 0.02
+      ? Math.atan2(-direction.x, -direction.z) : this.yaw;
+    const hit = this.world.findTraversalCandidateHit(this.pos, heading, 1.55);
+    const candidate = hit?.candidate;
+    if (!hit || !candidate || !candidate.accepted || candidate.requiresReview) return false;
+    const anchors = candidate.anchors || {};
+    if (anchors.approach && this.pos.distanceTo(anchors.approach) > 0.85) return false;
+
+    const facing = anchors.planeNormal || hit.normal;
+    const normal = hit.normal?.clone?.() || new THREE.Vector3(facing.x, facing.y, facing.z);
+    normal.y = 0;
+    if (normal.lengthSq() < 1e-5) return false;
+    normal.normalize();
+
+    const plan = candidate.actionCandidate === "ladder-climb"
+      ? buildLadderTraversalPath({
+          start: this.pos,
+          mountBottom: anchors.mountBottom,
+          mountTop: anchors.mountTop,
+          climbPath: anchors.climbPath,
+          topOut: anchors.topOut,
+          bottomDismount: anchors.bottomDismount,
+          rungSpacing: anchors.rungSpacing,
+          boneContacts: anchors.boneContacts,
+          cycleDuration: candidate.animation?.cycleSeconds,
+        })
+      : candidate.actionCandidate === "obstacle-climb"
+        ? buildObstacleClimbPath({
+            start: this.pos,
+            bounds: candidate,
+            normal,
+            radius: P.radius,
+            height: P.height,
+            maxRise: Math.min(2.35, P.height + 0.55),
+            rootPath: anchors.rootPath,
+            handContact: anchors.handContact,
+            landing: anchors.landing,
+            boneContacts: anchors.boneContacts,
+            duration: candidate.animation?.durationSeconds,
+          })
+        : null;
+    if (!plan || !this.world.isTraversalPathClear(plan.path, P.radius, P.height)
+      || !this.world.hasTraversalSupport(plan.landing, P.radius)) return false;
+
+    const state = {
+      plan,
+      candidate,
+      normal,
+      elapsed: 0,
+      lastSafePosition: this.pos.clone(),
+      appliedContacts: new Set(),
+      contactMisses: 0,
+      animationReady: false,
+      animationFailed: false,
+      completed: false,
+      aborted: false,
+      resumeState: this.state,
+    };
+    this._traversal = state;
+    this.velocity.set(0, 0, 0);
+    this.desired.set(0, 0, 0);
+    this.yaw = Math.atan2(facing.x, facing.z);
+    this.state = "climb";
+    if (this.body) this.manager.physics.setNpcControllerPosition(this.body, this.pos.x, this.pos.y, this.pos.z);
+    this.ch.play(plan.animation, { loop: plan.animation === "ladder_climb_up" }).then(ok => {
+      if (this._traversal !== state) return;
+      state.animationReady = ok !== false;
+      state.animationFailed = ok === false;
+    }).catch(() => {
+      if (this._traversal === state) state.animationFailed = true;
+    });
+    return true;
+  }
+
+  _moveTraversalTo(target, tolerance = 0.12) {
+    if (!target) return false;
+    const dx = target.x - this.pos.x, dy = target.y - this.pos.y, dz = target.z - this.pos.z;
+    if (Math.hypot(dx, dy, dz) < 1e-5) return true;
+    if (this.body) {
+      const moved = this.manager.physics.moveNpcController(this.body, dx, dy, dz);
+      if (!moved?.position || moved.position.distanceTo(target) > tolerance) return false;
+      this.pos.copy(moved.position);
+      this.manager.physics.setNpcControllerPosition(this.body, this.pos.x, this.pos.y, this.pos.z);
+    } else {
+      if (!this.world.isCapsuleClearAt(target, P.radius, P.height)) return false;
+      this.pos.copy(target);
+    }
+    return true;
+  }
+
+  _applyTraversalBoneContacts(state) {
+    const contacts = state.plan.boneContacts || [];
+    const progress = clamp(state.elapsed / state.plan.duration, 0, 1);
+    for (let index = 0; index < contacts.length; index++) {
+      if (state.appliedContacts.has(index)) continue;
+      const contact = contacts[index];
+      if (progress + 0.012 < Number(contact.t)) continue;
+      state.appliedContacts.add(index);
+      const offset = this.ch.getBoneOffsetFromRoot?.(contact.bone);
+      if (!offset || !contact.position) { state.contactMisses++; continue; }
+      const desired = new THREE.Vector3(
+        contact.position.x - offset.x,
+        contact.position.y - offset.y,
+        contact.position.z - offset.z,
+      );
+      const error = desired.distanceTo(this.pos);
+      const maximum = clamp(Number(contact.maxCorrection) || 0.28, 0.05, 0.45);
+      if (error > maximum || !this.world.isCapsuleClearAt(desired, P.radius, P.height)
+        || !this._moveTraversalTo(desired, 0.06)) {
+        state.contactMisses++;
+        continue;
+      }
+      state.lastSafePosition.copy(this.pos);
+      this.root.position.copy(this.pos);
+    }
+  }
+
+  _finishTraversal(aborted = false) {
+    const state = this._traversal;
+    if (!state) return;
+    if (aborted) {
+      this.pos.copy(state.lastSafePosition);
+      if (this.body) this.manager.physics.setNpcControllerPosition(this.body, this.pos.x, this.pos.y, this.pos.z);
+      const support = this.world.groundHeightAt(this.pos.x, this.pos.z, this.pos.y + 0.25);
+      this.onGround = Math.abs(support - this.pos.y) <= 0.16;
+    }
+    this._traversal = null;
+    this.velocity.set(0, 0, 0);
+    this.desired.set(0, 0, 0);
+    this.state = this.fleeT > 0 ? "flee" : (state.resumeState === "walk" ? "walk" : "idle");
+    this.root.position.copy(this.pos);
+    this.root.rotation.y = this.yaw + Math.PI;
+    const nextAnimation = this.fleeT > 0 ? "run" : this.state === "walk" ? "walk" : "idle";
+    this.ch.play(nextAnimation, { loop: true });
+  }
+
+  _updateTraversal(dt) {
+    const state = this._traversal;
+    if (!state) return false;
+    if (state.animationFailed) {
+      this._finishTraversal(true);
+      return false;
+    }
+    if (!state.animationReady) {
+      this.root.position.copy(this.pos);
+      this.root.rotation.y = this.yaw + Math.PI;
+      this.ch.update(dt);
+      return true;
+    }
+
+    state.elapsed = Math.min(state.plan.duration, state.elapsed + dt);
+    const progress = clamp(state.elapsed / state.plan.duration, 0, 1);
+    const target = sampleTimedPath(state.plan.path, progress);
+    if (!target || !this.world.isCapsuleClearAt(target, P.radius, P.height)
+      || !this._moveTraversalTo(target)) {
+      this._finishTraversal(true);
+      return false;
+    }
+    if (!this.world.isCapsuleClearAt(this.pos, P.radius, P.height)) {
+      this._finishTraversal(true);
+      return false;
+    }
+
+    this.root.position.copy(this.pos);
+    this.root.rotation.y = this.yaw + Math.PI;
+    this.ch.update(dt);
+    this._applyTraversalBoneContacts(state);
+
+    if (progress >= 1 - 1e-5) {
+      const landing = state.plan.landing || target;
+      if (this.pos.distanceTo(landing) > 0.16 || !this.world.hasTraversalSupport(this.pos, P.radius)) {
+        this._finishTraversal(true);
+        return false;
+      }
+      this._finishTraversal(false);
+      return false;
+    }
+    state.lastSafePosition.copy(this.pos);
+    return true;
   }
 
   _finishActivity() {
@@ -292,6 +478,7 @@ export class Civilian {
       } else {
         const desired = delta.normalize().multiplyScalar(P.walkSpeed);
         const moved = this._move(dt, desired, this.pos.y);
+        if (this._traversal) { this._updateTraversal(dt); return true; }
         if (moved.speed > 0.1) this.yaw += angleDelta(this.yaw, Math.atan2(-this.velocity.x, -this.velocity.z)) * (1 - Math.exp(-P.turnResponse * dt));
         this.root.position.copy(this.pos);
         this.root.rotation.y = this.yaw + Math.PI;
@@ -328,6 +515,7 @@ export class Civilian {
       this.ch.update(d);
       return this.deathT >= POP.keepDeadSeconds;
     }
+    if (this._traversal) return this._updateTraversal(d);
     const player = context.player;
     const playerDistance = player ? this.pos.distanceTo(player.pos) : Infinity;
 
@@ -380,6 +568,7 @@ export class Civilian {
       away.y = 0;
       if (away.lengthSq() > 0.001) this.desired.copy(away.normalize()).multiplyScalar(1.4);
       const moved = this._move(d, this.desired, this.pos.y);
+      if (this._traversal) { this._updateTraversal(d); return false; }
       this.desired.set(0, 0, 0);
       if (this.activityT <= 0) {
         this.activity = "";
@@ -445,6 +634,7 @@ export class Civilian {
     if (this.desired.lengthSq() > cap * cap) this.desired.setLength(cap);
     const routeY = this.route?.[this.routeIndex]?.y ?? this.pos.y;
     const moved = this._move(d, this.desired, routeY);
+    if (this._traversal) { this._updateTraversal(d); return false; }
     if (moved.collided && this.fleeT > 0 && this.activity !== "crouchEscape") {
       this.ch.play("crouch_walk", { loop: true });
     }
