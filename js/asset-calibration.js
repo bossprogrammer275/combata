@@ -1,0 +1,117 @@
+// Runtime bridge between calibrated source assets and gameplay systems.
+// Calibration is metadata-only: source geometry and transforms are never rewritten.
+const calibrationPromises = new Map();
+
+function canonicalAssetUrl(value) {
+  return String(value || '').split(/[?#]/, 1)[0].replace(/^\.\//, '').replace(/^\//, '');
+}
+
+export function getAssetCalibrationUrl(assetUrl) {
+  const clean = canonicalAssetUrl(assetUrl);
+  if (!/\.(glb|gltf)$/i.test(clean)) return null;
+  return './' + clean.replace(/\.(glb|gltf)$/i, '_calibration.json');
+}
+
+export function getAssetNodeKey(root, node) {
+  const parts = [];
+  let current = node;
+  while (current && current !== root) {
+    const parent = current.parent;
+    const index = parent ? parent.children.indexOf(current) : 0;
+    parts.unshift(`${current.name || current.type || 'node'}[${index}]`);
+    current = parent;
+  }
+  return parts.join('/');
+}
+
+export function resolveAssetCalibrationNode(root, key) {
+  if (!root || !key) return null;
+  if (root.userData?.assetCalibrationNodeMap instanceof Map) {
+    return root.userData.assetCalibrationNodeMap.get(key) || null;
+  }
+  let found = null;
+  root.traverse(node => {
+    if (!found && getAssetNodeKey(root, node) === key) found = node;
+  });
+  return found;
+}
+
+export async function loadAssetCalibration(assetUrl, options = {}) {
+  const url = getAssetCalibrationUrl(assetUrl);
+  if (!url || typeof fetch !== 'function') return null;
+  if (options.force) calibrationPromises.delete(url);
+  let pending = calibrationPromises.get(url);
+  if (!pending) {
+    pending = fetch(url, { cache: options.force ? 'no-cache' : 'force-cache' })
+      .then(response => response.ok ? response.json() : null)
+      .then(data => {
+        if (!data || data.schemaVersion !== 1 || data.kind !== 'open-world-asset-calibration') return null;
+        const expected = canonicalAssetUrl(assetUrl);
+        const actual = canonicalAssetUrl(data.source?.assetUrl);
+        if (!actual || actual !== expected) {
+          console.warn('[AssetCalibration] Sidecar/source mismatch:', assetUrl, data.source?.assetUrl);
+          return null;
+        }
+        return data;
+      })
+      .catch(error => {
+        if (options.logMissing) console.warn('[AssetCalibration] Sidecar unavailable:', url, error);
+        return null;
+      });
+    calibrationPromises.set(url, pending);
+  }
+  return pending;
+}
+
+export function applyAssetCalibration(root, calibration) {
+  if (!root || !calibration || calibration.schemaVersion !== 1) {
+    return { profile: null, nodesByKey: new Map(), componentsByRole: new Map() };
+  }
+
+  const nodesByKey = new Map();
+  root.traverse(node => nodesByKey.set(getAssetNodeKey(root, node), node));
+  const componentsByRole = new Map();
+
+  for (const component of calibration.components || []) {
+    const node = nodesByKey.get(component.nodeKey);
+    if (!node) continue;
+    const record = {
+      id: component.id || component.nodeKey,
+      role: component.role || 'unclassified',
+      kind: component.kind || null,
+      confidence: Number(component.confidence) || 0,
+      requiresReview: component.requiresReview !== false,
+      source: 'asset-calibration',
+    };
+    node.userData ||= {};
+    node.userData.assetCalibration = record;
+
+    // Only manually accepted interaction anchors become runtime interactables.
+    // Guessed seat centres/hinges must not silently move the player or NPC.
+    if (component.interaction?.accepted === true && component.interaction.kind) {
+      node.userData.npcInteractable = {
+        kind: component.interaction.kind,
+        label: component.interaction.label || component.interaction.kind,
+        useRadius: component.interaction.useRadius,
+        approachOffset: component.interaction.approachOffset || null,
+        sitOffset: component.interaction.sitOffset || null,
+      };
+    }
+
+    let bucket = componentsByRole.get(record.role);
+    if (!bucket) componentsByRole.set(record.role, bucket = []);
+    bucket.push({ node, component, record });
+  }
+
+  root.userData ||= {};
+  root.userData.assetCalibration = calibration;
+  root.userData.assetCalibrationNodeMap = nodesByKey;
+  root.userData.assetCalibrationComponentsByRole = componentsByRole;
+  return { profile: calibration, nodesByKey, componentsByRole };
+}
+
+export function getCalibratedComponents(root, role) {
+  const roles = root?.userData?.assetCalibrationComponentsByRole;
+  if (!(roles instanceof Map)) return [];
+  return role ? (roles.get(role) || []) : [...roles.values()].flat();
+}
