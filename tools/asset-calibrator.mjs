@@ -120,8 +120,8 @@ function classifyComponent(item, assetType, assetPath) {
 }
 
 function localConnection(item, longitudinalAxis, sectionKind = 'straight-span') {
-  if (sectionKind.includes('curve') || !['x', 'z'].includes(longitudinalAxis)) {
-    return { status: 'review-required', method: 'not-estimated-for-curved-or-unknown-axis' };
+  if (sectionKind.includes('curve') || sectionKind.includes('sloped') || sectionKind.includes('ramp') || !['x', 'z'].includes(longitudinalAxis)) {
+    return { status: 'review-required', method: 'not-estimated-for-curved-or-unknown-axis', requiresReview: true };
   }
   const min = item.boundsMin;
   const max = item.boundsMax;
@@ -200,6 +200,7 @@ function buildRoadProfiles(assetType, components, meshByKey) {
       connection,
       confidence: component.confidence,
       requiresReview: component.requiresReview || connection.requiresReview === true,
+      runtimeEnabled: component.runtimeEnabled === true,
     };
   });
 
@@ -227,7 +228,7 @@ function buildBridgeProfile(components, meshByKey) {
       longitudinalAxis: section.longitudinalAxis,
       deckComponent: deck ? { nodeKey: deck.nodeKey, role: deck.role } : null,
       structureComponent: structure ? { nodeKey: structure.nodeKey, role: structure.role } : null,
-      measuredDeckBounds: mesh?.bounds || null,
+      measuredDeckBounds: mesh ? { min: mesh.boundsMin, max: mesh.boundsMax, size: mesh.dimensions } : null,
       measuredDeckHeightSourceUnits: mesh?.boundsMax?.[1] ?? null,
       referenceDeckHeightMetres: WORLD_KIT_DECK_HEIGHT,
       connection,
@@ -265,10 +266,16 @@ function makeComponent(item, role, index) {
       size: item.dimensions,
       center: item.center,
     },
-    requiresReview: true,
+    requiresReview: !(role?.source?.startsWith('world-kit') || role?.source === 'world-bridge-kit'),
   };
   const interaction = interactionSpec(component);
-  if (interaction) component.interaction = interaction;
+  if (interaction) {
+    component.interaction = interaction;
+    component.requiresReview = true;
+  }
+  component.runtimeEnabled = !component.requiresReview && [
+    'bridge-deck', 'road-straight-module', 'road-corner-module', 'walkable-surface',
+  ].includes(component.role);
   return component;
 }
 
@@ -286,15 +293,8 @@ async function calibrateOne(file) {
     log: false,
     excludeMesh: item => {
       const role = classifyComponent(item, assetType, assetPath);
-      return role && (
-        role.role === 'bridge-deck' ||
-        role.role === 'bridge-deck-candidate' ||
-        role.role === 'road-surface' ||
-        role.role === 'road-surface-candidate' ||
-        role.role === 'road-straight-module' ||
-        role.role === 'road-corner-module' ||
-        role.role === 'walkable-surface'
-      );
+      return (role?.source?.startsWith('world-kit') || role?.source === 'world-bridge-kit')
+        && ['bridge-deck', 'road-straight-module', 'road-corner-module', 'walkable-surface'].includes(role.role);
     },
   });
 
@@ -372,9 +372,7 @@ async function calibrateOne(file) {
       coordinateSpace: 'model-local',
       boxes: collisionBoxes,
       boxCount: collisionBoxes.length,
-      excludedDriveableMeshKeys: components.filter(c =>
-        ['bridge-deck', 'bridge-deck-candidate', 'road-surface', 'road-surface-candidate', 'road-straight-module', 'road-corner-module', 'walkable-surface'].includes(c.role)
-      ).map(c => c.nodeKey),
+      excludedDriveableMeshKeys: components.filter(c => c.runtimeEnabled === true).map(c => c.nodeKey),
       exactSurfacePhysics: !!road,
       sourceSha256: hash,
     },
@@ -411,7 +409,6 @@ async function calibrateOne(file) {
       preservedManualReview: !!old,
     },
     scan: {
-      nodeCount: scanned.meshDetails.length,
       meshCount: scanned.meshDetails.length,
       collisionBoxCount: collisionBoxes.length,
       collisionStats: scanned.collisionStats,
