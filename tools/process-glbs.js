@@ -13,6 +13,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import fs from 'fs';
 import path from 'path';
 import { createHash } from 'node:crypto';
+import { pathToFileURL } from 'node:url';
 
 // Collision cell dimensions/thickness are derived from each source model's height
 // so they remain sensible after the game's targetH normalization.
@@ -413,7 +414,18 @@ async function processGLB(inputPath, options = {}) {
       collisionProxy: shouldSkip(obj),
       skinned: !!obj.isSkinnedMesh,
     });
-    if (shouldSkip(obj) || excludedNodeKeys.has(key)) return;
+    const excludedByRule = typeof options.excludeMesh === 'function'
+      && options.excludeMesh({
+        object: obj,
+        nodeKey: key,
+        nodePath: names,
+        name: obj.name || names.split(' / ').at(-1) || 'unnamed',
+        dimensions: meshSize.toArray(),
+        center: meshCenter.toArray(),
+        boundsMin: worldBox.min.toArray(),
+        boundsMax: worldBox.max.toArray(),
+      });
+    if (shouldSkip(obj) || excludedNodeKeys.has(key) || excludedByRule) return;
 
     const min = lb.min.clone().applyMatrix4(obj.matrixWorld);
     const max = lb.max.clone().applyMatrix4(obj.matrixWorld);
@@ -485,7 +497,7 @@ async function processGLB(inputPath, options = {}) {
 export { loadGLB, nodeKey, nodePath, processGLB };
 
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : '';
-const isDirectRun = invokedPath && import.meta.url === new URL(`file://${invokedPath}`).href;
+const isDirectRun = invokedPath && import.meta.url === pathToFileURL(invokedPath).href;
 if (isDirectRun) {
   const files = process.argv.slice(2);
   if (files.length === 0) {
