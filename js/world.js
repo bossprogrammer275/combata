@@ -5346,16 +5346,30 @@ export class World {
 }
 
 export function rayAABB(o, d, box, maxDist) {
+  if (!o || !d || !box?.min || !box?.max || !(Number(maxDist) >= 0)) return null;
   let tmin = 0, tmax = maxDist, axis = -1, sign = 0;
+  let movingAxes = 0;
   for (const ax of ['x', 'y', 'z']) {
-    const inv = 1 / d[ax];
-    let t0 = (box.min[ax] - o[ax]) * inv, t1 = (box.max[ax] - o[ax]) * inv;
-    let s = -1;
-    if (inv < 0) { [t0, t1] = [t1, t0]; s = 1; }
-    if (t0 > tmin) { tmin = t0; axis = ax; sign = s; }
+    const direction = Number(d[ax]) || 0;
+    const origin = Number(o[ax]);
+    const min = Number(box.min[ax]), max = Number(box.max[ax]);
+    if (![origin, min, max].every(Number.isFinite)) return null;
+    if (Math.abs(direction) < 1e-10) {
+      // A parallel ray must already lie inside this slab.
+      if (origin < min || origin > max) return null;
+      continue;
+    }
+    movingAxes++;
+    const inv = 1 / direction;
+    let t0 = (min - origin) * inv;
+    let t1 = (max - origin) * inv;
+    let normalSign = -1;
+    if (t0 > t1) { [t0, t1] = [t1, t0]; normalSign = 1; }
+    if (t0 > tmin) { tmin = t0; axis = ax; sign = normalSign; }
     tmax = Math.min(tmax, t1);
     if (tmax < tmin) return null;
   }
+  if (!movingAxes || tmax < 0 || tmin > maxDist) return null;
   const point = o.clone().addScaledVector(d, tmin);
   const normal = new THREE.Vector3();
   if (axis !== -1) normal[axis] = sign;
