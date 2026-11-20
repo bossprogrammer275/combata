@@ -154,10 +154,10 @@ function interactionSpec(component, assetType) {
   switch (component.kind) {
     case 'seat':
       return assetType === 'vehicle'
-        ? { kind: 'vehicle-seat', accepted: false, requiredAnchors: ['seat', 'entry', 'exit', 'seatFacing'] }
+        ? { kind: 'vehicle-seat', accepted: false, requiredAnchors: ['occupant', 'entry', 'exit', 'seatFacing'] }
         : { kind: 'seat', accepted: false, requiredAnchors: ['approach', 'pelvis', 'seatFacing', 'exit'] };
     case 'door':
-      return { kind: assetType === 'vehicle' ? 'vehicle-door' : 'door', accepted: false, requiredAnchors: ['hinge', 'hingeAxis', 'handle', 'closedTransform', 'openRange'] };
+      return { kind: assetType === 'vehicle' ? 'vehicle-door' : 'door', accepted: false, requiredAnchors: assetType === 'vehicle' ? ['hinge', 'hingeAxis', 'handle', 'entry', 'exit', 'closedTransform', 'openRange'] : ['hinge', 'hingeAxis', 'handle', 'closedTransform', 'openRange'] };
     case 'ladder':
       return { kind: 'ladder', accepted: false, requiredAnchors: ['mountBottom', 'mountTop', 'climbPath', 'topOut', 'bottomDismount'] };
     case 'stairs':
@@ -339,8 +339,28 @@ async function calibrateOne(file) {
   const priorComponents = new Map((old?.components || []).map(component => [component.nodeKey, component]));
   for (const component of components) {
     const previous = priorComponents.get(component.nodeKey);
-    if (previous?.interaction?.accepted === true) component.interaction = previous.interaction;
-    if (previous?.manual === true) component.manual = previous.manual;
+    if (previous?.interaction?.accepted === true) {
+      component.interaction = previous.interaction;
+      component.requiresReview = false;
+    }
+    if (previous?.manual === true) {
+      component.manual = true;
+      if (previous.requiresReview === false) component.requiresReview = false;
+      if (previous.runtimeEnabled === true) component.runtimeEnabled = true;
+      if (previous.role && previous.role !== 'unclassified') component.role = previous.role;
+      if (previous.kind && previous.kind !== 'unknown') component.kind = previous.kind;
+    }
+  }
+  const priorTraversal = new Map((old?.traversal || []).map(candidate => [candidate.nodeKey, candidate]));
+  for (const candidate of traversal) {
+    const previous = priorTraversal.get(candidate.nodeKey);
+    if (!previous) continue;
+    if (previous.accepted === true) {
+      candidate.accepted = true;
+      candidate.requiresReview = previous.requiresReview === false ? false : true;
+      if (previous.anchors) candidate.anchors = previous.anchors;
+      if (previous.manual === true) candidate.manual = true;
+    }
   }
 
   const collisionBoxes = isVehicle ? [] : scanned.manifest.boxes;
@@ -400,17 +420,28 @@ async function calibrateOne(file) {
         .map(c => ({ componentId: c.id, nodeKey: c.nodeKey, role: c.role, bounds: c.bounds, confidence: c.confidence, requiresReview: true })),
       note: 'Existing measured wheel classifier remains authoritative for wheel hardpoints; calibrated candidates are diagnostic until reviewed.',
     } : null,
-    review: {
-      status: 'needs-review',
-      approved: false,
-      outstanding: components.filter(c => c.requiresReview).map(c => ({
-        componentId: c.id,
-        nodeKey: c.nodeKey,
-        role: c.role,
-        reason: 'Confirm component identity, bounds, anchors and runtime behaviour in Asset Lab before accepting.',
-      })),
-      preservedManualReview: !!old,
-    },
+    review: (() => {
+      const outstanding = [
+        ...components.filter(component => component.requiresReview).map(component => ({
+          componentId: component.id,
+          nodeKey: component.nodeKey,
+          role: component.role,
+          reason: 'Confirm component identity, bounds, anchors and runtime behaviour in Asset Lab before accepting.',
+        })),
+        ...traversal.filter(candidate => candidate.requiresReview !== false).map(candidate => ({
+          componentId: candidate.componentId,
+          nodeKey: candidate.nodeKey,
+          role: candidate.actionCandidate,
+          reason: 'Confirm animation contact, player capsule clearance and landing support before enabling traversal.',
+        })),
+      ];
+      return {
+        status: outstanding.length ? 'needs-review' : 'approved',
+        approved: outstanding.length === 0,
+        outstanding,
+        preservedManualReview: !!old,
+      };
+    })(),
     scan: {
       meshCount: scanned.meshDetails.length,
       collisionBoxCount: collisionBoxes.length,
