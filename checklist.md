@@ -156,7 +156,7 @@ Do not make this a story interface. It is a development/test tool.
 - [x] Delete the obsolete `civilian_001`, `civilian_002` and `npc1` asset folders; `npc_core_001` is the sole active humanoid asset folder.
 - [x] Use MakeHuman for the source character and outfit.
 - [x] Export and retain the source OBJ/MTL and texture set.
-- [ ] Verify that the 20.5 MB `Idle.fbx` candidate is a skinned Mixamo base rig; file size alone is not proof.
+- [ ] Open `/npc-lab.html` and verify that the 20.5 MB `Idle.fbx` candidate is a skinned Mixamo base rig with all 15 required body landmarks (hips, spine, head, arms, forearms, hands, upper/lower legs and feet); file size alone is not proof.
 - [ ] Verify all 28 FBXs bind to the same skeleton.
 - [x] Record the base-rig candidate, 1.74m target height, 28-file inventory and first-pass motion measurements in the manifest.
 - [x] Normalize model bounds and feet-to-ground origin in the runtime loader (visual confirmation pending).
