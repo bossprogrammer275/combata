@@ -7,6 +7,7 @@ on:
       - 'tools/asset-calibrator.mjs'
       - 'tools/process-glbs.js'
       - 'tools/validate-asset-calibration.mjs'
+      - 'tools/compare-asset-calibrations.mjs'
       - 'data/models/assets/**'
       - 'data/models/cars/**'
       - '.github/workflows/asset-calibration-generate.yml'
@@ -40,6 +41,7 @@ jobs:
           node --check tools/asset-calibrator.mjs
           node --check tools/process-glbs.js
           node --check tools/validate-asset-calibration.mjs
+          node --check tools/compare-asset-calibrations.mjs
       - name: Calibrate representative source assets
         env:
           ASSET_PATH: ${{ inputs.asset_path || '' }}
@@ -50,16 +52,14 @@ jobs:
             node tools/asset-calibrator.mjs "$ASSET_PATH"
           else
             node tools/asset-calibrator.mjs \
-              data/models/assets/others/modular_bridge__low_poly__game_ready_ \
-              data/models/assets/others/bridge_road_lowpoly.glb \
-              data/models/assets/roads/road_pack \
-              data/models/assets/roads/street_road \
-              data/models/assets/roads/sidewalks \
-              data/models/assets/others/stair.glb \
-              data/models/assets/others/ladder.glb \
-              data/models/assets/others/wooden_ladder.glb \
-              data/models/assets/others/plastic_chair.glb \
-              data/models/assets/others/wooden_bench.glb \
+              data/models/assets/others \
+              data/models/assets/road.glb \
+              data/models/assets/ilorin_innovation_hub.glb \
+              data/models/assets/kwara_revenue_house.glb \
+              data/models/assets/low_poly_skyscraper.glb \
+              data/models/assets/low_poly_street_light.glb \
+              data/models/assets/coconut_tree_low_poly.glb \
+              data/models/assets/tree_low-poly.glb \
               data/models/assets/buildings \
               data/models/cars
           fi
@@ -89,6 +89,14 @@ jobs:
           echo "Validated $count generated sidecars. The source models were not modified." >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Sidecars are review-only until manual anchors and runtime profiles are approved in Asset Review." >> "$GITHUB_STEP_SUMMARY"
+      - name: Compare project buildings with legacy collision sidecars
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tools/compare-asset-calibrations.mjs \
+            data/models/assets/ilorin_innovation_hub.glb \
+            data/models/assets/kwara_revenue_house.glb \
+            data/models/assets/low_poly_skyscraper.glb
       - name: Upload calibration sidecars
         if: always()
         uses: actions/upload-artifact@v4
