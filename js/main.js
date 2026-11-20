@@ -199,7 +199,7 @@ class Game {
     this.vehicles = new VehicleSystem(this.scene, this.world, this.camera, this.audio, this.physics);
     const vehicleStartup = this.vehicles.buildFromWorld();
     this.vehicles.setPlayerRef(this.player);
-    setLoad(0.74, 'LOADING VEHICLES & CIVILIAN 002…');
+    setLoad(0.74, 'LOADING VEHICLES & NPC CORE…');
     this.civilians = new Civilians(this.scene, this.world, {
       quality,
       physics: this.physics,
@@ -1182,7 +1182,7 @@ class Game {
       switch (e.code) {
         case 'ShiftLeft': case 'ShiftRight': I.sprint = true; break;
         case 'Space': I.jump = true; e.preventDefault(); break;
-        case 'KeyR': if (this.state === 'playing' && !this.player.skydive && !(this.vehicles && this.vehicles.driver)) this.weapons.startReload(); break;
+        case 'KeyR': if (this.state === 'playing' && !this.player.skydive && !(this.vehicles && this.vehicles.driver)) this.weapons.startReload(this); break;
         case 'KeyX': if (this.state === 'playing' && !this.player.skydive && !(this.vehicles && this.vehicles.driver)) this.input.throwGrenade = true; break;
         case 'KeyF': if (this.state === 'playing' && this.nearLoot) this.lootPickup(); else I.climb = true; e.preventDefault(); break;
         case 'KeyZ': if (this.state === 'playing') I.climb = true; e.preventDefault(); break;
