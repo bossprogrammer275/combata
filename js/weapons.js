@@ -75,7 +75,11 @@ export class WeaponSystem {
   }
 
   equip(i, instant = false) {
-    if (this.state && this.state.reloading) this.state.reloading = false;
+    if (this.state && this.state.reloading) {
+      this.state.reloading = false;
+      this._reloadPlayer?.setReloading?.(false);
+      this._reloadPlayer = null;
+    }
     if (this.mesh) this.rig.remove(this.mesh);
     this.current = i;
     const d = this.defs[i];
@@ -99,12 +103,25 @@ export class WeaponSystem {
     if (n !== this.current) { this.audio.reload(1); this.equip(n); }
   }
 
-  startReload() {
+  startReload(game) {
     const d = this.def, s = this.state;
-    if (s.reloading || s.mag >= d.mag || s.reserve <= 0) return;
-    s.reloading = true; s.reloadT = d.reloadTime;
+    const player = game?.player;
+    if (s.reloading || s.mag >= d.mag || s.reserve <= 0 || !player) return false;
+    const horizontalSpeed = Math.hypot(player.vel?.x || 0, player.vel?.z || 0);
+    const standingIdle = player.onGround && !player.crouched && !player.sprinting
+      && !player.climbing && !player.stairClimbing && !player.skydive
+      && horizontalSpeed < 0.14 && (player.aimAmount || 0) < 0.12;
+    if (!standingIdle) {
+      this.hud.showReloadHint?.(true);
+      return false;
+    }
+    s.reloading = true;
+    s.reloadT = d.id === 'rifle' ? 3.3 : d.reloadTime;
+    this._reloadPlayer = player;
+    player.setReloading?.(true);
     this.audio.reload(0);
     this.hud.setReloading(true);
+    return true;
   }
 
   update(dt, input, enemies, onKill, game) {
@@ -121,13 +138,15 @@ export class WeaponSystem {
         const take = Math.min(need, s.reserve);
         s.mag += take; s.reserve -= take;
         s.reloading = false;
+        this._reloadPlayer?.setReloading?.(false);
+        this._reloadPlayer = null;
         this.audio.reload(1);
         this.hud.setReloading(false);
         this.hud.setWeapon(d, s);
       }
     } else if (s.mag <= 0 && s.reserve > 0 && d.type !== 'grenade') {
       // automatic reload when the magazine runs dry
-      this.startReload();
+      this.startReload(game);
     }
 
     // ADS
