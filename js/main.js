@@ -160,10 +160,8 @@ class Game {
       this.physics = new Physics();
       await Physics.init();
       this.physics.createWorld();
-      this.physics.registerStaticBatch(this.world.colliders);
-      this.physics.registerStaticRoadMeshes(this.world.roadPhysicsMeshes);
+      this.world.registerStreamingPhysics(this.physics);
       this.physics.addGroundPlane();
-      this.world._physics = this.physics;
       console.log('[Game] Rapier physics initialized');
     } catch (e) {
       console.warn('[Game] Rapier physics init failed, falling back to AABB collision:', e);
@@ -1663,6 +1661,9 @@ class Game {
         }
       }
     }
+
+    const streamingPosition = this.vehicles?.driver?.pos || this.player?.pos;
+    if (streamingPosition) this.world.updateStreaming(streamingPosition, dt);
 
     // update atmospheric sky (time-of-day, lighting, clouds)
     if (this.world.atmosphere) {

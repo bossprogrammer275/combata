@@ -69,6 +69,25 @@ export class World {
     this._roadPackPromise = null;
     this.bounds = sceneData && sceneData.bounds ? sceneData.bounds : (quality === 'ultra-low' ? 1000 : 2000);
     this._quality = quality;
+    const streamSpec = sceneData?.streaming || {};
+    const streamNumber = (value, fallback) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+    const chunkSize = THREE.MathUtils.clamp(streamNumber(streamSpec.chunkSize, 96), 48, 256);
+    const loadRadius = THREE.MathUtils.clamp(streamNumber(streamSpec.loadRadius, 160), 80, 512);
+    this._streamingConfig = {
+      enabled: streamSpec.enabled !== false,
+      chunkSize,
+      initialRadius: THREE.MathUtils.clamp(streamNumber(streamSpec.initialRadius, 112), 64, loadRadius),
+      loadRadius,
+      unloadRadius: Math.max(loadRadius + chunkSize * 0.5, streamNumber(streamSpec.unloadRadius, loadRadius + chunkSize * 1.25)),
+      updateInterval: THREE.MathUtils.clamp(streamNumber(streamSpec.updateInterval, 0.4), 0.15, 1.5),
+      assetConcurrency: Math.round(THREE.MathUtils.clamp(streamNumber(streamSpec.assetConcurrency, 2), 1, 4)),
+    };
+    this._streamingChunks = new Map();
+    this._streamingQueue = [];
+    this._streamingLoading = false;
+    this._streamingElapsed = 0;
+    this._activeStreamingChunk = null;
+    this._glbUrlRefCounts = new Map();
     const requestedAnisotropy = quality === 'ultra' ? 16 : quality === 'high' ? 8 : quality === 'medium' ? 4 : quality === 'low' ? 2 : 1;
     this._maxAnisotropy = Math.min(requestedAnisotropy, Number(renderCapabilities.maxAnisotropy) || 4);
     this._deviceMemoryGB = Math.max(1, Number(renderCapabilities.deviceMemory) || 4);
@@ -190,6 +209,7 @@ export class World {
   addCollider(x, y, z, w, h, d, climb = false, type = null) {
     const c = { min: new THREE.Vector3(x - w / 2, y, z - d / 2), max: new THREE.Vector3(x + w / 2, y + h, z + d / 2) };
     if (type) c.type = type;
+    if (this._activeStreamingChunk) c._streamChunkKey = this._activeStreamingChunk.key;
     // Climbables remain solid while approaching them; the separate climbable
     // registry only adds vault/climb interaction. Previously they were excluded
     // from movement AABBs and Rapier, so fences were physically ghostlike.
@@ -966,26 +986,277 @@ export class World {
       return;
     }
 
-    // Keep binary decode concurrency within both the selected tier and the
-    // browser's reported memory budget. GLTF decompression spikes CPU/RAM.
-    const qualityConcurrency = this._quality === 'ultra' ? 8
-      : this._quality === 'high' ? 6
-      : this._quality === 'medium' ? 4
-      : this._quality === 'low' ? 2 : 1;
-    const memoryConcurrency = this._deviceMemoryGB <= 4 ? 2
-      : this._deviceMemoryGB <= 8 ? 3 : 4;
-    const CONCURRENT = Math.min(qualityConcurrency, memoryConcurrency);
-    for (let i = 0; i < assets.length; i += CONCURRENT) {
-      const batch = assets.slice(i, i + CONCURRENT);
-      await Promise.allSettled(batch.map(a => this._loadGLBAsset(a)));
+    // A map can opt out for a small test scene, but normal authored worlds
+    // stream GLB placements by spatial cell instead of decoding the whole city.
+    if (!this._streamingConfig.enabled) {
+      const qualityConcurrency = this._quality === 'ultra' ? 8
+        : this._quality === 'high' ? 6
+        : this._quality === 'medium' ? 4
+        : this._quality === 'low' ? 2 : 1;
+      const memoryConcurrency = this._deviceMemoryGB <= 4 ? 2
+        : this._deviceMemoryGB <= 8 ? 3 : 4;
+      const concurrency = Math.min(qualityConcurrency, memoryConcurrency);
+      for (let i = 0; i < assets.length; i += concurrency) {
+        await Promise.allSettled(assets.slice(i, i + concurrency).map(asset => this._loadGLBAsset(asset)));
+      }
+      this._rebuildGrid();
+      return;
     }
 
-    this._rebuildGrid();
-    if (this._physics && this._physics.world) {
-      this._physics.registerStaticBatch(this.colliders);
+    const size = this._streamingConfig.chunkSize;
+    for (const asset of assets) {
+      const x = Number(asset.x) || 0;
+      const z = Number(asset.z) || 0;
+      const gx = Math.floor(x / size);
+      const gz = Math.floor(z / size);
+      const key = gx + ',' + gz;
+      let chunk = this._streamingChunks.get(key);
+      if (!chunk) {
+        const minX = gx * size, minZ = gz * size;
+        chunk = {
+          key, gx, gz, minX, minZ, maxX: minX + size, maxZ: minZ + size,
+          assets: [], state: 'unloaded', roots: [], assetUrls: new Map(),
+          items: null, physicsBatch: null,
+        };
+        this._streamingChunks.set(key, chunk);
+      }
+      chunk.assets.push(asset);
     }
-    console.log('[World] Grid rebuilt with', this.colliders.length, 'colliders +', this.climbables.length, 'climbables +', this.portals.length, 'portals');
-    return;
+
+    const start = this.startPoint || { x: 0, z: 0 };
+    const initial = [...this._streamingChunks.values()]
+      .map(chunk => ({ chunk, distance: this._streamChunkDistance(chunk, start) }))
+      .filter(item => item.distance <= this._streamingConfig.initialRadius)
+      .sort((a, b) => a.distance - b.distance);
+
+    // Load the spawn neighbourhood before gameplay starts. All remaining
+    // chunks are queued by updateStreaming as the player/vehicle approaches.
+    for (const item of initial) await this._loadStreamingChunk(item.chunk);
+    this._rebuildGrid();
+    console.info('[WorldStreaming] Initial neighbourhood ready:', this.getStreamingStats());
+  }
+
+  _streamChunkDistance(chunk, position) {
+    const dx = Math.max(chunk.minX - position.x, 0, position.x - chunk.maxX);
+    const dz = Math.max(chunk.minZ - position.z, 0, position.z - chunk.maxZ);
+    return Math.hypot(dx, dz);
+  }
+
+  async _loadStreamingChunk(chunk) {
+    if (!chunk || chunk.state === 'loaded' || chunk.state === 'loading') return;
+    chunk.state = 'loading';
+    chunk.roots = [];
+    chunk.assetUrls = new Map();
+    chunk.items = null;
+
+    const trackedArrays = [
+      'colliders', 'climbables', 'interiors', 'portals', 'roofAccess',
+      'npcInteractables', 'reactiveObjects', 'coverPoints', 'worldKitComponents',
+      '_buildingData', 'vehicleSpawns', 'roadPhysicsMeshes',
+    ];
+    const before = Object.create(null);
+    for (const name of trackedArrays) before[name] = this[name].length;
+
+    const previousChunk = this._activeStreamingChunk;
+    this._activeStreamingChunk = chunk;
+    try {
+      const concurrency = this._streamingConfig.assetConcurrency;
+      for (let i = 0; i < chunk.assets.length; i += concurrency) {
+        const batch = chunk.assets.slice(i, i + concurrency);
+        await Promise.allSettled(batch.map(asset => this._loadGLBAsset(asset)));
+      }
+    } finally {
+      this._activeStreamingChunk = previousChunk;
+    }
+
+    const items = Object.create(null);
+    for (const name of trackedArrays) items[name] = this[name].slice(before[name]);
+    for (const surface of items.roadPhysicsMeshes) surface._streamChunkKey = chunk.key;
+    chunk.items = items;
+    chunk.state = 'loaded';
+
+    if (this._physics?.world) {
+      chunk.physicsBatch = this._physics.registerStreamingChunk(
+        items.colliders, items.roadPhysicsMeshes,
+      );
+    }
+
+    console.info(
+      '[WorldStreaming] Loaded ' + chunk.key + ' · ' + chunk.assets.length
+      + ' placements · ' + items.colliders.length + ' colliders',
+    );
+  }
+
+  _removeArrayItems(target, entries) {
+    if (!Array.isArray(target) || !entries?.length) return;
+    const remove = new Set(entries);
+    let write = 0;
+    for (let read = 0; read < target.length; read++) {
+      const item = target[read];
+      if (!remove.has(item)) target[write++] = item;
+    }
+    target.length = write;
+  }
+
+  _disposeGLBScene(scene) {
+    if (!scene) return;
+    const geometries = new Set();
+    const materials = new Set();
+    const textures = new Set();
+    scene.traverse(node => {
+      if (node.geometry) geometries.add(node.geometry);
+      const list = Array.isArray(node.material) ? node.material : [node.material];
+      for (const material of list) {
+        if (!material) continue;
+        materials.add(material);
+        for (const value of Object.values(material)) {
+          if (value?.isTexture) textures.add(value);
+        }
+      }
+    });
+    for (const geometry of geometries) {
+      try { geometry.disposeBoundsTree?.(); } catch {}
+      geometry.dispose();
+    }
+    for (const material of materials) material.dispose();
+    for (const texture of textures) texture.dispose();
+  }
+
+  _releaseStreamingAssetRefs(chunk) {
+    for (const [url, count] of chunk.assetUrls || []) {
+      const remaining = Math.max(0, (this._glbUrlRefCounts.get(url) || 0) - count);
+      if (remaining > 0) {
+        this._glbUrlRefCounts.set(url, remaining);
+        continue;
+      }
+      this._glbUrlRefCounts.delete(url);
+      const baseScene = this._glbModelCache?.get(url);
+      if (baseScene) this._disposeGLBScene(baseScene);
+      this._glbModelCache?.delete(url);
+    }
+  }
+
+  _unloadStreamingChunk(chunk) {
+    if (!chunk || chunk.state !== 'loaded') return false;
+    const items = chunk.items || {};
+
+    // A streamed physics batch owns one Rapier fixed body, so removing the body
+    // drops every collider for this cell without leaving empty bodies behind.
+    if (chunk.physicsBatch && this._physics) {
+      this._physics.unregisterStreamingChunk(chunk.physicsBatch);
+      chunk.physicsBatch = null;
+    } else {
+      for (const collider of items.colliders || []) {
+        if (collider.physicsCollider && this._physics) this._physics.removeCollider(collider.physicsCollider);
+        collider.physicsCollider = null;
+      }
+    }
+
+    for (const root of chunk.roots || []) {
+      this.bvhWorld?.removeModel(root);
+      if (root.parent) root.parent.remove(root);
+    }
+    for (const collider of items.colliders || []) this.bvhWorld?.removeAABB(collider);
+
+    const removedBuildings = new Set(items._buildingData || []);
+    const removedBuildingIndices = [];
+    this._buildingData.forEach((entry, index) => {
+      if (removedBuildings.has(entry)) removedBuildingIndices.push(index);
+    });
+
+    const arrays = [
+      'colliders', 'climbables', 'interiors', 'portals', 'roofAccess',
+      'npcInteractables', 'reactiveObjects', 'coverPoints', 'worldKitComponents',
+      '_buildingData', 'vehicleSpawns', 'roadPhysicsMeshes',
+    ];
+    for (const name of arrays) this._removeArrayItems(this[name], items[name]);
+
+    if (removedBuildingIndices.length) {
+      for (const portal of this.portals) {
+        if (!Number.isInteger(portal.buildingIdx) || portal.buildingIdx < 0) continue;
+        let shift = 0;
+        for (const index of removedBuildingIndices) if (index < portal.buildingIdx) shift++;
+        portal.buildingIdx -= shift;
+      }
+    }
+
+    // Road geometry is copied from the source GLB for Rapier, so release those
+    // copies separately. GLB source geometry/materials are released by refcount.
+    for (const surface of items.roadPhysicsMeshes || []) surface.geometry?.dispose();
+    this._releaseStreamingAssetRefs(chunk);
+
+    chunk.roots = [];
+    chunk.assetUrls = new Map();
+    chunk.items = null;
+    chunk.state = 'unloaded';
+    console.info('[WorldStreaming] Unloaded ' + chunk.key);
+    return true;
+  }
+
+  registerStreamingPhysics(physics) {
+    if (!physics?.world) return false;
+    this._physics = physics;
+
+    const staticColliders = this.colliders.filter(c => !c._streamChunkKey);
+    const staticRoads = this.roadPhysicsMeshes.filter(s => !s._streamChunkKey);
+    physics.registerStaticBatch(staticColliders);
+    physics.registerStaticRoadMeshes(staticRoads);
+
+    for (const chunk of this._streamingChunks.values()) {
+      if (chunk.state !== 'loaded' || !chunk.items || chunk.physicsBatch) continue;
+      chunk.physicsBatch = physics.registerStreamingChunk(
+        chunk.items.colliders, chunk.items.roadPhysicsMeshes,
+      );
+    }
+    return true;
+  }
+
+  updateStreaming(position, dt = 1 / 60) {
+    if (!this._streamingConfig.enabled || !position || !this._streamingChunks.size) {
+      return this.getStreamingStats();
+    }
+
+    this._streamingElapsed += THREE.MathUtils.clamp(Number(dt) || 0, 0, 0.1);
+    if (this._streamingElapsed < this._streamingConfig.updateInterval) return null;
+    this._streamingElapsed = 0;
+
+    const wanted = [];
+    for (const chunk of this._streamingChunks.values()) {
+      const distance = this._streamChunkDistance(chunk, position);
+      if (chunk.state === 'loaded' && distance > this._streamingConfig.unloadRadius) {
+        this._unloadStreamingChunk(chunk);
+      } else if (chunk.state === 'unloaded' && distance <= this._streamingConfig.loadRadius) {
+        wanted.push({ chunk, distance });
+      }
+    }
+    wanted.sort((a, b) => a.distance - b.distance);
+    this._streamingQueue = wanted.map(item => item.chunk);
+
+    if (!this._streamingLoading && this._streamingQueue.length) {
+      const next = this._streamingQueue.shift();
+      this._streamingLoading = true;
+      this._loadStreamingChunk(next)
+        .catch(error => {
+          next.state = 'unloaded';
+          console.error('[WorldStreaming] Chunk load failed:', next.key, error);
+        })
+        .finally(() => { this._streamingLoading = false; });
+    }
+    return this.getStreamingStats();
+  }
+
+  getStreamingStats() {
+    const loaded = [...this._streamingChunks.values()].filter(chunk => chunk.state === 'loaded');
+    const chunks = [...this._streamingChunks.values()];
+    return {
+      enabled: !!this._streamingConfig.enabled,
+      loadedChunks: loaded.length,
+      totalChunks: this._streamingChunks.size,
+      loadedPlacements: loaded.reduce((sum, chunk) => sum + chunk.assets.length, 0),
+      totalPlacements: chunks.reduce((sum, chunk) => sum + chunk.assets.length, 0),
+      loading: this._streamingLoading,
+      queued: this._streamingQueue.length,
+    };
   }
 
   async _loadCollisionManifest(a) {
@@ -1089,6 +1360,12 @@ export class World {
         baseScene = await pending;
       }
       const model = baseScene.clone(true);
+      const streamChunk = this._activeStreamingChunk;
+      if (streamChunk) {
+        const url = String(a.url);
+        streamChunk.assetUrls.set(url, (streamChunk.assetUrls.get(url) || 0) + 1);
+        this._glbUrlRefCounts.set(url, (this._glbUrlRefCounts.get(url) || 0) + 1);
+      }
       const worldKitReport = annotateWorldKitInstance(model, a);
       await loadAssetOverrides();
       const assetEdit = applyAssetOverrides(model, a.url);
@@ -1132,6 +1409,7 @@ export class World {
       a = { ...a, x: a.x + anchorOffset.x, z: a.z + anchorOffset.z };
       model.position.set(a.x, yOffset, a.z);
       this.group.add(model);
+      if (streamChunk) streamChunk.roots.push(model);
       const worldKitInstance = {
         root: model,
         id: worldKitReport.id,
@@ -1219,7 +1497,9 @@ export class World {
           geometry.applyMatrix4(o.matrixWorld);
           geometry.computeBoundingBox();
           geometry.computeBoundingSphere();
-          this.roadPhysicsMeshes.push({ kind: 'imported_road', geometry });
+          const roadSurface = { kind: 'imported_road', geometry };
+          if (streamChunk) roadSurface._streamChunkKey = streamChunk.key;
+          this.roadPhysicsMeshes.push(roadSurface);
           o.userData.worldKit ||= {};
           o.userData.worldKit.role = 'road-surface';
           importedRoadMeshes++;

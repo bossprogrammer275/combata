@@ -181,6 +181,94 @@ export class Physics {
     return count;
   }
 
+  registerStreamingChunk(colliders = [], surfaces = []) {
+    if (!this.world) return null;
+    const pendingBoxes = (colliders || []).filter(source =>
+      source?.min && source?.max && !source.surfaceOnly
+      && source.type !== 'road_surface' && !source.physicsCollider
+    );
+    const pendingSurfaces = (surfaces || []).filter(source =>
+      source?.geometry?.attributes?.position && !source.physicsCollider
+    );
+    if (!pendingBoxes.length && !pendingSurfaces.length) return null;
+
+    const body = this.world.createRigidBody(RAPIER.RigidBodyDesc.fixed());
+    const batch = { body, colliders: [], surfaces: [], count: 0 };
+
+    for (const source of pendingBoxes) {
+      const min = source.min, max = source.max;
+      const oriented = source.orientedBox || null;
+      const hx = oriented ? oriented.halfExtents.x : (max.x - min.x) / 2;
+      const hy = oriented ? oriented.halfExtents.y : (max.y - min.y) / 2;
+      const hz = oriented ? oriented.halfExtents.z : (max.z - min.z) / 2;
+      if (![hx, hy, hz].every(Number.isFinite) || hx <= 0.001 || hy <= 0.001 || hz <= 0.001) continue;
+      const cx = oriented ? oriented.center.x : (min.x + max.x) / 2;
+      const cy = oriented ? oriented.center.y : (min.y + max.y) / 2;
+      const cz = oriented ? oriented.center.z : (min.z + max.z) / 2;
+      const desc = RAPIER.ColliderDesc.cuboid(hx, hy, hz)
+        .setTranslation(cx, cy, cz)
+        .setFriction(0.8)
+        .setRestitution(0);
+      if (oriented) {
+        const halfYaw = oriented.yaw / 2;
+        desc.setRotation({ x: 0, y: Math.sin(halfYaw), z: 0, w: Math.cos(halfYaw) });
+      }
+      const collider = this.world.createCollider(desc, body);
+      source.physicsCollider = {
+        handle: collider.handle, min, max, userData: source,
+        rigidBody: body, _collider: collider, _sharedStaticBatch: true,
+      };
+      batch.colliders.push(source);
+      batch.count++;
+    }
+
+    for (const source of pendingSurfaces) {
+      const attr = source.geometry.attributes.position;
+      const vertices = new Float32Array(attr.count * 3);
+      for (let i = 0; i < attr.count; i++) {
+        vertices[i * 3] = attr.getX(i);
+        vertices[i * 3 + 1] = attr.getY(i);
+        vertices[i * 3 + 2] = attr.getZ(i);
+      }
+      const sourceIndex = source.geometry.index;
+      if (!sourceIndex && attr.count % 3 !== 0) continue;
+      const indices = sourceIndex
+        ? Uint32Array.from(sourceIndex.array)
+        : Uint32Array.from({ length: attr.count }, (_, i) => i);
+      if (indices.length < 3) continue;
+      const friction = source.kind === 'road' ? 0.72 : source.kind === 'sidewalk' ? 0.82 : 0.76;
+      const collider = this.world.createCollider(
+        RAPIER.ColliderDesc.trimesh(vertices, indices).setFriction(friction).setRestitution(0),
+        body,
+      );
+      source.physicsCollider = {
+        handle: collider.handle, userData: source,
+        rigidBody: body, _collider: collider, _sharedStaticBatch: true,
+      };
+      batch.surfaces.push(source);
+      batch.count++;
+    }
+
+    if (!batch.count) {
+      this.world.removeRigidBody(body);
+      return null;
+    }
+    this._staticBatchBodies.push(body);
+    return batch;
+  }
+
+  unregisterStreamingChunk(batch) {
+    if (!batch?.body || !this.world) return false;
+    this.world.removeRigidBody(batch.body);
+    const bodyIndex = this._staticBatchBodies.indexOf(batch.body);
+    if (bodyIndex >= 0) this._staticBatchBodies.splice(bodyIndex, 1);
+    for (const source of [...(batch.colliders || []), ...(batch.surfaces || [])]) {
+      if (source.physicsCollider?.rigidBody === batch.body) source.physicsCollider = null;
+    }
+    batch.body = null;
+    return true;
+  }
+
   // Register merged visual road ribbons as static triangle surfaces. Unlike thin
   // cuboid strips, these have no vertical edge faces. One collider per rendered
   // surface mesh also avoids a pile of overlapping segment boxes at junctions.

@@ -5705,5 +5705,14 @@
       "color": 5402227,
       "bedColor": 5327421
     }
-  ]
+  ],
+  "streaming": {
+    "enabled": true,
+    "chunkSize": 96,
+    "initialRadius": 128,
+    "loadRadius": 168,
+    "unloadRadius": 256,
+    "updateInterval": 0.4,
+    "assetConcurrency": 2
+  }
 }

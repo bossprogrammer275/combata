@@ -186,6 +186,18 @@ export class BVHWorld {
     if (i >= 0) this._climbables.splice(i, 1);
   }
 
+  removeModel(model) {
+    if (!model) return 0;
+    const meshes = new Set();
+    model.traverse(node => { if (node.isMesh) meshes.add(node); });
+    if (!meshes.size) return 0;
+    const before = this.bvhMeshes.length;
+    this.bvhMeshes = this.bvhMeshes.filter(entry => !meshes.has(entry.mesh));
+    // GLTF clones share geometry with the cached source scene. Keep its BVH
+    // alive until the final streamed instance releases that source asset.
+    return before - this.bvhMeshes.length;
+  }
+
   removeMesh(mesh) {
     const idx = this.bvhMeshes.findIndex(e => e.mesh === mesh);
     if (idx >= 0) {
