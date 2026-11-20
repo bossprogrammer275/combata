@@ -60,6 +60,12 @@ assert.ok(!civilians.includes('.ch.play("sit_down"') && !civilians.includes('.ch
 assert.ok(physics.includes("setNpcControllerPosition"), "seat snapping must update the NPC kinematic controller");
 assert.ok(player.includes("setReloading(enabled)") && player.includes("reloadLocked"));
 assert.ok(player.includes("jumpFromIdle"));
+assert.ok(player.includes("this.vel.y = 5.2"), "the jump trajectory must be character-controller physics, not camera-only");
+assert.ok(!player.includes("this.jumpCameraVelocity -= 14"), "remove the camera-only jump arc");
+assert.ok(character.includes("if (state.weaponType && state.weaponType !== this.weaponType)"),
+  "the character-held weapon mesh and pose must follow the selected weapon");
+assert.ok(civilians.includes('this.ch.play("knocked_down"') && !civilians.includes('this.ch.play("death_candidate"'),
+  "keep the unverified death candidate out of the live death path");
 assert.ok(weapons.includes("this.startReload(game)"));
 assert.ok(weapons.includes("d.id === 'rifle' ? 3.3 : d.reloadTime"));
 assert.ok(weapons.includes("game.player.weaponType = d.id"));
@@ -78,8 +84,10 @@ assert.equal(resolvePlayerAnimation({ groundSpeed: 0.8, aim: 1, weaponType: "rif
 assert.equal(resolvePlayerAnimation({ groundSpeed: 3.4, aim: 1, weaponType: "rifle" }, "walk_aim"), "rifle_run");
 assert.equal(resolvePlayerAnimation({ groundSpeed: 0, crouch: 1, aim: 1, weaponType: "rifle" }, "idle"), "crouch_aim_idle");
 assert.equal(resolvePlayerAnimation({ groundSpeed: 0.8, crouch: 1, aim: 1, weaponType: "rifle" }, "idle"), "crouch_walk_aim");
-assert.equal(resolvePlayerAnimation({ groundSpeed: 0, reloading: 1 }, "idle"), "reload_idle");
-assert.equal(resolvePlayerAnimation({ groundSpeed: 1.1, reloading: 1 }, "walk"), "walk",
+assert.equal(resolvePlayerAnimation({ groundSpeed: 0, reloading: 1, weaponType: "rifle" }, "idle"), "reload_idle");
+assert.equal(resolvePlayerAnimation({ groundSpeed: 0, reloading: 1, weaponType: "pistol" }, "idle"), "idle",
+  "the rifle reload clip must not be borrowed by pistol or other weapons");
+assert.equal(resolvePlayerAnimation({ groundSpeed: 1.1, reloading: 1, weaponType: "rifle" }, "walk"), "walk",
   "reload must not start while moving");
 assert.equal(resolvePlayerAnimation({ groundSpeed: 0, airborne: 1, jumpFromIdle: 1 }, "idle"), "jump_idle");
 assert.equal(resolvePlayerAnimation({ groundSpeed: 1.5, airborne: 1, jumpFromIdle: 0 }, "run"), "run",
