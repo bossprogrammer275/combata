@@ -103,6 +103,33 @@ function validateCalibrationWrite(data, assetPath, sourceHash) {
   if (!Array.isArray(data.components) || !Array.isArray(data.collision?.boxes)) {
     return 'calibration is missing components or collision boxes';
   }
+  const nativeProxies = Array.isArray(data.collision?.nativeProxies) ? data.collision.nativeProxies : [];
+  const nativeProxyKeys = new Set();
+  const vector3 = value => Array.isArray(value) && value.length >= 3
+    && value.slice(0, 3).every(item => Number.isFinite(Number(item)));
+  for (const proxy of nativeProxies) {
+    if (!proxy?.nodeKey || nativeProxyKeys.has(proxy.nodeKey)) return 'native collision proxy node keys must be present and unique';
+    nativeProxyKeys.add(proxy.nodeKey);
+    if (proxy.source !== 'authored-col-mesh' || proxy.runtimeAuthority !== 'world-native-col-proxy') {
+      return 'native collision proxy authority is invalid';
+    }
+    if (!vector3(proxy.bounds?.min) || !vector3(proxy.bounds?.max) || !vector3(proxy.bounds?.size)
+      || proxy.bounds.size.slice(0, 3).some(value => Number(value) <= 0)) {
+      return 'native collision proxy bounds are invalid';
+    }
+    for (let axis = 0; axis < 3; axis++) {
+      if (Number(proxy.bounds.max[axis]) <= Number(proxy.bounds.min[axis])
+        || Math.abs((Number(proxy.bounds.max[axis]) - Number(proxy.bounds.min[axis])) - Number(proxy.bounds.size[axis])) > 0.05) {
+        return 'native collision proxy extents do not match its bounds';
+      }
+    }
+  }
+  if (Number(data.collision?.nativeProxyCount || 0) !== nativeProxies.length) {
+    return 'native collision proxy count does not match its inventory';
+  }
+  if (nativeProxies.length && data.collision?.nativeProxyAuthority !== 'source-mesh-col-prefixes-consumed-by-world-runtime') {
+    return 'native collision proxy runtime authority is missing';
+  }
   const components = new Map();
   for (const component of data.components) {
     if (!component?.nodeKey || components.has(component.nodeKey)) return 'component node keys must be present and unique';
