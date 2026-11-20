@@ -89,13 +89,70 @@ if (typeof globalThis.document === 'undefined') {
   };
 }
 
-function loadGLB(filePath) {
-  return new Promise((resolve, reject) => {
-    const loader = new GLTFLoader();
-    const data = fs.readFileSync(filePath);
-    const buf = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
-    loader.parse(buf, '', (gltf) => resolve(gltf), reject);
-  });
+function nodeKey(root, node) {
+  const parts = [];
+  let current = node;
+  while (current && current !== root) {
+    const parent = current.parent;
+    const index = parent ? parent.children.indexOf(current) : 0;
+    parts.unshift(`${current.name || current.type || 'node'}[${index}]`);
+    current = parent;
+  }
+  return parts.join('/');
+}
+
+function nodePath(root, node) {
+  const parts = [];
+  for (let current = node; current && current !== root; current = current.parent) {
+    if (current.name) parts.unshift(current.name);
+  }
+  return parts.join(' / ');
+}
+
+function mimeType(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  return ({
+    '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp', '.gif': 'image/gif', '.ktx2': 'image/ktx2',
+    '.bin': 'application/octet-stream',
+  })[ext] || 'application/octet-stream';
+}
+
+async function inlineGltfResources(json, filePath) {
+  const baseDir = path.dirname(path.resolve(filePath));
+  const inlineUri = async (uri, fallbackMime) => {
+    if (!uri || /^data:/i.test(uri)) return uri;
+    if (/^(https?:|blob:|\/\/)/i.test(uri)) {
+      throw new Error(`External network resource is not supported by offline calibration: ${uri}`);
+    }
+    const decoded = decodeURIComponent(uri.split(/[?#]/, 1)[0]);
+    const absolute = path.resolve(baseDir, decoded);
+    const bytes = fs.readFileSync(absolute);
+    return `data:${fallbackMime || mimeType(absolute)};base64,${bytes.toString('base64')}`;
+  };
+
+  for (const buffer of json.buffers || []) {
+    if (buffer.uri) buffer.uri = await inlineUri(buffer.uri, 'application/octet-stream');
+  }
+  for (const image of json.images || []) {
+    if (image.uri) image.uri = await inlineUri(image.uri, image.mimeType || null);
+  }
+  return json;
+}
+
+async function loadGLB(filePath) {
+  const loader = new GLTFLoader();
+  const extension = path.extname(filePath).toLowerCase();
+  if (extension === '.gltf') {
+    const json = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    const hydrated = await inlineGltfResources(json, filePath);
+    return new Promise((resolve, reject) => {
+      loader.parse(JSON.stringify(hydrated), '', resolve, reject);
+    });
+  }
+  const data = fs.readFileSync(filePath);
+  const buf = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+  return new Promise((resolve, reject) => loader.parse(buf, '', resolve, reject));
 }
 
 // ─── Surface subdivision ───
@@ -300,10 +357,12 @@ function shouldSkip(object) {
 
 // ─── Main ───
 
-async function processGLB(inputPath) {
-  const baseName = path.basename(inputPath, '.glb');
+async function processGLB(inputPath, options = {}) {
+  const baseName = path.parse(inputPath).name;
   const dir = path.dirname(inputPath);
-  const outputPath = path.join(dir, `${baseName}_col.json`);
+  const outputPath = options.outputPath || path.join(dir, `${baseName}_col.json`);
+  const excludedNodeKeys = new Set(options.excludeNodeKeys || []);
+  const meshDetails = [];
 
   console.log(`\n=== ${path.basename(inputPath)} ===`);
 
@@ -326,13 +385,34 @@ async function processGLB(inputPath) {
   let subdivCount = 0;
 
   scene.traverse((obj) => {
-    if (!obj.isMesh || shouldSkip(obj)) return;
+    if (!obj.isMesh) return;
     obj.updateWorldMatrix(true, false);
     const geo = obj.geometry;
     if (!geo || !geo.attributes.position) return;
     geo.computeBoundingBox();
     const lb = geo.boundingBox;
     if (!lb) return;
+
+    const worldBox = new THREE.Box3().copy(lb).applyMatrix4(obj.matrixWorld);
+    const meshSize = worldBox.getSize(new THREE.Vector3());
+    const meshCenter = worldBox.getCenter(new THREE.Vector3());
+    const key = nodeKey(scene, obj);
+    const names = nodePath(scene, obj);
+    meshDetails.push({
+      index: meshDetails.length,
+      nodeKey: key,
+      nodePath: names,
+      name: obj.name || names.split(' / ').at(-1) || 'unnamed',
+      dimensions: meshSize.toArray(),
+      center: meshCenter.toArray(),
+      boundsMin: worldBox.min.toArray(),
+      boundsMax: worldBox.max.toArray(),
+      vertexCount: geo.attributes.position.count,
+      triangleCount: Math.floor((geo.index?.count ?? geo.attributes.position.count) / 3),
+      collisionProxy: shouldSkip(obj),
+      skinned: !!obj.isSkinnedMesh,
+    });
+    if (shouldSkip(obj) || excludedNodeKeys.has(key)) return;
 
     const min = lb.min.clone().applyMatrix4(obj.matrixWorld);
     const max = lb.max.clone().applyMatrix4(obj.matrixWorld);
@@ -383,22 +463,35 @@ async function processGLB(inputPath) {
     boxes,
   };
 
-  fs.writeFileSync(outputPath, JSON.stringify(manifest));
-  const sizeKB = (fs.statSync(outputPath).size / 1024).toFixed(0);
-  console.log(`  ✅ ${path.basename(outputPath)} (${boxes.length} boxes, ${subdivCount} subdivided, ${sizeKB}KB)`);
+  if (options.write !== false) {
+    fs.writeFileSync(outputPath, JSON.stringify(manifest));
+    const sizeKB = (fs.statSync(outputPath).size / 1024).toFixed(0);
+    if (options.log !== false) {
+      console.log(`  ✅ ${path.basename(outputPath)} (${boxes.length} boxes, ${subdivCount} subdivided, ${sizeKB}KB)`);
+    }
+  }
+  if (options.log !== false) {
+    console.log(`  Scanned ${meshDetails.length} mesh components; excluded ${excludedNodeKeys.size} calibrated components`);
+  }
+  return { manifest, meshDetails, collisionStats: { boxes: boxes.length, subdividedMeshes: subdivCount } };
 }
 
 // ─── CLI ───
 
-const files = process.argv.slice(2);
-if (files.length === 0) {
-  console.log('Usage: node tools/process-glbs.js <file.glb> [...]');
-  process.exit(1);
-}
+export { loadGLB, nodeKey, nodePath, processGLB };
 
-(async () => {
-  for (const file of files) {
-    try { await processGLB(file); } catch (e) { console.error(`  ❌ ${e.message}`); }
+const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : '';
+const isDirectRun = invokedPath && import.meta.url === new URL(`file://${invokedPath}`).href;
+if (isDirectRun) {
+  const files = process.argv.slice(2);
+  if (files.length === 0) {
+    console.log('Usage: node tools/process-glbs.js <file.glb|file.gltf> [...]');
+    process.exit(1);
   }
-  console.log('\nDone!');
-})();
+  (async () => {
+    for (const file of files) {
+      try { await processGLB(file); } catch (e) { console.error(`  ❌ ${e.message}`); }
+    }
+    console.log('\nDone!');
+  })();
+}
