@@ -150,22 +150,24 @@ function localConnection(item, longitudinalAxis, sectionKind = 'straight-span') 
   };
 }
 
-function interactionSpec(component) {
+function interactionSpec(component, assetType) {
   switch (component.kind) {
     case 'seat':
-      return { kind: 'seat', accepted: false, requiredAnchors: ['approach', 'pelvis', 'seatFacing', 'exit'] };
+      return assetType === 'vehicle'
+        ? { kind: 'vehicle-seat', accepted: false, requiredAnchors: ['seat', 'entry', 'exit', 'seatFacing'] }
+        : { kind: 'seat', accepted: false, requiredAnchors: ['approach', 'pelvis', 'seatFacing', 'exit'] };
     case 'door':
-      return { kind: 'door', accepted: false, requiredAnchors: ['hinge', 'hingeAxis', 'handle', 'closedTransform', 'openRange'] };
+      return { kind: assetType === 'vehicle' ? 'vehicle-door' : 'door', accepted: false, requiredAnchors: ['hinge', 'hingeAxis', 'handle', 'closedTransform', 'openRange'] };
     case 'ladder':
       return { kind: 'ladder', accepted: false, requiredAnchors: ['mountBottom', 'mountTop', 'climbPath', 'topOut', 'bottomDismount'] };
     case 'stairs':
       return { kind: 'stairs', accepted: false, requiredAnchors: ['bottomEntry', 'topExit', 'walkableTreads'] };
-    case 'vehicle-seat':
-      return { kind: 'vehicle-seat', accepted: false, requiredAnchors: ['occupant', 'entry', 'exit', 'seatFacing'] };
     case 'steering-wheel':
       return { kind: 'steering-wheel', accepted: false, requiredAnchors: ['pivot', 'axis', 'rotationLimit'] };
     case 'wheel':
-      return { kind: 'vehicle-wheel', accepted: false, requiredAnchors: ['axle', 'radius', 'steeringAxis'] };
+      return assetType === 'vehicle'
+        ? { kind: 'vehicle-wheel', accepted: false, requiredAnchors: ['axle', 'radius', 'steeringAxis'] }
+        : null;
     default:
       return null;
   }
@@ -249,7 +251,7 @@ function buildBridgeProfile(components, meshByKey) {
   };
 }
 
-function makeComponent(item, role, index) {
+function makeComponent(item, role, index, assetType) {
   const identity = role?.sectionId || item.nodeKey;
   const component = {
     id: `component-${String(index + 1).padStart(3, '0')}-${identity.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
@@ -268,7 +270,7 @@ function makeComponent(item, role, index) {
     },
     requiresReview: !(role?.source?.startsWith('world-kit') || role?.source === 'world-bridge-kit'),
   };
-  const interaction = interactionSpec(component);
+  const interaction = interactionSpec(component, assetType);
   if (interaction) {
     component.interaction = interaction;
     component.requiresReview = true;
@@ -302,7 +304,7 @@ async function calibrateOne(file) {
   const components = [];
   for (const item of scanned.meshDetails) {
     const role = classifyComponent(item, assetType, assetPath);
-    if (role) components.push(makeComponent(item, role, components.length));
+    if (role) components.push(makeComponent(item, role, components.length, assetType));
   }
   const road = buildRoadProfiles(assetType, components, meshByKey);
   const bridge = assetType === 'bridge' ? buildBridgeProfile(components, meshByKey) : null;
@@ -464,6 +466,8 @@ async function main() {
   }, null, 2));
   if (failed) process.exitCode = 1;
 }
+
+export { calibrateOne, classifyAssetType, classifyComponent, buildRoadProfiles };
 
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : '';
 if (invokedPath && import.meta.url === pathToFileURL(invokedPath).href) {
