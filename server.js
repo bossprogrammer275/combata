@@ -8,6 +8,7 @@ import { readdir, readFile, writeFile, unlink } from 'fs/promises';
 import { networkInterfaces } from 'os';
 import { randomInt, createHash } from 'crypto';
 import { Server } from 'socket.io';
+import { validateReviewedTraversalProfile } from './js/traversal-physics.js';
 
 function getLanIp() {
   const nets = networkInterfaces();
@@ -139,6 +140,12 @@ function validateCalibrationWrite(data, assetPath, sourceHash) {
     if (!component || component.runtimeEnabled !== true || !surface || surface.runtimeEnabled !== true) {
       return 'collision exclusion does not resolve to an enabled calibrated road surface';
     }
+  }
+  for (const candidate of data.traversal || []) {
+    const component = components.get(candidate.nodeKey);
+    if (!component) return 'traversal candidate references an unknown component';
+    const error = validateReviewedTraversalProfile(candidate, component);
+    if (error) return error;
   }
   for (const surface of data.road?.surfaces || []) {
     const component = components.get(surface.nodeKey);
