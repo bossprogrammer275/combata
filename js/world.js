@@ -5241,11 +5241,25 @@ export class World {
       const height = candidate.max.y - candidate.min.y;
       if (candidate.actionCandidate === 'obstacle-climb' && (height < 0.45 || height > 2.8)) continue;
       if (!best || hit.dist < best.dist) {
-        const collider = (this.colliders || []).find(item =>
-          Math.min(item.max.x, candidate.max.x) > Math.max(item.min.x, candidate.min.x) + 0.02
-          && Math.min(item.max.y, candidate.max.y) > Math.max(item.min.y, candidate.min.y) + 0.02
-          && Math.min(item.max.z, candidate.max.z) > Math.max(item.min.z, candidate.min.z) + 0.02
-        ) || candidate;
+        let collider = null;
+        let colliderScore = Infinity;
+        for (const item of this.colliders || []) {
+          if (item.surfaceOnly || item.type === 'road_surface') continue;
+          const ix = Math.min(item.max.x, candidate.max.x) - Math.max(item.min.x, candidate.min.x);
+          const iy = Math.min(item.max.y, candidate.max.y) - Math.max(item.min.y, candidate.min.y);
+          const iz = Math.min(item.max.z, candidate.max.z) - Math.max(item.min.z, candidate.min.z);
+          if (ix <= 0.04 || iy <= 0.04 || iz <= 0.04) continue;
+          const cx = (item.min.x + item.max.x) * 0.5;
+          const cy = (item.min.y + item.max.y) * 0.5;
+          const cz = (item.min.z + item.max.z) * 0.5;
+          const score = Math.hypot(cx - (candidate.min.x + candidate.max.x) * 0.5,
+            cy - (candidate.min.y + candidate.max.y) * 0.5,
+            cz - (candidate.min.z + candidate.max.z) * 0.5);
+          if (score < colliderScore) { colliderScore = score; collider = item; }
+        }
+        // A calibration candidate is metadata, not a collision shape. Never
+        // substitute its bounds for a real world collider.
+        if (!collider) continue;
         best = { ...hit, collider, candidate };
       }
     }
@@ -5259,7 +5273,8 @@ export class World {
     const ccz = (collider.min.z + collider.max.z) * 0.5;
     let best = null, bestScore = Infinity;
     for (const candidate of this.calibratedTraversalCandidates || []) {
-      if (!candidate.accepted || candidate.requiresReview) continue;
+      if (!candidate.accepted || candidate.requiresReview
+        || !['obstacle-climb', 'ladder-climb'].includes(candidate.actionCandidate)) continue;
       const ix = Math.min(collider.max.x, candidate.max.x) - Math.max(collider.min.x, candidate.min.x);
       const iy = Math.min(collider.max.y, candidate.max.y) - Math.max(collider.min.y, candidate.min.y);
       const iz = Math.min(collider.max.z, candidate.max.z) - Math.max(collider.min.z, candidate.min.z);
@@ -5284,7 +5299,8 @@ export class World {
       : this.colliders;
     for (const collider of candidates) {
       if (collider.surfaceOnly || collider.type === 'road_surface') continue;
-      if (position.y >= collider.max.y - 0.015 || position.y + height <= collider.min.y + 0.015) continue;
+      // A support collider may touch the capsule's feet; treat its top 20cm as a contact band, not a penetrating wall.
+      if (position.y >= collider.max.y - 0.2 || position.y + height <= collider.min.y + 0.015) continue;
       let dx, dz;
       if (collider.orientedBox) {
         const box = collider.orientedBox;
