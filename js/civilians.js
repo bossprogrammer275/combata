@@ -274,6 +274,7 @@ export class Civilian {
     const plan = candidate.actionCandidate === "ladder-climb"
       ? buildLadderTraversalPath({
           start: this.pos,
+          approach: anchors.approach,
           mountBottom: anchors.mountBottom,
           mountTop: anchors.mountTop,
           climbPath: anchors.climbPath,
