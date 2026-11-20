@@ -175,7 +175,7 @@ export function buildObstacleClimbPath(options = {}) {
     path,
     handContact: point3(options.handContact),
     boneContacts: Array.isArray(options.boneContacts) ? options.boneContacts : [],
-    landing,
+    landing: point3(options.landing) || { ...path.at(-1).position },
     topBounds: { min, max },
     radius,
     height,
