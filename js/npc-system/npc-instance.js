@@ -40,7 +40,7 @@ export class NpcInstance {
     const aliases = { fall_death: 'death_candidate', jump: 'jump_idle', crouch: 'crouch_idle',
       crouchWalk: 'crouch_walk', sitIdle: 'sit_idle', get_up: 'knockdown_recovery_candidate' };
     const normalized = aliases[key] || key;
-    const basic = ['idle','walk','run','sprint','crouch_idle','crouch_walk','sit_idle','wave','death_candidate','jump_idle','knocked_down'];
+    const basic = ['idle','walk','run','sprint','crouch_idle','crouch_walk','sit_idle','wave','death_candidate','jump_idle','knocked_down','obstacle_climb','ladder_climb_up'];
     if (!this.profile.allowedActions.includes(normalized) && !basic.includes(normalized)) return false;
     return this.animation.play(normalized, options);
   }
