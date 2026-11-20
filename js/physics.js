@@ -473,6 +473,18 @@ export class Physics {
     };
   }
 
+  setNpcControllerPosition(entry, x, y, z) {
+    if (!entry?.alive || !entry.body) return null;
+    const next = {
+      x: Number.isFinite(x) ? x : 0,
+      y: Number.isFinite(y) ? y : 0,
+      z: Number.isFinite(z) ? z : 0,
+    };
+    entry.body.setTranslation(next, true);
+    entry.body.setNextKinematicTranslation(next);
+    return new THREE.Vector3(next.x, next.y, next.z);
+  }
+
   removeNpcController(entry) {
     if (!entry || !entry.alive) return;
     entry.alive = false;
