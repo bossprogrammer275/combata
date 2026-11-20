@@ -424,6 +424,27 @@ async function loadCalibrationForCurrent() {
 function recomputeCalibrationReview() {
   if (!currentCalibration) return;
   const components = currentCalibration.components || [];
+  const surfaces = currentCalibration.road?.surfaces || [];
+  const componentByKey = new Map(components.map(component => [component.nodeKey, component]));
+
+  // Keep the bridge's section-level profile aligned with its deck surface
+  // record. The runtime bridge-kit consumes section profiles; tyre sampling
+  // consumes the road surface profiles.
+  for (const section of currentCalibration.bridge?.sections || []) {
+    const deckKey = section.deckComponent?.nodeKey;
+    const surface = surfaces.find(item => item.nodeKey === deckKey);
+    if (surface?.connection?.accepted === true && surface.connection.requiresReview === false) {
+      section.connection = surface.connection;
+      section.requiresReview = false;
+    } else if (section.requiresReview !== false) {
+      section.requiresReview = true;
+    }
+  }
+  if (currentCalibration.bridge) {
+    currentCalibration.bridge.requiresReview = (currentCalibration.bridge.sections || [])
+      .some(section => section.requiresReview !== false);
+  }
+
   const outstanding = [
     ...components.filter(component => component.requiresReview !== false).map(component => ({
       componentId: component.id, nodeKey: component.nodeKey, role: component.role,
@@ -433,13 +454,19 @@ function recomputeCalibrationReview() {
       componentId: candidate.componentId, nodeKey: candidate.nodeKey, role: candidate.actionCandidate,
       reason: 'Confirm animation contact, capsule clearance and landing support.',
     })),
-    ...(currentCalibration.road?.surfaces || []).filter(surface =>
+    ...surfaces.filter(surface =>
       surface.connection?.status !== 'estimated'
       || surface.connection?.accepted !== true
       || surface.connection?.requiresReview !== false
     ).map(surface => ({
       componentId: surface.id, nodeKey: surface.nodeKey, role: surface.role,
       reason: 'Approve the imported road/bridge connection after checking endpoints and width.',
+    })),
+    ...(currentCalibration.bridge?.sections || []).filter(section => section.requiresReview !== false).map(section => ({
+      componentId: section.id,
+      nodeKey: section.deckComponent?.nodeKey || null,
+      role: 'bridge-section',
+      reason: 'Review this section socket or record a manually measured curved/ramp connection.',
     })),
   ];
   currentCalibration.review ||= {};
@@ -551,7 +578,7 @@ function approveSelectedRoadConnection() {
     }
     connection.accepted = true;
     connection.requiresReview = false;
-    connection.method = connection.method || 'manual-review-of-bounds-estimate';
+    connection.method = 'manual-reviewed-socket';
     surface.connection = connection;
     surface.runtimeEnabled = true;
     surface.requiresReview = false;
