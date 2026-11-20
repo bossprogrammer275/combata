@@ -5709,9 +5709,9 @@
   "streaming": {
     "enabled": true,
     "chunkSize": 96,
-    "initialRadius": 128,
-    "loadRadius": 168,
-    "unloadRadius": 256,
+    "initialRadius": 96,
+    "loadRadius": 144,
+    "unloadRadius": 224,
     "updateInterval": 0.4,
     "assetConcurrency": 2
   }

@@ -1037,9 +1037,9 @@ export class World {
   }
 
   _streamChunkDistance(chunk, position) {
-    const dx = Math.max(chunk.minX - position.x, 0, position.x - chunk.maxX);
-    const dz = Math.max(chunk.minZ - position.z, 0, position.z - chunk.maxZ);
-    return Math.hypot(dx, dz);
+    const centerX = (chunk.minX + chunk.maxX) * 0.5;
+    const centerZ = (chunk.minZ + chunk.maxZ) * 0.5;
+    return Math.hypot(centerX - position.x, centerZ - position.z);
   }
 
   async _loadStreamingChunk(chunk) {
@@ -1076,9 +1076,16 @@ export class World {
     chunk.state = 'loaded';
 
     if (this._physics?.world) {
-      chunk.physicsBatch = this._physics.registerStreamingChunk(
-        items.colliders, items.roadPhysicsMeshes,
-      );
+      try {
+        chunk.physicsBatch = this._physics.registerStreamingChunk(
+          items.colliders, items.roadPhysicsMeshes,
+        );
+      } catch (error) {
+        // The streamed scene remains usable through the world's AABB fallback
+        // if Rapier rejects a malformed optional chunk surface.
+        console.warn('[WorldStreaming] Physics registration failed for ' + chunk.key, error);
+        chunk.physicsBatch = null;
+      }
     }
 
     console.info(
