@@ -2072,7 +2072,14 @@ export class VehicleSystem {
     veh.def.occupied = true;
     // Drop the parked footprint so the driven car never collides with itself.
     this._removeParkedCollider(veh);
+    const occupantAnchor = this._vehicleAnchorWorld(veh, 'occupant');
+    if (occupantAnchor) player.pos.copy(occupantAnchor);
+    const entryForward = this._vehicleAnchorForwardWorld(veh, 'entry')
+      || this._vehicleAnchorForwardWorld(veh, 'seatFacing');
+    if (entryForward) player.yaw = Math.atan2(-entryForward.x, -entryForward.z);
     player.vel.set(0, 0, 0);
+    player.char.root.position.copy(player.pos);
+    player.char.root.rotation.y = player.yaw + Math.PI;
     player.char.root.visible = false;
     if (this.physics) this.physics.setPlayerCollisionEnabled(false);
     this._lookYaw = 0;
@@ -2095,7 +2102,14 @@ export class VehicleSystem {
     this.interiorView = false;
     this._setInteriorLights(false);
     veh.def.occupied = true;
+    const occupantAnchor = this._vehicleAnchorWorld(veh, 'occupant');
+    if (occupantAnchor) player.pos.copy(occupantAnchor);
+    const entryForward = this._vehicleAnchorForwardWorld(veh, 'entry')
+      || this._vehicleAnchorForwardWorld(veh, 'seatFacing');
+    if (entryForward) player.yaw = Math.atan2(-entryForward.x, -entryForward.z);
     player.vel.set(0, 0, 0);
+    player.char.root.position.copy(player.pos);
+    player.char.root.rotation.y = player.yaw + Math.PI;
     player.char.root.visible = false;
     if (this.physics) this.physics.setPlayerCollisionEnabled(false);
     this._lookYaw = 0;
@@ -2111,6 +2125,24 @@ export class VehicleSystem {
     if (this._speedometerCanvas) this._speedometerCanvas.style.display = 'block';
   }
 
+  _vehicleAnchorWorld(veh, name) {
+    const local = veh?.interactionAnchors?.[name];
+    if (!local || !veh.root) return null;
+    veh.root.updateWorldMatrix(true, false);
+    return veh.root.localToWorld(local.clone());
+  }
+
+  _vehicleAnchorForwardWorld(veh, name) {
+    const local = veh?.interactionAnchors?.[name + 'Forward'];
+    if (!local || !veh.root) return null;
+    veh.root.updateWorldMatrix(true, false);
+    const origin = veh.root.localToWorld(new THREE.Vector3());
+    const target = veh.root.localToWorld(local.clone());
+    const forward = target.sub(origin);
+    forward.y = 0;
+    return forward.lengthSq() > 1e-6 ? forward.normalize() : null;
+  }
+
   _findExitPosition(veh, player) {
     const yaw = Number.isFinite(veh.yaw) ? veh.yaw : 0;
     const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
@@ -2118,6 +2150,25 @@ export class VehicleSystem {
     const radius = Math.max(0.3, Number(player.radius) || 0.42);
     const sideGap = (veh.half?.x || 1.15) + radius + 0.55;
     const endGap = (veh.half?.z || 2.5) + radius + 0.55;
+    const resolveSafeExit = (position) => {
+      if (!position) return null;
+      const x = position.x, z = position.z;
+      if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
+      if (this.surfaceDistance(veh, x, z) < radius + 0.18) return null;
+      if (this.world?.colliderAt?.(x, z, radius)) return null;
+      const sampledY = this.world?.groundHeightAt?.(x, z, (veh.pos.y || 0) + 1.5);
+      const fallbackY = Number.isFinite(position.y) ? position.y
+        : (Number.isFinite(veh.pos.y) ? veh.pos.y : 0);
+      const y = Number.isFinite(sampledY) && sampledY >= (veh.pos.y || 0) - 0.75
+        ? sampledY : fallbackY;
+      return new THREE.Vector3(x, y, z);
+    };
+
+    // A reviewed exit marker wins only when it really clears the vehicle and
+    // the surrounding world. Otherwise keep the tested geometric fallback.
+    const calibratedExit = resolveSafeExit(this._vehicleAnchorWorld(veh, 'exit'));
+    if (calibratedExit) return calibratedExit;
+
     const candidates = [
       right.clone().multiplyScalar(sideGap),
       right.clone().multiplyScalar(-sideGap),
@@ -2127,15 +2178,13 @@ export class VehicleSystem {
       right.clone().multiplyScalar(-sideGap).addScaledVector(forward, endGap * 0.55),
     ];
     for (const offset of candidates) {
-      const x = veh.pos.x + offset.x;
-      const z = veh.pos.z + offset.z;
-      if (this.surfaceDistance(veh, x, z) < radius + 0.18) continue;
-      if (this.world?.colliderAt?.(x, z, radius)) continue;
-      const sampledY = this.world?.groundHeightAt?.(x, z, (veh.pos.y || 0) + 1.5);
-      const y = Number.isFinite(sampledY) && sampledY >= (veh.pos.y || 0) - 0.75
-        ? sampledY
-        : (Number.isFinite(veh.pos.y) ? veh.pos.y : 0);
-      return new THREE.Vector3(x, y, z);
+      const position = new THREE.Vector3(
+        veh.pos.x + offset.x,
+        Number.isFinite(veh.pos.y) ? veh.pos.y : 0,
+        veh.pos.z + offset.z,
+      );
+      const safe = resolveSafeExit(position);
+      if (safe) return safe;
     }
     // Do not leave the player embedded in the chassis if every preferred exit
     // side is blocked. The rear clearance is the least intrusive fallback.
@@ -2159,7 +2208,10 @@ export class VehicleSystem {
     player.pos.copy(exitPos);
     player.vel.set(0, 0, 0);
     player.onGround = true;
-    player.yaw = Number.isFinite(veh.yaw) ? veh.yaw : 0;
+    const exitForward = this._vehicleAnchorForwardWorld(veh, 'exit');
+    player.yaw = exitForward
+      ? Math.atan2(-exitForward.x, -exitForward.z)
+      : (Number.isFinite(veh.yaw) ? veh.yaw : 0);
 
     player.char.root.visible = true;
     player.char.root.position.copy(player.pos);
