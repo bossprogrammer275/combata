@@ -10,7 +10,7 @@ loader.setResourcePath(NPC_CORE_ROOT + 'textures/');
 let manifestPromise = null;
 let basePromise = null;
 const clipPromises = new Map();
-const IN_PLACE = new Set(['walk','walk_aim','run','rifle_run','sprint','crouch_walk','crouch_walk_aim','jump_idle']);
+const IN_PLACE = new Set(['walk','walk_aim','run','rifle_run','sprint','crouch_walk','crouch_walk_aim','jump_idle','obstacle_climb','ladder_climb_up']);
 export const NPC_ANIMATION_ALIASES = Object.freeze({
   crouch: 'crouch_idle', crouchWalk: 'crouch_walk', jump: 'jump_idle',
   sitIdle: 'sit_idle', fall_death: 'death_candidate', get_up: 'knockdown_recovery_candidate'
