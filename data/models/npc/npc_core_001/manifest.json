@@ -418,7 +418,7 @@
       "status": "preview-required"
     }
   },
-  "status": "animation-inventory-mapped-awaiting-base-rig-and-runtime-motion-validation",
+  "status": "runtime-integrated-awaiting-in-game-validation",
   "schemaVersion": 2,
   "baseRig": {
     "candidateFile": "data/models/npc/npc_core_001/animations/Idle.fbx",
@@ -678,5 +678,42 @@
     "obstacleClimb": "Climbing.fbx is for an obstacle slightly taller than the player and landing on top",
     "ladder": "Climbing Ladder.fbx is for ladder elements only; reverse playback for descent remains experimental",
     "assetScope": "only the 28 files listed in fileInventory are current; ignore unavailable and legacy-folder clips"
+  },
+  "runtimeIntegration": {
+    "modelId": "npc_core_001",
+    "sharedRigLoader": "js/npc-system/core-assets.js",
+    "profileRegistry": "js/npc-system/profile-registry.js",
+    "animationController": "js/npc-system/animation-controller.js",
+    "characterInstance": "js/npc-system/npc-instance.js",
+    "liveConsumers": [
+      "js/character.js",
+      "js/civilians.js",
+      "js/player.js",
+      "js/enemies.js"
+    ],
+    "legacyAssets": "Removed data/models/npc/civilian_001, data/models/npc/civilian_002 and data/models/npc/npc1; no legacy clips are imported.",
+    "rigPolicy": "One shared base FBX, cloned skinning bindings for each character, source height normalized to 1.74m, shared material textures and cached animation clips.",
+    "clipPolicy": "Player essentials are loaded through the shared cache; civilian and profile actions are loaded lazily on first use. Locomotion and idle-start jump Hips translation is stripped because physics owns world movement.",
+    "animationRules": {
+      "walkAim": "Walking (1).fbx",
+      "normalWalk": "Walking.fbx",
+      "crouchWalkAim": "Crouch Walking.fbx",
+      "normalCrouchWalk": "Crouched Walking.fbx",
+      "reload": "Reloading.fbx; standing idle only; player controls are locked until its 3.3 second action completes",
+      "jump": "Jumping.fbx; only when the jump starts from idle; physics/camera owns the trajectory",
+      "rifleAim": "Rifle-specific aim/walk/run clips are used only for the rifle; non-rifle weapons do not borrow rifle poses",
+      "sitting": "Snap to the authored seat anchor, play Sitting Idle.fbx, then snap to exit/stand anchor; no sit-down/stand-up transition",
+      "oneShots": "Wave, jump, reload, hard landing, hit reaction, punch and block return to idle after completion; knockdown and death remain separate held states",
+      "talkAndPhone": "No downloaded talk or phone clip; dialogue and phone routines retain UI/behaviour but use idle pose",
+      "ladder": "Climbing Ladder.fbx is ladder-only; reverse descent is experimental",
+      "obstacleClimb": "Climbing.fbx is reserved for obstacle top-out/landing with calibrated anchors; traversal physics/anchor integration is still pending"
+    },
+    "validation": {
+      "staticIntegration": "Implemented",
+      "browserRuntime": "Pending",
+      "baseRigVerified": false,
+      "allClipBindingsVerified": false,
+      "physicsAndContactValidation": false
+    }
   }
 }
