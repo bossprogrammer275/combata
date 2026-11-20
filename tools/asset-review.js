@@ -700,9 +700,9 @@ function acceptTraversalProfile() {
       candidate.animation = { key: 'obstacle_climb', durationSeconds: 3.833, rootMotion: 'physics-owned-in-place' };
       candidate.capabilities = { ...(candidate.capabilities || {}), obstacleClimbAnimation: true };
     } else if (candidate.actionCandidate === 'ladder-climb') {
-      if (!vector(anchors.mountBottom) || !vector(anchors.mountTop) || !vector(anchors.topOut)
-        || !vector(anchors.bottomDismount)) {
-        throw new Error('Ladder needs mountBottom, mountTop, topOut and bottomDismount XYZ anchors.');
+      if (!vector(anchors.approach) || !vector(anchors.mountBottom) || !vector(anchors.mountTop)
+        || !vector(anchors.topOut) || !vector(anchors.bottomDismount)) {
+        throw new Error('Ladder needs approach, mountBottom, mountTop, topOut and bottomDismount XYZ anchors.');
       }
       if (!Array.isArray(anchors.climbPath) || anchors.climbPath.length < 2 || anchors.climbPath.some(point => !vector(point))) {
         throw new Error('Ladder climbPath needs at least two measured XYZ points along the ladder.');
