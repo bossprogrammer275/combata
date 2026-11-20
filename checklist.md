@@ -993,7 +993,8 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 - [ ] Add geometry-based door pivot detection, actual door swing/rotation and safe open/closed collision states for buildings and vehicles. Current accepted hinge/handle/open-range data is registered but panels are not yet animated.
 - [ ] Add measured stair tread/riser/platform surfaces and connect them to player/NPC step-height and landing support where required.
 - [ ] Add robust automatic road/bridge centreline extraction, crossfall/camber, seam/grade checks and connection fitting. The current review UI accepts manual corrections; it does not infer complex curves from raw geometry.
-- [ ] Preserve accepted interaction, traversal and bridge-socket overrides across rescans of an unchanged source hash, then verify with real sidecars.
+- [x] Preserve accepted interaction, traversal, approved road connection and bridge-socket overrides across rescans only when the source SHA-256 is unchanged; add regression tests for same-hash retention and changed-hash invalidation.
+- [ ] Confirm override retention by generating, approving and rescanning real bridge/road/interaction sidecars in Asset Review.
 - [ ] Run browser/in-game tests for player obstacle climbing, NPC obstacle climbing, ladder-up animation/contact, failed-climb recovery, player/NPC capsule clearance, NPC seat snapping, building/vehicle door apertures, vehicle occupant/exit placement, imported road tyre grip, bridge support/deck contact and approach/deck/exit transitions.
 - [ ] Do not mark Phase 6A complete or replace the existing collision workflow until representative asset, review UI, animation-contact and runtime-physics gates all pass.
 
