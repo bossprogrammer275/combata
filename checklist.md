@@ -528,7 +528,7 @@ Author simple calibration geometry directly when a downloaded model is unnecessa
 
 ## 8A. Unified automatic asset-calibration system — implementation contract
 
-**Status:** First implementation committed to `main`; runtime validation and the visual review UI remain open. Keep this section as the contract for the calibrator; update it when new asset categories and runtime consumers are added. Do not promote unreviewed guesses to gameplay-active metadata.
+**Status:** First implementation and a working review/save UI are committed to `main`. The sidecar pipeline now feeds world colliders, imported road/bridge triangle surfaces, reviewed tyre-surface routes, and accepted player/NPC/vehicle interaction anchors. Representative asset runs and in-game physics validation are still open. Keep unreviewed guesses out of gameplay-active metadata.
 
 ### Goal
 
@@ -957,30 +957,37 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 - [ ] Align the complete character motion to geometry anchors and measured obstacle/ladder dimensions.
 - [ ] Verify physics handoff, no teleporting, floating or collision traps.
 
-### Phase 6A — Unified asset calibration (in progress; runtime validation pending)
+### Phase 6A — Unified asset calibration (implementation in progress; asset/runtime validation pending)
 
-**Implemented first pass; runtime validation pending.**
+**Implemented first pass; no representative sidecars or in-game physics tests have been run yet.**
 
 - [x] Add the unified CLI entry point: `tools/asset-calibrator.mjs`.
-- [x] Reuse `tools/process-glbs.js` as the collision scan stage instead of maintaining a disconnected collision generator.
-- [x] Extend the collision scan stage to read GLB and local-resource glTF, return stable node keys and component bounds, and support excluding reviewed driveable surfaces from solid boxes.
-- [x] Emit versioned `*_calibration.json` sidecars with source SHA-256, raw bounds, collision boxes, component classifications, road/bridge profiles, traversal candidates, interaction contracts and vehicle diagnostics.
-- [x] Add initial semantic recognition for known bridge sections, Road Pack modules, sidewalks, doors/panels, seats, stairs, ladders, ledges, barriers and vehicle parts. Name/shape guesses remain unapproved.
-- [x] Keep imported road/bridge decks separate from box collision and describe their exact source triangles as triangle-surface physics. Straight-axis endpoints are estimates; curved and sloped spans deliberately require review.
-- [x] Add runtime loading in `js/asset-calibration.js`; pass calibrated collision boxes, exact driveable surfaces, candidate traversal bounds and accepted interaction metadata into the world.
-- [x] Feed calibrated surface friction hints into Rapier static surface registration.
-- [x] Add accepted NPC seat/approach/exit anchors and building-door hinge/handle metadata to the world interaction records.
-- [x] Add accepted vehicle occupant/entry/exit anchor resolution. Keep the existing four-wheel detector and dynamic chassis collision as the authority; vehicle door hinge metadata is collected but door swing animation is not yet wired.
-- [x] Add sidecar hash/reference validation in `tools/validate-asset-calibration.mjs` and regression tests in `tools/asset-calibrator.test.mjs`.
-- [ ] Complete scale/origin/up-axis inference with trustworthy physical references. Do not auto-rescale assets whose source units are unknown.
-- [ ] Add geometry-based door/panel pivot detection, movable-panel collision states, step/riser measurements and full player-profile-aware traversal reach/landing calculations.
-- [ ] Add robust road/bridge centreline extraction, curved-span sockets, crossfall/camber, seam checks and automated connection alignment. Do not invent straight endpoints for curved or sloped geometry.
-- [ ] Add the calibration review UI, visual collider/surface overlay, anchor editing, accept/reject controls and durable manual overrides.
-- [ ] Preserve accepted traversal decisions and manually reviewed interaction anchors across rescans; test this path with real sidecars.
-- [ ] Generate and validate sidecars for the modular bridge kit, Road Pack, sidewalk pack, representative building and each current vehicle asset.
-- [ ] Run browser tests for player walking, NPC seating, vehicle entry/exit, door apertures, bridge support collision, deck contact and vehicle transitions.
-- [ ] Compare legacy `*_col.json` output with unified output and resolve regressions before migrating/removing any old sidecars.
-- [ ] Do not mark Phase 6A complete or replace the existing collision workflow until representative asset and runtime physics gates pass.
+- [x] Reuse `tools/process-glbs.js` as the internal collision scan stage instead of maintaining a disconnected collision generator.
+- [x] Extend the scan stage to read GLB and local-resource glTF, return stable node keys/component bounds, and omit explicitly classified driveable meshes from solid-box generation.
+- [x] Emit versioned `*_calibration.json` sidecars with source SHA-256, raw bounds, collision boxes, semantic components, road/bridge profiles, traversal candidates, interaction contracts and vehicle diagnostics.
+- [x] Add initial recognition for trusted bridge-kit sections, Road Pack modules, sidewalk components, the known street-road asphalt mesh, and candidate doors/panels, seats, stairs, ladders, ledges, barriers and vehicle parts. Name/shape guesses remain review-only.
+- [x] Keep imported road/bridge deck meshes separate from solid boxes and register their original triangles as static Rapier surface colliders.
+- [x] Add a review/save panel to `tools/asset-review.html/js`: calibrated component selector, component/anchor JSON editing, collision and road-profile overlays, component acceptance, connection editing and explicit sidecar save.
+- [x] Add source-hash-guarded GET/POST calibration endpoints in `server.js`. They only read/write sidecars beside GLB/glTF files under the approved model roots; source assets remain read-only.
+- [x] Keep scan-owned collision exclusions locked in the review UI and server validation. A newly detected mesh cannot be made driveable while its original solid collider remains in the sidecar.
+- [x] Add sidecar integrity checks for node references, collision boxes, runtime surface references, interaction anchors, approved routes and bridge sections.
+- [x] Add reviewed road/bridge socket profiles to the vehicle tyre-surface sampler. Accepted straight routes use their reviewed endpoints; curved/sloped/ramp routes require at least three reviewed centreline points. The route list follows streaming chunk load/unload.
+- [x] Feed calibrated road/bridge friction hints into Rapier's static triangle-surface registration.
+- [x] Pass accepted NPC seat approach/pelvis/facing/exit anchors into the world interactable registry.
+- [x] Pass accepted building-door hinge/axis/handle metadata into building door records. Actual panel rotation and open/closed collision switching remain unfinished.
+- [x] Pass accepted vehicle occupant/entry/exit anchors into player vehicle interactions. Keep the existing wheel detector and dynamic chassis collision authoritative; vehicle-door hinge data is diagnostic only until door motion is implemented.
+- [x] Add unit-test coverage for trusted bridge/Road Pack/street-road classifications, curve/ramp policy, unknown road geometry, and NPC/vehicle anchor contracts.
+- [ ] Run `pnpm test:asset-calibration` and fix any failing cases.
+- [ ] Generate, validate and visually review sidecars for the modular bridge kit, Road Pack, street-road asset, sidewalk pack, representative building/prop assets and all current vehicle GLBs/GLTFs.
+- [ ] Compare generated unified collision boxes against existing `*_col.json` sidecars and actual world behaviour before migrating or replacing any legacy sidecar.
+- [ ] Complete scale/origin/up-axis inference using trustworthy reference dimensions. Do not auto-rescale assets with unknown source units.
+- [ ] Add geometry-based door pivot detection, movable-panel rotation and safe open/closed collision states for buildings and vehicles.
+- [ ] Add stairs/step/riser/platform measurements and generate walkable tread/landing surfaces where the source requires them.
+- [ ] Add robust automatic road/bridge centreline extraction, crossfall/camber, seam/grade checks and connection fitting. The current review UI accepts manual corrections; it does not infer complex curves from raw geometry.
+- [ ] Connect calibrated traversal requirements to a real player/NPC traversal state machine and the downloaded climb/ladder animation clips. Current `Player._startClimb` still performs instant movement; do not enable calibrated traversal against it.
+- [ ] Preserve and test accepted interaction, traversal and bridge-socket overrides across rescans of an unchanged source hash.
+- [ ] Run browser/in-game tests for player collision, NPC seat snapping, door apertures, vehicle occupant/exit placement, imported road tyre grip, bridge support contact, deck contact and all approach/deck/exit transitions.
+- [ ] Do not mark Phase 6A complete or replace the existing collision workflow until sidecar, visual-review and runtime-physics gates all pass.
 
 **Current commands**
 
@@ -988,9 +995,10 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 pnpm calibrate:asset -- data/models/assets/others/modular_bridge__low_poly__game_ready_/scene.gltf
 pnpm validate:asset-calibration -- data/models/assets/others/modular_bridge__low_poly__game_ready_/scene.gltf
 pnpm test:asset-calibration
+pnpm dev
 ```
 
-The first command writes `scene_calibration.json` beside the source glTF. It does not rewrite the source model. The validator and unit-test commands have been added but were not executed in this editing session.
+The calibrator writes `scene_calibration.json` beside the source glTF and does not rewrite the model. The test command, calibrator and save API are committed, but they have not been executed against the actual asset files or game runtime in this session.
 
 ### Phase 7 — Test world and surface engine
 
@@ -1053,8 +1061,9 @@ The core gameplay/test stage is not complete until:
 1. Read this entire `checklist.md` first.
 2. Treat `npc_core_001` as the only active humanoid asset; do not recreate the deleted legacy model folders or runtime modules.
 3. Inspect the current GitHub `main` branch and actual files before editing.
-4. Continue Phase 6A from its first unchecked item: build the calibration review UI and run the new CLI against the modular bridge kit, Road Pack, sidewalk pack, a building and the current vehicle GLBs. Then use the local browser to validate runtime collision and interaction handoffs.
-5. Do not mark calibrator, bridge, vehicle-door, NPC-seat or traversal runtime validation complete without an actual in-game test. Keep the NPC base-rig and animation verification items open until their browser tests pass.
+4. Continue Phase 6A from its first unchecked item: run `pnpm test:asset-calibration`, generate and validate sidecars for the bridge kit, Road Pack, street-road, sidewalks, representative buildings/props and current vehicle assets, then inspect them in `/tools/asset-review.html`.
+5. Next implement actual door swing/open-state collision and the player/NPC traversal state machine that consumes the calibrated obstacle/ladder anchors and available NPC-core clips. Then run the map/browser physics tests for road grip, bridge support/deck/approach transitions, NPC seating, player collision and vehicle entry/exit. Do not mark any of those runtime gates complete until observed in-game.
+6. Keep NPC base-rig/animation verification open until its browser tests pass.
 6. Keep the scope on the core NPC/player foundation and compact test world. No story-mode work until the user changes scope.
 
 **This file is the durable project handoff. Update its checkboxes and notes as work is completed.**
