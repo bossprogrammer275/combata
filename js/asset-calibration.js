@@ -99,14 +99,34 @@ export function applyAssetCalibration(root, calibration) {
           coordinateSpace: 'component-local',
         };
       } else {
+        const anchors = interaction.anchors || {};
+        const anchorPosition = value => Array.isArray(value) && value.length >= 3
+          ? value
+          : Array.isArray(value?.position) ? value.position
+            : value?.position && ['x', 'y', 'z'].every(key => Number.isFinite(Number(value.position[key])))
+              ? [Number(value.position.x), Number(value.position.y), Number(value.position.z)]
+              : null;
         node.userData.npcInteractable = {
           ...interaction,
           kind: interaction.kind,
           label: interaction.label || interaction.kind,
           useRadius: interaction.useRadius,
-          approachOffset: interaction.approachOffset || null,
-          sitOffset: interaction.sitOffset || null,
+          approachOffset: interaction.approachOffset || anchorPosition(anchors.approach),
+          sitOffset: interaction.sitOffset || anchorPosition(anchors.pelvis || anchors.sit),
+          seatFacing: anchors.seatFacing || null,
+          exitOffset: anchorPosition(anchors.exit),
         };
+        if (interaction.kind === 'door') {
+          node.userData.worldKit ||= {};
+          node.userData.worldKit.role = 'door';
+          node.userData.worldKit.calibratedDoor = {
+            hinge: anchorPosition(anchors.hinge),
+            hingeAxis: anchors.hingeAxis || null,
+            handle: anchorPosition(anchors.handle),
+            openAngleDeg: Number.isFinite(Number(anchors.openAngleDeg)) ? Number(anchors.openAngleDeg) : null,
+            accepted: true,
+          };
+        }
       }
     }
 
