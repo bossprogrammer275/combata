@@ -34,8 +34,9 @@ function finiteVector(value, length = 3) {
 function hasAnchor(value) {
   if (typeof value === 'number' && Number.isFinite(value)) return true;
   if (typeof value === 'string' && value.trim() && Number.isFinite(Number(value))) return true;
-  if (finiteVector(value)) return true;
-  if (finiteVector(value?.position)) return true;
+  if (Array.isArray(value)) return value.length > 0 && value.every(item => Number.isFinite(Number(item)));
+  if (Array.isArray(value?.position)) return value.position.length >= 3
+    && value.position.slice(0, 3).every(item => Number.isFinite(Number(item)));
   if (value?.position && ['x', 'y', 'z'].every(key => Number.isFinite(Number(value.position[key])))) return true;
   if (value && ['x', 'y', 'z'].every(key => Number.isFinite(Number(value[key])))) return true;
   return !!value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length > 0;
@@ -222,4 +223,4 @@ if (invokedPath && import.meta.url === pathToFileURL(invokedPath).href) {
   }
 }
 
-export { validateAsset };
+export { validateAsset, hasAnchor };
