@@ -1219,7 +1219,7 @@ export class World {
     const arrays = [
       'colliders', 'climbables', 'interiors', 'portals', 'roofAccess',
       'npcInteractables', 'reactiveObjects', 'coverPoints', 'worldKitComponents',
-      '_buildingData', 'vehicleSpawns', 'roadPhysicsMeshes',
+      '_buildingData', 'vehicleSpawns', 'roadPhysicsMeshes', 'calibratedRoadChains',
     ];
     for (const name of arrays) this._removeArrayItems(this[name], items[name]);
 
