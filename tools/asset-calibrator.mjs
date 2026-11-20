@@ -87,9 +87,15 @@ function hasNameToken(tokens, ...values) {
 }
 
 function isCollisionProxyComponent(item) {
-  return item?.collisionProxy === true
-    || /^col_/i.test(String(item?.name || ''))
-    || /(?:^|\\s\\/\\s|\\/)collision_proxies(?:\\s\\/\\s|\\/|$)/i.test(String(item?.nodePath || ''));
+  const name = String(item?.name || '').trim().toLowerCase();
+  const path = String(item?.nodePath || '').toLowerCase();
+  if (/^(?:col_|trim_|window_|roof_detail|sign|awning)/.test(name) || /^room_\\d+_marker$/.test(name)) return true;
+  if (/(?:^|\\s\\/\\s|\\/)collision_proxies(?:\\s\\/\\s|\\/|$)/i.test(path)) return true;
+  // process-glbs marks door meshes as collisionProxy so they do not become
+  // solid boxes. They must remain visible to semantic door calibration.
+  const explicitDoor = /^(?:door|doorpanel|door_panel)(?:_|$)/.test(name)
+    || /(?:^|\\s\\/\\s)door_[^/]*(?:\\s\\/\\s|$)/.test(path);
+  return item?.collisionProxy === true && !explicitDoor;
 }
 
 function isPlausibleWheelGeometry(item) {
@@ -253,7 +259,9 @@ function aggregateVehicleWheelGroups(meshDetails) {
       groups.get(key).items.push(item);
     } else {
       const tokens = normalizedNameTokens(item.name);
-      const hasWheelLabel = tokens.some(token => /^wheel_(?:fl|fr|rl|rr)$/.test(token) || /^wheel(?:fl|fr|rl|rr)$/.test(token));
+      const hasWheelLabel = /(?:^|_)wheel_(?:fl|fr|rl|rr)(?:_|$)/i.test(String(item.name || ''))
+        || (tokens.includes('wheel') && tokens.some(token => ['fl', 'fr', 'rl', 'rr'].includes(token)))
+        || tokens.some(token => /^wheel(?:fl|fr|rl|rr)$/.test(token));
       if (hasWheelLabel && isPlausibleWheelGeometry(item)) {
         const key = item.nodeKey;
         groups.set(key, { key, name: item.name, nodePath: item.nodePath, items: [item] });
