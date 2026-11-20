@@ -900,6 +900,22 @@ try {
   assert.equal(report.legacyRoadSurfaceCount, 0,
     'City A must not render the previous procedural asphalt road texture');
   assert.equal(report.glbAssetCount, map.glbAssets.length, 'runtime GLB placement count differs from authored map');
+  assert.ok(report.streamingInitial?.enabled,
+    'City A must use spatial world streaming');
+  assert.ok(report.streamingInitial.loadedChunks > 0
+    && report.streamingInitial.loadedChunks < report.streamingInitial.totalChunks,
+    'streaming must boot only the spawn neighbourhood');
+  assert.ok(report.streamingInitial.loadedPlacements > 0
+    && report.streamingInitial.loadedPlacements < report.streamingInitial.totalPlacements,
+    'streaming must leave distant GLB placements unloaded at startup');
+  assert.equal(report.streamingInitial.totalPlacements, map.glbAssets.length,
+    'streaming chunk index must account for every authored GLB placement');
+  assert.equal(report.streamingFinal.loadedPlacements, map.glbAssets.length,
+    'full-city QA expansion must load every streamed GLB placement');
+  assert.equal(report.streamingFinal.loadedChunks, report.streamingFinal.totalChunks,
+    'full-city QA expansion must load every spatial cell');
+  assert.equal(report.streamingRoundTripPassed, true,
+    'a streamed cell must unload and reload its models and collision data cleanly');
   assert.equal(report.uniqueModelCount, new Set(map.glbAssets.map(a => a.url)).size, 'not all distinct imported model files loaded into cache');
   assert.equal(report.buildingCount, map.glbAssets.filter(a => a.building).length, 'some authored building GLBs did not load');
   assert.equal(report.districtPlotCount, 11, 'not all authored residential and market plots were built');

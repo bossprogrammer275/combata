@@ -162,6 +162,37 @@
       status.textContent = 'Building roads, bridges and real GLB instances…';
       const world = new World(scene, 'medium', map);
       await world.assetsReady;
+
+      // Record what a real game session loads before allowing the QA scene to
+      // expand to the full city for building, bridge and collision assertions.
+      const streamingInitial = world.getStreamingStats?.() || null;
+      let streamingRoundTripPassed = false;
+      if (world._streamingConfig?.enabled && world._streamingChunks?.size) {
+        const chunks = [...world._streamingChunks.values()];
+        if (streamingInitial?.loadedPlacements >= streamingInitial.totalPlacements) {
+          throw new Error('World streaming loaded the entire map during initial spawn boot');
+        }
+        for (const chunk of chunks) {
+          if (chunk.state !== 'loaded') await world._loadStreamingChunk(chunk);
+        }
+        world._rebuildGrid();
+
+        // Exercise a real unload/reload lifecycle. This checks that render roots,
+        // collision records, BVH registrations and shared GLB references recover.
+        const probe = chunks.find(chunk => chunk.state === 'loaded' && chunk.roots?.length);
+        if (probe) {
+          const beforeRoots = probe.roots.length;
+          const beforeColliderCount = world.colliders.length;
+          const unloaded = world._unloadStreamingChunk(probe);
+          const removed = probe.state === 'unloaded' && probe.roots.length === 0
+            && world.colliders.length < beforeColliderCount;
+          await world._loadStreamingChunk(probe);
+          world._rebuildGrid();
+          streamingRoundTripPassed = !!unloaded && removed
+            && probe.state === 'loaded' && probe.roots.length === beforeRoots;
+        }
+      }
+      const streamingFinal = world.getStreamingStats?.() || null;
       let meshCount = 0;
       world.group.traverse(o => { if (o.isMesh) meshCount++; });
       const uniqueModels = world._glbModelCache?.size || 0;
@@ -215,6 +246,9 @@
       ).map(component => component.id);
       state.ready = true;
       state.report = {
+        streamingInitial,
+        streamingFinal,
+        streamingRoundTripPassed,
         roadCount: map.roads?.length || 0,
         roadModuleCount: world.roadModuleInstances?.length || 0,
         roadPackPrefabCount: world._roadPackPrefabs?.size || 0,
