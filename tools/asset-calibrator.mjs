@@ -523,7 +523,8 @@ export function preserveReviewedCalibration({
   road = null,
   bridge = null,
 }) {
-  const old = previousCalibration?.source?.sha256 === sourceHash ? previousCalibration : null;
+  const old = typeof sourceHash === 'string' && sourceHash.length > 0
+    && previousCalibration?.source?.sha256 === sourceHash ? previousCalibration : null;
   if (!old) return false;
 
   const previousComponents = Array.isArray(old.components) ? old.components : [];
