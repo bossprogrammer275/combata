@@ -166,7 +166,8 @@ export class Civilian {
       this.velocity.set(0, 0, 0);
       this._releaseObject();
       this.manager.endSocial(this);
-      this.ch.play("death_candidate", { loop: false });
+      // Until Dying.fbx passes the full-motion review, use the distinct knockdown action.
+      this.ch.play("knocked_down", { loop: false });
       this.manager.onCasualty?.(this);
       return true;
     }
