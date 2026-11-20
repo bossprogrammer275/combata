@@ -74,10 +74,45 @@ function bridgeRoleByName(name) {
   return null;
 }
 
+function normalizedNameTokens(value) {
+  return String(value || '')
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+}
+
+function hasNameToken(tokens, ...values) {
+  return values.some(value => tokens.includes(value));
+}
+
+function isCollisionProxyComponent(item) {
+  return item?.collisionProxy === true
+    || /^col_/i.test(String(item?.name || ''))
+    || /(?:^|\\s\\/\\s|\\/)collision_proxies(?:\\s\\/\\s|\\/|$)/i.test(String(item?.nodePath || ''));
+}
+
+function isPlausibleWheelGeometry(item) {
+  const dimensions = vectorSize(item).map(Math.abs).sort((a, b) => a - b);
+  if (dimensions.length !== 3 || dimensions[0] <= 1e-8 || dimensions[2] <= 1e-8) return false;
+  const [thickness, middle, largest] = dimensions;
+  return middle / largest >= 0.3
+    && thickness / largest >= 0.08
+    && largest / middle <= 2.25;
+}
+
 function classifyComponent(item, assetType, assetPath) {
+  if (isCollisionProxyComponent(item)) return null;
+
   const name = stableNodeName(item);
-  const pathText = String(item.nodePath || '') + ' / ' + name;
-  const key = pathText.toLowerCase().replace(/[\\s-]+/g, '_');
+  const tokens = normalizedNameTokens(name);
+  const pathTokens = normalizedNameTokens(item.nodePath || '');
+  const has = (...values) => hasNameToken(tokens, ...values);
+  const hasInPath = (...values) => hasNameToken(pathTokens, ...values);
+  const key = String(item.nodePath || '').toLowerCase().replace(/[\\s-]+/g, '_');
+
+  // These project-owned profiles are tied to exact node identities, not fuzzy
+  // words. Their node names and mesh dimensions are the calibration authority.
   if (assetPath.includes('/roads/street_road/') && /two_lane_road/.test(key) && !/side_texture/.test(key)) {
     return { role: 'road-surface', kind: 'driveable-surface', confidence: 0.98, source: 'world-kit-street-road' };
   }
@@ -93,36 +128,73 @@ function classifyComponent(item, assetType, assetPath) {
     if (part) return { role: 'walkable-surface', kind: part.kind, confidence: 0.96, source: 'world-kit-sidewalks' };
   }
 
-  // Vehicle seat/door groups use many vendor naming conventions. Token-based
-  // matching avoids relying on a single exact mesh label.
-  const tokens = pathText.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
-  const hasToken = (...values) => values.some(value => tokens.includes(value));
-  if (assetType === 'vehicle' && hasToken('seat', 'chair', 'bench', 'sofa', 'stool', 'couch', 'driverseat', 'passengerseat')) {
-    return { role: 'vehicle-seat', kind: 'seat', confidence: 0.86, source: 'node-name' };
-  }
-  if (assetType === 'vehicle' && hasToken('door', 'doorpanel', 'hatch', 'tailgate', 'trunk', 'boot')) {
-    return { role: 'door-panel', kind: 'door', confidence: 0.86, source: 'node-name' };
+  // Vehicle semantics are deliberately isolated from ordinary props/buildings.
+  // "trim" must not become a wheel (it contains the letters "rim"), and
+  // "seatbelt" must not become a seat.
+  if (assetType === 'vehicle') {
+    if (has('steeringwheel', 'volant') || (has('steering') && has('wheel'))) {
+      return { role: 'steering-wheel', kind: 'steering-wheel', confidence: 0.86, source: 'node-name' };
+    }
+    if (has('seat', 'driverseat', 'passengerseat', 'chair')) {
+      return { role: 'vehicle-seat', kind: 'seat', confidence: 0.86, source: 'node-name' };
+    }
+    if (has('door', 'doorpanel', 'hatch', 'tailgate', 'trunk', 'boot')) {
+      return { role: 'door-panel', kind: 'door', confidence: 0.86, source: 'node-name' };
+    }
+    const wheelNamed = tokens.some(token =>
+      token === 'wheel' || /^wheel_(?:fl|fr|rl|rr)$/.test(token)
+      || /^wheel(?:fl|fr|rl|rr)$/.test(token)
+      || /^3dwheel(?:_|[a-z0-9])/.test(token)
+    );
+    if (wheelNamed && isPlausibleWheelGeometry(item)) {
+      return { role: 'vehicle-wheel', kind: 'wheel', confidence: 0.78, source: 'node-name-and-wheel-geometry' };
+    }
+    return null;
   }
 
-  const tests = [
-    [/vehicle.*door|door.*vehicle|(^|_)door(_|$)|gate|hatch|shutter/, 'door-panel', 'door'],
-    [/seat|chair|bench|sofa|stool|couch/, assetType === 'vehicle' ? 'vehicle-seat' : 'seat', 'seat'],
-    [/steer.*wheel|steering_wheel|volant/, 'steering-wheel', 'steering-wheel'],
-    [/wheel|tyre|tire|rim/, 'vehicle-wheel', 'wheel'],
-    [/ladder|ladder_rung/, 'ladder', 'ladder'],
-    [/stairs?|staircase|steps?_/, 'stairs', 'stairs'],
-    [/ledge|hang.?point|climb.?edge/, 'ledge', 'ledge'],
-    [/guard.?rail|hand.?rail|barrier|kerb|curb|rail_/, 'barrier', 'barrier'],
-    [/fence|wall|parapet/, 'obstacle', 'obstacle'],
-    [/pier|abutment|support|column|beam|foundation/, 'bridge-support', 'support'],
-    [/handle|switch|button|lever|grip/, 'interaction-part', 'interaction'],
-  ];
-  for (const [pattern, role, kind] of tests) {
-    if (pattern.test(key)) return { role, kind, confidence: 0.86, source: 'node-name' };
+  // Non-vehicle items can have doors/seats, but never inherit vehicle wheel,
+  // vehicle door or vehicle-seat roles from generic substring matches.
+  if (has('door', 'doorpanel', 'hatch', 'shutter', 'gate')) {
+    return { role: 'door-panel', kind: 'door', confidence: 0.82, source: 'node-name' };
+  }
+  if (has('seat', 'chair', 'bench', 'sofa', 'stool', 'couch')) {
+    return { role: 'seat', kind: 'seat', confidence: 0.82, source: 'node-name' };
+  }
+
+  if (has('ladder', 'ladderrung') || hasInPath('ladder')) {
+    return { role: 'ladder', kind: 'ladder', confidence: 0.82, source: 'node-name-or-parent' };
+  }
+  if (has('stairs', 'staircase', 'stair', 'steps') || hasInPath('stairs', 'staircase')) {
+    return { role: 'stairs', kind: 'stairs', confidence: 0.82, source: 'node-name-or-parent' };
+  }
+  // Some supplied single-mesh props have generic mesh names. The source file
+  // itself is a legitimate semantic label, but it remains review-only.
+  if (/\\/(?:stair|stairs)(?:[-_][^/]*)?\\.glb$/i.test(assetPath)
+    && !assetPath.includes('/roads/')) {
+    return { role: 'stairs', kind: 'stairs', confidence: 0.78, source: 'asset-file-name' };
+  }
+  if (has('ledge', 'hangpoint', 'climbedge')) {
+    return { role: 'ledge', kind: 'ledge', confidence: 0.82, source: 'node-name' };
+  }
+  if (has('fence', 'parapet', 'lowwall')) {
+    return { role: 'obstacle', kind: 'obstacle', confidence: 0.82, source: 'node-name' };
+  }
+  if (has('guardrail', 'handrail', 'barrier', 'kerb', 'curb', 'rail')) {
+    return { role: 'barrier', kind: 'barrier', confidence: 0.82, source: 'node-name' };
+  }
+  // Generic tall building walls are structural geometry, not climb targets.
+  if (has('wall')) {
+    return { role: 'building-wall', kind: 'wall', confidence: 0.78, source: 'node-name' };
+  }
+  if (assetType === 'bridge' && has('pier', 'abutment', 'support', 'column', 'beam', 'foundation')) {
+    return { role: 'bridge-support', kind: 'support', confidence: 0.82, source: 'node-name' };
+  }
+  if (has('handle', 'switch', 'button', 'lever', 'grip')) {
+    return { role: 'interaction-part', kind: 'interaction', confidence: 0.78, source: 'node-name' };
   }
 
   if ((assetType === 'bridge' || assetType === 'road')
-    && hasToken('asphalt', 'carriageway', 'road', 'lane', 'deck', 'driveable', 'drivable', 'pavement')) {
+    && has('asphalt', 'carriageway', 'road', 'lane', 'deck', 'driveable', 'drivable', 'pavement')) {
     return {
       role: assetType === 'bridge' ? 'bridge-deck-candidate' : 'road-surface-candidate',
       kind: 'driveable-surface',
@@ -142,6 +214,91 @@ function classifyComponent(item, assetType, assetPath) {
   return null;
 }
 
+function unionMeshDetails(items, nodeKey, nodePath, name) {
+  if (!items.length) return null;
+  const min = [0, 1, 2].map(axis => Math.min(...items.map(item => item.boundsMin[axis])));
+  const max = [0, 1, 2].map(axis => Math.max(...items.map(item => item.boundsMax[axis])));
+  return {
+    index: -1,
+    nodeKey,
+    nodePath,
+    name,
+    dimensions: max.map((value, axis) => value - min[axis]),
+    center: max.map((value, axis) => (value + min[axis]) * 0.5),
+    boundsMin: min,
+    boundsMax: max,
+    vertexCount: items.reduce((sum, item) => sum + (item.vertexCount || 0), 0),
+    triangleCount: items.reduce((sum, item) => sum + (item.triangleCount || 0), 0),
+    collisionProxy: false,
+    skinned: items.some(item => item.skinned),
+  };
+}
+
+function aggregateVehicleWheelGroups(meshDetails) {
+  const groups = new Map();
+  for (const item of meshDetails) {
+    if (isCollisionProxyComponent(item)) continue;
+    const keys = String(item.nodeKey || '').split('/');
+    const names = String(item.nodePath || '').split(' / ');
+    let groupIndex = -1;
+    for (let index = keys.length - 2; index >= 0; index--) {
+      if (/3dwheel.*(?:front|rear)_[lrc]|(?:^|_)wheel_(?:fl|fr|rl|rr)(?:_|$)/i.test(names[index] || '')) {
+        groupIndex = index;
+        break;
+      }
+    }
+    if (groupIndex >= 0) {
+      const key = keys.slice(0, groupIndex + 1).join('/');
+      if (!groups.has(key)) groups.set(key, { key, name: names[groupIndex], nodePath: names.slice(0, groupIndex + 1).join(' / '), items: [] });
+      groups.get(key).items.push(item);
+    } else {
+      const tokens = normalizedNameTokens(item.name);
+      const hasWheelLabel = tokens.some(token => /^wheel_(?:fl|fr|rl|rr)$/.test(token) || /^wheel(?:fl|fr|rl|rr)$/.test(token));
+      if (hasWheelLabel && isPlausibleWheelGeometry(item)) {
+        const key = item.nodeKey;
+        groups.set(key, { key, name: item.name, nodePath: item.nodePath, items: [item] });
+      }
+    }
+  }
+
+  const result = [];
+  for (const group of groups.values()) {
+    const aggregate = unionMeshDetails(group.items, group.key, group.nodePath, group.name);
+    if (!aggregate || !isPlausibleWheelGeometry(aggregate)) continue;
+    result.push({
+      item: aggregate,
+      role: { role: 'vehicle-wheel', kind: 'wheel', confidence: 0.82, source: 'aggregated-wheel-group' },
+    });
+  }
+  return result;
+}
+
+function aggregateLadderGroups(meshDetails) {
+  const groups = new Map();
+  for (const item of meshDetails) {
+    if (isCollisionProxyComponent(item)) continue;
+    const keys = String(item.nodeKey || '').split('/');
+    const names = String(item.nodePath || '').split(' / ');
+    let groupIndex = -1;
+    for (let index = keys.length - 2; index >= 0; index--) {
+      if (normalizedNameTokens(names[index]).includes('ladder')) {
+        groupIndex = index;
+        break;
+      }
+    }
+    if (groupIndex >= 0) {
+      const key = keys.slice(0, groupIndex + 1).join('/');
+      if (!groups.has(key)) groups.set(key, { key, name: names[groupIndex], nodePath: names.slice(0, groupIndex + 1).join(' / '), items: [] });
+      groups.get(key).items.push(item);
+    }
+  }
+  const result = [];
+  for (const group of groups.values()) {
+    const aggregate = unionMeshDetails(group.items, group.key, group.nodePath, group.name);
+    if (aggregate) result.push(aggregate);
+  }
+  return result;
+}
 function localConnection(item, longitudinalAxis, sectionKind = 'unknown-profile') {
   const supportedStraight = sectionKind === 'straight-span' || sectionKind === 'short-pier-starter';
   if (!supportedStraight || !['x', 'z'].includes(longitudinalAxis)) {
@@ -349,15 +506,36 @@ async function calibrateOne(file) {
 
   const meshByKey = new Map(scanned.meshDetails.map(mesh => [mesh.nodeKey, mesh]));
   const components = [];
+  const aggregatedLadders = aggregateLadderGroups(scanned.meshDetails);
+  const groupedLadderKeys = new Set(aggregatedLadders.map(item => item.nodeKey));
+  const vehicleWheels = assetType === 'vehicle' ? aggregateVehicleWheelGroups(scanned.meshDetails) : [];
+  const groupedWheelKeys = new Set(vehicleWheels.map(entry => entry.item.nodeKey));
+
   for (const item of scanned.meshDetails) {
+    if (isCollisionProxyComponent(item)) continue;
+    // A ladder built from separate rails/rungs is one climbable object, not a
+    // collection of five independently climbable fragments.
+    if (aggregatedLadders.some(group => item.nodeKey.startsWith(group.nodeKey + '/'))) continue;
+    if (groupedWheelKeys.has(item.nodeKey)) continue;
     const role = classifyComponent(item, assetType, assetPath);
     if (role) components.push(makeComponent(item, role, components.length, assetType));
+  }
+  for (const item of aggregatedLadders) {
+    const role = { role: 'ladder', kind: 'ladder', confidence: 0.82, source: 'aggregated-ladder-group' };
+    components.push(makeComponent(item, role, components.length, assetType));
+  }
+  for (const entry of vehicleWheels) {
+    components.push(makeComponent(entry.item, entry.role, components.length, assetType));
   }
   const road = buildRoadProfiles(assetType, components, meshByKey);
   const bridge = assetType === 'bridge' ? buildBridgeProfile(components, meshByKey) : null;
   const isVehicle = assetType === 'vehicle';
   const traversal = components.filter(component =>
-    ['obstacle', 'ladder', 'stairs', 'ledge'].includes(component.kind)
+    component.kind === 'ladder'
+      || component.kind === 'stairs'
+      || component.kind === 'ledge'
+      || (component.kind === 'obstacle' && component.bounds.size[1] >= 0.45
+        && Math.max(component.bounds.size[0], component.bounds.size[2]) >= 0.7)
   ).map(component => ({
     componentId: component.id,
     nodeKey: component.nodeKey,
@@ -601,7 +779,7 @@ async function main() {
   if (failed) process.exitCode = 1;
 }
 
-export { calibrateOne, classifyAssetType, classifyComponent, localConnection, interactionSpec, makeComponent, buildRoadProfiles, buildBridgeProfile };
+export { calibrateOne, classifyAssetType, classifyComponent, isCollisionProxyComponent, isPlausibleWheelGeometry, aggregateVehicleWheelGroups, aggregateLadderGroups, localConnection, interactionSpec, makeComponent, buildRoadProfiles, buildBridgeProfile };
 
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : '';
 if (invokedPath && import.meta.url === pathToFileURL(invokedPath).href) {
