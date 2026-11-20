@@ -1417,6 +1417,7 @@ export class VehicleSystem {
     this.audio = audio;
     this.physics = physics;
     this.vehicles = [];
+    this._trafficVehicles = [];
     this.driver = null;
     this.preferredVehicle = null;
     this.lastSpawnError = null;
@@ -1525,10 +1526,47 @@ export class VehicleSystem {
     ctx.fillText(gear, cx + 40, cy - 2);
   }
 
+  _createTrafficRoute(def = {}) {
+    const source = Array.isArray(def.route) ? def.route : [];
+    const points = source.map(point => ({
+      x: Number(point?.[0]), z: Number(point?.[1]), y: Number(point?.[2]) || 0,
+    })).filter(point => Number.isFinite(point.x) && Number.isFinite(point.z));
+    if (points.length < 3) return null;
+    const segments = [];
+    let totalLength = 0;
+    for (let i = 0; i < points.length; i++) {
+      const a = points[i], b = points[(i + 1) % points.length];
+      const length = Math.hypot(b.x - a.x, b.z - a.z);
+      if (length < 0.5) continue;
+      segments.push({ a, b, length, start: totalLength });
+      totalLength += length;
+    }
+    if (segments.length < 3 || totalLength < 20) return null;
+    return {
+      points, segments, totalLength,
+      distance: ((Number(def.distance) || 0) % totalLength + totalLength) % totalLength,
+      speed: THREE.MathUtils.clamp(Number(def.speed) || 5.5, 1.5, 12),
+      laneOffset: THREE.MathUtils.clamp(Number(def.laneOffset) || 0, -4, 4),
+    };
+  }
+
+  _sampleTrafficRoute(route) {
+    if (!route?.segments?.length) return null;
+    const distance = ((route.distance % route.totalLength) + route.totalLength) % route.totalLength;
+    const segment = route.segments.find(item => distance <= item.start + item.length) || route.segments[0];
+    const t = THREE.MathUtils.clamp((distance - segment.start) / segment.length, 0, 1);
+    const dx = segment.b.x - segment.a.x, dz = segment.b.z - segment.a.z;
+    const inverseLength = 1 / segment.length;
+    const normalX = -dz * inverseLength, normalZ = dx * inverseLength;
+    return {
+      x: THREE.MathUtils.lerp(segment.a.x, segment.b.x, t) + normalX * route.laneOffset,
+      z: THREE.MathUtils.lerp(segment.a.z, segment.b.z, t) + normalZ * route.laneOffset,
+      y: THREE.MathUtils.lerp(segment.a.y, segment.b.y, t),
+      yaw: Math.atan2(-dx, -dz),
+    };
+  }
+
   buildFromWorld() {
-    // Spawn one of each registered car around the player's authored start.
-    // Selecting unique kinds keeps a large authored vehicle list from filling
-    // the initial area with duplicate models.
     const start = this.world.startPoint || { x: 0, z: 0 };
     const maxDistance = 48;
     const authored = (this.world.vehicleSpawns || [])
@@ -1547,7 +1585,6 @@ export class VehicleSystem {
       if (chosen.length >= Object.keys(CAR_MODELS).length) break;
     }
 
-    // Keep a safe fallback for scenes without authored car positions.
     const fallbackSlots = [
       { x: start.x - 10, z: start.z + 12, ry: start.yaw || 0 },
       { x: start.x + 3, z: start.z + 12, ry: start.yaw || 0 },
@@ -1561,15 +1598,61 @@ export class VehicleSystem {
       usedKinds.add(kind);
     }
 
-    this.startupVehicleLoads = Promise.allSettled(
-      chosen.map(vehicle => this.spawn({
-        ...vehicle,
-        elevation: Number.isFinite(vehicle.elevation) ? vehicle.elevation : 0,
-      })),
-    );
+    const parkedLoads = chosen.map(vehicle => this.spawn({
+      ...vehicle,
+      elevation: Number.isFinite(vehicle.elevation) ? vehicle.elevation : 0,
+    }));
+    const trafficLoads = (this.world.sceneData?.trafficVehicles || []).map(async definition => {
+      const route = this._createTrafficRoute(definition);
+      if (!route || !CAR_MODELS[definition.kind]) {
+        console.warn('[Traffic] Ignored invalid route or vehicle definition:', definition);
+        return null;
+      }
+      const initial = this._sampleTrafficRoute(route);
+      const vehicle = await this.spawn({
+        kind: definition.kind,
+        x: initial.x, z: initial.z, elevation: initial.y, ry: initial.yaw,
+      });
+      if (!vehicle) return null;
+      vehicle.trafficAI = route;
+      this._trafficVehicles.push(vehicle);
+      this._removeParkedCollider(vehicle);
+      return vehicle;
+    });
+    this.startupVehicleLoads = Promise.allSettled([...parkedLoads, ...trafficLoads]);
     return this.startupVehicleLoads;
   }
 
+  updateTraffic(dt = 1 / 60) {
+    if (!this._trafficVehicles.length) return;
+    const step = THREE.MathUtils.clamp(Number(dt) || 0, 0, 0.08);
+    for (const vehicle of this._trafficVehicles) {
+      const route = vehicle.trafficAI;
+      if (!route || !vehicle.root) continue;
+      route.distance = (route.distance + route.speed * step) % route.totalLength;
+      const pose = this._sampleTrafficRoute(route);
+      if (!pose) continue;
+      vehicle.pos.set(pose.x, pose.y, pose.z);
+      vehicle.yaw = pose.yaw - (vehicle.yawOffset || 0);
+      vehicle.def.elevation = pose.y;
+      vehicle.speed = route.speed;
+      vehicle.wheelTravel = (vehicle.wheelTravel || 0) - route.speed * step;
+      vehicle.root.position.set(pose.x, pose.y, pose.z);
+      vehicle.root.rotation.y = this._worldYaw(vehicle);
+      if (vehicle.rapierBody && this.physics) {
+        this.physics.updateVehicleBody(
+          vehicle.rapierBody, pose.x, pose.y, pose.z, this._worldYaw(vehicle),
+        );
+      } else {
+        this._refreshParkedCollider(vehicle);
+      }
+      for (const wheel of vehicle.wheels || []) {
+        const spin = vehicle.wheelTravel / Math.max(0.18, wheel.radius || 0.42);
+        if (wheel.axle === 'z') wheel.spinner.rotation.z = spin;
+        else wheel.spinner.rotation.x = spin;
+      }
+    }
+  }
   // Spawn within interaction range, avoiding existing cars. This keeps the
   // newly requested vehicle reachable with E instead of putting it several metres away.
   async spawnNearPlayer(kind, player) {
@@ -2083,6 +2166,7 @@ export class VehicleSystem {
   nearest(x, z, maxDist) {
     let best = null, bd = maxDist;
     for (const v of this.vehicles) {
+      if (v.trafficAI) continue;
       const d = this.surfaceDistance(v, x, z);
       if (d < bd) { bd = d; best = v; }
     }
