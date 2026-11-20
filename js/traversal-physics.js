@@ -104,6 +104,26 @@ export function sampleTimedPath(path, progress) {
   return result;
 }
 
+// Exact vertical capsule versus axis-aligned box overlap test. position is
+// the character's feet anchor, matching the Rapier player/NPC controllers.
+export function capsuleIntersectsAabb(position, radius, height, bounds, epsilon = 1e-5) {
+  if (!position || !bounds?.min || !bounds?.max) return false;
+  const r = Math.max(0.01, Number(radius) || 0);
+  const h = Math.max(r * 2, Number(height) || 0);
+  const min = point3(bounds.min), max = point3(bounds.max);
+  if (!min || !max || ![position.x, position.y, position.z].every(Number.isFinite)) return false;
+  const closestX = Math.max(min.x, Math.min(max.x, position.x));
+  const closestZ = Math.max(min.z, Math.min(max.z, position.z));
+  const dx = position.x - closestX;
+  const dz = position.z - closestZ;
+  const capsuleSegmentMinY = position.y + r;
+  const capsuleSegmentMaxY = position.y + h - r;
+  let dy = 0;
+  if (capsuleSegmentMaxY < min.y) dy = min.y - capsuleSegmentMaxY;
+  else if (capsuleSegmentMinY > max.y) dy = capsuleSegmentMinY - max.y;
+  return dx * dx + dy * dy + dz * dz < r * r - Math.max(0, Number(epsilon) || 0);
+}
+
 export function validateTraversalPath(path, isCapsuleClear, options = {}) {
   if (!Array.isArray(path) || path.length < 2 || typeof isCapsuleClear !== 'function') return false;
   const spacing = Math.max(0.025, Number(options.sampleSpacing) || 0.1);
