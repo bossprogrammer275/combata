@@ -303,6 +303,13 @@ function renderCalibrationOverlay() {
         addCalibrationBox(box, 0xe07b72, 0.78);
       }
     }
+    // Authored col_* meshes are the runtime collision source when present.
+    // Show their measured bounds separately from generated collision boxes.
+    for (const proxy of currentCalibration.collision?.nativeProxies || []) {
+      if (proxy.bounds?.min && proxy.bounds?.max) {
+        addCalibrationBox(proxy.bounds, 0x72a9e8, 0.92);
+      }
+    }
   }
 
   if (showSurfaceOverlay) {
@@ -385,6 +392,8 @@ function updateCalibrationSummary() {
   $('calibration-components').textContent = components.length;
   $('calibration-boxes').textContent = currentCalibration.collision?.boxCount
     ?? currentCalibration.collision?.boxes?.length ?? 0;
+  $('calibration-native-proxies').textContent = currentCalibration.collision?.nativeProxyCount
+    ?? currentCalibration.collision?.nativeProxies?.length ?? 0;
   $('calibration-surfaces').textContent = surfaces.length;
   $('calibration-traversals').textContent = currentCalibration.traversal?.length || 0;
   const status = currentCalibrationStale ? 'STALE SOURCE HASH · regenerate calibration before saving'
@@ -471,6 +480,7 @@ async function loadCalibrationForCurrent() {
       $('calibration-components').textContent = '—';
       $('calibration-boxes').textContent = '—';
       $('calibration-surfaces').textContent = '—';
+      $('calibration-native-proxies').textContent = '—';
       $('calibration-traversals').textContent = '—';
       $('calibration-component').replaceChildren();
       $('calibration-traversal').replaceChildren();
