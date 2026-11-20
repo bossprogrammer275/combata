@@ -722,7 +722,7 @@ export class Player {
     } else {
       plan = buildObstacleClimbPath({
         start: this.pos,
-        bounds: collider,
+        bounds: calibrated ? calibrated : collider,
         normal,
         radius: this.radius,
         height: this.height,
