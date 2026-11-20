@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 MIXAMO_DIR = ROOT / "tools" / "mixamo-mcp"
 OUT = ROOT / "data" / "models" / "npc" / "civilian_001"
 CHARACTER_ID = "civilian_001"
+AUTO_MODE = False
 SOURCE_BUNDLE = OUT / f"{CHARACTER_ID}_mixamo_source.zip"
 
 ANIMATIONS = [
@@ -108,6 +109,153 @@ def get_animation_candidates(html, query):
         })
     return results
 
+
+
+def choose_animation_automatically(page, animations_mod, job):
+    """Search all configured terms, rank results against the job contract, and pick the strongest match."""
+    ranked = {}
+    required = [norm(token) for token in job.get("need", [])]
+    excluded = [norm(token) for token in job.get("exclude", [])]
+    for query in job.get("queries", []):
+        print(f"[Mixamo] AUTO SEARCH {job['key']}: {query}")
+        try:
+            animations_mod.search(page, query)
+            page.wait_for_timeout(900)
+            candidates = get_animation_candidates(page.content(), query)
+        except Exception as exc:
+            print(f"[Mixamo] Search failed for '{query}': {exc}")
+            continue
+        for candidate in candidates:
+            label = norm(candidate.get("name", "") + " " + candidate.get("description", ""))
+            if any(token and token in label for token in excluded):
+                continue
+            need_hits = sum(1 for token in required if token and token in label)
+            query_tokens = [token for token in norm(query).split() if len(token) > 2]
+            query_hits = sum(1 for token in query_tokens if token in label)
+            # Required movement/action semantics dominate broad query overlap.
+            score = need_hits * 4.0 + query_hits * 1.25
+            # Prefer a clear, named match over generic "idle"/"standing" results.
+            if norm(job["key"]).replace("_", " ") in label:
+                score += 3.0
+            if not required and query_hits:
+                score += 1.0
+            previous = ranked.get(candidate["id"])
+            if previous is None or score > previous["score"]:
+                ranked[candidate["id"]] = {**candidate, "score": score, "needHits": need_hits}
+
+    if not ranked:
+        print(f"[Mixamo] AUTO: no candidate found for {job['key']}.")
+        return None
+
+    ordered = sorted(ranked.values(), key=lambda item: (item["score"], item["needHits"], item["name"]), reverse=True)
+    best = ordered[0]
+    minimum = 2.5 if required else 2.0
+    if best["score"] < minimum:
+        print(f"[Mixamo] AUTO: best candidate '{best['name']}' scored {best['score']:.1f}, below threshold {minimum:.1f}; marking unavailable.")
+        return None
+
+    print(f"[Mixamo] AUTO SELECT {job['key']}: {best['name']} (score {best['score']:.1f})")
+    try:
+        animations_mod.search(page, best["query"])
+        page.wait_for_timeout(500)
+        current_ids = {item["id"] for item in get_animation_candidates(page.content(), best["query"])}
+        if best["id"] not in current_ids:
+            print(f"[Mixamo] AUTO: candidate {best['id']} disappeared during re-query.")
+            return None
+        animations_mod.select_animation(page, best["id"])
+        page.wait_for_timeout(1600)
+        selected = animations_mod.get_selected_animation(page.content(), page) or {}
+        return {
+            "id": best["id"],
+            "name": selected.get("name") or best["name"],
+            "description": selected.get("description") or best["description"],
+            "query": best["query"],
+            "score": best["score"],
+        }
+    except Exception as exc:
+        print(f"[Mixamo] AUTO: could not select '{best['name']}': {exc}")
+        return None
+
+
+def robust_upload_file(page, path: str):
+    """Upload without relying on Mixamo's old exact button label."""
+    p = Path(path).resolve()
+    if not p.is_file():
+        raise FileNotFoundError(f"File not found: {p}")
+    if p.suffix.lower() not in (".fbx", ".obj", ".zip"):
+        raise ValueError(f"Unsupported format '{p.suffix}'. Use fbx, obj, or zip.")
+
+    page.wait_for_timeout(1000)
+    file_inputs = page.locator('input[type="file"]')
+    try:
+        if file_inputs.count():
+            file_inputs.first.set_input_files(str(p), timeout=10000)
+            print("[Mixamo] File supplied through the page's file input.")
+            return
+    except Exception:
+        pass
+
+    if "autorig-modal" not in page.content():
+        # Adobe/Mixamo has changed this control's label over time. Match the
+        # visible action semantically instead of requiring one exact string.
+        opened = False
+        for selector in (
+            'button:has-text("Upload Character")',
+            'button:has-text("Upload")',
+            '[role="button"]:has-text("Upload")',
+            'a:has-text("Upload")',
+        ):
+            try:
+                locator = page.locator(selector).first
+                if locator.count() and locator.is_visible():
+                    locator.click(timeout=5000)
+                    opened = True
+                    break
+            except Exception:
+                continue
+        if not opened:
+            buttons = page.locator("button").evaluate_all(
+                "(els) => els.filter(e => { const r=e.getBoundingClientRect(); return r.width && r.height; }).map(e => (e.innerText || e.getAttribute('aria-label') || '').trim()).filter(Boolean)"
+            )
+            raise RuntimeError(
+                "Could not find Mixamo's upload entry point. "
+                f"URL={page.url}; visible buttons={buttons[:30]}. "
+                "The page DOM and screenshot are saved by the caller."
+            )
+        page.wait_for_timeout(800)
+
+    # Prefer a real file input if the modal created one.
+    file_inputs = page.locator('input[type="file"]')
+    try:
+        if file_inputs.count():
+            file_inputs.first.set_input_files(str(p), timeout=10000)
+            print("[Mixamo] File supplied through the auto-rigger file input.")
+            return
+    except Exception:
+        pass
+
+    # Last fallback: activate whichever visible file-picker link the current
+    # Mixamo modal exposes, then provide the file through Playwright.
+    for selector in (
+        'a:has-text("Select character file")',
+        'button:has-text("Select character file")',
+        'text=/select character file|choose character file|browse/i',
+    ):
+        try:
+            locator = page.locator(selector).first
+            if locator.count() and locator.is_visible():
+                with page.expect_file_chooser(timeout=8000) as chooser:
+                    locator.click(timeout=5000)
+                chooser.value.set_files(str(p))
+                print("[Mixamo] File supplied through the browser file chooser.")
+                return
+        except Exception:
+            continue
+
+    raise RuntimeError(
+        "Mixamo upload modal opened, but no supported file input or chooser was found. "
+        f"URL={page.url}; inputs={page.locator('input').evaluate_all('(els) => els.map(e => ({type:e.type,accept:e.accept,visible:!!(e.offsetWidth||e.offsetHeight)}))')}"
+    )
 
 def prompt_animation_selection(page, animations_mod, job):
     """Search Mixamo from the console, let the user choose a preview, and approve one clip."""
@@ -302,6 +450,9 @@ def wait_for_manual_marker_placement(page):
 
 def confirm_console_action(action, details=""):
     """Require a deliberate Y before the script performs a consequential Mixamo action."""
+    if AUTO_MODE:
+        print(f"[Mixamo] AUTO: proceeding with {action}.")
+        return True
     print("")
     print("=" * 68)
     print(f"CONFIRM ACTION: {action}")
@@ -595,11 +746,13 @@ def parse_args():
     parser.add_argument("--id", default="civilian_001")
     parser.add_argument("--fps", type=int, default=30, choices=(24, 25, 30, 48, 50, 60))
     parser.add_argument("--output", default=None)
+    parser.add_argument("--auto", action="store_true", help="Automatically rank, select and download matching animation clips.")
     return parser.parse_args()
 
 def main():
-    global OUT, SOURCE_BUNDLE, CHARACTER_ID
+    global OUT, SOURCE_BUNDLE, CHARACTER_ID, AUTO_MODE
     args = parse_args()
+    AUTO_MODE = bool(args.auto)
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", args.id):
         print("ERROR: --id must contain only letters, numbers, underscores or hyphens.", file=sys.stderr)
         return 2
@@ -655,7 +808,9 @@ def main():
     errors = []
 
     # Never delete existing character or animation files automatically.
-    print("[Mixamo] Existing FBX files will be kept unless you explicitly approve an overwrite.")
+    print("[Mixamo] Existing FBX files will be kept; completed clips are reused by the resume-aware download loop.")
+    if AUTO_MODE:
+        print("[Mixamo] AUTONOMOUS ANIMATION MODE: candidate search, ranking, selection and downloads are automatic.")
 
     print("[Mixamo] Opening your saved local browser profile...")
     page = browser.start()
@@ -664,7 +819,11 @@ def main():
         page.goto("https://www.mixamo.com/", wait_until="domcontentloaded")
         page.wait_for_load_state("networkidle")
         print(f"[Mixamo] Uploading Y-up OBJ package {SOURCE_BUNDLE.name}...")
-        upload_mod.upload_file(page, str(SOURCE_BUNDLE))
+        try:
+            robust_upload_file(page, str(SOURCE_BUNDLE))
+        except Exception as exc:
+            save_upload_diagnostics(page, f"Robust upload failed: {exc}")
+            raise
         try:
             wait_upload_complete(page, upload_mod.get_status, upload_mod.confirm_review)
         except Exception as exc:
@@ -732,7 +891,11 @@ def main():
 
         selections = {}
         for job in selected_animations:
-            found = prompt_animation_selection(page, animations_mod, job)
+            found = (
+                choose_animation_automatically(page, animations_mod, job)
+                if AUTO_MODE
+                else prompt_animation_selection(page, animations_mod, job)
+            )
             if not found:
                 errors.append(f"{job['key']}: no animation approved by user")
                 continue
