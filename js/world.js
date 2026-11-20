@@ -1548,6 +1548,7 @@ export class World {
           this.calibratedTraversalCandidates.push({
             assetUrl: a.url, componentId: candidate.componentId, nodeKey: candidate.nodeKey,
             actionCandidate: candidate.actionCandidate, capabilities: candidate.capabilities,
+            animation: candidate.animation || null,
             min: candidateBounds.min.clone(), max: candidateBounds.max.clone(),
             anchors: worldAnchors,
             node,
