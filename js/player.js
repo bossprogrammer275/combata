@@ -115,7 +115,7 @@ export class Player {
       speed,
       phase: this.phase,
       weaponType: this.weaponType || 'rifle',
-      airborne: (!this.onGround || this.jumpCameraHeight > 0.04) ? 1 : 0,
+      airborne: !this.onGround ? 1 : 0,
       jumpFromIdle: this._jumpFromIdle ? 1 : 0,
       reloading: this.reloadLocked ? 1 : 0,
       landDip: this.landDip,
@@ -306,22 +306,16 @@ export class Player {
     const hs = Math.hypot(this.vel.x, this.vel.z);
     if (hs > speed) { this.vel.x *= speed / hs; this.vel.z *= speed / hs; }
 
-    // Animated jump: keep the gameplay capsule at ground level. The Mixamo
-    // jump clip moves the visible rig; this separate ballistic offset moves only
-    // the camera so the player is not raised twice by animation + physics.
+    // Jump movement is owned by the character controller, not a camera-only offset.
+    // Jumping.fbx supplies the idle-start pose; physics handles takeoff, gravity,
+    // collision, apex and landing for every jump.
     if (jumpPressed && this.onGround && !this.climbing) {
       this._jumpFromIdle = Math.hypot(this.vel.x, this.vel.z) < 0.14 && !this.crouched && !this.sprinting;
+      this.vel.y = 5.2;
+      this.onGround = false;
       this.jumpCameraHeight = 0;
-      this.jumpCameraVelocity = 5.2;
+      this.jumpCameraVelocity = 0;
       this.audio.jump();
-    }
-    if (this.jumpCameraVelocity > 0 || this.jumpCameraHeight > 0) {
-      this.jumpCameraVelocity -= 14 * dt;
-      this.jumpCameraHeight = Math.max(0, this.jumpCameraHeight + this.jumpCameraVelocity * dt);
-      if (this.jumpCameraHeight === 0) {
-        this.jumpCameraVelocity = 0;
-        this._jumpFromIdle = false;
-      }
     }
 
     // Gravity moves the capsule only when genuinely falling off an edge.
@@ -344,7 +338,7 @@ export class Player {
         // Update position from physics
         this.pos.copy(result.position);
         this.onGround = result.ground;
-        if (wasAir && this.onGround) { this.landDip = Math.min(Math.abs(this.vel.y) * 0.008 + .04, .18); this.audio.footstep(); }
+        if (wasAir && this.onGround) { this._jumpFromIdle = false; this.landDip = Math.min(Math.abs(this.vel.y) * 0.008 + .04, .18); this.audio.footstep(); }
       } else {
         // Substep axis-separated movement. At a long frame, a single 0.3-0.4m
         // move could cross a thin wall before the AABB test ever saw overlap.
@@ -357,7 +351,7 @@ export class Player {
           this.moveAxis(0, 0, sz);
           this.moveAxis(0, sy, 0);
         }
-        if (wasAir && this.onGround) { this.landDip = Math.min(Math.abs(this.vel.y) * 0.008 + .04, .18); this.audio.footstep(); }
+        if (wasAir && this.onGround) { this._jumpFromIdle = false; this.landDip = Math.min(Math.abs(this.vel.y) * 0.008 + .04, .18); this.audio.footstep(); }
       }
     } else {
       this.moveAxis(0, this.vel.y * dt, 0);
