@@ -32,9 +32,22 @@ export async function loadNpcCoreManifest() {
   return manifestPromise;
 }
 
+const REQUIRED_BODY_BONES = Object.freeze([
+  'hips', 'spine', 'head',
+  'leftarm', 'rightarm', 'leftforearm', 'rightforearm',
+  'lefthand', 'righthand',
+  'leftupleg', 'rightupleg', 'leftleg', 'rightleg',
+  'leftfoot', 'rightfoot'
+]);
+
+function normalizeBoneName(name) {
+  return String(name || '').toLowerCase().replace(/[^a-z]/g, '').replace(/^mixamorig/, '');
+}
+
 function inspectRig(model) {
   const meshes = [];
   const bones = new Set();
+  const normalizedBones = new Set();
   const materials = new Set();
   model.traverse((node) => {
     if (node.isSkinnedMesh) {
@@ -57,7 +70,9 @@ function inspectRig(model) {
       if (node.geometry && !node.geometry.attributes.normal) node.geometry.computeVertexNormals();
     }
   });
-  return { meshes, boneCount: bones.size, materialCount: materials.size };
+  for (const name of bones) normalizedBones.add(normalizeBoneName(name));
+  const missingBones = REQUIRED_BODY_BONES.filter((name) => !normalizedBones.has(name));
+  return { meshes, boneCount: bones.size, materialCount: materials.size, boneNames: [...bones], missingBones };
 }
 
 export async function loadNpcCoreBase() {
@@ -72,7 +87,7 @@ export async function loadNpcCoreBase() {
       const bounds = new THREE.Box3().setFromObject(model);
       const height = bounds.max.y - bounds.min.y;
       const idle = model.animations?.[0];
-      if (!report.meshes.length || !report.boneCount) {
+      if (!report.meshes.length || !report.boneCount || report.missingBones.length) {
         throw new Error('npc_core_001 is not a bound skinned rig (meshes ' + report.meshes.length + ', bones ' + report.boneCount + ')');
       }
       if (!Number.isFinite(height) || height < 0.5) throw new Error('npc_core_001 has invalid source height: ' + height);
@@ -85,7 +100,7 @@ export async function loadNpcCoreBase() {
       model.userData.npcCoreValidation = {
         id: NPC_CORE_ID, sourceHeight: height, targetHeight: NPC_CORE_TARGET_HEIGHT,
         skinnedMeshes: report.meshes.length, bones: report.boneCount,
-        materials: report.materialCount, idleTracks: idle.tracks.length, verified: true
+        materials: report.materialCount, boneNames: report.boneNames, requiredBodyBones: REQUIRED_BODY_BONES, idleTracks: idle.tracks.length, verified: true
       };
       console.info('[NPC Core] Verified ' + NPC_CORE_ID + ': ' + report.meshes.length
         + ' skinned mesh(es), ' + report.boneCount + ' bones; fitted to ' + NPC_CORE_TARGET_HEIGHT + 'm');
