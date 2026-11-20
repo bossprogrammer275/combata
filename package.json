@@ -10,7 +10,8 @@
     "test:npc": "node tools/verify-npcs.mjs",
     "calibrate:asset": "node tools/asset-calibrator.mjs",
     "validate:asset-calibration": "node tools/validate-asset-calibration.mjs",
-    "test:asset-calibration": "node --test tools/asset-calibrator.test.mjs tools/traversal-physics.test.mjs"
+    "test:asset-calibration": "node --test tools/asset-calibrator.test.mjs tools/traversal-physics.test.mjs",
+    "compare:asset-calibration": "node tools/compare-asset-calibrations.mjs"
   },
   "dependencies": {
     "express": "^4.19.2",
