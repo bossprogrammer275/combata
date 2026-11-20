@@ -617,7 +617,7 @@ export class Civilians {
     }
     npc.interactionT = 2.7;
     npc.interactionPhase = "talk";
-    npc.ch.play("talk", { loop: true });
+    npc.ch.play("idle", { loop: true });
     this.showDialogue(answer, [
       { label: "Ask something else", onClick: () => this.showDialogue("Anything else you want to know?", [
         { label: "1 · Directions", onClick: () => this.chooseDialogue(0) },
@@ -731,8 +731,8 @@ export class Civilians {
       a.state = b.state = "talk";
       a.face(b.pos);
       b.face(a.pos);
-      a.ch.play("talk", { loop: true });
-      b.ch.play("talk", { loop: true });
+      a.ch.play("idle", { loop: true });
+      b.ch.play("idle", { loop: true });
       break;
     }
   }
