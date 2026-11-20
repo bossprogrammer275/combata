@@ -724,6 +724,24 @@ export class World {
   buildGround(spec = null, waterways = []) {
     const ultra = this._quality === 'ultra-low';
     const gSize = spec && spec.size ? spec.size : (ultra ? 3000 : 5000);
+    const terrainHills = Array.isArray(spec?.hills) ? spec.hills : [];
+    const sampleTerrain = (x, z) => {
+      let height = 0;
+      for (const hill of terrainHills) {
+        const rx = Math.max(1, Number(hill.radiusX) || Number(hill.radius) || 1);
+        const rz = Math.max(1, Number(hill.radiusZ) || Number(hill.radius) || 1);
+        const dx = (x - (Number(hill.x) || 0)) / rx;
+        const dz = (z - (Number(hill.z) || 0)) / rz;
+        const radiusSq = dx * dx + dz * dz;
+        if (radiusSq >= 1) continue;
+        const falloff = Math.max(0, 1 - radiusSq) ** Math.max(0.65, Number(hill.falloff) || 1.35);
+        height += Math.max(0, Number(hill.height) || 0) * falloff;
+      }
+      return height;
+    };
+    this._terrainHills = terrainHills;
+    this._terrainHeightAt = sampleTerrain;
+
     let groundMat;
     if (ultra) {
       groundMat = new THREE.MeshBasicMaterial({ color: 0x5a6048 });
@@ -770,7 +788,6 @@ export class World {
         { x: a.x - ux * cap - nx * halfOpening, z: a.z - uz * cap - nz * halfOpening },
       ];
       let localPoints = worldPoints.map(point => ({ x: point.x, y: -point.z }));
-      // ShapeGeometry expects the outer contour and holes to have opposite winding.
       if (signedArea(localPoints) > 0) localPoints = localPoints.reverse();
       const hole = new THREE.Path();
       hole.moveTo(localPoints[0].x, localPoints[0].y);
@@ -779,16 +796,32 @@ export class World {
       groundShape.holes.push(hole);
     }
 
+    const hasSubdividedTerrain = terrainHills.length > 0 && !(waterways && waterways.length);
+    const divisions = hasSubdividedTerrain
+      ? THREE.MathUtils.clamp(Math.ceil(gSize / (Number(spec?.cellSize) || 3.25)), 32, 112)
+      : 1;
     const groundGeometry = waterways?.length
       ? new THREE.ShapeGeometry(groundShape, 1)
-      : new THREE.PlaneGeometry(gSize, gSize);
+      : new THREE.PlaneGeometry(gSize, gSize, divisions, divisions);
+    // Rotate geometry instead of its mesh: the indexed height samples then live
+    // in world X/Z and each vertex Y is a true metre elevation.
+    groundGeometry.rotateX(-Math.PI / 2);
+    if (hasSubdividedTerrain) {
+      const positions = groundGeometry.attributes.position;
+      for (let i = 0; i < positions.count; i++) {
+        positions.setY(i, sampleTerrain(positions.getX(i), positions.getZ(i)));
+      }
+      positions.needsUpdate = true;
+      groundGeometry.computeVertexNormals();
+      groundGeometry.computeBoundingBox();
+      groundGeometry.computeBoundingSphere();
+      this.roadPhysicsMeshes.push({ kind: 'terrain', frictionHint: 0.82, geometry: groundGeometry });
+    }
     const ground = new THREE.Mesh(groundGeometry, groundMat);
-    ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
-    ground.name = 'world_ground_with_drainage_cutouts';
+    ground.name = 'world_ground_with_authored_hills';
     this.group.add(ground);
     if (ultra) return;
-    // distant low hills for horizon depth
     const hillMat = new THREE.MeshStandardMaterial({ color: 0x6a7258, roughness: 1 });
     for (let i = 0; i < 40; i++) {
       const a = i / 40 * Math.PI * 2;
@@ -798,7 +831,6 @@ export class World {
       h.scale.y = .35; this.group.add(h);
     }
   }
-
   // ===== ORGANIC CITY GENERATION =====
   // Generates a curved road network using Bezier splines, then places buildings
   // organically along roads with random rotation. Three zones:
@@ -979,6 +1011,7 @@ export class World {
       };
     }
     if (sd.roads) await this._buildAuthoredRoads(sd.roads);
+    if (sd.testWorld) this._buildTestWorld(sd.testWorld);
     if (sd.districtPlots?.length) this._buildDistrictPlots(sd.districtPlots);
     if (sd.roadModules?.length) await this._spawnRoadModules(sd.roadModules);
     if (sd.sidewalkModules?.length) await this._spawnSidewalkModules(sd.sidewalkModules);
@@ -1007,6 +1040,129 @@ export class World {
     const tSeen = new Map();
     for (const t of this.transitPoints) tSeen.set(t.name, t);
     this.transitPoints = [...tSeen.values()];
+  }
+
+  _buildTestWorld(spec = {}) {
+    const concrete = new THREE.MeshStandardMaterial({ color: 0x777a75, roughness: 0.94 });
+    const sand = new THREE.MeshStandardMaterial({ color: 0xb69b70, roughness: 1 });
+    const rockMaterial = new THREE.MeshStandardMaterial({ color: 0x77756c, roughness: 1, flatShading: true });
+    const grassMaterial = new THREE.MeshStandardMaterial({ color: 0x728247, roughness: 1, side: THREE.DoubleSide });
+    const markerMaterial = new THREE.MeshStandardMaterial({ color: 0xe2c76b, roughness: 0.82 });
+    const referenceMaterial = new THREE.MeshStandardMaterial({ color: 0x267f78, roughness: 0.9 });
+    const groundY = (x, z) => this.groundHeightAt(x, z);
+
+    for (const patch of spec.sandPatches || []) {
+      const x = Number(patch.x) || 0, z = Number(patch.z) || 0;
+      const radius = Math.max(1, Number(patch.radius) || 5);
+      const geometry = new THREE.CircleGeometry(radius, 40);
+      geometry.rotateX(-Math.PI / 2);
+      const mesh = new THREE.Mesh(geometry, sand);
+      mesh.position.set(x, groundY(x, z) + 0.035, z);
+      mesh.receiveShadow = true;
+      mesh.name = 'test_sand_patch';
+      this.group.add(mesh);
+    }
+
+    for (const [index, rock] of (spec.rocks || []).entries()) {
+      const x = Number(rock.x) || 0, z = Number(rock.z) || 0;
+      const sx = Math.max(0.4, Number(rock.sx) || Number(rock.scale) || 1);
+      const sy = Math.max(0.3, Number(rock.sy) || sx * 0.66);
+      const sz = Math.max(0.4, Number(rock.sz) || sx * 0.92);
+      const mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(1, 0), rockMaterial);
+      mesh.position.set(x, groundY(x, z) + sy * 0.62, z);
+      mesh.scale.set(sx, sy, sz);
+      mesh.rotation.set(Number(rock.rx) || 0, Number(rock.ry) || index * 0.71, Number(rock.rz) || 0);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.name = 'test_rock_' + index;
+      this.group.add(mesh);
+      this.addCollider(x, mesh.position.y - sy * 0.62, z, sx * 1.75, sy * 1.3, sz * 1.75, false, 'rock');
+    }
+
+    // Grass blades are instanced visuals only; they are never inserted into
+    // colliders, climbables, or the static Rapier collision batch.
+    let grassSeed = 918273;
+    const random = () => {
+      grassSeed = (grassSeed * 1664525 + 1013904223) >>> 0;
+      return grassSeed / 4294967296;
+    };
+    for (const [patchIndex, patch] of (spec.grassPatches || []).entries()) {
+      const count = THREE.MathUtils.clamp(Math.round(Number(patch.count) || 90), 8, 320);
+      const radius = Math.max(1, Number(patch.radius) || 5);
+      const geometry = new THREE.ConeGeometry(0.055, 0.44, 3, 1);
+      geometry.translate(0, 0.22, 0);
+      const grass = new THREE.InstancedMesh(geometry, grassMaterial, count);
+      grass.name = 'test_grass_no_collision_' + patchIndex;
+      const dummy = new THREE.Object3D();
+      for (let i = 0; i < count; i++) {
+        const angle = random() * Math.PI * 2;
+        const distance = Math.sqrt(random()) * radius;
+        const x = (Number(patch.x) || 0) + Math.cos(angle) * distance;
+        const z = (Number(patch.z) || 0) + Math.sin(angle) * distance;
+        dummy.position.set(x, groundY(x, z), z);
+        dummy.rotation.set((random() - 0.5) * 0.16, random() * Math.PI, (random() - 0.5) * 0.16);
+        const scale = 0.65 + random() * 0.8;
+        dummy.scale.set(scale, scale, scale);
+        dummy.updateMatrix();
+        grass.setMatrixAt(i, dummy.matrix);
+      }
+      grass.instanceMatrix.needsUpdate = true;
+      grass.castShadow = false;
+      grass.receiveShadow = true;
+      this.group.add(grass);
+    }
+
+    // Fixed metre ruler and one-metre cube stay visible in the test map.
+    const reference = spec.referenceWall || { x: -108, z: -100, width: 12, height: 5 };
+    const rx = Number(reference.x) || 0, rz = Number(reference.z) || 0;
+    const wallWidth = Math.max(4, Number(reference.width) || 12);
+    const wallHeight = Math.max(3, Number(reference.height) || 5);
+    const baseY = groundY(rx, rz);
+    this.box(rx, baseY, rz, wallWidth, wallHeight, 0.42, concrete, true);
+    for (let metre = 1; metre <= Math.floor(wallHeight); metre++) {
+      const markerWidth = metre % 2 === 0 ? 1.1 : 0.65;
+      this._boxBatch.push({
+        x: rx - wallWidth * 0.5 + markerWidth * 0.5,
+        y: baseY + metre, z: rz + 0.24,
+        w: markerWidth, h: 0.055, d: 0.04, ry: 0,
+        mat: markerMaterial, shadow: false,
+      });
+      this.namedLocations.push({ x: rx - wallWidth * 0.5 + 1.2, z: rz, name: metre + ' metre reference', color: '#e2c76b' });
+    }
+    this.box(rx + wallWidth * 0.5 + 2.0, baseY, rz, 1, 1, 1, referenceMaterial, true);
+
+    for (const [index, obstacle] of (spec.obstacles || []).entries()) {
+      const x = Number(obstacle.x) || 0, z = Number(obstacle.z) || 0;
+      const y = Number.isFinite(Number(obstacle.y)) ? Number(obstacle.y) : groundY(x, z);
+      const w = Math.max(0.2, Number(obstacle.w) || 1);
+      const h = Math.max(0.2, Number(obstacle.h) || 1);
+      const d = Math.max(0.12, Number(obstacle.d) || 0.5);
+      const ry = Number(obstacle.ry) || 0;
+      this.box(x, y, z, w, h, d, concrete, false, ry);
+      const c = Math.abs(Math.cos(ry), sn = Math.abs(Math.sin(ry));
+      this.addCollider(x, y, z, w * c + d * sn, h, w * sn + d * c,
+        obstacle.climbable === true, obstacle.type || 'test_obstacle');
+      if (obstacle.name) this.namedLocations.push({ x, z, name: obstacle.name, color: '#e2c76b' });
+      if (index < 0) console.debug('unused test obstacle', index);
+    }
+
+    if (spec.waterTower) {
+      const tower = spec.waterTower;
+      const x = Number(tower.x) || 0, z = Number(tower.z) || 0;
+      const y = groundY(x, z);
+      const legMaterial = new THREE.MeshStandardMaterial({ color: 0x505a60, metalness: 0.35, roughness: 0.7 });
+      for (const [dx, dz] of [[-1.7, -1.7], [1.7, -1.7], [-1.7, 1.7], [1.7, 1.7]]) {
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 5, 6), legMaterial);
+        leg.position.set(x + dx, y + 2.5, z + dz);
+        this.group.add(leg);
+        this.addCollider(leg.position.x, y, leg.position.z, 0.26, 5, 0.26, false, 'water_tower_leg');
+      }
+      const tank = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 2.1, 10),
+        new THREE.MeshStandardMaterial({ color: 0x4b8996, metalness: 0.18, roughness: 0.55 }));
+      tank.position.set(x, y + 6, z);
+      tank.castShadow = true;
+      this.group.add(tank);
+    }
   }
 
   _dedupeNamed() {
@@ -1435,7 +1591,7 @@ export class World {
       const rootEdit = assetEdit.root || {};
       const rootPos = rootEdit.position || {}, rootRot = rootEdit.rotation || {}, rootScale = rootEdit.scale || {};
       const sx = Number.isFinite(rootScale.x) ? rootScale.x : 1, sy = Number.isFinite(rootScale.y) ? rootScale.y : 1, sz = Number.isFinite(rootScale.z) ? rootScale.z : 1;
-      const uniformRootScale = Math.abs(sx-sy)<1e-5 && Math.abs(sx-sz)<1e-5;
+      let uniformRootScale = Math.abs(sx-sy)<1e-5 && Math.abs(sx-sz)<1e-5;
       const hasMeshEdits = Object.keys(assetEdit.meshes || {}).length > 0;
       const rootTilted = Math.abs(rootRot.x || 0)>1e-5 || Math.abs(rootRot.z || 0)>1e-5;
       a = { ...a, x:(a.x||0)+(Number(rootPos.x)||0), z:(a.z||0)+(Number(rootPos.z)||0), elevation:(a.elevation||0)+(Number(rootPos.y)||0), ry:(a.ry||0)+(Number(rootRot.y)||0) };
@@ -1445,12 +1601,39 @@ export class World {
       // for assets authored without a targetH fit. The cumulative scale is also
       // used for collision sidecars, so visual and physics geometry cannot drift.
       const rawBBox = new THREE.Box3().setFromObject(model);
-      const rawH = rawBBox.max.y - rawBBox.min.y;
+      const rawSize = rawBBox.getSize(new THREE.Vector3());
+      const rawH = rawSize.y;
       const scalePlan = getWorldKitScalePlan(rawH, a, getWorldKitDefinition(a.url));
       let scaleFactor = scalePlan.totalScale;
-      model.scale.setScalar(scaleFactor);
-      model.scale.set(model.scale.x * sx, model.scale.y * sy, model.scale.z * sz);
-      if (uniformRootScale) scaleFactor *= sx;
+      const dimensions = assetEdit.dimensions || {};
+      const globalScale = THREE.MathUtils.clamp(Number(dimensions.scale) || 1, 0.05, 20);
+      const targetWidthM = Number(dimensions.widthM);
+      const targetHeightM = Number(dimensions.heightM);
+      const targetDepthM = Number(dimensions.depthM);
+      const baseScale = { x: scaleFactor * sx, y: scaleFactor * sy, z: scaleFactor * sz };
+      const dimensionScale = {
+        x: Number.isFinite(targetWidthM) && targetWidthM > 0 && rawSize.x > 1e-4
+          ? targetWidthM / (rawSize.x * baseScale.x) : 1,
+        y: Number.isFinite(targetHeightM) && targetHeightM > 0 && rawSize.y > 1e-4
+          ? targetHeightM / (rawSize.y * baseScale.y) : 1,
+        z: Number.isFinite(targetDepthM) && targetDepthM > 0 && rawSize.z > 1e-4
+          ? targetDepthM / (rawSize.z * baseScale.z) : 1,
+      };
+      const finalScale = {
+        x: baseScale.x * globalScale * dimensionScale.x,
+        y: baseScale.y * globalScale * dimensionScale.y,
+        z: baseScale.z * globalScale * dimensionScale.z,
+      };
+      model.userData.assetDimensionBase = {
+        scale: [baseScale.x, baseScale.y, baseScale.z],
+        widthM: rawSize.x * baseScale.x,
+        heightM: rawSize.y * baseScale.y,
+        depthM: rawSize.z * baseScale.z,
+      };
+      uniformRootScale = Math.abs(finalScale.x-finalScale.y)<1e-5
+        && Math.abs(finalScale.x-finalScale.z)<1e-5;
+      model.scale.set(finalScale.x, finalScale.y, finalScale.z);
+      if (uniformRootScale) scaleFactor = finalScale.x;
       model.rotation.set(Number(rootRot.x)||0, a.ry||0, Number(rootRot.z)||0);
 
       // Keep an unrotated, scaled local footprint for collision walls, interiors
@@ -1609,6 +1792,8 @@ export class World {
         (collisionProfile === 'placement-default' && (assetUrl.includes('tree') || assetUrl.includes('palm') || assetUrl.includes('coconut') || (a.tags && a.tags.includes('nature'))));
       const isLamp = collisionProfile === 'pole-proxy' ||
         (collisionProfile === 'placement-default' && (assetUrl.includes('street_light') || assetUrl.includes('lamp') || assetUrl.includes('light')));
+      const foliageIdentity = [assetUrl, assetName, a.name || '', ...(a.tags || [])].join(' ').toLowerCase();
+      const isSoftFoliage = !isTree && /(shrub|bush|hedge|grass|foliage|weed)/.test(foliageIdentity);
       // Road collision is assigned only to assets explicitly registered as
       // drivable road surfaces. A filename containing "road" is not enough:
       // road barriers, bumps and small marked panels are ordinary props/details.
@@ -1622,7 +1807,7 @@ export class World {
       // and only when source-root transforms can be represented by this mapping.
       const canUseCalibratedRoadConnections = scaleFactor > 0 && uniformRootScale && !rootTilted && !hasMeshEdits;
       const isRoad = collisionProfile === 'road-surface' || calibratedRoadByKey.size > 0;
-      const hasNoCollision = !!a.noCollision || (collisionProfile === 'no-collision'
+      const hasNoCollision = !!a.noCollision || isSoftFoliage || (collisionProfile === 'no-collision'
         && !calibratedCollisionBoxes?.length && !calibratedRoadByKey.size);
 
       // Imported street-road surfaces supply their own detailed tyre-contact
@@ -2629,6 +2814,8 @@ export class World {
   // so ramps and stacked roads can be sampled without treating road edges as walls.
   groundHeightAt(x, z, maxHeight = Infinity) {
     let height = 0;
+    const terrainHeight = this._terrainHeightAt ? this._terrainHeightAt(x, z) : 0;
+    if (terrainHeight <= maxHeight + 1e-4) height = Math.max(height, terrainHeight);
     const candidates = this.bvhWorld
       ? this.bvhWorld.queryAABB(x - 0.12, z - 0.12, x + 0.12, z + 0.12)
       : this.colliders;
@@ -3308,8 +3495,13 @@ export class World {
   }
 
   async _buildAuthoredRoads(roads) {
-    const roadPack = await this._loadRoadPackPrefabs();
-    if (roads.some(road => road.sidewalk)) await this._loadSidewalkKit();
+    const needsRoadPack = roads.some(road =>
+      !road.surface || ['road-pack', 'asphalt'].includes(String(road.surface).toLowerCase())
+    );
+    const roadPack = needsRoadPack ? await this._loadRoadPackPrefabs() : null;
+    if (roads.some(road => road.sidewalk && String(road.surface || '').toLowerCase() === 'road-pack')) {
+      await this._loadSidewalkKit();
+    }
     const roadMat = roadPack ? null : this.mRoad();
     const walkMat = this._sceneMat('walk');
     const curbMat = this.mCurb();
@@ -5193,7 +5385,8 @@ export class World {
       }
     }
     if (dir.y < -1e-5) {
-      const t = -origin.y / dir.y;
+      const groundY = this.groundHeightAt(origin.x, origin.z, origin.y + 1e-4);
+      const t = (groundY - origin.y) / dir.y;
       if (t > 0 && t < maxDist && (!best || t < best.dist)) {
         best = { dist: t, point: origin.clone().addScaledVector(dir, t), ground: true };
       }
