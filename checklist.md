@@ -11,10 +11,10 @@
 **Game:** Open World  
 **Repository:** `bossprogrammer275/combata`  
 **Branch:** `main`  
-**Current stage:** Core gameplay systems and one test environment  
+**Current stage:** `npc_core_001` is wired into the player, enemy and civilian character paths. Base-rig visual verification and advanced animation/contact validation remain open.  
 **Not in scope yet:** Story mode, missions, narrative campaign, cutscene system, quest chains or a large production city.
 
-**Current NPC animation state (November 20, 2026):** 28 FBXs are downloaded. Section 4 and the NPC-core manifest are the source of truth for the active files, action restrictions and physics notes.
+**Current NPC animation state (November 20, 2026):** 28 FBXs are inventoried and wired through `npc_core_001`. The legacy `civilian_001`, `civilian_002` and `npc1` model folders have been deleted. Section 4 and the NPC-core manifest remain authoritative; browser verification is still pending.
 
 ---
 
@@ -22,12 +22,12 @@
 
 - The user wants execution, not another broad lecture or a long list of manual tasks. Inspect the repository, make the requested changes and report exactly what changed.
 - Do not call the game **Strike Command**. Its current name is **Open World**. The repository/folder is still named `combata`.
-- The user has explicitly rejected simply extending the current NPC/asset architecture. Build a **new NPC profile and animation layer**. Do not keep adding special cases to the existing `NPC_GLOBAL_CONFIG`, `NPC_MODELS`, `NpcCharacter`, `Civilians` and `character.js` implementation.
-- Existing code and assets may be inspected or used as source/reference material, but they are not the design authority for the new layer. Do not overwrite `civilian_002`, `civilian_001` or the legacy `npc1` folder.
-- The old guide `tools/new-npc.md` was read. It documents the current `civilian_002` implementation and its 14 registered clips. It is a historical reference, **not the specification for the new NPC system**.
-- The first new character is `npc_core_001`. Generate one good, correctly scaled, fully rigged base humanoid first. It will be the shared test character for player/NPC animation, weapon, chair, traversal and vehicle interaction testing.
-- Gameplay profiles (civilian, worker, aggressive, police, etc.) are switchable configurations over the new NPC layer. Do not generate a separate story character for every behaviour at this stage.
-- The MakeHuman source model and 28 current NPC-core animation FBXs are now present. Section 4 and `data/models/npc/npc_core_001/manifest.json` map the actual downloads; they supersede the old proposed animation wishlist.
+- The active architecture is the independent `js/npc-system/` layer. `js/character.js` is the player/enemy adapter; `js/civilians.js` retains movement/population logic but instantiates the new `NpcInstance` runtime.
+- `npc_core_001` is the **only active humanoid model**. The `civilian_001`, `civilian_002` and `npc1` asset folders, plus `js/npc-character.js` and `js/npc-config.js`, have been removed. Do not recreate or import them.
+- `tools/new-npc.md` is explicitly marked as a deprecated historical guide. Do not follow its old `civilian_002` instructions.
+- `npc_core_001` is now the shared model source for player, enemies and civilians. The loader checks its skinned mesh, bone hierarchy, bounds and idle take at runtime. The base rig has not yet passed visual/browser verification.
+- Civilian, worker, aggressive and police are switchable configurations over `npc_core_001`. F10 cycles the nearest civilian through these profiles without reloading the world.
+- The MakeHuman source model and 28 NPC-core animation FBXs are present and wired through the shared loader. Section 4 and `data/models/npc/npc_core_001/manifest.json` define the active downloads. Full runtime binding validation remains open.
 - A new generation launcher has been added:
   - `tools/character-pipeline/generate-npc-core.ps1`
   - `tools/character-pipeline/generate-npc-core.bat`
@@ -47,7 +47,7 @@
 - The test world is a laboratory for validating gameplay, not a production city. Build the systems and test map first. Start the full city only after the core test gates pass.
 - The target development machine has 4 GB RAM. Share model geometry/material/texture and animation clip caches where possible. Do not eagerly load every high-cost asset or duplicate every animation mixer/asset buffer unnecessarily.
 - The user uses a local GitHub auto-sync workflow. Work directly on `main` when repository edits are requested. Preserve existing work and do not force-push, rewrite history or silently overwrite large binaries.
-- Do not claim that an FBX animation or GLB was generated unless the actual file exists and has been verified.
+- Do not claim that an FBX animation or GLB was generated unless the actual file exists and has been verified. `Idle.fbx` remains a base-rig candidate until the browser lab confirms its mesh, skeleton, materials and idle take.
 
 ---
 
@@ -83,46 +83,38 @@ Build the **main gameplay character/NPC foundation** and test it in a compact wo
 
 ### Required direction
 
-Create a clean layer independent of the existing NPC implementation. Suggested layout:
+The initial independent runtime is now present:
 
 ```text
 js/npc-system/
+  core-assets.js
   profile-registry.js
-  npc-instance.js
   animation-controller.js
-  animation-layers.js
-  interaction-router.js
-  weapon-binding.js
-  vehicle-binding.js
-  npc-lab.js
-
-data/npc-profiles/
-  profiles.json
-  animation-library.json
-  interaction-contracts.json
+  npc-instance.js
 
 data/models/npc/npc_core_001/
   manifest.json
-  npc_core_001_rigged.fbx
   npc_core_001_source.obj
   npc_core_001.mhm
   animations/
   textures/
 ```
 
-Names may be refined during implementation, but keep the new layer isolated. Do not place new systems as special-case code inside the old `Civilians` or `NpcCharacter` classes.
+`js/character.js` is retained only as the player/enemy adapter; the active model and clip loading are owned by `js/npc-system/`. `js/civilians.js` retains population movement and interaction orchestration but creates `NpcInstance` objects from the new runtime. The obsolete model-specific runtime modules have been deleted.
 
 ### Profile layer responsibilities
 
-- Load a character model and its skeleton definition.
-- Resolve the animation library by stable clip keys.
-- Switch gameplay profiles at runtime without reloading the world.
-- Control locomotion, crouching, aiming, combat, interaction and traversal states.
-- Blend lower-body locomotion with upper-body aiming/weapon actions where compatible.
-- Enforce action priority, transitions, cancellation and interruption.
-- Connect character actions to weapon models, vehicle doors/seats, chairs and world-object anchors.
-- Expose a debug/NPC Lab panel for spawning, switching and previewing profiles/animations.
-- Report missing clips, invalid skeleton mappings and missing interaction anchors.
+- [x] Load one shared `npc_core_001` candidate rig, validate skinned-mesh/skeleton/bounds/idle structure at runtime and normalize the model to 1.74m (visual verification still pending).
+- [x] Resolve downloaded animation files by stable keys from the NPC-core manifest; share the base rig and animation clip cache.
+- [x] Switch civilian/worker/aggressive/police profile configurations at runtime; F10 cycles the nearest NPC.
+- [x] Drive player/enemy locomotion, crouch, rifle aim, idle-only reload and physics-owned jump states from the downloaded core clips.
+- [ ] Blend lower-body locomotion with upper-body aiming layers; current aim clips are full-body.
+- [x] Enforce action request cancellation, crossfades, one-shot completion handling and entry restrictions for idle-only jump/reload.
+- [x] Connect rifle aim/run selection and reload locking to player weapon state; non-rifle weapons do not borrow rifle poses.
+- [x] Connect civilian seat interaction to seat/exit anchors and Rapier kinematic NPC positioning.
+- [ ] Connect vehicle doors/seats and entry/exit animation anchors.
+- [x] Add a standalone `npc-lab.html` base-rig/clip inspector; the full in-game NPC Lab panel remains pending.
+- [x] Fail clearly when a core rig or selected animation is missing; browser validation is still pending.
 
 ### Initial switchable gameplay profiles
 
@@ -160,18 +152,17 @@ Do not make this a story interface. It is a development/test tool.
 
 ### First character
 
-- [ ] Generate `npc_core_001` in a new folder.
-- [ ] Keep `civilian_001` and `civilian_002` untouched.
-- [ ] Use MakeHuman for the source character and outfit.
-- [ ] Export correctly oriented Y-up OBJ/MTL/textures.
-- [ ] Use Mixamo auto-rigging for the base humanoid.
-- [ ] Use one common skeleton for the full animation set.
-- [ ] Record exact model height, scale, forward axis, ground origin and skeleton/bone names in the manifest.
-- [ ] Confirm feet sit on ground at model origin.
-- [ ] Confirm full body proportions and capsule measurements.
-- [ ] Verify the rig has working hips, spine, head, both arms, both hands, both legs and feet.
-- [ ] Verify the generated FBX loads in the game's FBX loader.
-- [ ] Preserve MakeHuman project, source OBJ/MTL, textures, rigged FBX, animation FBXs and manifest.
+- [x] Generate the `npc_core_001` source folder and preserve the MakeHuman project, source OBJ/MTL and textures.
+- [x] Delete the obsolete `civilian_001`, `civilian_002` and `npc1` asset folders; `npc_core_001` is the sole active humanoid asset folder.
+- [x] Use MakeHuman for the source character and outfit.
+- [x] Export and retain the source OBJ/MTL and texture set.
+- [ ] Verify that the 20.5 MB `Idle.fbx` candidate is a skinned Mixamo base rig; file size alone is not proof.
+- [ ] Verify all 28 FBXs bind to the same skeleton.
+- [x] Record the base-rig candidate, 1.74m target height, 28-file inventory and first-pass motion measurements in the manifest.
+- [x] Normalize model bounds and feet-to-ground origin in the runtime loader (visual confirmation pending).
+- [ ] Confirm body proportions, exact capsule fit and key joints in the browser lab.
+- [x] Add runtime checks for skinned mesh, bone hierarchy, valid bounds and playable idle take.
+- [x] Preserve the MakeHuman project, source OBJ/MTL, textures, downloaded clips and manifest.
 
 ### Generation workflow
 
@@ -197,21 +188,19 @@ The launcher intentionally uses `-NoCommit -NoPush`. Inspect the generated chara
 
 ### Generation acceptance
 
-- [ ] MakeHuman project exists and opens.
-- [ ] Y-up OBJ and MTL exist.
-- [ ] Texture dependencies are copied locally.
-- [ ] Mixamo rigged base FBX exists.
-- [ ] Manifest contains the rigged model and every successfully downloaded clip.
-- [ ] No missing clip is silently represented by a placeholder.
-- [ ] Every clip is tested against the same generated skeleton.
-- [ ] Animation roots and in-place settings are recorded.
-- [ ] FBX files are not unnecessarily duplicated in multiple folders.
+- [x] MakeHuman project file, source OBJ/MTL and texture dependencies exist in `npc_core_001` (opening the source project in MakeHuman still needs local confirmation).
+- [ ] Verify that `Idle.fbx` contains the skinned Mixamo base mesh and skeleton.
+- [x] Manifest contains the base-rig candidate and all 28 successfully downloaded animation files.
+- [x] Missing clips are explicitly listed; no missing clip is represented by a placeholder.
+- [ ] Verify every downloaded clip against the same base skeleton in the browser lab.
+- [x] First-pass durations, root translation notes and controller-owned root-motion rules are recorded.
+- [x] No duplicate copies of these FBXs remain in legacy NPC folders.
 
 ---
 
 ## 4. Downloaded gameplay animation library — current source of truth
 
-**Current inventory:** 28 FBX files are present in `data/models/npc/npc_core_001/animations/`. The complete filename/size inventory and stable runtime keys are stored in `data/models/npc/npc_core_001/manifest.json`. This inventory replaces the old proposed animation wishlist. Do not bring in clips from `civilian_001`, `civilian_002`, `npc1` or other legacy NPC folders.
+**Current inventory:** 28 FBX files are present in `data/models/npc/npc_core_001/animations/`. The manifest stores the complete filename/size inventory and stable runtime keys. The `civilian_001`, `civilian_002` and `npc1` asset folders have been deleted; do not recreate or import their animation files.
 
 ### A. Locomotion
 
@@ -919,47 +908,54 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 
 ### Phase 1 — New NPC asset generation
 
-- [x] MakeHuman source project and source OBJ were generated for `npc_core_001`; current animation FBXs were downloaded manually.
-- [x] Added isolated browser inspection page at `npc-lab.html`. It reads the current manifest, loads the `Idle.fbx` candidate, checks for skinned meshes and a Mixamo skeleton, normalizes the preview to 1.74m, and lazily previews one selected clip at a time with track-binding diagnostics. It does not modify the live player, civilian or physics systems.
-- [ ] Open `/npc-lab.html` and verify `Idle.fbx` contains a skinned base humanoid mesh, Mixamo skeleton, materials and playable idle take; the source OBJ alone is not a rigged runtime character.
-- [x] Inspect manifest and list clips actually downloaded (28 files inventoried; see Section 4 and the manifest).
-- [ ] Preview every current FBX in the lab and verify it binds to the same base skeleton before runtime registration.
+- [x] Generate the `npc_core_001` MakeHuman source project, source OBJ/MTL and textures.
+- [x] Inventory and map all 28 downloaded animation FBXs in the manifest.
+- [x] Add the standalone browser inspector at `npc-lab.html` with base-rig and per-clip diagnostics.
+- [x] Wire the shared `npc_core_001` loader into the live player, enemy and civilian consumers.
+- [x] Remove the obsolete `civilian_001`, `civilian_002` and `npc1` model folders, plus `js/npc-character.js` and `js/npc-config.js`.
+- [ ] Open `/npc-lab.html` and verify that `Idle.fbx` contains the skinned humanoid mesh, Mixamo skeleton, materials and playable idle take.
+- [ ] Preview every current FBX and confirm full track binding against the same base skeleton.
 
 ### Phase 2 — New NPC profile/animation runtime
 
-- [ ] Build independent profile registry and character instance.
-- [ ] Load/cache rig and animation clips.
-- [ ] Add animation state machine/layers and action priorities.
-- [ ] Add profile switching and NPC Lab.
-- [ ] Validate base movement/crouch/jump/aim/combat animations.
+- [x] Build the independent `js/npc-system/` profile registry and `NpcInstance` runtime.
+- [x] Load/cache one base-rig candidate and lazily cache clips by stable manifest keys.
+- [x] Add action control, crossfades, request cancellation and one-shot completion handling.
+- [x] Add civilian/worker/aggressive/police profile definitions and an in-game F10 profile cycle for the nearest NPC.
+- [x] Migrate the player/enemy renderer and civilian population to `npc_core_001`.
+- [ ] Validate movement, crouch, jump, rifle aim and combat animation visually in-game.
 
 ### Phase 3 — Weapon connection
 
-- [ ] Define weapon sockets/metadata.
+- [ ] Define calibrated weapon sockets, hand grips, sight and muzzle metadata.
 - [ ] Calibrate current procedural weapon meshes and attachment points.
-- [ ] Connect the downloaded rifle aim/walk/run and idle-only reload clips. `Gunplay.fbx` remains a preview candidate; no pistol, draw or holster animation is available.
-- [ ] Test both first-person and third-person alignment.
+- [x] Connect rifle aim/walk/run clips and the 3.3-second standing-idle-only reload clip to player weapon state.
+- [x] Prevent non-rifle weapon classes from borrowing rifle aim/reload animation poses.
+- [ ] Preview `Gunplay.fbx` before assigning it as a firing/recoil action; no pistol, draw or holster animation is available.
+- [ ] Test first-person and third-person hand, sight, muzzle and weapon alignment.
 
 ### Phase 4 — Object/seat interactions
 
-- [ ] Add asset-local anchor contract.
-- [ ] Calibrate chairs/benches and implement seat-anchor snapping with `Sitting Idle.fbx`; no sit-down/stand-up transition clips.
-- [ ] Validate object approach, occupancy and exit.
+- [ ] Define a reusable asset-local interaction-anchor contract for chairs, benches and props.
+- [x] Add Rapier kinematic NPC anchor positioning and connect civilian seat snapping to `Sitting Idle.fbx`; no sit-down/stand-up clips are used.
+- [ ] Calibrate actual chair/bench sit and exit anchors in the game world.
+- [ ] Validate approach, occupancy, exit clearance and physics restoration in-game.
 
 ### Phase 5 — Vehicle doors and entry/exit
 
-- [ ] Inspect vehicle GLB hierarchies.
-- [ ] Edit/calibrate door hinge pivots.
-- [ ] Add seat/handle/approach/exit anchors.
-- [ ] Connect enter/exit animations and door states.
-- [ ] Test each current vehicle model.
+- [ ] Inspect vehicle GLB hierarchies and identify usable door/seat bones or meshes.
+- [ ] Calibrate door hinge pivots and open/closed transforms.
+- [ ] Add driver/passenger seat, handle, approach and exit anchors.
+- [ ] Connect `Entering Car.fbx`, `Exiting Car.fbx` and `Driving.fbx` to calibrated vehicle anchors.
+- [ ] Test entry/exit, door states and seat alignment on every current vehicle model.
 
 ### Phase 6 — Traversal system
 
-- [ ] Add ladder/fence/wall/ledge metadata.
-- [ ] Connect `Climbing.fbx` to obstacle top-out/landing anchors and `Climbing Ladder.fbx` to ladder ascent. Reverse ladder playback for descent only after contact validation; vault/mantle/ledge actions remain unavailable.
-- [ ] Use geometry-driven distances and anchor alignment.
-- [ ] Verify no teleporting, floating or collision traps.
+- [ ] Add ladder/fence/wall/ledge geometry metadata and traversal anchors.
+- [ ] Connect `Climbing.fbx` to obstacle top-out/landing anchors and `Climbing Ladder.fbx` to ladder ascent.
+- [ ] Validate reverse ladder playback for descent only after hand/foot contact checks; it remains experimental.
+- [ ] Align the complete character motion to geometry anchors and measured obstacle/ladder dimensions.
+- [ ] Verify physics handoff, no teleporting, floating or collision traps.
 
 ### Phase 6A — Unified asset calibration (planned; user-authored)
 
@@ -1032,11 +1028,10 @@ The core gameplay/test stage is not complete until:
 ## 15. What to do when continuing in a new chat
 
 1. Read this entire `checklist.md` first.
-2. Read `tools/character-pipeline/README.md`, `tools/new-npc.md` and the new `tools/character-pipeline/generate-npc-core.ps1` only for pipeline context. Remember that `tools/new-npc.md` describes the old `civilian_002` system.
-3. Inspect the current GitHub `main` branch and the actual latest files before editing. Do not assume the code is still at the state described in an old chat.
-4. Check whether the user has run the NPC generation script. Inspect the actual `npc_core_001/manifest.json` and available FBX files before wiring animation keys.
-5. Continue from the first unchecked item in the current phase. Do not restart the whole plan or ask the user to repeat these requirements.
-6. Do not claim missing assets/clips are complete. Record the exact missing items and continue with what is available.
-7. Keep the current scope focused on the main gameplay character/NPC system and test environment. No story-mode work until the user changes scope.
+2. Treat `npc_core_001` as the only active humanoid asset; do not recreate the deleted legacy model folders or runtime modules.
+3. Inspect the current GitHub `main` branch and actual files before editing.
+4. Continue from the first unchecked item in the active phase. The immediate next task is to open `/npc-lab.html`, verify the base `Idle.fbx` candidate and test all 28 animation bindings.
+5. Do not mark base-rig, animation, weapon, vehicle or traversal validation complete without an actual runtime test.
+6. Keep the scope on the core NPC/player foundation and compact test world. No story-mode work until the user changes scope.
 
 **This file is the durable project handoff. Update its checkboxes and notes as work is completed.**
