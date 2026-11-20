@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from './lib/GLTFLoader.js';
 import { getWorldKitLengthScalePlan } from './world-kit.js';
 import { loadAssetOverrides, applyAssetOverrides } from './asset-overrides.js';
+import { loadAssetCalibration, applyAssetCalibration, getCalibratedComponents } from './asset-calibration.js';
 import {
   VEHICLE_COORDINATES,
   ackermannSteerAngle, updateChaseLook, updateReverseCameraBlend, chaseCameraYaw,
@@ -1123,6 +1124,10 @@ async function _loadCarModelUncached(kind = 'lambo') {
     }
     await loadAssetOverrides();
     applyAssetOverrides(scene, def.url); // node transforms are applied before mesh fitting and collision extraction
+    // Calibration supplies reviewed component/interaction metadata. The live wheel detector below
+    // remains authoritative for wheel hardpoints and rejects incomplete vehicle profiles.
+    const assetCalibration = await loadAssetCalibration(def.url);
+    applyAssetCalibration(scene, assetCalibration);
     const bugattiAssembly = kind === 'bugatti' ? splitBugattiWheelAssembly(scene) : null;
     // The Cybertruck GLB splits tyre sidewalls, tread, rim and hub details into
     // more separate meshes than the sports-car asset. Keep those parts together
@@ -1280,6 +1285,23 @@ async function _loadCarModelUncached(kind = 'lambo') {
     scene.userData.yawOffset = yawOffset;
     scene.userData.nose = nose;
     scene.userData.wheelCalibration = wheelCalibration;
+    const calibratedList = role => getCalibratedComponents(scene, role).map(({ component }) => ({
+      id: component.id,
+      nodeKey: component.nodeKey,
+      confidence: component.confidence,
+      requiresReview: component.requiresReview !== false,
+    }));
+    scene.userData.assetCalibrationDiagnostics = {
+      status: assetCalibration?.review?.status || 'no-sidecar',
+      vehicleRole: assetCalibration?.vehicle ? 'calibrated-candidate-map' : 'runtime-detector-only',
+      wheelCandidates: calibratedList('vehicle-wheel'),
+      seatCandidates: calibratedList('vehicle-seat'),
+      doorCandidates: calibratedList('door-panel'),
+      steeringWheelCandidates: calibratedList('steering-wheel'),
+      runtimeWheelCount: rigs.length,
+      runtimeWheelCalibration: wheelCalibration,
+      runtimeWheelDetectorAuthoritative: true,
+    };
 
     _modelCache[kind] = scene;
     const finishedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
