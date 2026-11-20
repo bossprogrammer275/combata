@@ -125,6 +125,13 @@ function validateAsset(sourceFile) {
           || !(Number(surface.connection.width) > 0.5)) {
           fail('An accepted road connection is missing finite endpoints or usable width: ' + surface.nodeKey);
         }
+        const needsPolyline = /curve|sloped|ramp/i.test(surface.sectionKind || '')
+          || surface.role === 'road-corner-module';
+        if (needsPolyline && (!Array.isArray(surface.connection.points)
+          || surface.connection.points.length < 3
+          || surface.connection.points.some(point => !finiteVector(point)))) {
+          fail('A curved/sloped driveable surface must have at least three reviewed centreline points: ' + surface.nodeKey);
+        }
       } else if (surface.connection.requiresReview !== true) {
         fail('Unaccepted estimated connection endpoints must remain review-required: ' + surface.nodeKey);
       }
@@ -140,8 +147,11 @@ function validateAsset(sourceFile) {
       if (/curved|sloped|ramp/i.test(section.kind) && section.connection?.status === 'estimated'
         && !(section.connection.accepted === true
           && section.connection.requiresReview === false
-          && section.connection.method === 'manual-reviewed-socket')) {
-        fail('Curved or sloped bridge section has an unsafe straight estimate instead of manually reviewed sockets: ' + section.id);
+          && section.connection.method === 'manual-reviewed-socket'
+          && Array.isArray(section.connection.points)
+          && section.connection.points.length >= 3
+          && section.connection.points.every(point => finiteVector(point)))) {
+        fail('Curved or sloped bridge section has an unsafe straight estimate instead of manually reviewed multi-point sockets: ' + section.id);
       }
       if (section.requiresReview === false
         && !(section.connection?.accepted === true
