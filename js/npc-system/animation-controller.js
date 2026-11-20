@@ -15,6 +15,17 @@ export class NpcAnimationController {
     this.requestedAnimation = '';
     this.requestId = 0;
     this.disposed = false;
+    this.autoReturnActions = new Set([
+      'wave', 'jump_idle', 'reload_idle', 'hard_landing',
+      'hit_reaction', 'punch', 'block', 'knockdown_recovery_candidate'
+    ]);
+    this._onFinished = (event) => {
+      if (this.disposed || event.action !== this.currentAction) return;
+      if (this.autoReturnActions.has(this.currentAnimation)) {
+        this.play('idle', { loop: true });
+      }
+    };
+    this.mixer.addEventListener('finished', this._onFinished);
   }
 
   async play(requestedKey, options = {}) {
@@ -75,6 +86,7 @@ export class NpcAnimationController {
     this.mixer?.stopAllAction();
   }
   dispose() {
+    if (this.mixer && this._onFinished) this.mixer.removeEventListener('finished', this._onFinished);
     this.disposed = true;
     this.stop();
     this.actions.clear();
