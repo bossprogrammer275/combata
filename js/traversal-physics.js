@@ -187,9 +187,18 @@ export function validateReviewedTraversalProfile(candidate, component) {
     }
     const handContactMatches = contacts.some(contact =>
       (contact.bone === 'LeftHand' || contact.bone === 'RightHand')
+      && Number(contact.t) <= 0.78
       && distance(contact.position, anchors.handContact) <= 0.55
     );
-    if (!handContactMatches) return invalid('Obstacle handContact must match a timed hand-bone contact');
+    if (!handContactMatches) return invalid('Obstacle handContact must match a timed hand-bone contact during the pull');
+    for (const bone of ['LeftFoot', 'RightFoot']) {
+      if (!contacts.some(contact => contact.bone === bone && Number(contact.t) >= 0.4)) {
+        return invalid('Obstacle ' + bone + ' contact must occur during top-out/landing');
+      }
+    }
+    if (!path.some(point => distance(point.position, anchors.topOut) <= 0.45)) {
+      return invalid('Obstacle rootPath must pass through the measured topOut anchor');
+    }
     if (candidate.capabilities?.obstacleClimbAnimation !== true
       || candidate.capabilities?.vaultAnimation === true
       || candidate.capabilities?.mantleAnimation === true) {
@@ -209,6 +218,14 @@ export function validateReviewedTraversalProfile(candidate, component) {
     if (!Array.isArray(anchors.climbPath) || anchors.climbPath.length < 2
       || anchors.climbPath.some(point => !vector(point))) {
       return invalid('Ladder traversal requires measured rung-path points');
+    }
+    if (distance(anchors.climbPath[0], anchors.mountBottom) > 0.45
+      || distance(anchors.climbPath.at(-1), anchors.mountTop) > 0.45) {
+      return invalid('Ladder rung path must connect the bottom and top mounting anchors');
+    }
+    const planeLength = Math.hypot(...anchors.planeNormal.slice(0, 3).map(Number));
+    if (planeLength < 0.8 || planeLength > 1.2 || Math.abs(Number(anchors.planeNormal[1])) > 0.25) {
+      return invalid('Ladder planeNormal must be a normalized, near-horizontal outward vector');
     }
     const rungSpacing = Number(anchors.rungSpacing);
     if (!Number.isFinite(rungSpacing) || rungSpacing < 0.12 || rungSpacing > 0.6) {
