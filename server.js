@@ -126,6 +126,14 @@ function validateCalibrationWrite(data, assetPath, sourceHash) {
       return 'approved curved/sloped bridge section requires a reviewed multi-point centreline';
     }
   }
+  const excluded = new Set(data.collision?.excludedDriveableMeshKeys || []);
+  for (const key of excluded) {
+    const component = components.get(key);
+    const surface = (data.road?.surfaces || []).find(item => item.nodeKey === key);
+    if (!component || component.runtimeEnabled !== true || !surface || surface.runtimeEnabled !== true) {
+      return 'collision exclusion does not resolve to an enabled calibrated road surface';
+    }
+  }
   for (const surface of data.road?.surfaces || []) {
     const component = components.get(surface.nodeKey);
     if (!component) return 'road surface references an unknown component';
