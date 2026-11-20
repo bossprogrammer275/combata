@@ -13,6 +13,18 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { validateReviewedTraversalProfile } from '../js/traversal-physics.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const RUNTIME_SURFACE_ROLES = new Set([
+  'bridge-deck',
+  'road-surface',
+  'road-straight-module',
+  'road-corner-module',
+  'walkable-surface',
+]);
+
+export function isRuntimeSurfaceRole(role) {
+  return RUNTIME_SURFACE_ROLES.has(role);
+}
+
 const ALLOWED_ROOTS = [
   path.join(ROOT, 'data', 'models', 'assets'),
   path.join(ROOT, 'data', 'models', 'cars'),
@@ -95,8 +107,7 @@ function validateAsset(sourceFile) {
     }
     assertBounds(component.bounds, 'component ' + component.nodeKey);
     if (component.runtimeEnabled === true) {
-      const allowed = ['bridge-deck', 'road-straight-module', 'road-corner-module', 'walkable-surface'];
-      if (!allowed.includes(component.role) || component.requiresReview === true) {
+      if (!isRuntimeSurfaceRole(component.role) || component.requiresReview === true) {
         fail('Unreviewed or unsupported component was enabled for runtime: ' + component.nodeKey);
       }
     }
@@ -232,4 +243,4 @@ if (invokedPath && import.meta.url === pathToFileURL(invokedPath).href) {
   }
 }
 
-export { validateAsset, hasAnchor };
+export { validateAsset, hasAnchor, isRuntimeSurfaceRole };
