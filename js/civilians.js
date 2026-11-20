@@ -65,6 +65,7 @@ export class Civilian {
     this.activityTarget = null;
     this.socialPartner = null;
     this._traversal = null;
+    this.traversalCooldown = 0;
     this.ch = new NpcInstance(C.defaultProfile);
     this.root = this.ch.root;
     this.root.name = "NPC_Core_Civilian";
@@ -256,7 +257,7 @@ export class Civilian {
   }
 
   _tryStartTraversal(direction) {
-    if (this._traversal || !this.world?.findTraversalCandidateHit) return false;
+    if (this._traversal || this.traversalCooldown > 0 || !this.world?.findTraversalCandidateHit) return false;
     const heading = direction?.lengthSq?.() > 0.02
       ? Math.atan2(-direction.x, -direction.z) : this.yaw;
     const hit = this.world.findTraversalCandidateHit(this.pos, heading, 1.55);
@@ -385,6 +386,7 @@ export class Civilian {
       this.onGround = Math.abs(support - this.pos.y) <= 0.16;
     }
     this._traversal = null;
+    this.traversalCooldown = aborted ? 0.9 : 0.24;
     this.velocity.set(0, 0, 0);
     this.desired.set(0, 0, 0);
     this.state = this.fleeT > 0 ? "flee" : (state.resumeState === "walk" ? "walk" : "idle");
@@ -516,6 +518,7 @@ export class Civilian {
       this.ch.update(d);
       return this.deathT >= POP.keepDeadSeconds;
     }
+    this.traversalCooldown = Math.max(0, this.traversalCooldown - d);
     if (this._traversal) return this._updateTraversal(d);
     const player = context.player;
     const playerDistance = player ? this.pos.distanceTo(player.pos) : Infinity;
