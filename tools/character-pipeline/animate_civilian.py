@@ -16,26 +16,67 @@ CHARACTER_ID = "civilian_001"
 SOURCE_BUNDLE = OUT / f"{CHARACTER_ID}_mixamo_source.zip"
 
 ANIMATIONS = [
+    # Core movement.
     {"key": "idle", "queries": ["standing idle", "idle"], "need": ["idle"], "exclude": ["crouch", "sitting", "walk", "run"], "inplace": False},
     {"key": "walk", "queries": ["walking", "walk"], "need": ["walk"], "exclude": ["crouch", "backward", "sneak", "run"], "inplace": True},
     {"key": "run", "queries": ["running", "run"], "need": ["run"], "exclude": ["walk", "crouch", "backward"], "inplace": True},
     {"key": "sprint", "queries": ["sprinting", "sprint"], "need": ["sprint"], "exclude": ["walk", "crouch"], "inplace": True},
-    {"key": "jump", "queries": ["jump"], "need": ["jump"], "exclude": [], "inplace": False},
-    {"key": "crouch_idle", "queries": ["crouch idle", "crouching"], "need": ["crouch"], "exclude": ["walk", "run"], "inplace": False},
-    {"key": "crouch_walk", "queries": ["crouch walk", "crouching walk"], "need": ["crouch", "walk"], "exclude": ["run"], "inplace": True},
-    {"key": "talk", "queries": ["talking", "talk"], "need": ["talk"], "exclude": ["phone"], "inplace": False},
-    {"key": "phone", "queries": ["phone call", "phone"], "need": ["phone"], "exclude": [], "inplace": False},
-    {"key": "sit_idle", "queries": ["sitting idle", "sit idle"], "need": ["sit"], "exclude": ["stand", "walk"], "inplace": False},
-    {"key": "hit_reaction", "queries": ["hit reaction", "hit"], "need": ["hit"], "exclude": ["golf", "baseball"], "inplace": False},
-    {"key": "fall_death", "queries": ["falling death", "death", "dying"], "need": ["death"], "exclude": ["dance"], "inplace": False},
-    {"key": "get_up", "queries": ["getting up", "stand up"], "need": ["up"], "exclude": ["jump"], "inplace": False},
-    {"key": "look_around", "queries": ["look around", "looking around"], "need": ["look"], "exclude": ["rifle", "aim"], "inplace": False},
-    {"key": "work_idle", "queries": ["working", "work"], "need": ["work"], "exclude": ["workout", "walk", "run"], "inplace": False},
-    {"key": "wave", "queries": ["waving", "wave"], "need": ["wave"], "exclude": ["water"], "inplace": False},
+    {"key": "crouch_idle", "queries": ["crouching idle", "crouch idle"], "need": ["crouch"], "exclude": ["walk", "run"], "inplace": False},
+    {"key": "crouch_walk", "queries": ["crouch walking", "crouch walk"], "need": ["crouch", "walk"], "exclude": ["run"], "inplace": True},
+    {"key": "crouch_run", "queries": ["crouch running", "crouching run"], "need": ["crouch", "run"], "exclude": ["walk", "backward"], "inplace": True},
+
+    # Standing and crouched weapon-ready movement. These are full-body base clips;
+    # the runtime can later blend upper-body weapon poses over locomotion where appropriate.
+    {"key": "aim_idle", "queries": ["rifle aiming idle", "aiming idle", "pistol aiming idle"], "need": ["aim"], "exclude": ["walk", "run", "crouch", "shoot"], "inplace": False},
+    {"key": "aim_walk", "queries": ["walking while aiming", "rifle walking aim", "aim walk"], "need": ["aim", "walk"], "exclude": ["crouch", "run"], "inplace": True},
+    {"key": "crouch_aim", "queries": ["crouching aiming", "crouch aiming", "crouch aim"], "need": ["crouch", "aim"], "exclude": ["walk", "run"], "inplace": False},
+    {"key": "crouch_walk_aim", "queries": ["crouch walking while aiming", "crouch walk aim"], "need": ["crouch", "walk", "aim"], "exclude": ["run"], "inplace": True},
+    {"key": "crouch_run_aim", "queries": ["crouch running while aiming", "crouch run aim"], "need": ["crouch", "run", "aim"], "exclude": ["walk"], "inplace": True},
+    {"key": "aim_shoot", "queries": ["rifle shooting", "shooting rifle", "pistol shooting"], "need": ["shoot"], "exclude": ["archery", "dance"], "inplace": False},
+    {"key": "weapon_draw", "queries": ["drawing a gun", "draw weapon", "pulling out pistol"], "need": ["draw"], "exclude": ["sword", "bow"], "inplace": False},
+    {"key": "weapon_holster", "queries": ["holstering a gun", "holster weapon", "putting away pistol"], "need": ["holster"], "exclude": ["sword", "bow"], "inplace": False},
+    {"key": "reload_rifle", "queries": ["reloading rifle", "rifle reload", "assault rifle reload"], "need": ["reload"], "exclude": ["pistol", "shotgun"], "inplace": False},
+    {"key": "reload_pistol", "queries": ["reloading pistol", "pistol reload", "handgun reload"], "need": ["reload"], "exclude": ["rifle", "shotgun"], "inplace": False},
+
+    # Jumping and traversal. Movement is ultimately driven by the game controller
+    # and asset anchors; these clips provide the matching body motion.
+    {"key": "jump_up", "queries": ["jumping from standing", "jumping", "vertical jump"], "need": ["jump"], "exclude": ["dance"], "inplace": False},
+    {"key": "jump_down", "queries": ["falling idle", "falling", "fall from height"], "need": ["fall"], "exclude": ["death", "diving"], "inplace": False},
+    {"key": "land", "queries": ["landing after jump", "jump landing", "landing"], "need": ["land"], "exclude": ["death", "dance"], "inplace": False},
+    {"key": "climb_mount", "queries": ["mounting ladder", "climbing ladder", "climbing"], "need": ["climb"], "exclude": ["stairs", "rock"], "inplace": False},
+    {"key": "climb_up", "queries": ["ladder climbing", "climbing up ladder", "climbing"], "need": ["climb"], "exclude": ["stairs", "down", "rock"], "inplace": True},
+    {"key": "climb_down", "queries": ["climbing down ladder", "descending ladder", "climbing down"], "need": ["climb"], "exclude": ["stairs", "up", "rock"], "inplace": True},
+    {"key": "climb_top_out", "queries": ["climbing over ledge", "pulling up onto platform", "climbing onto ledge"], "need": ["climb"], "exclude": ["stairs", "down", "rock"], "inplace": False},
+    {"key": "vault_low", "queries": ["low vault", "vaulting low obstacle", "vaulting"], "need": ["vault"], "exclude": ["horse", "high"], "inplace": False},
+    {"key": "vault_medium", "queries": ["vaulting obstacle", "medium vault", "vault"], "need": ["vault"], "exclude": ["horse", "low", "high"], "inplace": False},
+    {"key": "mantle_high", "queries": ["mantling wall", "climbing over wall", "high mantle"], "need": ["climb"], "exclude": ["stairs", "down", "rock"], "inplace": False},
+
+    # Seats and ordinary interaction.
     {"key": "sit_down", "queries": ["sitting down", "sit down"], "need": ["sit"], "exclude": ["idle", "walk"], "inplace": False},
-    {"key": "stand_up", "queries": ["standing up", "stand up"], "need": ["stand"], "exclude": ["jump"], "inplace": False},
+    {"key": "sit_idle", "queries": ["sitting idle", "sit idle"], "need": ["sit"], "exclude": ["stand", "walk"], "inplace": False},
+    {"key": "stand_up", "queries": ["standing up", "stand up", "getting up from chair"], "need": ["stand"], "exclude": ["jump"], "inplace": False},
+    {"key": "talk", "queries": ["talking", "talk"], "need": ["talk"], "exclude": ["phone"], "inplace": False},
+    {"key": "wave", "queries": ["waving", "wave"], "need": ["wave"], "exclude": ["water"], "inplace": False},
+    {"key": "phone", "queries": ["phone call", "using phone", "phone"], "need": ["phone"], "exclude": [], "inplace": False},
+    {"key": "look_around", "queries": ["look around", "looking around"], "need": ["look"], "exclude": ["rifle", "aim"], "inplace": False},
+    {"key": "work_idle", "queries": ["working idle", "working", "work"], "need": ["work"], "exclude": ["workout", "walk", "run"], "inplace": False},
+
+    # Unarmed combat and reactions.
+    {"key": "punch", "queries": ["punching", "punch"], "need": ["punch"], "exclude": ["dance"], "inplace": False},
+    {"key": "kick", "queries": ["kicking", "kick"], "need": ["kick"], "exclude": ["dance"], "inplace": False},
+    {"key": "block", "queries": ["blocking punches", "boxing block", "blocking"], "need": ["block"], "exclude": ["dance"], "inplace": False},
+    {"key": "dodge", "queries": ["dodging", "dodge", "evading attack"], "need": ["dodge"], "exclude": ["dance"], "inplace": False},
+    {"key": "hit_reaction", "queries": ["hit reaction", "taking a hit", "getting punched"], "need": ["hit"], "exclude": ["golf", "baseball"], "inplace": False},
     {"key": "fear_reaction", "queries": ["scared reaction", "frightened", "fear"], "need": [], "exclude": ["dance"], "inplace": False},
     {"key": "flee_run", "queries": ["running scared", "panic run", "fear run"], "need": ["run"], "exclude": ["walk"], "inplace": True},
+    {"key": "fall_death", "queries": ["falling death", "death", "dying"], "need": ["death"], "exclude": ["dance"], "inplace": False},
+    {"key": "get_up", "queries": ["getting up", "stand up"], "need": ["up"], "exclude": ["jump"], "inplace": False},
+
+    # Vehicle entry/exit character motion. Door mesh movement is handled separately
+    # through each vehicle model's calibrated door hinge metadata.
+    {"key": "enter_vehicle", "queries": ["entering car", "getting into car", "enter vehicle"], "need": ["enter"], "exclude": ["dance"], "inplace": False},
+    {"key": "exit_vehicle", "queries": ["exiting car", "getting out of car", "exit vehicle"], "need": ["exit"], "exclude": ["dance"], "inplace": False},
+    {"key": "vehicle_idle", "queries": ["sitting in car", "driving car idle", "sitting driving"], "need": ["sit"], "exclude": ["dance"], "inplace": False},
 ]
 
 def norm(value):
