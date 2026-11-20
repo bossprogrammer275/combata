@@ -6,18 +6,19 @@ on:
     paths:
       - 'tools/asset-calibrator.mjs'
       - 'tools/asset-calibrator.test.mjs'
+      - 'tools/traversal-physics.test.mjs'
+      - 'tools/process-glbs.js'
+      - 'tools/validate-asset-calibration.mjs'
+      - 'tools/asset-review.html'
+      - 'tools/asset-review.js'
+      - 'js/asset-calibration.js'
+      - 'js/traversal-physics.js'
       - 'js/player.js'
       - 'js/character.js'
+      - 'js/civilians.js'
       - 'js/npc-system/core-assets.js'
       - 'js/npc-system/animation-controller.js'
       - 'js/npc-system/npc-instance.js'
-      - 'tools/asset-review.html'
-      - 'tools/asset-review.js'
-      - 'tools/traversal-physics.test.mjs'
-      - 'js/traversal-physics.js'
-      - 'tools/process-glbs.js'
-      - 'tools/validate-asset-calibration.mjs'
-      - 'js/asset-calibration.js'
       - 'js/world.js'
       - 'js/physics.js'
       - 'js/vehicles.js'
@@ -28,18 +29,19 @@ on:
     paths:
       - 'tools/asset-calibrator.mjs'
       - 'tools/asset-calibrator.test.mjs'
-- 'js/player.js'
-- 'js/character.js'
-- 'js/npc-system/core-assets.js'
-- 'js/npc-system/animation-controller.js'
-- 'js/npc-system/npc-instance.js'
-- 'tools/asset-review.html'
-- 'tools/asset-review.js'
-- 'tools/traversal-physics.test.mjs'
-- 'js/traversal-physics.js'
+      - 'tools/traversal-physics.test.mjs'
       - 'tools/process-glbs.js'
       - 'tools/validate-asset-calibration.mjs'
+      - 'tools/asset-review.html'
+      - 'tools/asset-review.js'
       - 'js/asset-calibration.js'
+      - 'js/traversal-physics.js'
+      - 'js/player.js'
+      - 'js/character.js'
+      - 'js/civilians.js'
+      - 'js/npc-system/core-assets.js'
+      - 'js/npc-system/animation-controller.js'
+      - 'js/npc-system/npc-instance.js'
       - 'js/world.js'
       - 'js/physics.js'
       - 'js/vehicles.js'
@@ -65,22 +67,23 @@ jobs:
           node-version: 24
       - name: Install project dependencies
         run: npm install --no-audit --no-fund
-      - name: Run calibration regression tests
+      - name: Run calibration and traversal regression tests
         run: npm run test:asset-calibration
       - name: Check calibration and runtime module syntax
         run: |
           node --check tools/asset-calibrator.mjs
           node --check tools/asset-calibrator.test.mjs
           node --check tools/traversal-physics.test.mjs
-          node --check js/traversal-physics.js
-          node --check js/player.js
-          node --check js/character.js
-          node --check js/npc-system/core-assets.js
-          node --check js/npc-system/animation-controller.js
-          node --check js/npc-system/npc-instance.js
           node --check tools/process-glbs.js
           node --check tools/validate-asset-calibration.mjs
           node --check js/asset-calibration.js
+          node --check js/traversal-physics.js
+          node --check js/player.js
+          node --check js/character.js
+          node --check js/civilians.js
+          node --check js/npc-system/core-assets.js
+          node --check js/npc-system/animation-controller.js
+          node --check js/npc-system/npc-instance.js
           node --check js/world.js
           node --check js/physics.js
           node --check js/vehicles.js
