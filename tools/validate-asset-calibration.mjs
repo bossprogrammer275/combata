@@ -119,6 +119,25 @@ function validateAsset(sourceFile) {
     if (!finiteVector(box, 6)) fail('Collision box ' + index + ' does not contain six finite values');
     if (box.slice(3, 6).some(value => Number(value) <= 0)) fail('Collision box ' + index + ' has a zero or negative size');
   }
+  const nativeProxies = Array.isArray(data.collision?.nativeProxies) ? data.collision.nativeProxies : [];
+  const nativeProxyKeys = new Set();
+  for (const [index, proxy] of nativeProxies.entries()) {
+    if (!proxy?.nodeKey || nativeProxyKeys.has(proxy.nodeKey)) fail('Native collision proxy ' + index + ' has a missing or duplicate nodeKey');
+    nativeProxyKeys.add(proxy.nodeKey);
+    if (proxy.source !== 'authored-col-mesh' || proxy.runtimeAuthority !== 'world-native-col-proxy') {
+      fail('Native collision proxy ' + proxy.nodeKey + ' has an unsupported authority declaration');
+    }
+    assertBounds(proxy.bounds, 'native collision proxy ' + proxy.nodeKey);
+    if (!finiteVector(proxy.bounds.size) || proxy.bounds.size.some(value => Number(value) <= 0)) {
+      fail('Native collision proxy ' + proxy.nodeKey + ' has invalid dimensions');
+    }
+  }
+  if (Number(data.collision?.nativeProxyCount || 0) !== nativeProxies.length) {
+    fail('Native collision proxy count does not match its inventory');
+  }
+  if (nativeProxies.length && data.collision?.nativeProxyAuthority !== 'source-mesh-col-prefixes-consumed-by-world-runtime') {
+    fail('Native collision proxies are missing their runtime authority declaration');
+  }
 
   const excluded = new Set(data.collision?.excludedDriveableMeshKeys || []);
   const roadSurfaces = data.road?.surfaces || [];
@@ -219,6 +238,7 @@ function validateAsset(sourceFile) {
     sha256: sourceSha256,
     components: components.length,
     collisionBoxes: boxes.length,
+    nativeCollisionProxies: nativeProxies.length,
     roadSurfaces: roadSurfaces.length,
     runtimeSurfaces: roadSurfaces.filter(surface => surface.runtimeEnabled === true).length,
     bridgeSections: data.bridge?.sections?.length || 0,
