@@ -1626,15 +1626,24 @@ export class World {
                 z: (a.z || 0) - localX * sn + localZ * c,
               };
             };
-            const start = toWorldPoint(connection.start.position);
-            const end = toWorldPoint(connection.end.position);
-            const length = Math.hypot(end.x - start.x, end.z - start.z);
+            const localPoints = Array.isArray(connection.points) && connection.points.length >= 2
+              ? connection.points
+              : [connection.start.position, connection.end.position];
+            const points = localPoints.map(toWorldPoint);
+            let length = 0;
+            for (let pointIndex = 1; pointIndex < points.length; pointIndex++) {
+              length += Math.hypot(
+                points[pointIndex].x - points[pointIndex - 1].x,
+                points[pointIndex].z - points[pointIndex - 1].z,
+              );
+            }
             const width = Number(connection.width) * scaleFactor;
-            if (length > 1 && width > 0.5
-              && [start.x, start.y, start.z, end.x, end.y, end.z].every(Number.isFinite)) {
+            const validPoints = points.length >= 2 && points.every(point =>
+              [point.x, point.y, point.z].every(Number.isFinite));
+            if (length > 1 && width > 0.5 && validPoints) {
               this.calibratedRoadChains.push({
                 name: 'calibrated-' + String(calibratedSurface.id || nodeKey),
-                pts: [start, end],
+                pts: points,
                 W: width,
                 surface: calibratedSurface.kind === 'sidewalk' ? 'concrete' : 'asphalt',
                 roadY: 0,
