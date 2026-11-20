@@ -111,8 +111,22 @@ function validateAsset(sourceFile) {
       if (!excluded.has(surface.nodeKey)) fail('Enabled surface was not excluded from solid box generation: ' + surface.nodeKey);
       if (surface.physics?.collider !== 'triangle-surface') fail('Enabled road/bridge surface is missing triangle physics');
     }
-    if (surface.connection?.status === 'estimated' && surface.connection?.requiresReview !== true) {
-      fail('Estimated connection endpoints must remain review-required: ' + surface.nodeKey);
+    if (surface.connection?.status === 'estimated') {
+      if (surface.connection.accepted === true) {
+        if (surface.connection.requiresReview !== false) {
+          fail('An accepted connection must clear its review flag: ' + surface.nodeKey);
+        }
+        if (surface.runtimeEnabled !== true || component.runtimeEnabled !== true) {
+          fail('An accepted road connection must have its source surface enabled: ' + surface.nodeKey);
+        }
+        if (!finiteVector(surface.connection.start?.position)
+          || !finiteVector(surface.connection.end?.position)
+          || !(Number(surface.connection.width) > 0.5)) {
+          fail('An accepted road connection is missing finite endpoints or usable width: ' + surface.nodeKey);
+        }
+      } else if (surface.connection.requiresReview !== true) {
+        fail('Unaccepted estimated connection endpoints must remain review-required: ' + surface.nodeKey);
+      }
     }
   }
 
