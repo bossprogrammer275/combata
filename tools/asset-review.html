@@ -64,13 +64,14 @@ dl{display:grid;grid-template-columns:115px minmax(0,1fr);gap:7px 9px;font-size:
 <div class="calibration-meta">
 <div class="stat"><span>Components</span><strong id="calibration-components">—</strong></div>
 <div class="stat"><span>Box colliders</span><strong id="calibration-boxes">—</strong></div>
+<div class="stat"><span>Native collision proxies</span><strong id="calibration-native-proxies">—</strong></div>
 <div class="stat"><span>Road surfaces</span><strong id="calibration-surfaces">—</strong></div>
 <div class="stat"><span>Traversal candidates</span><strong id="calibration-traversals">—</strong></div>
 </div>
 <label class="field-label" for="calibration-component">Detected component</label>
 <select id="calibration-component" style="width:100%"><option value="">No components</option></select>
 <div class="calibration-actions">
-<button id="calibration-show-collision" type="button">Show collision boxes</button>
+<button id="calibration-show-collision" type="button">Show collision geometry</button>
 <button id="calibration-show-surfaces" type="button">Show road profiles</button>
 </div>
 <label class="field-label" for="calibration-traversal">Traversal candidate</label>
