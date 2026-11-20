@@ -88,7 +88,7 @@ export async function loadNpcCoreBase() {
       const height = bounds.max.y - bounds.min.y;
       const idle = model.animations?.[0];
       if (!report.meshes.length || !report.boneCount || report.missingBones.length) {
-        throw new Error('npc_core_001 is not a bound skinned rig (meshes ' + report.meshes.length + ', bones ' + report.boneCount + ')');
+        throw new Error('npc_core_001 base rig failed: skinned meshes=' + report.meshes.length + ', bones=' + report.boneCount + ', missing required body bones=' + report.missingBones.join(', '));
       }
       if (!Number.isFinite(height) || height < 0.5) throw new Error('npc_core_001 has invalid source height: ' + height);
       if (!idle?.tracks?.length) throw new Error('npc_core_001 Idle.fbx has no playable idle take');
@@ -103,7 +103,7 @@ export async function loadNpcCoreBase() {
         materials: report.materialCount, boneNames: report.boneNames, requiredBodyBones: REQUIRED_BODY_BONES, idleTracks: idle.tracks.length, verified: true
       };
       console.info('[NPC Core] Verified ' + NPC_CORE_ID + ': ' + report.meshes.length
-        + ' skinned mesh(es), ' + report.boneCount + ' bones; fitted to ' + NPC_CORE_TARGET_HEIGHT + 'm');
+        + ' skinned mesh(es), ' + report.boneCount + ' bones, all required body landmarks present; fitted to ' + NPC_CORE_TARGET_HEIGHT + 'm');
       return model;
     })().catch((error) => { basePromise = null; throw error; });
   }
