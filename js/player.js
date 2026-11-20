@@ -24,6 +24,8 @@ export class Player {
     this.radius = 0.42;
     this.height = 1.8;
     this.onGround = true;
+    this.reloadLocked = false;
+    this._jumpFromIdle = false;
     // The jump animation lifts the visible rig. Gameplay keeps the capsule
     // grounded and raises only the camera to match that animation.
     this.jumpCameraHeight = 0;
@@ -114,6 +116,8 @@ export class Player {
       phase: this.phase,
       weaponType: this.weaponType || 'rifle',
       airborne: (!this.onGround || this.jumpCameraHeight > 0.04) ? 1 : 0,
+      jumpFromIdle: this._jumpFromIdle ? 1 : 0,
+      reloading: this.reloadLocked ? 1 : 0,
       landDip: this.landDip,
       skydive: this.skydive ? 1 : 0,
       canopy: this.canopy || 0,
@@ -125,6 +129,16 @@ export class Player {
   // copy physics transform + pose onto the visible rig — FBX-only, no procedural fallback
   syncCharacter(dt = 1 / 60) {
     this.char.setState(this.getState(), dt);
+  }
+
+  setReloading(enabled) {
+    this.reloadLocked = !!enabled;
+    if (this.reloadLocked) {
+      this.vel.x = 0;
+      this.vel.z = 0;
+      this.sprinting = false;
+      this.aimAmount = 0;
+    }
   }
 
   // swap clothing/headgear appearance and rebuild the visible rig in place,
@@ -209,7 +223,9 @@ export class Player {
   }
 
   update(dt, input) {
-    const k = input;
+    const k = this.reloadLocked
+      ? { ...input, forward: 0, right: 0, sprint: false, jump: false, crouch: false, climb: false, ads: false, fire: false }
+      : input;
     const jumpPressed = !!k.jump && !this._jumpWasDown;
     this._jumpWasDown = !!k.jump;
 
@@ -292,6 +308,7 @@ export class Player {
     // jump clip moves the visible rig; this separate ballistic offset moves only
     // the camera so the player is not raised twice by animation + physics.
     if (jumpPressed && this.onGround && !this.climbing) {
+      this._jumpFromIdle = Math.hypot(this.vel.x, this.vel.z) < 0.14 && !this.crouched && !this.sprinting;
       this.jumpCameraHeight = 0;
       this.jumpCameraVelocity = 5.2;
       this.audio.jump();
@@ -299,7 +316,10 @@ export class Player {
     if (this.jumpCameraVelocity > 0 || this.jumpCameraHeight > 0) {
       this.jumpCameraVelocity -= 14 * dt;
       this.jumpCameraHeight = Math.max(0, this.jumpCameraHeight + this.jumpCameraVelocity * dt);
-      if (this.jumpCameraHeight === 0) this.jumpCameraVelocity = 0;
+      if (this.jumpCameraHeight === 0) {
+        this.jumpCameraVelocity = 0;
+        this._jumpFromIdle = false;
+      }
     }
 
     // Gravity moves the capsule only when genuinely falling off an edge.
