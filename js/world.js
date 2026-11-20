@@ -80,8 +80,6 @@ export class World {
     this._ribbonBatch = [];  // {left[], right[], y, mat, closed} — mitered road/sidewalk ribbons
     this.roadPhysicsMeshes = []; // exact visible road/sidewalk/curb ribbon meshes
     this._trimBatch = [];    // {x,y,z,w,h,d,ry,mat} — AO base skirts + roofline lips
-    this._instancedAssetUrls = new Set();
-    this._staticInstanceSources = [];
 
     // Create collision indexes before assets load; initializing BVHWorld after
     // loading discards model BVHs registered during _loadGLBAsset.
@@ -968,22 +966,6 @@ export class World {
       return;
     }
 
-    // Repeated static vegetation and infrastructure are candidates for
-    // instancing. Buildings and interactive street furniture stay as normal
-    // scene objects so doors, seats and gameplay markers remain intact.
-    const placementCounts = new Map();
-    for (const asset of assets) {
-      placementCounts.set(asset.url, (placementCounts.get(asset.url) || 0) + 1);
-    }
-    for (const asset of assets) {
-      if (asset.building || (placementCounts.get(asset.url) || 0) < 4) continue;
-      const tags = (asset.tags || []).map(tag => String(tag).toLowerCase());
-      const url = String(asset.url || '').toLowerCase();
-      const staticProp = tags.some(tag => ['vegetation', 'lighting', 'power-pole'].includes(tag))
-        || /tree|palm|bush|hedge|street_light|electricity_pole/.test(url);
-      if (staticProp) this._instancedAssetUrls.add(asset.url);
-    }
-
     // Keep binary decode concurrency within both the selected tier and the
     // browser's reported memory budget. GLTF decompression spikes CPU/RAM.
     const qualityConcurrency = this._quality === 'ultra' ? 8
@@ -998,75 +980,12 @@ export class World {
       await Promise.allSettled(batch.map(a => this._loadGLBAsset(a)));
     }
 
-    this._flushStaticInstances();
     this._rebuildGrid();
     if (this._physics && this._physics.world) {
       this._physics.registerStaticBatch(this.colliders);
     }
     console.log('[World] Grid rebuilt with', this.colliders.length, 'colliders +', this.climbables.length, 'climbables +', this.portals.length, 'portals');
     return;
-  }
-
-  _flushStaticInstances() {
-    const sources = this._staticInstanceSources;
-    if (!sources || !sources.length) return 0;
-
-    const buckets = new Map();
-    for (const source of sources) {
-      const materialKey = Array.isArray(source.material)
-        ? source.material.map(material => material?.uuid || 'null').join(',')
-        : source.material?.uuid || 'null';
-      const key = [
-        source.geometry.uuid, materialKey, source.cellX, source.cellZ,
-        source.renderOrder, source.layerMask,
-      ].join('|');
-      let bucket = buckets.get(key);
-      if (!bucket) {
-        bucket = {
-          geometry: source.geometry,
-          material: source.material,
-          sources: [],
-          renderOrder: source.renderOrder,
-          layerMask: source.layerMask,
-          castShadow: source.castShadow,
-          receiveShadow: source.receiveShadow,
-          cellX: source.cellX,
-          cellZ: source.cellZ,
-        };
-        buckets.set(key, bucket);
-      }
-      bucket.sources.push(source);
-    }
-
-    let instanceCount = 0;
-    for (const bucket of buckets.values()) {
-      if (!bucket.geometry.boundingBox) bucket.geometry.computeBoundingBox();
-      const instances = new THREE.InstancedMesh(
-        bucket.geometry, bucket.material, bucket.sources.length,
-      );
-      instances.name = 'static_instances_' + bucket.cellX + '_' + bucket.cellZ;
-      instances.castShadow = bucket.castShadow;
-      instances.receiveShadow = bucket.receiveShadow;
-      instances.frustumCulled = true;
-      instances.renderOrder = bucket.renderOrder;
-      instances.layers.mask = bucket.layerMask;
-      instances.instanceMatrix.setUsage(THREE.StaticDrawUsage);
-      for (let i = 0; i < bucket.sources.length; i++) {
-        instances.setMatrixAt(i, bucket.sources[i].matrix);
-      }
-      instances.instanceMatrix.needsUpdate = true;
-      instances.computeBoundingBox();
-      instances.computeBoundingSphere();
-      this.group.add(instances);
-      instanceCount += bucket.sources.length;
-    }
-
-    console.info(
-      '[World] Instanced ' + instanceCount + ' repeated static meshes into '
-      + buckets.size + ' spatial/material batches',
-    );
-    sources.length = 0;
-    return instanceCount;
   }
 
   async _loadCollisionManifest(a) {
@@ -1605,40 +1524,6 @@ export class World {
           tags: a.tags || [],
           selective: true,
           layer: 1,
-        });
-      }
-
-      // Collision/gameplay data has been captured. Batch repeated static render
-      // meshes by 64 m cell, preserving per-placement transforms and culling.
-      if (this._instancedAssetUrls?.has(a.url)) {
-        this.group.updateMatrixWorld(true);
-        model.updateMatrixWorld(true);
-        const toGroup = new THREE.Matrix4().copy(this.group.matrixWorld).invert();
-        model.traverse(o => {
-          if (!o.isMesh || !o.visible || !o.geometry || o.isSkinnedMesh
-            || (o.morphTargetInfluences && o.morphTargetInfluences.length)) return;
-          const materials = Array.isArray(o.material) ? o.material : [o.material];
-          if (!materials.length || materials.some(material =>
-            !material || material.transparent || material.opacity < 0.999
-            || material.visible === false || material.isShaderMaterial
-          )) return;
-          if (o.onBeforeRender && o.onBeforeRender !== THREE.Object3D.prototype.onBeforeRender) return;
-
-          const matrix = new THREE.Matrix4().multiplyMatrices(toGroup, o.matrixWorld);
-          if (matrix.determinant() <= 0) return;
-          const position = new THREE.Vector3().setFromMatrixPosition(matrix);
-          this._staticInstanceSources.push({
-            geometry: o.geometry,
-            material: o.material,
-            matrix,
-            cellX: Math.floor(position.x / 64),
-            cellZ: Math.floor(position.z / 64),
-            renderOrder: o.renderOrder || 0,
-            layerMask: o.layers.mask,
-            castShadow: o.castShadow,
-            receiveShadow: o.receiveShadow,
-          });
-          o.visible = false;
         });
       }
 

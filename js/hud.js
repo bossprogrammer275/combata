@@ -6,10 +6,6 @@ export class HUD {
     this.full = this.$('fullmap').getContext('2d');
     this.hitT = null;
     this.feedItems = [];
-    this._mmStaticCanvas = null;
-    this._mmStaticWorld = null;
-    this._mmStaticColliderCount = -1;
-    this._mmStaticBounds = null;
   }
 
   show() { this.$('hud').style.display = 'block'; }
@@ -144,64 +140,41 @@ export class HUD {
   }
 
   setQuality(q) { this._quality = q; }
-  _ensureMinimapStatic(world, W, H, bounds) {
-    const colliderCount = world.colliders?.length || 0;
-    if (this._mmStaticCanvas && this._mmStaticWorld === world
-      && this._mmStaticColliderCount === colliderCount && this._mmStaticBounds === bounds) {
-      return this._mmStaticCanvas;
-    }
-
-    const canvas = this._mmStaticCanvas || document.createElement('canvas');
-    canvas.width = W;
-    canvas.height = H;
-    const ctx = canvas.getContext('2d');
-    const range = bounds * 2 * 1.04;
-    const sx = W / range, sz = H / range;
-    const toX = (x) => W / 2 + x * sx;
-    const toY = (z) => H / 2 + z * sz;
-
-    ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = 'rgba(6,14,10,.88)';
-    ctx.fillRect(0, 0, W, H);
-    ctx.strokeStyle = 'rgba(125,255,90,.5)';
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(toX(-bounds), toY(-bounds), bounds * 2 * sx, bounds * 2 * sz);
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = 'rgba(125,255,90,.07)';
-    for (let i = 1; i < 8; i++) {
-      ctx.beginPath(); ctx.moveTo(i * W / 8, 0); ctx.lineTo(i * W / 8, H); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, i * H / 8); ctx.lineTo(W, i * H / 8); ctx.stroke();
-    }
-    ctx.fillStyle = 'rgba(150,170,150,.45)';
-    for (const c of world.colliders || []) {
-      if (c.max.y < 1) continue;
-      const x = toX(c.min.x), z = toY(c.min.z);
-      ctx.fillRect(x, z, Math.max(1, (c.max.x - c.min.x) * sx), Math.max(1, (c.max.z - c.min.z) * sz));
-    }
-    ctx.strokeStyle = 'rgba(125,255,90,.35)';
-    ctx.strokeRect(.5, .5, W - 1, H - 1);
-
-    this._mmStaticCanvas = canvas;
-    this._mmStaticWorld = world;
-    this._mmStaticColliderCount = colliderCount;
-    this._mmStaticBounds = bounds;
-    return canvas;
-  }
-
   drawMinimap(player, enemies, world) {
     this._mmFrame = (this._mmFrame ?? 0) + 1;
     if (this._quality === 'ultra-low' && this._mmFrame % 2 !== 0) return;
     if (this._quality === 'low' && this._mmFrame % 2 !== 0) return;
     const ctx = this.map, W = 160, H = 160;
+    // show the WHOLE world (every zone / biome) — not just a bubble around the player
     const bounds = world.bounds || 160;
     const range = bounds * 2 * 1.04;
     const sx = W / range, sz = H / range;
     const toX = (x) => W / 2 + x * sx;
     const toY = (z) => H / 2 + z * sz;
-    const staticLayer = this._ensureMinimapStatic(world, W, H, bounds);
     ctx.clearRect(0, 0, W, H);
-    ctx.drawImage(staticLayer, 0, 0);
+    ctx.fillStyle = 'rgba(6,14,10,.88)';
+    ctx.fillRect(0, 0, W, H);
 
+    // world perimeter
+    ctx.strokeStyle = 'rgba(125,255,90,.5)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(toX(-bounds), toY(-bounds), bounds * 2 * sx, bounds * 2 * sz);
+    ctx.lineWidth = 1;
+
+    // grid
+    ctx.strokeStyle = 'rgba(125,255,90,.07)';
+    for (let i = 1; i < 8; i++) {
+      ctx.beginPath(); ctx.moveTo(i * W / 8, 0); ctx.lineTo(i * W / 8, H); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, i * H / 8); ctx.lineTo(W, i * H / 8); ctx.stroke();
+    }
+    // colliders (walls/buildings) — always visible so the whole map reads
+    ctx.fillStyle = 'rgba(150,170,150,.45)';
+    for (const c of world.colliders) {
+      if (c.max.y < 1) continue;
+      const x = toX(c.min.x), z = toY(c.min.z);
+      ctx.fillRect(x, z, Math.max(1, (c.max.x - c.min.x) * sx), Math.max(1, (c.max.z - c.min.z) * sz));
+    }
+    // HOSTILES — always shown as small red dots
     for (const e of enemies) {
       if (!e.alive) continue;
       ctx.fillStyle = '#cc3322';
@@ -210,6 +183,7 @@ export class HUD {
       ctx.fill();
     }
 
+    // player arrow (centered, since the whole map is shown)
     const px = toX(player.pos.x), pz = toY(player.pos.z);
     ctx.save();
     ctx.translate(px, pz);
@@ -219,6 +193,10 @@ export class HUD {
     ctx.moveTo(0, -5); ctx.lineTo(3.6, 4); ctx.lineTo(0, 2); ctx.lineTo(-3.6, 4);
     ctx.closePath(); ctx.fill();
     ctx.restore();
+
+    // border
+    ctx.strokeStyle = 'rgba(125,255,90,.35)';
+    ctx.strokeRect(.5, .5, W - 1, H - 1);
   }
 
   // Full-screen tactical map (Ctrl+M). Reuses the same projection but larger, with
