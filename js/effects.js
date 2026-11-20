@@ -40,7 +40,9 @@ export class Effects {
     this.points.frustumCulled = false;
     scene.add(this.points);
     this.parts = [];
-    for (let i = 0; i < maxP; i++) this.parts.push({ alive: false, pos: new THREE.Vector3(), vel: new THREE.Vector3(), life: 0, maxLife: 1, r: 1, g: 1, b: 1, size: 1, grav: 0, drag: 1 });
+    this._activeParticleIndices = [];
+    this._particlesNeedUpload = false;
+    for (let i = 0; i < maxP; i++) this.parts.push({ alive: false, activeSlot: -1, pos: new THREE.Vector3(), vel: new THREE.Vector3(), life: 0, maxLife: 1, r: 1, g: 1, b: 1, size: 1, grav: 0, drag: 1 });
     this.pCursor = 0;
 
     // ---- tracers (pooled line boxes) ----
@@ -96,12 +98,18 @@ export class Effects {
 
   spawnParticle(pos, vel, life, color, size, grav = 0, drag = 1) {
     if (!this.parts || !this.parts.length) return;
-    const p = this.parts[this.pCursor];
+    const index = this.pCursor;
+    const p = this.parts[index];
     this.pCursor = (this.pCursor + 1) % this.parts.length;
+    if (!p.alive) {
+      p.activeSlot = this._activeParticleIndices.length;
+      this._activeParticleIndices.push(index);
+    }
     p.alive = true; p.pos.copy(pos); p.vel.copy(vel);
     p.life = life; p.maxLife = life;
     p.r = color.r; p.g = color.g; p.b = color.b;
     p.size = size; p.grav = grav; p.drag = drag;
+    this._particlesNeedUpload = true;
   }
 
   burst(pos, n, color, speed = 5, life = .5, size = .35, grav = 6, spread = 1) {
@@ -200,14 +208,24 @@ export class Effects {
 
   update(dt) {
     this.time += dt;
-    // particles
+    // Active-index storage avoids scanning the full particle pool when empty.
     const pos = this.pPos, col = this.pCol, sz = this.pSize;
-    for (let i = 0; i < this.parts.length; i++) {
-      const p = this.parts[i];
-      const i3 = i * 3;
-      if (!p.alive) { sz[i] = 0; continue; }
+    const active = this._activeParticleIndices;
+    for (let activeIndex = active.length - 1; activeIndex >= 0; activeIndex--) {
+      const i = active[activeIndex], p = this.parts[i], i3 = i * 3;
       p.life -= dt;
-      if (p.life <= 0) { p.alive = false; sz[i] = 0; continue; }
+      if (p.life <= 0) {
+        p.alive = false;
+        p.activeSlot = -1;
+        sz[i] = 0;
+        const last = active.pop();
+        if (activeIndex < active.length) {
+          active[activeIndex] = last;
+          this.parts[last].activeSlot = activeIndex;
+        }
+        this._particlesNeedUpload = true;
+        continue;
+      }
       p.vel.y -= p.grav * dt;
       p.vel.multiplyScalar(Math.pow(p.drag, dt * 60));
       p.pos.addScaledVector(p.vel, dt);
@@ -216,10 +234,14 @@ export class Effects {
       pos[i3] = p.pos.x; pos[i3 + 1] = p.pos.y; pos[i3 + 2] = p.pos.z;
       col[i3] = p.r * k + .05; col[i3 + 1] = p.g * k + .04; col[i3 + 2] = p.b * k + .03;
       sz[i] = p.size * (0.5 + k * 0.5);
+      this._particlesNeedUpload = true;
     }
-    this.pGeo.attributes.position.needsUpdate = true;
-    this.pGeo.attributes.color.needsUpdate = true;
-    this.pGeo.attributes.size.needsUpdate = true;
+    if (this._particlesNeedUpload) {
+      this.pGeo.attributes.position.needsUpdate = true;
+      this.pGeo.attributes.color.needsUpdate = true;
+      this.pGeo.attributes.size.needsUpdate = true;
+      this._particlesNeedUpload = false;
+    }
 
     for (const t of this.tracers) {
       if (!t.mesh.visible) continue;

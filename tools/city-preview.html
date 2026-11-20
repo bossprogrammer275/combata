@@ -166,6 +166,13 @@
       // Record what a real game session loads before allowing the QA scene to
       // expand to the full city for building, bridge and collision assertions.
       const streamingInitial = world.getStreamingStats?.() || null;
+      let streamingIdleGatePassed = false;
+      if (world._streamingConfig?.enabled && world._streamingChunks?.size) {
+        const idleStats = world.updateStreaming(world.startPoint, world._streamingConfig.updateInterval)
+          || world.getStreamingStats();
+        streamingIdleGatePassed = idleStats.loadedChunks === streamingInitial.loadedChunks
+          && !idleStats.loading && idleStats.queued === 0;
+      }
       let streamingRoundTripPassed = false;
       if (world._streamingConfig?.enabled && world._streamingChunks?.size) {
         const chunks = [...world._streamingChunks.values()];
@@ -249,6 +256,7 @@
         streamingInitial,
         streamingFinal,
         streamingRoundTripPassed,
+        streamingIdleGatePassed,
         roadCount: map.roads?.length || 0,
         roadModuleCount: world.roadModuleInstances?.length || 0,
         roadPackPrefabCount: world._roadPackPrefabs?.size || 0,

@@ -128,6 +128,9 @@ jobs:
           node --check js/world-kit.js
           node --check tools/verify-world-kit.mjs
           node --check js/main.js
+          node --check js/atmosphere.js
+          node --check js/effects.js
+          node --check js/hud.js
           node --check js/textures.js
           node --check tools/process-glbs.js
           node --check tools/asset-calibration-preview.js

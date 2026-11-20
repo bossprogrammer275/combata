@@ -1,5 +1,12 @@
 // World — GLB-only city with authored roads.
 import * as THREE from 'three';
+
+function yieldStreamingWork() {
+  return new Promise(resolve => {
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(resolve, { timeout: 90 });
+    else setTimeout(resolve, 24);
+  });
+}
 import * as TEX from './textures.js';
 import { GLTFLoader } from './lib/GLTFLoader.js';
 import { BVHWorld } from './bvh-collision.js';
@@ -80,12 +87,16 @@ export class World {
       loadRadius,
       unloadRadius: Math.max(loadRadius + chunkSize * 0.5, streamNumber(streamSpec.unloadRadius, loadRadius + chunkSize * 1.25)),
       updateInterval: THREE.MathUtils.clamp(streamNumber(streamSpec.updateInterval, 0.4), 0.15, 1.5),
+      loadMoveThreshold: THREE.MathUtils.clamp(streamNumber(streamSpec.loadMoveThreshold, 6), 3, 24),
       assetConcurrency: Math.round(THREE.MathUtils.clamp(streamNumber(streamSpec.assetConcurrency, 2), 1, 4)),
     };
     this._streamingChunks = new Map();
     this._streamingQueue = [];
     this._streamingLoading = false;
     this._streamingElapsed = 0;
+    this._streamingLive = false;
+    this._streamingLastLoadPosition = null;
+    this._streamingDeferredChunks = 0;
     this._activeStreamingChunk = null;
     this._glbUrlRefCounts = new Map();
     const requestedAnisotropy = quality === 'ultra' ? 16 : quality === 'high' ? 8 : quality === 'medium' ? 4 : quality === 'low' ? 2 : 1;
@@ -1032,6 +1043,7 @@ export class World {
     // Load the spawn neighbourhood before gameplay starts. All remaining
     // chunks are queued by updateStreaming as the player/vehicle approaches.
     for (const item of initial) await this._loadStreamingChunk(item.chunk);
+    this._streamingLastLoadPosition = { x: start.x, z: start.z };
     this._rebuildGrid();
     console.info('[WorldStreaming] Initial neighbourhood ready:', this.getStreamingStats());
   }
@@ -1060,10 +1072,19 @@ export class World {
     const previousChunk = this._activeStreamingChunk;
     this._activeStreamingChunk = chunk;
     try {
-      const concurrency = this._streamingConfig.assetConcurrency;
-      for (let i = 0; i < chunk.assets.length; i += concurrency) {
-        const batch = chunk.assets.slice(i, i + concurrency);
-        await Promise.allSettled(batch.map(asset => this._loadGLBAsset(asset)));
+      if (this._streamingLive) {
+        // Spread GLTF decode/parsing across idle windows during live gameplay.
+        for (const asset of chunk.assets) {
+          await yieldStreamingWork();
+          await Promise.allSettled([this._loadGLBAsset(asset)]);
+        }
+      } else {
+        // The initial spawn neighbourhood loads behind the loading screen.
+        const concurrency = this._streamingConfig.assetConcurrency;
+        for (let i = 0; i < chunk.assets.length; i += concurrency) {
+          const batch = chunk.assets.slice(i, i + concurrency);
+          await Promise.allSettled(batch.map(asset => this._loadGLBAsset(asset)));
+        }
       }
     } finally {
       this._activeStreamingChunk = previousChunk;
@@ -1226,7 +1247,6 @@ export class World {
     this._streamingElapsed += Math.max(0, Number(dt) || 0);
     if (this._streamingElapsed < this._streamingConfig.updateInterval) return null;
     this._streamingElapsed = 0;
-
     const wanted = [];
     for (const chunk of this._streamingChunks.values()) {
       const distance = this._streamChunkDistance(chunk, position);
@@ -1237,17 +1257,27 @@ export class World {
       }
     }
     wanted.sort((a, b) => a.distance - b.distance);
-    this._streamingQueue = wanted.map(item => item.chunk);
-
-    if (!this._streamingLoading && this._streamingQueue.length) {
-      const next = this._streamingQueue.shift();
+    this._streamingDeferredChunks = wanted.length;
+    this._streamingQueue.length = 0;
+    // No background GLB decoding while stationary; trigger one cell after travel.
+    const lastLoad = this._streamingLastLoadPosition;
+    const moved = lastLoad ? Math.hypot(position.x - lastLoad.x, position.z - lastLoad.z) : Infinity;
+    if (!this._streamingLoading && wanted.length && moved >= this._streamingConfig.loadMoveThreshold) {
+      const next = wanted[0].chunk;
+      this._streamingLive = true;
+      this._streamingLastLoadPosition = { x: position.x, z: position.z };
+      this._streamingQueue.push(next);
       this._streamingLoading = true;
       this._loadStreamingChunk(next)
         .catch(error => {
           next.state = 'unloaded';
+          this._streamingLastLoadPosition = null;
           console.error('[WorldStreaming] Chunk load failed:', next.key, error);
         })
-        .finally(() => { this._streamingLoading = false; });
+        .finally(() => {
+          this._streamingLoading = false;
+          this._streamingQueue.length = 0;
+        });
     }
     return this.getStreamingStats();
   }
@@ -1263,6 +1293,7 @@ export class World {
       totalPlacements: chunks.reduce((sum, chunk) => sum + chunk.assets.length, 0),
       loading: this._streamingLoading,
       queued: this._streamingQueue.length,
+      deferredChunks: this._streamingDeferredChunks || 0,
     };
   }
 

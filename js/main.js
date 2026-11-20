@@ -1575,7 +1575,8 @@ class Game {
       this.fx.getShakeOffset(this.shakeOffset);
       this.camera.position.add(this.shakeOffset);
     }
-    this._updateDynamicResolution(dt);
+    // Simulation remains capped; graphics adaptation observes real elapsed frame time.
+    this._updateDynamicResolution(rawFrameDt);
     this.renderFrame(dt);
     this.tools.renderPip();
   }
@@ -1988,7 +1989,7 @@ class Game {
     const dpr = Math.min(window.devicePixelRatio || 1, profile.maxDpr);
     const scale = THREE.MathUtils.clamp(
       this.renderScale || profile.startScale,
-      profile.minScale,
+      Math.min(profile.maxScale, this._adaptiveMinScale ?? profile.minScale),
       profile.maxScale,
     );
     this.renderer.setPixelRatio(dpr);
@@ -2074,25 +2075,76 @@ class Game {
     else this.renderer.render(this.scene, this.camera);
   }
 
-  _updateDynamicResolution(dt) {
+  _updateDynamicResolution(frameDt) {
     const profile = this.graphicsProfile;
     if (!profile?.adaptive || this.state === 'boot') return;
-    const frameMs = Math.min(Math.max(Number(dt) || 0, 0), 0.1) * 1000;
-    this._frameTimeEMA += (frameMs - this._frameTimeEMA) * 0.08;
-    this._resolutionSampleTime += dt;
-    if (this._resolutionSampleTime < 1.0) return;
+    // Do not use the simulation's 50 ms clamp. A 1 FPS frame must register as 1000 ms.
+    const elapsed = Math.min(Math.max(Number(frameDt) || 0, 0), 1.5);
+    if (elapsed <= 0) return;
+    const frameMs = Math.min(elapsed * 1000, 1000);
+    this._frameTimeEMA += (frameMs - this._frameTimeEMA) * 0.12;
+    this._resolutionSampleTime += elapsed;
+    this._updateAdaptiveShadowFallback(elapsed, profile);
+    if (this._resolutionSampleTime < 0.75) return;
     this._resolutionSampleTime = 0;
-
     const slow = this._frameTimeEMA > profile.targetMs * 1.12;
     const fast = this._frameTimeEMA < profile.targetMs * 0.78;
     let nextScale = this.renderScale;
-    if (slow) nextScale -= 0.05;
+    if (slow) nextScale -= this._frameTimeEMA > profile.targetMs * 2 ? 0.10 : 0.05;
     else if (fast) nextScale += 0.025;
-    nextScale = THREE.MathUtils.clamp(nextScale, profile.minScale, profile.maxScale);
+    const minScale = Math.min(profile.maxScale, this._adaptiveMinScale ?? profile.minScale);
+    nextScale = THREE.MathUtils.clamp(nextScale, minScale, profile.maxScale);
     if (Math.abs(nextScale - this.renderScale) >= 0.02) {
       this.renderScale = nextScale;
       this._applyRenderSize();
     }
+    if (window.__graphics) {
+      window.__graphics.frameTimeMs = this._frameTimeEMA;
+      window.__graphics.renderScale = this.renderScale;
+      window.__graphics.shadowFallback = !!this._shadowFallbackActive;
+    }
+  }
+
+  _setShadowFallback(enabled) {
+    const next = !!enabled;
+    if (next === !!this._shadowFallbackActive) return;
+    this._shadowFallbackActive = next;
+    const shadowsEnabled = !!this.graphicsProfile?.shadows && !next;
+    if (this.renderer) this.renderer.shadowMap.enabled = shadowsEnabled;
+    if (this.world?.sun) {
+      this.world.sun.castShadow = shadowsEnabled;
+      this.world.sun.shadow.map?.dispose();
+      this.world.sun.shadow.map = null;
+      this.world.sun.shadow.needsUpdate = true;
+    }
+    this._shadowOverloadTime = 0;
+    this._shadowRecoveryTime = 0;
+    console.info(next
+      ? '[Graphics] Paused real-time shadows after sustained frame overload.'
+      : '[Graphics] Restored real-time shadows after sustained recovery.');
+    if (window.__graphics) window.__graphics.shadowFallback = next;
+  }
+
+  _updateAdaptiveShadowFallback(elapsed, profile) {
+    const memoryLimited = (this._graphicsCapabilities?.deviceMemory || 0) > 0
+      && this._graphicsCapabilities.deviceMemory <= 4;
+    const lowEnd = !!this._graphicsCapabilities?.legacyGpu || memoryLimited;
+    if (!lowEnd || !profile?.shadows || this.state !== 'playing') {
+      this._shadowOverloadTime = 0;
+      this._shadowRecoveryTime = 0;
+      return;
+    }
+    if (!this._shadowFallbackActive) {
+      if (this._frameTimeEMA > Math.max(40, profile.targetMs * 1.6)) {
+        this._shadowOverloadTime = (this._shadowOverloadTime || 0) + elapsed;
+        if (this._shadowOverloadTime >= 1.25) this._setShadowFallback(true);
+      } else this._shadowOverloadTime = 0;
+      return;
+    }
+    if (this._frameTimeEMA < profile.targetMs * 1.12) {
+      this._shadowRecoveryTime = (this._shadowRecoveryTime || 0) + elapsed;
+      if (this._shadowRecoveryTime >= 8) this._setShadowFallback(false);
+    } else this._shadowRecoveryTime = 0;
   }
 
   setupRenderer() {
@@ -2153,6 +2205,11 @@ class Game {
       : baseProfile;
     this.graphicsQuality = q;
     this.graphicsProfile = profile;
+    // Keep selected visual quality; legacy/4 GB devices can scale down on measured overload.
+    this._adaptiveMinScale = q === 'medium' && (legacyGpu || memoryLimited) ? 0.50 : profile.minScale;
+    this._shadowFallbackActive = false;
+    this._shadowOverloadTime = 0;
+    this._shadowRecoveryTime = 0;
     this.profile.data.settings.quality = q;
     this.profile.save();
 
@@ -2215,7 +2272,9 @@ class Game {
       performanceProfile: constrainedHigh ? 'legacy-gpu-balanced-high' : q,
       capabilities: this._graphicsCapabilities,
       renderScale: this.renderScale,
+      adaptiveMinScale: this._adaptiveMinScale,
       frameTimeMs: this._frameTimeEMA,
+      shadowFallback: !!this._shadowFallbackActive,
       rendererInfo: this.renderer.info,
       postProcessing: this.composer ? 'GTAO + restrained bloom + SMAA' : 'direct renderer',
     };

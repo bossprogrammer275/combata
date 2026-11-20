@@ -916,6 +916,8 @@ try {
     'full-city QA expansion must load every spatial cell');
   assert.equal(report.streamingRoundTripPassed, true,
     'a streamed cell must unload and reload its models and collision data cleanly');
+  assert.equal(report.streamingIdleGatePassed, true,
+    'streaming must not schedule GLB loads while the player remains stationary');
   assert.equal(report.uniqueModelCount, new Set(map.glbAssets.map(a => a.url)).size, 'not all distinct imported model files loaded into cache');
   assert.equal(report.buildingCount, map.glbAssets.filter(a => a.building).length, 'some authored building GLBs did not load');
   assert.equal(report.districtPlotCount, 11, 'not all authored residential and market plots were built');

@@ -6,6 +6,8 @@ export class HUD {
     this.full = this.$('fullmap').getContext('2d');
     this.hitT = null;
     this.feedItems = [];
+    this._lastMinimapDrawAt = 0;
+    this._lastFullMapDrawAt = 0;
   }
 
   show() { this.$('hud').style.display = 'block'; }
@@ -141,6 +143,9 @@ export class HUD {
 
   setQuality(q) { this._quality = q; }
   drawMinimap(player, enemies, world) {
+    const now = performance.now();
+    if (now - this._lastMinimapDrawAt < 125) return;
+    this._lastMinimapDrawAt = now;
     this._mmFrame = (this._mmFrame ?? 0) + 1;
     if (this._quality === 'ultra-low' && this._mmFrame % 2 !== 0) return;
     if (this._quality === 'low' && this._mmFrame % 2 !== 0) return;
@@ -202,6 +207,9 @@ export class HUD {
   // Full-screen tactical map (Ctrl+M). Reuses the same projection but larger, with
   // readable labels, a legend, and a live player arrow so you can orient instantly.
   drawFullMap(player, enemies, world) {
+    const now = performance.now();
+    if (now - this._lastFullMapDrawAt < 100) return;
+    this._lastFullMapDrawAt = now;
     const ctx = this.full, S = 520, H = 520;
     const bounds = world.bounds || 200;
     const range = bounds * 2 * 1.04;
