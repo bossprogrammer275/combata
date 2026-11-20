@@ -15,6 +15,7 @@ import {
   buildRoadProfiles,
 } from './asset-calibrator.mjs';
 import { hasAnchor, isRuntimeSurfaceRole } from './validate-asset-calibration.mjs';
+import { compareCollisionSidecars } from './compare-asset-calibrations.mjs';
 
 const bridgePath = 'data/models/assets/others/modular_bridge__low_poly__game_ready_/scene.gltf';
 const roadPackPath = 'data/models/assets/roads/road_pack/scene.gltf';
@@ -301,4 +302,45 @@ test('authored col_* meshes are recorded as native collision authority, not gene
   assert.equal(proxies[0].nodeKey, items[0].nodeKey);
   assert.equal(proxies[0].runtimeAuthority, 'world-native-col-proxy');
   assert.deepEqual(proxies[0].bounds.size, [2, 2.5, 0.2]);
+});
+
+
+test('root-level road asset is classified as a road profile, not a generic prop', () => {
+  assert.equal(classifyAssetType('data/models/assets/road.glb'), 'road');
+});
+
+test('legacy collision comparison reports identical boxes and rejects stale source hashes', () => {
+  const legacy = {
+    sourceSha256: 'same-source',
+    boxes: [
+      [0, 1, 0, 2, 2, 2],
+      [3, 1, 0, 2, 2, 2],
+    ],
+  };
+  const calibration = {
+    source: { sha256: 'same-source' },
+    collision: {
+      sourceSha256: 'same-source',
+      boxes: [
+        [0, 1, 0, 2, 2, 2],
+        [3, 1, 0, 2, 2, 2],
+      ],
+      nativeProxyCount: 4,
+    },
+  };
+  const result = compareCollisionSidecars(legacy, calibration);
+  assert.equal(result.status, 'matches');
+  assert.equal(result.sameSource, true);
+  assert.equal(result.legacy.boxCount, 2);
+  assert.equal(result.calibrated.boxCount, 2);
+  assert.equal(result.calibrated.nativeProxyCount, 4);
+  assert.equal(result.difference.maxBoundsDelta, 0);
+
+  const stale = compareCollisionSidecars(legacy, {
+    ...calibration,
+    source: { sha256: 'different-source' },
+    collision: { ...calibration.collision, sourceSha256: 'different-source' },
+  });
+  assert.equal(stale.status, 'source-hash-mismatch');
+  assert.equal(stale.sameSource, false);
 });
