@@ -308,9 +308,22 @@ export class Character {
 
   dispose() {
     if (this._mixer) this._mixer.stopAllAction();
+    // Character materials are cloned per instance; textures and imported
+    // geometry are shared through the npc_core_001 base cache.
+    this._model?.traverse((node) => {
+      if (!node.material) return;
+      const materials = Array.isArray(node.material) ? node.material : [node.material];
+      materials.forEach((material) => material?.dispose?.());
+    });
+    // Procedural hand-held weapon geometry is instance-owned.
+    this.weaponMount?.traverse((node) => node.geometry?.dispose?.());
     this.root.removeFromParent();
     this._actions = {};
     this._weaponBones = [];
+    this._model = null;
+    this._mixer = null;
+    this.mesh = null;
+    this.skeleton = null;
   }
 }
 
