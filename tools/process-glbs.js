@@ -371,6 +371,7 @@ async function processGLB(inputPath, options = {}) {
   scene.updateMatrixWorld(true);
   const sceneBounds = new THREE.Box3().setFromObject(scene);
   const sceneHeight = sceneBounds.max.y - sceneBounds.min.y;
+  const sceneSize = sceneBounds.getSize(new THREE.Vector3());
   if (!(sceneHeight > 1e-6)) throw new Error('Model has no measurable vertical bounds');
   // The world loader later normalizes the GLB to targetH. Keep collision cell
   // size proportional to the raw model height so a 0.01-unit Sketchfab model
@@ -458,6 +459,9 @@ async function processGLB(inputPath, options = {}) {
     // Centers/dimensions are in model-local coordinates after GLTF node transforms.
     // The runtime applies the world entry's targetH/scale, x/z, elevation and ry.
     coordinateSpace: 'model-local',
+    boundsMin: sceneBounds.min.toArray(),
+    boundsMax: sceneBounds.max.toArray(),
+    dimensions: sceneSize.toArray(),
     cellSize: modelCellSize,
     collisionThickness: modelThickness,
     boxes,
