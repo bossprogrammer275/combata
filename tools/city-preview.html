@@ -300,6 +300,11 @@
         buildingInstanceCount: buildingInstances.length,
         buildingDoorCoverageCount,
         buildingCollisionCoverageCount,
+        buildingCollisionDiagnostics: buildingInstances.map(component => ({
+          id: component.id,
+          collisionSource: component.collisionSource || 'unresolved',
+          generatedCollisionProxyCount: component.generatedCollisionProxyCount || 0,
+        })),
         generatedDoorMarkerCount,
         generatedCollisionProxyMeshCount,
         missingDoorAssets,

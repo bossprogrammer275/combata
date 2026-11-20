@@ -930,8 +930,14 @@ try {
     'every placed building must resolve native, sidecar or generated wall collision');
   assert.ok(report.generatedDoorMarkerCount > 0,
     'legacy downloaded buildings should receive hidden door_auto_* markers');
-  assert.ok(report.generatedCollisionProxyMeshCount > 0,
-    'legacy downloaded buildings should receive hidden col_auto_* collision proxies');
+  assert.equal(
+    report.generatedCollisionProxyMeshCount,
+    report.buildingCollisionDiagnostics.filter(building =>
+      building.collisionSource === 'generated-building-wall-proxies'
+      && building.generatedCollisionProxyCount > 0
+    ).length,
+    'generated hidden col_auto_* proxies must match the buildings using the generated wall-collision fallback',
+  );
   assert.deepEqual(report.missingDoorAssets, [],
     'buildings missing doorway metadata: ' + report.missingDoorAssets.join(', '));
   assert.deepEqual(report.missingCollisionAssets, [],
