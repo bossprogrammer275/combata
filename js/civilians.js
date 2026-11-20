@@ -236,7 +236,7 @@ export class Civilian {
     if (moved?.position) {
       this.pos.copy(moved.position);
       const actual = moved.movement || new THREE.Vector3();
-      collided = Math.hypot(dx - actual.x, dz - actual.z) > 0.075;
+      collided = Math.hypot(dx - actual.x, dz - actual.z) > Math.max(0.004, Math.hypot(dx, dz) * 0.2);
     } else {
       const steps = Math.max(1, Math.ceil(Math.hypot(dx, dz) / P.collisionSubstep));
       for (let i = 0; i < steps; i++) {
@@ -263,7 +263,7 @@ export class Civilian {
     const candidate = hit?.candidate;
     if (!hit || !candidate || !candidate.accepted || candidate.requiresReview) return false;
     const anchors = candidate.anchors || {};
-    if (anchors.approach && this.pos.distanceTo(anchors.approach) > 0.85) return false;
+    if (anchors.approach && this.pos.distanceTo(anchors.approach) > 0.55) return false;
 
     const facing = anchors.planeNormal || hit.normal;
     const normal = hit.normal?.clone?.() || new THREE.Vector3(facing.x, facing.y, facing.z);
