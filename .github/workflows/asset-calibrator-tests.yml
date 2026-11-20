@@ -9,6 +9,7 @@ on:
       - 'tools/traversal-physics.test.mjs'
       - 'tools/process-glbs.js'
       - 'tools/validate-asset-calibration.mjs'
+      - 'tools/compare-asset-calibrations.mjs'
       - 'tools/asset-review.html'
       - 'tools/asset-review.js'
       - 'js/asset-calibration.js'
@@ -76,6 +77,7 @@ jobs:
           node --check tools/traversal-physics.test.mjs
           node --check tools/process-glbs.js
           node --check tools/validate-asset-calibration.mjs
+          node --check tools/compare-asset-calibrations.mjs
           node --check js/asset-calibration.js
           node --check js/traversal-physics.js
           node --check js/player.js
