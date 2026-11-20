@@ -7,6 +7,7 @@ import {
   validateTraversalPath,
   normalizeTimedPath,
   validateReviewedTraversalProfile,
+  capsuleIntersectsAabb,
 } from '../js/traversal-physics.js';
 
 const clear = () => true;
@@ -160,4 +161,33 @@ test('ladder profiles are upward-only and require rung, mount, dismount and four
   assert.match(validateReviewedTraversalProfile({
     ...candidate, capabilities: { ladderClimbUpAnimation: true, ladderClimbDown: 'experimental-reverse-clip' },
   }, component), /upward ladder climbing/);
+});
+
+
+test('vertical capsule clearance preserves floor contact but rejects low walls and overhead blockers', () => {
+  const floor = {
+    min: { x: -5, y: -0.5, z: -5 },
+    max: { x: 5, y: 0, z: 5 },
+  };
+  const lowWall = {
+    min: { x: 0.1, y: 0, z: -1 },
+    max: { x: 0.25, y: 0.2, z: 1 },
+  };
+  const wall = {
+    min: { x: 0.1, y: 0, z: -1 },
+    max: { x: 0.25, y: 2.2, z: 1 },
+  };
+  const overhead = {
+    min: { x: -1, y: 1.5, z: -1 },
+    max: { x: 1, y: 1.7, z: 1 },
+  };
+  const safelyAboveHead = {
+    min: { x: -1, y: 1.9, z: -1 },
+    max: { x: 1, y: 2.2, z: 1 },
+  };
+  assert.equal(capsuleIntersectsAabb({ x: 0, y: 0, z: 0 }, 0.42, 1.8, floor), false);
+  assert.equal(capsuleIntersectsAabb({ x: 0, y: 0, z: 0 }, 0.42, 1.8, lowWall), true);
+  assert.equal(capsuleIntersectsAabb({ x: 0, y: 0, z: 0 }, 0.42, 1.8, wall), true);
+  assert.equal(capsuleIntersectsAabb({ x: 0, y: 0, z: 0 }, 0.42, 1.8, overhead), true);
+  assert.equal(capsuleIntersectsAabb({ x: 0, y: 0, z: 0 }, 0.42, 1.8, safelyAboveHead), false);
 });
