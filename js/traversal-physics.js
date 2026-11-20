@@ -159,7 +159,7 @@ export function buildObstacleClimbPath(options = {}) {
     path = authored.map(point => ({ t: point.t, position: { ...point.position } }));
     path[0].position = { ...start };
     const requestedLanding = point3(options.landing);
-    if (requestedLanding && distance3(path.at(-1).position, requestedLanding) > 0.16) return null;
+    if (!requestedLanding || distance3(path.at(-1).position, requestedLanding) > 0.16) return null;
   } else {
     path = [
       { t: 0, position: { ...start } },
@@ -200,6 +200,7 @@ export function buildLadderTraversalPath(options = {}) {
     if (distance3(pathPoints.at(-1), point) > 0.04) pathPoints.push(point);
   }
   if (pathPoints.length < 3) return null;
+  if (mountTop && topOut && distance3(mountTop, topOut) > 1.4) return null;
   const distances = [0];
   for (let i = 1; i < pathPoints.length; i++) {
     distances.push(distances[i - 1] + distance3(pathPoints[i - 1], pathPoints[i]));
