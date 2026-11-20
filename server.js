@@ -117,6 +117,15 @@ function validateCalibrationWrite(data, assetPath, sourceHash) {
       }
     }
   }
+  for (const section of data.bridge?.sections || []) {
+    if (section.requiresReview === false && /curved|sloped|ramp/i.test(section.kind)
+      && (!Array.isArray(section.connection?.points)
+        || section.connection.points.length < 3
+        || section.connection.points.some(point => !Array.isArray(point)
+          || point.length < 3 || !point.slice(0, 3).every(value => Number.isFinite(Number(value)))))) {
+      return 'approved curved/sloped bridge section requires a reviewed multi-point centreline';
+    }
+  }
   for (const surface of data.road?.surfaces || []) {
     const component = components.get(surface.nodeKey);
     if (!component) return 'road surface references an unknown component';
@@ -130,6 +139,14 @@ function validateCalibrationWrite(data, assetPath, sourceHash) {
       if (!validCalibrationAnchor(start) || !validCalibrationAnchor(end)
         || !(Number(surface.connection.width) > 0.5)) {
         return 'accepted road connection has invalid endpoints or width';
+      }
+      const needsPolyline = /curve|sloped|ramp/i.test(surface.sectionKind || '')
+        || surface.role === 'road-corner-module';
+      if (needsPolyline && (!Array.isArray(surface.connection.points)
+        || surface.connection.points.length < 3
+        || surface.connection.points.some(point => !Array.isArray(point)
+          || point.length < 3 || !point.slice(0, 3).every(value => Number.isFinite(Number(value)))))) {
+        return 'curved/sloped road connection requires at least three finite centreline points';
       }
     }
   }
