@@ -25,6 +25,7 @@ dl{display:grid;grid-template-columns:115px minmax(0,1fr);gap:7px 9px;font-size:
 .model-nav,.mesh-controls{display:flex;gap:7px;margin:9px 0}.model-nav button,.mesh-controls button{background:#1a281f;border:1px solid #354a3b;border-radius:7px;color:#dfe9e1;padding:7px 9px;cursor:pointer}.model-nav button:disabled{opacity:.35;cursor:default}.mesh-controls input{min-width:0;flex:1;background:#0e1511;border:1px solid #34443a;border-radius:7px;color:#edf4ee;padding:7px 9px}#mesh-selection-status{color:#91cba0;font-size:11px;min-height:18px}.mesh-part{width:100%;text-align:left;background:transparent;border:0;border-radius:5px;color:#c7d4cb;padding:4px 6px;font:inherit;overflow-wrap:anywhere;cursor:pointer}.mesh-part:hover,.mesh-part.active{background:#26372b;color:#fff}.mesh-part.active{outline:1px solid #699779}#mesh-list{list-style:decimal;padding-left:18px}
 .note{color:#96a69b;font-size:11px;line-height:1.55}
 @media(max-width:850px){main{grid-template-columns:1fr}.viewport,canvas{min-height:420px}}
+#calibration-component,#calibration-json,#calibration-connection-json{width:100%;background:#0e1511;border:1px solid #34443a;border-radius:7px;color:#edf4ee;padding:8px;font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}#calibration-component{font:12px/1.4 Inter,Segoe UI,Arial,sans-serif}#calibration-json,#calibration-connection-json{min-height:170px;resize:vertical;white-space:pre;tab-size:2}.calibration-actions{display:flex;gap:6px;margin:7px 0}.calibration-actions button{flex:1;background:#1a281f;border:1px solid #354a3b;border-radius:7px;color:#dfe9e1;padding:7px 8px;cursor:pointer;font-size:11px}.calibration-actions button.primary{background:#21412e;border-color:#4e8761}.calibration-actions button:disabled{opacity:.4;cursor:default}.calibration-meta{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}.calibration-meta .stat strong{font-size:15px}#calibration-status{font-size:11px;color:#a9c7ae;min-height:32px;overflow-wrap:anywhere}#calibration-status.warning{color:#e8bc7c}#calibration-status.error{color:#ef9c8f}.field-label{display:block;color:#a8b6ac;font-size:10px;margin:9px 0 4px}.calibration-section{border-top:1px solid #34443a;margin-top:12px;padding-top:11px}
 </style>
 </head>
 <body>
@@ -57,7 +58,35 @@ dl{display:grid;grid-template-columns:115px minmax(0,1fr);gap:7px 9px;font-size:
 <div class="mesh-controls"><input id="mesh-filter" type="search" placeholder="Filter mesh / subcomponent names"><button id="mesh-show-all" type="button">Show all</button></div>
 <div id="mesh-selection-status">All subcomponents visible</div>
 <ol id="mesh-list"><li>Pending</li></ol>
-<p class="note">Mesh nodes are renderable pieces inside the imported model. They are not automatically separate gameplay components. The component plan is based on actual visual function, not raw mesh count.</p>
+<section class="calibration-section">
+<h2>Gameplay calibration</h2>
+<div id="calibration-status">Checking for a calibration sidecar…</div>
+<div class="calibration-meta">
+<div class="stat"><span>Components</span><strong id="calibration-components">—</strong></div>
+<div class="stat"><span>Box colliders</span><strong id="calibration-boxes">—</strong></div>
+<div class="stat"><span>Road surfaces</span><strong id="calibration-surfaces">—</strong></div>
+</div>
+<label class="field-label" for="calibration-component">Detected component</label>
+<select id="calibration-component" style="width:100%"><option value="">No components</option></select>
+<div class="calibration-actions">
+<button id="calibration-show-collision" type="button">Show collision boxes</button>
+<button id="calibration-show-surfaces" type="button">Show road profiles</button>
+</div>
+<label class="field-label" for="calibration-json">Component record · edit anchors / role / review flags</label>
+<textarea id="calibration-json" spellcheck="false" placeholder="Select a calibrated component…"></textarea>
+<div class="calibration-actions">
+<button id="calibration-save-component" type="button">Apply component edits</button>
+<button id="calibration-accept-component" class="primary" type="button">Accept component</button>
+</div>
+<label class="field-label" for="calibration-connection-json">Road connection · local start / end / width</label>
+<textarea id="calibration-connection-json" spellcheck="false" placeholder="Select a road/bridge surface…"></textarea>
+<div class="calibration-actions">
+<button id="calibration-save-connection" type="button">Apply connection edits</button>
+<button id="calibration-accept-connection" class="primary" type="button">Approve tyre route</button>
+</div>
+<p class="note">Approving a tyre route requires finite endpoints and width, a recognised driveable surface, and a matching collision exclusion. Curves and ramps must be corrected into a reviewed profile first. Saving never edits the source GLB/GLTF.</p>
+</section>
+<p class="note">Mesh nodes are renderable pieces inside the imported model. They are not automatically separate gameplay components. Calibration roles and interaction anchors remain reviewable until explicitly accepted.</p>
 </aside>
 </main>
 <script type="module" src="./asset-review.js"></script>
