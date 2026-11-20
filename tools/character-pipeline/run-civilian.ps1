@@ -1,6 +1,6 @@
 param(
-    [string]$Id = "civilian_003",
-    [string]$DisplayName = "Ilorin Civilian 003",
+    [string]$Id = "npc_core_001",
+    [string]$DisplayName = "NPC Core 001",
     [double]$Age = 21,
     [ValidateSet("male", "female")][string]$Gender = "male",
     [double]$Weight = 0.54,
@@ -26,7 +26,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 if ($Help) {
-    Write-Host "Open World civilian generator"
+    Write-Host "Open World npc_core_001 generator"
     Write-Host ""
     Write-Host '.\tools\character-pipeline\generate-civilian.bat -Age 21 -Skin "african,dark,brown" -Hair "short,fade" -Top "t shirt,polo" -Bottom "jeans" -Shoes "sneakers" -Animations "idle,walk,run,sprint,jump,crouch_idle,crouch_walk,talk,phone,sit_idle,hit_reaction,fall_death,get_up" -Fps 30'
     Write-Host ""
