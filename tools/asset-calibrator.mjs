@@ -111,6 +111,8 @@ function classifyComponent(item, assetType, assetPath) {
 
   const name = stableNodeName(item);
   const tokens = normalizedNameTokens(name);
+  const compactName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const isSeatBelt = compactName.includes('seatbelt');
   const pathTokens = normalizedNameTokens(item.nodePath || '');
   const has = (...values) => hasNameToken(tokens, ...values);
   const hasInPath = (...values) => hasNameToken(pathTokens, ...values);
@@ -140,7 +142,7 @@ function classifyComponent(item, assetType, assetPath) {
     if (has('steeringwheel', 'volant') || (has('steering') && has('wheel'))) {
       return { role: 'steering-wheel', kind: 'steering-wheel', confidence: 0.86, source: 'node-name' };
     }
-    if (has('seat', 'driverseat', 'passengerseat', 'chair')) {
+    if (!isSeatBelt && has('seat', 'driverseat', 'passengerseat', 'chair')) {
       return { role: 'vehicle-seat', kind: 'seat', confidence: 0.86, source: 'node-name' };
     }
     if (has('door', 'doorpanel', 'hatch', 'tailgate', 'trunk', 'boot')) {
@@ -162,7 +164,7 @@ function classifyComponent(item, assetType, assetPath) {
   if (has('door', 'doorpanel', 'hatch', 'shutter', 'gate')) {
     return { role: 'door-panel', kind: 'door', confidence: 0.82, source: 'node-name' };
   }
-  if (has('seat', 'chair', 'bench', 'sofa', 'stool', 'couch')) {
+  if (!isSeatBelt && has('seat', 'chair', 'bench', 'sofa', 'stool', 'couch')) {
     return { role: 'seat', kind: 'seat', confidence: 0.82, source: 'node-name' };
   }
 
