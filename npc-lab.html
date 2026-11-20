@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Open World — NPC Core Lab</title>
+<style>
+:root{color-scheme:dark;--bg:#101310;--panel:#191e19;--panel2:#202720;--line:#303a30;--text:#edf1e9;--muted:#98a394;--gold:#c9a227;--green:#82b66a;--red:#d66d5e}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font:14px/1.45 Inter,Segoe UI,Arial,sans-serif}
+button,select,input{font:inherit;color:inherit}
+button,select{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 12px}
+button{cursor:pointer}button:hover,select:hover{border-color:#68785f}
+button:disabled{opacity:.4;cursor:not-allowed}
+#app{height:100%;display:grid;grid-template-rows:54px 1fr}
+header{display:flex;align-items:center;justify-content:space-between;padding:0 18px;border-bottom:1px solid var(--line);background:#141814}
+.brand{display:flex;gap:12px;align-items:center;font-weight:700;letter-spacing:.07em}
+.brand small{color:var(--muted);font-weight:500;letter-spacing:0}
+.status{font-size:12px;color:var(--muted);display:flex;gap:8px;align-items:center}
+.dot{width:7px;height:7px;border-radius:50%;background:#777}
+.dot.ok{background:var(--green)}.dot.bad{background:var(--red)}
+main{min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:12px;padding:12px}
+.stage{min-width:0;min-height:0;display:grid;grid-template-rows:minmax(0,1fr) auto;gap:10px}
+.viewport{position:relative;min-height:0;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:radial-gradient(ellipse at 50% 45%,#2b342a 0%,#171d17 52%,#101310 100%)}
+#view{display:block;width:100%;height:100%}
+.overlay{position:absolute;left:14px;top:12px;pointer-events:none;display:grid;gap:4px;text-shadow:0 1px 4px #000}
+.overlay strong{font-size:12px;letter-spacing:.1em}
+.overlay span{font-size:11px;color:#b8c2b2}
+.controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.controls label{font-size:12px;color:var(--muted)}
+.controls select{min-width:220px;max-width:min(420px,52vw)}
+.controls input{accent-color:var(--gold);width:100px}
+.controls .grow{flex:1}
+.side{min-height:0;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px}
+.card h2{font-size:12px;margin:0 0 10px;text-transform:uppercase;letter-spacing:.09em;color:#d9e1d4}
+.muted{color:var(--muted)}
+.kv{display:grid;grid-template-columns:1fr auto;gap:7px 12px;font-size:12px}
+.kv span:nth-child(odd){color:var(--muted)}
+.kv span:nth-child(even){text-align:right;font-variant-numeric:tabular-nums}
+.pill{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;padding:3px 8px;font-size:10px;color:var(--muted)}
+.pill.ok{color:var(--green);border-color:#425b3c}.pill.warn{color:#e0bd65;border-color:#695629}.pill.bad{color:var(--red);border-color:#623b35}
+#clipList{display:grid;gap:5px}
+.clip{width:100%;display:flex;justify-content:space-between;align-items:center;text-align:left;padding:7px 9px;font-size:12px;background:#171c17}
+.clip.active{border-color:var(--gold);background:#27291d}
+.clip small{color:var(--muted);font-size:10px}
+#log{font:11px/1.5 ui-monospace,Consolas,monospace;color:#b9c5b2;white-space:pre-wrap;overflow-wrap:anywhere;max-height:170px;overflow:auto}
+.note{font-size:11px;color:var(--muted);line-height:1.5}
+.warning{color:#e1c276}
+@media(max-width:850px){
+ html,body{overflow:auto}#app{height:auto;min-height:100%;grid-template-rows:52px auto}
+ main{grid-template-columns:1fr;padding:8px}.stage{height:66vh;min-height:450px}.side{overflow:visible}
+ .controls select{min-width:150px;flex:1}
+}
+</style>
+<script type="importmap">{"imports":{"three":"./js/lib/three.module.js"}}</script>
+</head>
+<body>
+<div id="app">
+<header>
+  <div class="brand">OPEN WORLD <small>/ NPC CORE LAB</small></div>
+  <div class="status"><span id="stateDot" class="dot"></span><span id="stateText">Waiting to inspect npc_core_001</span></div>
+</header>
+<main>
+  <section class="stage">
+    <div class="viewport">
+      <canvas id="view"></canvas>
+      <div class="overlay"><strong>NPC CORE 001</strong><span>Drag to orbit · scroll to zoom · right-drag to pan</span></div>
+    </div>
+    <div class="controls">
+      <label for="clipSelect">Animation</label>
+      <select id="clipSelect" disabled><option>Loading manifest…</option></select>
+      <button id="playBtn" disabled>Pause</button>
+      <button id="restartBtn" disabled>Restart</button>
+      <label for="speed">Speed</label><input id="speed" type="range" min="0.25" max="1.75" step="0.05" value="1">
+      <span id="speedValue" class="muted">1.00×</span>
+      <span class="grow"></span>
+      <button id="resetViewBtn">Reset view</button>
+    </div>
+  </section>
+  <aside class="side">
+    <section class="card">
+      <h2>Rig verification</h2>
+      <div id="rigStatus" class="pill warn">Not loaded</div>
+      <div class="kv" style="margin-top:10px">
+        <span>Skinned meshes</span><span id="skinCount">—</span>
+        <span>Unique bones</span><span id="boneCount">—</span>
+        <span>Model height</span><span id="modelHeight">—</span>
+        <span>Base animation takes</span><span id="baseTakes">—</span>
+        <span>Bound tracks</span><span id="boundTracks">—</span>
+      </div>
+      <p id="rigNote" class="note" style="margin:10px 0 0">The 20.5 MB Idle.fbx candidate is checked at runtime. This page does not assume it is a valid skinned rig.</p>
+    </section>
+    <section class="card">
+      <h2>Current animation inventory <span id="clipTotal" class="pill">—</span></h2>
+      <div id="clipList"><p class="note">Reading the committed manifest…</p></div>
+    </section>
+    <section class="card">
+      <h2>Selected motion</h2>
+      <div class="kv">
+        <span>Key</span><span id="selectedKey">—</span>
+        <span>Source file</span><span id="selectedFile">—</span>
+        <span>Duration</span><span id="selectedDuration">—</span>
+        <span>Animation tracks</span><span id="selectedTracks">—</span>
+        <span>Matched to rig</span><span id="selectedMatches">—</span>
+        <span>Hips/root translation</span><span id="rootTrack">—</span>
+        <span>Playback</span><span id="selectedPlayback">—</span>
+      </div>
+      <p id="clipNote" class="note" style="margin:10px 0 0">Select a clip to load it on the base rig. Clips are loaded only when selected to avoid pulling every FBX into memory.</p>
+    </section>
+    <section class="card">
+      <h2>Inspection log</h2>
+      <div id="log">Starting local asset inspection…</div>
+    </section>
+    <p class="note">This is an isolated preview tool. It does not modify player, vehicle, civilian or gameplay physics code. Raw root motion is intentionally retained here so it can be inspected before deciding which tracks the controller owns.</p>
+  </aside>
+</main>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { FBXLoader } from './js/lib/FBXLoader.js';
+import { OrbitControls } from './js/lib/OrbitControls.js';
+
+const ROOT = './data/models/npc/npc_core_001/';
+const MANIFEST_URL = ROOT + 'manifest.json';
+const $ = (id) => document.getElementById(id);
+const logLines = [];
+function log(message) {
+  logLines.push('[' + new Date().toLocaleTimeString() + '] ' + message);
+  while (logLines.length > 35) logLines.shift();
+  $('log').textContent = logLines.join('\n');
+  $('log').scrollTop = $('log').scrollHeight;
+}
+function setStatus(message, ok) {
+  $('stateText').textContent = message;
+  $('stateDot').className = 'dot' + (ok === true ? ' ok' : ok === false ? ' bad' : '');
+}
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+const canvas = $('view');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'low-power' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.35));
+renderer.setSize(canvas.clientWidth || 800, canvas.clientHeight || 600, false);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x171d17);
+const camera = new THREE.PerspectiveCamera(36, 1, 0.05, 100);
+camera.position.set(2.7, 2.0, 4.5);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.065;
+controls.target.set(0, 0.9, 0);
+controls.minDistance = 1.1;
+controls.maxDistance = 12;
+scene.add(new THREE.HemisphereLight(0xdde8d7, 0x363b32, 2.0));
+const keyLight = new THREE.DirectionalLight(0xfff1d5, 2.0);
+keyLight.position.set(3, 6, 4);
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0xd2e3ff, 0.75);
+fillLight.position.set(-4, 3, -2);
+scene.add(fillLight);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({color:0x252c24,roughness:0.94}));
+floor.rotation.x = -Math.PI / 2;
+floor.position.y = -0.012;
+scene.add(floor);
+const grid = new THREE.GridHelper(20, 40, 0x53604e, 0x303930);
+grid.position.y = 0;
+scene.add(grid);
+const axes = new THREE.AxesHelper(0.6);
+axes.position.set(-0.9, 0.01, 0);
+scene.add(axes);
+
+const loader = new FBXLoader();
+loader.setResourcePath(ROOT + 'textures/');
+let manifest = null;
+let rig = null;
+let mixer = null;
+let currentAction = null;
+let currentKey = '';
+let currentClip = null;
+let animationCache = new Map();
+let targetScale = 1;
+let animationPaused = false;
+let clipEntries = {};
+let clock = new THREE.Clock();
+
+function loadFbx(url) {
+  return new Promise((resolve, reject) => loader.load(url, resolve, undefined, reject));
+}
+function disposeImportedGroup(group) {
+  if (!group) return;
+  group.traverse((node) => {
+    if (node.geometry) node.geometry.dispose();
+    if (node.material) {
+      const materials = Array.isArray(node.material) ? node.material : [node.material];
+      materials.forEach((material) => {
+        if (material?.map) material.map.dispose();
+        if (material?.normalMap) material.normalMap.dispose();
+        material?.dispose?.();
+      });
+    }
+  });
+}
+function analyzeRig(model) {
+  const skinned = [];
+  const bones = new Set();
+  model.traverse((node) => {
+    if (node.isSkinnedMesh) {
+      skinned.push(node);
+      if (node.skeleton) node.skeleton.bones.forEach((bone) => bones.add(bone.name));
+    }
+    if (node.isBone) bones.add(node.name);
+    if (node.isMesh || node.isSkinnedMesh) {
+      node.castShadow = false;
+      node.receiveShadow = false;
+      node.frustumCulled = true;
+      const mats = Array.isArray(node.material) ? node.material : [node.material];
+      mats.forEach((mat) => { if (mat?.map) mat.map.colorSpace = THREE.SRGBColorSpace; });
+    }
+  });
+  model.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(model);
+  const height = bounds.max.y - bounds.min.y;
+  return { skinnedCount: skinned.length, boneCount: bones.size, bounds, height, takes: model.animations || [] };
+}
+function resetCamera(bounds, height) {
+  const center = bounds.getCenter(new THREE.Vector3());
+  controls.target.copy(center);
+  controls.target.y = Math.max(0.55, center.y);
+  const distance = Math.max(3, height * 2.25);
+  camera.position.set(center.x + distance * 0.56, Math.max(1.3, height * 0.9), center.z + distance * 1.35);
+  camera.near = 0.05;
+  camera.far = Math.max(100, distance * 15);
+  camera.updateProjectionMatrix();
+  controls.update();
+}
+function resize() {
+  const width = canvas.clientWidth || 800;
+  const height = canvas.clientHeight || 600;
+  renderer.setSize(width, height, false);
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+}
+function parseTrackNode(trackName) {
+  try {
+    const parsed = THREE.PropertyBinding.parseTrackName(trackName);
+    return parsed.nodeName || parsed.objectName || '';
+  } catch {
+    const index = trackName.lastIndexOf('.');
+    return index > 0 ? trackName.slice(0, index) : trackName;
+  }
+}
+function inspectClip(clip) {
+  let matched = 0;
+  let rootTranslation = false;
+  for (const track of clip.tracks || []) {
+    const nodeName = parseTrackNode(track.name);
+    if (/hips|pelvis|root/i.test(nodeName) && /\.position$/.test(track.name)) rootTranslation = true;
+    const target = THREE.PropertyBinding.findNode(rig, nodeName);
+    if (target) matched++;
+  }
+  return { tracks: (clip.tracks || []).length, matched, rootTranslation };
+}
+function setSelectedInfo(key, entry, clip, inspection, reverse) {
+  $('selectedKey').textContent = key;
+  $('selectedFile').textContent = (entry.file || '').split('/').pop() || '—';
+  $('selectedDuration').textContent = clip ? clip.duration.toFixed(3) + ' s' : '—';
+  $('selectedTracks').textContent = inspection ? String(inspection.tracks) : '—';
+  $('selectedMatches').textContent = inspection ? inspection.matched + ' / ' + inspection.tracks : '—';
+  $('rootTrack').textContent = inspection ? (inspection.rootTranslation ? 'present' : 'not detected') : '—';
+  $('selectedPlayback').textContent = reverse ? 'reverse experiment' : 'forward';
+}
+function shouldLoop(key) {
+  return ['idle','walk','walk_aim','run','rifle_run','sprint','crouch_idle','crouch_walk','crouch_walk_aim','rifle_aim_idle','crouch_aim_idle','sit_idle','vehicle_driver_idle'].includes(key);
+}
+function markInventoryActive(key) {
+  document.querySelectorAll('.clip').forEach((button) => button.classList.toggle('active', button.dataset.key === key));
+}
+async function loadAnimationClip(key) {
+  const entry = manifest.animations?.[key];
+  if (!entry?.file) throw new Error('Manifest has no file for animation key: ' + key);
+  if (animationCache.has(key)) return animationCache.get(key);
+  const group = await loadFbx('./' + entry.file.replace(/^\//, ''));
+  const clip = group.animations?.[0];
+  if (!clip || !clip.tracks?.length) {
+    disposeImportedGroup(group);
+    throw new Error('FBX contains no usable animation take: ' + entry.file);
+  }
+  clip.name = key;
+  const saved = clip.clone();
+  disposeImportedGroup(group);
+  animationCache.set(key, saved);
+  while (animationCache.size > 4) animationCache.delete(animationCache.keys().next().value);
+  return saved;
+}
+async function selectAnimation(key) {
+  if (!rig || !mixer || !manifest?.animations?.[key]) return;
+  $('clipSelect').disabled = true;
+  $('playBtn').disabled = true;
+  $('restartBtn').disabled = true;
+  setStatus('Loading ' + key + '…');
+  try {
+    const entry = manifest.animations[key];
+    let clip;
+    if (key === 'idle' && rig.animations?.[0]) clip = rig.animations[0].clone();
+    else clip = await loadAnimationClip(key);
+    const inspection = inspectClip(clip);
+    const previous = currentAction;
+    const action = mixer.clipAction(clip, rig);
+    action.reset();
+    action.enabled = true;
+    const loop = shouldLoop(key);
+    action.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, loop ? Infinity : 1);
+    action.clampWhenFinished = !loop;
+    action.setEffectiveWeight(1);
+    const reverse = entry.playback === 'reverse';
+    action.setEffectiveTimeScale(reverse ? -Number($('speed').value) : Number($('speed').value));
+    if (reverse) action.time = clip.duration;
+    if (previous && previous !== action) previous.stop();
+    action.play();
+    currentAction = action;
+    currentClip = clip;
+    currentKey = key;
+    animationPaused = false;
+    $('playBtn').textContent = 'Pause';
+    $('playBtn').disabled = false;
+    $('restartBtn').disabled = false;
+    $('clipSelect').value = key;
+    $('clipSelect').disabled = false;
+    markInventoryActive(key);
+    setSelectedInfo(key, entry, clip, inspection, reverse);
+    $('boundTracks').textContent = inspection.matched + ' / ' + inspection.tracks;
+    $('clipNote').textContent = entry.role || 'No role note in manifest.';
+    const fullMatch = inspection.tracks > 0 && inspection.matched === inspection.tracks;
+    setStatus(key + (fullMatch ? ' · all tracks resolved' : ' · partial track binding'), fullMatch);
+    log(key + ': ' + inspection.matched + '/' + inspection.tracks + ' tracks resolved' + (inspection.rootTranslation ? '; hips/root translation track present' : ''));
+  } catch (error) {
+    setStatus('Animation preview failed: ' + key, false);
+    $('clipNote').textContent = error.message || String(error);
+    log('ERROR loading ' + key + ': ' + (error.stack || error.message || error));
+  } finally {
+    $('clipSelect').disabled = false;
+    $('playBtn').disabled = !currentAction;
+    $('restartBtn').disabled = !currentAction;
+  }
+}
+function buildInventory() {
+  const entries = Object.entries(manifest.animations || {});
+  clipEntries = Object.fromEntries(entries);
+  $('clipTotal').textContent = entries.length + ' mapped keys';
+  $('clipSelect').innerHTML = '';
+  $('clipList').innerHTML = '';
+  for (const [key, entry] of entries) {
+    const option = document.createElement('option');
+    option.value = key;
+    option.textContent = key + (entry.status ? ' · ' + entry.status : '');
+    $('clipSelect').appendChild(option);
+    const button = document.createElement('button');
+    button.className = 'clip';
+    button.dataset.key = key;
+    button.innerHTML = '<span>' + escapeHtml(key.replaceAll('_',' ')) + '</span><small>' + escapeHtml(entry.category || 'clip') + '</small>';
+    button.addEventListener('click', () => {
+      $('clipSelect').value = key;
+      selectAnimation(key);
+    });
+    $('clipList').appendChild(button);
+  }
+  $('clipSelect').addEventListener('change', () => selectAnimation($('clipSelect').value));
+}
+async function boot() {
+  try {
+    setStatus('Reading manifest…');
+    const response = await fetch(MANIFEST_URL, { cache: 'no-cache' });
+    if (!response.ok) throw new Error('Manifest request returned HTTP ' + response.status);
+    manifest = await response.json();
+    buildInventory();
+    const rigUrl = './' + manifest.baseRig.candidateFile;
+    log('Loading base-rig candidate: ' + manifest.baseRig.candidateFile);
+    setStatus('Loading 20.5 MB base-rig candidate…');
+    const imported = await loadFbx(rigUrl);
+    const report = analyzeRig(imported);
+    $('skinCount').textContent = String(report.skinnedCount);
+    $('boneCount').textContent = String(report.boneCount);
+    $('modelHeight').textContent = Number.isFinite(report.height) ? report.height.toFixed(3) + ' source units' : 'invalid';
+    $('baseTakes').textContent = String(report.takes.length);
+    $('rigStatus').textContent = report.skinnedCount > 0 && report.boneCount > 0 ? 'Skinned rig detected' : 'Not a skinned rig';
+    $('rigStatus').className = 'pill ' + (report.skinnedCount > 0 && report.boneCount > 0 ? 'ok' : 'bad');
+    if (!report.skinnedCount || !report.boneCount || !Number.isFinite(report.height) || report.height < 0.5) {
+      throw new Error('Idle.fbx failed rig verification: skinned meshes=' + report.skinnedCount + ', unique bones=' + report.boneCount + ', height=' + report.height);
+    }
+    const scale = 1.74 / report.height;
+    imported.scale.setScalar(scale);
+    imported.updateMatrixWorld(true);
+    const scaledBounds = new THREE.Box3().setFromObject(imported);
+    imported.position.y -= scaledBounds.min.y;
+    imported.updateMatrixWorld(true);
+    targetScale = scale;
+    imported.traverse((node) => {
+      if (node.isSkinnedMesh) {
+        node.frustumCulled = false;
+        node.castShadow = false;
+      }
+    });
+    rig = imported;
+    scene.add(rig);
+    mixer = new THREE.AnimationMixer(rig);
+    const fittedBounds = new THREE.Box3().setFromObject(rig);
+    resetCamera(fittedBounds, 1.74);
+    $('rigStatus').textContent = 'Verified skinned rig';
+    $('rigStatus').className = 'pill ok';
+    $('rigNote').textContent = 'Runtime check passed: Idle.fbx contains ' + report.skinnedCount + ' skinned mesh(es), ' + report.boneCount + ' unique bones and ' + report.takes.length + ' animation take(s). Normalized preview height: 1.74m.';
+    $('clipSelect').disabled = false;
+    log('Rig passed: ' + report.skinnedCount + ' skinned mesh(es), ' + report.boneCount + ' bones; source height ' + report.height.toFixed(3) + ', normalized to 1.74m.');
+    await selectAnimation('idle');
+  } catch (error) {
+    $('rigStatus').textContent = 'Verification failed';
+    $('rigStatus').className = 'pill bad';
+    $('rigNote').textContent = error.message || String(error);
+    setStatus('NPC core inspection failed', false);
+    log('ERROR: ' + (error.stack || error.message || error));
+  }
+}
+
+$('playBtn').addEventListener('click', () => {
+  if (!currentAction) return;
+  animationPaused = !animationPaused;
+  currentAction.paused = animationPaused;
+  $('playBtn').textContent = animationPaused ? 'Play' : 'Pause';
+});
+$('restartBtn').addEventListener('click', () => {
+  if (!currentAction || !currentClip) return;
+  currentAction.reset();
+  const reverse = manifest.animations?.[currentKey]?.playback === 'reverse';
+  if (reverse) currentAction.time = currentClip.duration;
+  currentAction.setEffectiveTimeScale((reverse ? -1 : 1) * Number($('speed').value));
+  currentAction.paused = false;
+  animationPaused = false;
+  $('playBtn').textContent = 'Pause';
+});
+$('speed').addEventListener('input', () => {
+  const value = Number($('speed').value);
+  $('speedValue').textContent = value.toFixed(2) + '×';
+  if (currentAction) {
+    const reverse = manifest.animations?.[currentKey]?.playback === 'reverse';
+    currentAction.setEffectiveTimeScale((reverse ? -1 : 1) * value);
+  }
+});
+$('resetViewBtn').addEventListener('click', () => {
+  if (rig) resetCamera(new THREE.Box3().setFromObject(rig), 1.74);
+});
+window.addEventListener('resize', resize);
+resize();
+boot();
+
+function frame() {
+  requestAnimationFrame(frame);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (mixer) mixer.update(dt);
+  controls.update();
+  renderer.render(scene, camera);
+}
+frame();
+</script>
+</body>
+</html>
