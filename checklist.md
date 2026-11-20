@@ -959,7 +959,7 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 
 ### Phase 6A — Unified asset calibration (in progress; runtime validation pending)
 
-<badge>Implemented first pass</badge>
+**Implemented first pass; runtime validation pending.**
 
 - [x] Add the unified CLI entry point: `tools/asset-calibrator.mjs`.
 - [x] Reuse `tools/process-glbs.js` as the collision scan stage instead of maintaining a disconnected collision generator.
