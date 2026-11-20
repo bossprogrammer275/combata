@@ -510,6 +510,103 @@ function buildBridgeProfile(components, meshByKey) {
   };
 }
 
+/**
+ * Restore only editor-approved metadata when the exact source asset is
+ * unchanged. A changed asset deliberately loses all approvals and returns to
+ * review so stale node references/anchors cannot become gameplay authority.
+ */
+export function preserveReviewedCalibration({
+  sourceHash,
+  previousCalibration,
+  components = [],
+  traversal = [],
+  road = null,
+  bridge = null,
+}) {
+  const old = previousCalibration?.source?.sha256 === sourceHash ? previousCalibration : null;
+  if (!old) return false;
+
+  const previousComponents = Array.isArray(old.components) ? old.components : [];
+  const priorComponents = new Map(previousComponents.map(component => [component.nodeKey, component]));
+  for (const component of components) {
+    const previous = priorComponents.get(component.nodeKey);
+    if (previous?.interaction?.accepted === true) {
+      component.interaction = previous.interaction;
+      component.requiresReview = false;
+    }
+    if (previous?.manual === true) {
+      component.manual = true;
+      if (previous.requiresReview === false) component.requiresReview = false;
+      if (previous.runtimeEnabled === true) component.runtimeEnabled = true;
+      if (previous.role && previous.role !== 'unclassified') component.role = previous.role;
+      if (previous.kind && previous.kind !== 'unknown') component.kind = previous.kind;
+    }
+  }
+
+  const priorTraversal = new Map((Array.isArray(old.traversal) ? old.traversal : [])
+    .map(candidate => [candidate.nodeKey, candidate]));
+  for (const candidate of traversal) {
+    const previous = priorTraversal.get(candidate.nodeKey);
+    if (!previous) continue;
+    if (previous.accepted === true && previous.requiresReview === false
+      && previous.runtimeEnabled === true && previous.manual === true) {
+      candidate.accepted = true;
+      candidate.runtimeEnabled = true;
+      candidate.requiresReview = false;
+      candidate.manual = true;
+      if (previous.anchors) candidate.anchors = previous.anchors;
+      if (previous.animation) candidate.animation = previous.animation;
+      if (previous.capabilities) candidate.capabilities = previous.capabilities;
+      if (previous.coordinateSpace) candidate.coordinateSpace = previous.coordinateSpace;
+    }
+  }
+
+  // Approved road routes and driveable surface activation survive only for
+  // unchanged source geometry. Their original triangles remain authoritative.
+  const priorRoadSurfaces = new Map((Array.isArray(old.road?.surfaces) ? old.road.surfaces : [])
+    .map(surface => [surface.nodeKey, surface]));
+  for (const surface of road?.surfaces || []) {
+    const previous = priorRoadSurfaces.get(surface.nodeKey);
+    if (!previous) continue;
+    if (previous.runtimeEnabled === true) {
+      surface.runtimeEnabled = true;
+      const component = components.find(item => item.nodeKey === surface.nodeKey);
+      if (component) {
+        component.runtimeEnabled = true;
+        if (previous.requiresReview === false) component.requiresReview = false;
+      }
+    }
+    if (previous.connection?.accepted === true && previous.connection?.requiresReview === false) {
+      surface.connection = previous.connection;
+      surface.requiresReview = false;
+      const component = components.find(item => item.nodeKey === surface.nodeKey);
+      if (component) component.requiresReview = false;
+    }
+  }
+
+  if (bridge) {
+    const previousSections = new Map((Array.isArray(old.bridge?.sections) ? old.bridge.sections : [])
+      .map(section => [section.id, section]));
+    for (const section of bridge.sections || []) {
+      const previous = previousSections.get(section.id);
+      if (previous?.connection?.accepted === true && previous.connection.requiresReview === false) {
+        section.connection = previous.connection;
+        section.requiresReview = false;
+      }
+      const deckKey = section.deckComponent?.nodeKey;
+      const reviewedSurface = (road?.surfaces || []).find(surface => surface.nodeKey === deckKey);
+      if (reviewedSurface?.connection?.accepted === true
+        && reviewedSurface.connection.requiresReview === false) {
+        section.connection = reviewedSurface.connection;
+        section.requiresReview = false;
+      }
+    }
+    bridge.requiresReview = (bridge.sections || []).some(section => section.requiresReview !== false);
+  }
+
+  return true;
+}
+
 function makeComponent(item, role, index, assetType) {
   const identity = role?.sectionId || item.nodeKey;
   const component = {
@@ -632,79 +729,14 @@ async function calibrateOne(file) {
     note: 'Measure approach, full timed root path, hand/foot contacts, mount/rung points, capsule clearance and supported landing before enabling traversal.',
   }));
 
-  const priorComponents = new Map((old?.components || []).map(component => [component.nodeKey, component]));
-  for (const component of components) {
-    const previous = priorComponents.get(component.nodeKey);
-    if (previous?.interaction?.accepted === true) {
-      component.interaction = previous.interaction;
-      component.requiresReview = false;
-    }
-    if (previous?.manual === true) {
-      component.manual = true;
-      if (previous.requiresReview === false) component.requiresReview = false;
-      if (previous.runtimeEnabled === true) component.runtimeEnabled = true;
-      if (previous.role && previous.role !== 'unclassified') component.role = previous.role;
-      if (previous.kind && previous.kind !== 'unknown') component.kind = previous.kind;
-    }
-  }
-  const priorTraversal = new Map((old?.traversal || []).map(candidate => [candidate.nodeKey, candidate]));
-  for (const candidate of traversal) {
-    const previous = priorTraversal.get(candidate.nodeKey);
-    if (!previous) continue;
-    if (previous.accepted === true && previous.requiresReview === false
-      && previous.runtimeEnabled === true && previous.manual === true) {
-      candidate.accepted = true;
-      candidate.runtimeEnabled = true;
-      candidate.requiresReview = false;
-      candidate.manual = true;
-      if (previous.anchors) candidate.anchors = previous.anchors;
-      if (previous.animation) candidate.animation = previous.animation;
-      if (previous.capabilities) candidate.capabilities = previous.capabilities;
-      if (previous.coordinateSpace) candidate.coordinateSpace = previous.coordinateSpace;
-    }
-  }
-
-  // Keep approved connection corrections and explicit surface activation when
-  // rescanning the same source. The corresponding source meshes were excluded
-  // from static boxes above and will be registered as exact triangle surfaces.
-  const priorRoadSurfaces = new Map((old?.road?.surfaces || []).map(surface => [surface.nodeKey, surface]));
-  for (const surface of road?.surfaces || []) {
-    const previous = priorRoadSurfaces.get(surface.nodeKey);
-    if (!previous) continue;
-    if (previous.runtimeEnabled === true) {
-      surface.runtimeEnabled = true;
-      const component = components.find(item => item.nodeKey === surface.nodeKey);
-      if (component) {
-        component.runtimeEnabled = true;
-        if (previous.requiresReview === false) component.requiresReview = false;
-      }
-    }
-    if (previous.connection?.accepted === true && previous.connection?.requiresReview === false) {
-      surface.connection = previous.connection;
-      surface.requiresReview = false;
-      const component = components.find(item => item.nodeKey === surface.nodeKey);
-      if (component) component.requiresReview = false;
-    }
-  }
-
-  if (bridge) {
-    const previousSections = new Map((old?.bridge?.sections || []).map(section => [section.id, section]));
-    for (const section of bridge.sections) {
-      const previous = previousSections.get(section.id);
-      if (previous?.connection?.accepted === true && previous.connection.requiresReview === false) {
-        section.connection = previous.connection;
-        section.requiresReview = false;
-      }
-      const deckKey = section.deckComponent?.nodeKey;
-      const reviewedSurface = (road?.surfaces || []).find(surface => surface.nodeKey === deckKey);
-      if (reviewedSurface?.connection?.accepted === true
-        && reviewedSurface.connection.requiresReview === false) {
-        section.connection = reviewedSurface.connection;
-        section.requiresReview = false;
-      }
-    }
-    bridge.requiresReview = bridge.sections.some(section => section.requiresReview !== false);
-  }
+  preserveReviewedCalibration({
+    sourceHash: hash,
+    previousCalibration: old,
+    components,
+    traversal,
+    road,
+    bridge,
+  });
 
   const collisionBoxes = isVehicle ? [] : scanned.manifest.boxes;
   const nativeCollisionProxies = isVehicle ? [] : buildNativeCollisionProxyRecords(scanned.meshDetails);
@@ -858,7 +890,7 @@ async function main() {
   if (failed) process.exitCode = 1;
 }
 
-export { calibrateOne, classifyAssetType, classifyComponent, isCollisionProxyComponent, isPlausibleWheelGeometry, aggregateVehicleWheelGroups, aggregateLadderGroups, aggregateNamedAssetSeat, isNativeCollisionProxy, buildNativeCollisionProxyRecords, localConnection, interactionSpec, makeComponent, buildRoadProfiles, buildBridgeProfile };
+export { calibrateOne, classifyAssetType, classifyComponent, isCollisionProxyComponent, isPlausibleWheelGeometry, aggregateVehicleWheelGroups, aggregateLadderGroups, aggregateNamedAssetSeat, isNativeCollisionProxy, buildNativeCollisionProxyRecords, localConnection, interactionSpec, makeComponent, buildRoadProfiles, buildBridgeProfile, preserveReviewedCalibration };
 
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : '';
 if (invokedPath && import.meta.url === pathToFileURL(invokedPath).href) {
