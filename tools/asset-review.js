@@ -695,6 +695,9 @@ function acceptTraversalProfile() {
         || vectorDistance(path.at(-1).position, anchors.landing) > 0.12) {
         throw new Error('rootPath must begin at approach and end at landing.');
       }
+      if (!path.some(point => vectorDistance(point.position, anchors.topOut) <= 0.45)) {
+        throw new Error('rootPath must include the measured topOut point.');
+      }
       const contacts = anchors.boneContacts || [];
       validateTraversalBoneContacts(contacts);
       candidate.animation = { key: 'obstacle_climb', durationSeconds: 3.833, rootMotion: 'physics-owned-in-place' };
@@ -712,6 +715,14 @@ function acceptTraversalProfile() {
         throw new Error('rungSpacing must be measured between 0.12m and 0.6m.');
       }
       if (!vector(anchors.planeNormal)) throw new Error('Ladder needs a measured outward planeNormal vector.');
+      if (vectorDistance(anchors.climbPath[0], anchors.mountBottom) > 0.45
+        || vectorDistance(anchors.climbPath.at(-1), anchors.mountTop) > 0.45) {
+        throw new Error('Ladder climbPath must connect mountBottom to mountTop.');
+      }
+      const normalLength = Math.hypot(...anchors.planeNormal.slice(0, 3).map(Number));
+      if (normalLength < 0.8 || normalLength > 1.2 || Math.abs(Number(anchors.planeNormal[1])) > 0.25) {
+        throw new Error('planeNormal must be a normalized, near-horizontal outward vector.');
+      }
       validateTraversalBoneContacts(anchors.boneContacts || []);
       candidate.animation = { key: 'ladder_climb_up', cycleSeconds: 0.767, rootMotion: 'rung-synchronized-physics' };
       candidate.capabilities = { ...(candidate.capabilities || {}), ladderClimbUpAnimation: true, ladderClimbDown: false };
