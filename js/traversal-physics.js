@@ -129,10 +129,11 @@ export function buildObstacleClimbPath(options = {}) {
   const height = Math.max(radius * 2 + 0.1, Number(options.height) || 1.8);
   const boxX = max.x - min.x, boxZ = max.z - min.z, rise = max.y - min.y;
   const maxRise = Number(options.maxRise) || 2.25;
+  const authored = normalizeTimedPath(options.rootPath, { minPoints: 4 });
   if (boxX <= 0 || boxZ <= 0 || rise < 0.45 || rise > maxRise) return null;
-  // A narrow fence top is not a landing platform. Do not fake a vault with the
-  // obstacle-climb clip; the user has not downloaded a dedicated vault clip.
-  if (boxX < radius * 2 + 0.14 || boxZ < radius * 2 + 0.14) return null;
+  // Auto-derived paths need a true top platform. A manually measured route may
+  // instead land on an adjacent ledge/platform and is checked by the world.
+  if (!authored && (boxX < radius * 2 + 0.14 || boxZ < radius * 2 + 0.14)) return null;
 
   const normal = point3(options.normal) || { x: 0, y: 0, z: 1 };
   const nx = Math.abs(normal.x) >= Math.abs(normal.z) ? Math.sign(normal.x) : 0;
@@ -152,7 +153,6 @@ export function buildObstacleClimbPath(options = {}) {
   const lift = { ...contact, y: max.y + 0.12 };
   const topOut = { x: centerX, y: max.y + 0.12, z: centerZ };
   const landing = { x: centerX, y: max.y, z: centerZ };
-  const authored = normalizeTimedPath(options.rootPath, { minPoints: 4 });
   let path;
   if (authored) {
     if (distance3(authored[0].position, start) > 0.9) return null;
