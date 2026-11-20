@@ -1,0 +1,101 @@
+name: Generate and validate representative asset calibrations
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/asset-calibrator.mjs'
+      - 'tools/process-glbs.js'
+      - 'tools/validate-asset-calibration.mjs'
+      - 'data/models/assets/**'
+      - 'data/models/cars/**'
+      - '.github/workflows/asset-calibration-generate.yml'
+  workflow_dispatch:
+    inputs:
+      asset_path:
+        description: 'Optional single GLB/glTF file or asset folder inside the model roots. Leave empty for the representative calibration set.'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: representative-asset-calibration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  calibrate-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install project dependencies
+        run: npm install --no-audit --no-fund
+      - name: Syntax-check calibration pipeline
+        run: |
+          node --check tools/asset-calibrator.mjs
+          node --check tools/process-glbs.js
+          node --check tools/validate-asset-calibration.mjs
+      - name: Calibrate representative source assets
+        env:
+          ASSET_PATH: ${{ inputs.asset_path || '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "$ASSET_PATH" ]]; then
+            node tools/asset-calibrator.mjs "$ASSET_PATH"
+          else
+            node tools/asset-calibrator.mjs \
+              data/models/assets/others/modular_bridge__low_poly__game_ready_ \
+              data/models/assets/others/bridge_road_lowpoly.glb \
+              data/models/assets/roads/road_pack \
+              data/models/assets/roads/street_road \
+              data/models/assets/roads/sidewalks \
+              data/models/assets/others/stair.glb \
+              data/models/assets/others/ladder.glb \
+              data/models/assets/others/wooden_ladder.glb \
+              data/models/assets/others/plastic_chair.glb \
+              data/models/assets/others/wooden_bench.glb \
+              data/models/assets/buildings \
+              data/models/cars
+          fi
+      - name: Validate every generated calibration sidecar
+        shell: bash
+        run: |
+          set -euo pipefail
+          count=0
+          while IFS= read -r -d '' sidecar; do
+            source="${sidecar%_calibration.json}"
+            if [[ -f "${source}.glb" ]]; then
+              node tools/validate-asset-calibration.mjs "${source}.glb"
+            elif [[ -f "${source}.gltf" ]]; then
+              node tools/validate-asset-calibration.mjs "${source}.gltf"
+            else
+              echo "No matching source model for ${sidecar}" >&2
+              exit 1
+            fi
+            count=$((count + 1))
+          done < <(find data/models/assets data/models/cars -type f -name '*_calibration.json' -print0)
+          if [[ "$count" -eq 0 ]]; then
+            echo "No calibration sidecars were generated." >&2
+            exit 1
+          fi
+          echo "Validated $count calibration sidecars."
+          echo "## Representative asset calibration" >> "$GITHUB_STEP_SUMMARY"
+          echo "Validated $count generated sidecars. The source models were not modified." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Sidecars are review-only until manual anchors and runtime profiles are approved in Asset Review." >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload calibration sidecars
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: open-world-calibration-sidecars-${{ github.run_id }}
+          path: |
+            data/models/assets/**/*_calibration.json
+            data/models/cars/**/*_calibration.json
+          if-no-files-found: warn
+          retention-days: 14
