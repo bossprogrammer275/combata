@@ -32,8 +32,11 @@ jobs:
           node --check tools/verify-vehicles.mjs
           node --check tools/verify-vehicle-visuals.mjs
           node --check tools/verify-player-idle-capture.mjs
+          node --check tools/verify-npc-core-lab.mjs
       - name: Install isolated headless browser
         run: pnpm exec playwright install --with-deps chromium
+      - name: Inspect npc_core_001 base rig and all downloaded animation bindings
+        run: node tools/verify-npc-core-lab.mjs
       - name: Render and test real vehicles in disposable browser
         run: node tools/verify-vehicle-visuals.mjs
       - name: Start the real game and capture 12 seconds of unattended player animation
@@ -44,6 +47,7 @@ jobs:
         with:
           name: vehicle-visual-test-${{ github.run_id }}
           path: |
+            artifacts/npc-core-lab/
             artifacts/vehicle-visual-test/
             artifacts/player-idle-capture/
           if-no-files-found: warn
