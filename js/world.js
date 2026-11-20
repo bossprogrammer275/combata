@@ -120,6 +120,7 @@ export class World {
     this._planeBatch = [];   // {x,y,z,rw,rh,rz,mat,w,h,shadow} — static planes to batch
     this._ribbonBatch = [];  // {left[], right[], y, mat, closed} — mitered road/sidewalk ribbons
     this.roadPhysicsMeshes = []; // exact visible road/sidewalk/curb ribbon meshes
+    this.calibratedRoadChains = []; // manually approved imported road connections for tyre grip sampling
     this._trimBatch = [];    // {x,y,z,w,h,d,ry,mat} — AO base skirts + roofline lips
 
     // Create collision indexes before assets load; initializing BVHWorld after
@@ -1087,7 +1088,7 @@ export class World {
     const trackedArrays = [
       'colliders', 'climbables', 'interiors', 'portals', 'roofAccess',
       'npcInteractables', 'reactiveObjects', 'coverPoints', 'worldKitComponents',
-      '_buildingData', 'vehicleSpawns', 'roadPhysicsMeshes',
+      '_buildingData', 'vehicleSpawns', 'roadPhysicsMeshes', 'calibratedRoadChains',
     ];
     const before = Object.create(null);
     for (const name of trackedArrays) before[name] = this[name].length;
@@ -1564,6 +1565,9 @@ export class World {
         .map(surface => [surface.nodeKey, surface]));
       const calibratedCollisionBoxes = Array.isArray(assetCalibration?.collision?.boxes)
         ? assetCalibration.collision.boxes : null;
+      // Custom tyre sampling is allowed only for an accepted, reviewed route
+      // and only when source-root transforms can be represented by this mapping.
+      const canUseCalibratedRoadConnections = uniformRootScale && !rootTilted && !hasMeshEdits;
       const isRoad = collisionProfile === 'road-surface' || calibratedRoadByKey.size > 0;
       const hasNoCollision = !!a.noCollision || (collisionProfile === 'no-collision'
         && !calibratedCollisionBoxes?.length && !calibratedRoadByKey.size);
@@ -1600,6 +1604,46 @@ export class World {
           this.roadPhysicsMeshes.push(roadSurface);
           o.userData.worldKit ||= {};
           o.userData.worldKit.role = 'road-surface';
+
+          const connection = calibratedSurface?.connection;
+          if (canUseCalibratedRoadConnections
+            && connection?.status === 'estimated'
+            && connection.accepted === true
+            && connection.requiresReview === false
+            && Array.isArray(connection.start?.position)
+            && Array.isArray(connection.end?.position)
+            && Number.isFinite(Number(connection.width))
+            && connection.width > 0.5) {
+            const toWorldPoint = point => {
+              const localX = Number(point[0]) * scaleFactor;
+              const localY = Number(point[1]) * scaleFactor;
+              const localZ = Number(point[2]) * scaleFactor;
+              const yaw = a.ry || 0;
+              const c = Math.cos(yaw), sn = Math.sin(yaw);
+              return {
+                x: (a.x || 0) + localX * c + localZ * sn,
+                y: yOffset + localY,
+                z: (a.z || 0) - localX * sn + localZ * c,
+              };
+            };
+            const start = toWorldPoint(connection.start.position);
+            const end = toWorldPoint(connection.end.position);
+            const length = Math.hypot(end.x - start.x, end.z - start.z);
+            const width = Number(connection.width) * scaleFactor;
+            if (length > 1 && width > 0.5
+              && [start.x, start.y, start.z, end.x, end.y, end.z].every(Number.isFinite)) {
+              this.calibratedRoadChains.push({
+                name: 'calibrated-' + String(calibratedSurface.id || nodeKey),
+                pts: [start, end],
+                W: width,
+                surface: calibratedSurface.kind === 'sidewalk' ? 'concrete' : 'asphalt',
+                roadY: 0,
+                source: 'asset-calibration',
+                nodeKey,
+                _streamChunkKey: streamChunk?.key || null,
+              });
+            }
+          }
           importedRoadMeshes++;
         });
         if (!importedRoadMeshes) {
@@ -2531,7 +2575,9 @@ export class World {
     };
     let best = null;
     let bestScore = Infinity;
-    for (const chain of this._roadChains || []) {
+    for (let sourceIndex = 0; sourceIndex < 2; sourceIndex++) {
+      const chains = sourceIndex === 0 ? (this._roadChains || []) : (this.calibratedRoadChains || []);
+      for (const chain of chains) {
       const pts = chain.pts || [];
       if (pts.length < 2) continue;
       const count = pts.length - 1 + (chain.closed ? 1 : 0);
@@ -2559,6 +2605,7 @@ export class World {
           bestScore = score;
           best = { key, height, distance: lateral, verticalDelta };
         }
+      }
       }
     }
     if (!best) {
