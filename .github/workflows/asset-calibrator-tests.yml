@@ -1,0 +1,63 @@
+name: Asset calibrator tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/asset-calibrator.mjs'
+      - 'tools/asset-calibrator.test.mjs'
+      - 'tools/process-glbs.js'
+      - 'tools/validate-asset-calibration.mjs'
+      - 'js/asset-calibration.js'
+      - 'js/world.js'
+      - 'js/physics.js'
+      - 'js/vehicles.js'
+      - 'server.js'
+      - 'package.json'
+      - '.github/workflows/asset-calibrator-tests.yml'
+  pull_request:
+    paths:
+      - 'tools/asset-calibrator.mjs'
+      - 'tools/asset-calibrator.test.mjs'
+      - 'tools/process-glbs.js'
+      - 'tools/validate-asset-calibration.mjs'
+      - 'js/asset-calibration.js'
+      - 'js/world.js'
+      - 'js/physics.js'
+      - 'js/vehicles.js'
+      - 'server.js'
+      - 'package.json'
+      - '.github/workflows/asset-calibrator-tests.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: asset-calibrator-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-and-syntax:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install project dependencies
+        run: npm install --no-audit --no-fund
+      - name: Run calibration regression tests
+        run: npm run test:asset-calibration
+      - name: Check calibration and runtime module syntax
+        run: |
+          node --check tools/asset-calibrator.mjs
+          node --check tools/asset-calibrator.test.mjs
+          node --check tools/process-glbs.js
+          node --check tools/validate-asset-calibration.mjs
+          node --check js/asset-calibration.js
+          node --check js/world.js
+          node --check js/physics.js
+          node --check js/vehicles.js
+          node --check tools/asset-review.js
+          node --check server.js
