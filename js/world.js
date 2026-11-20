@@ -1766,6 +1766,33 @@ export class World {
         if (isFloor) floorCollisionBoxes.push(record);
         if (isStair) stairMeshes.push(o);
       });
+      // Sidecar proxy inventory uses the same stable node keys as the runtime
+      // traversal. A mismatch means the calibration and imported collision
+      // authority no longer describe the same source hierarchy.
+      const nativeProxyRecords = Array.isArray(assetCalibration?.collision?.nativeProxies)
+        ? assetCalibration.collision.nativeProxies : [];
+      const declaredNativeProxyKeys = new Set(nativeProxyRecords.map(proxy => proxy.nodeKey).filter(Boolean));
+      const runtimeNativeProxyKeys = new Set(collisionProxyBoxes.map(proxy => getAssetNodeKey(model, proxy.mesh)));
+      worldKitInstance.nativeCollisionProxyCount = collisionProxyBoxes.length;
+      worldKitInstance.calibratedNativeCollisionProxyCount = nativeProxyRecords.length;
+      if (declaredNativeProxyKeys.size) {
+        const missing = [...declaredNativeProxyKeys].filter(key => !runtimeNativeProxyKeys.has(key));
+        const untracked = [...runtimeNativeProxyKeys].filter(key => !declaredNativeProxyKeys.has(key));
+        worldKitInstance.nativeCollisionProxyMatchedCount = declaredNativeProxyKeys.size - missing.length;
+        worldKitInstance.nativeCollisionProxyMismatch = missing.length > 0 || untracked.length > 0;
+        if (worldKitInstance.nativeCollisionProxyMismatch) {
+          console.warn('[AssetCalibration] Native collision proxy mismatch for', assetName, {
+            declared: declaredNativeProxyKeys.size,
+            runtime: runtimeNativeProxyKeys.size,
+            missing: missing.slice(0, 8),
+            untracked: untracked.slice(0, 8),
+          });
+        }
+      } else {
+        worldKitInstance.nativeCollisionProxyMatchedCount = 0;
+        worldKitInstance.nativeCollisionProxyMismatch = false;
+      }
+
       // Some source models group a complete entrance under a descriptive
       // node instead of exposing one door_* mesh. Collapse that hierarchy into
       // one doorway marker using the group's actual imported bounds.
