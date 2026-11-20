@@ -115,7 +115,8 @@ test('only manually reviewed obstacle profiles with a full timed limb-contact co
     rootPath: [
       { t: 0, position: [0, 0, 2] },
       { t: 0.2, position: [0, 0, 1.4] },
-      { t: 0.7, position: [0, 1.35, 0.4] },
+      { t: 0.65, position: [0, 1.35, 0.4] },
+      { t: 0.84, position: [0, 1.37, 0.05] },
       { t: 1, position: [0, 1.25, 0] },
     ],
     boneContacts: limbContacts,
@@ -148,7 +149,7 @@ test('ladder profiles are upward-only and require rung, mount, dismount and four
       bottomDismount: [0, 0, 0.8],
       planeNormal: [0, 0, 1],
       rungSpacing: 0.28,
-      climbPath: [[0, 0.2, 0], [0, 1, 0], [0, 2, 0], [0, 2.8, 0]],
+      climbPath: [[0, 0.05, 0.4], [0, 1, 0], [0, 2, 0], [0, 2.8, 0]],
       boneContacts: limbContacts,
     },
     animation: { key: 'ladder_climb_up', cycleSeconds: 0.767 },
