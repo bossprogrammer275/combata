@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 import {
   classifyAssetType,
   classifyComponent,
+  isCollisionProxyComponent,
+  isPlausibleWheelGeometry,
+  aggregateVehicleWheelGroups,
+  aggregateLadderGroups,
   localConnection,
   makeComponent,
   buildRoadProfiles,
@@ -151,4 +155,73 @@ test('runtime surface allow-list includes trusted imported street-road surfaces'
   assert.equal(isRuntimeSurfaceRole('walkable-surface'), true);
   assert.equal(isRuntimeSurfaceRole('road-surface-candidate'), false);
   assert.equal(isRuntimeSurfaceRole('unclassified'), false);
+});
+
+
+test('collision proxy meshes do not become climbable walls, while semantic doors remain detectable', () => {
+  const proxy = mesh('col_wall_01', [2, 1.8, 0.2], { collisionProxy: true });
+  const door = mesh('door_front', [1.2, 2.1, 0.12], { collisionProxy: true });
+  const doorTrim = mesh('trim_01', [0.2, 0.1, 0.05], {
+    collisionProxy: true,
+    nodePath: 'building / door_front / trim_01',
+  });
+  assert.equal(isCollisionProxyComponent(proxy), true);
+  assert.equal(classifyComponent(proxy, 'world-prop', 'data/models/assets/buildings/shop.glb'), null);
+  assert.equal(isCollisionProxyComponent(door), false);
+  assert.equal(classifyComponent(door, 'world-prop', 'data/models/assets/buildings/shop.glb').kind, 'door');
+  assert.equal(isCollisionProxyComponent(doorTrim), true);
+  assert.equal(classifyComponent(doorTrim, 'world-prop', 'data/models/assets/buildings/shop.glb'), null);
+});
+
+test('ordinary trim, seatbelts and structural walls do not become vehicle wheels or traversal obstacles', () => {
+  assert.equal(classifyComponent(mesh('trim_01', [0.5, 0.1, 0.1]), 'world-prop', 'data/models/assets/buildings/store.glb'), null);
+  assert.equal(classifyComponent(mesh('SeatBelt_Geo', [0.01, 0.008, 0.004]), 'vehicle', 'data/models/cars/car/scene.gltf'), null);
+  assert.equal(classifyComponent(mesh('wall_01', [4, 5, 0.2]), 'world-prop', 'data/models/assets/buildings/store.glb').kind, 'wall');
+  assert.equal(classifyComponent(mesh('Wheel_FL', [0.3, 0.7, 0.7]), 'vehicle', 'data/models/cars/car/scene.gltf').kind, 'wheel');
+});
+
+test('wheel geometry fragments are aggregated into one real vehicle wheel group', () => {
+  const parent = 'Root[0]/WheelRoot[0]/Combined3DWheel_3DWheel_front_L_Instance1_Src4[0]';
+  const items = [
+    {
+      ...mesh('polySurface1_Wheel1A', [0.012, 0.007, 0.02]),
+      nodeKey: parent + '/polySurface1[0]',
+      nodePath: 'Root / WheelRoot / Combined3DWheel_3DWheel_front_L_Instance1_Src4 / polySurface1',
+      boundsMin: [-0.01, 0, -0.017], boundsMax: [0.01, 0.007, 0.017],
+    },
+    {
+      ...mesh('polySurface2_Wheel1A', [0.012, 0.007, 0.02]),
+      nodeKey: parent + '/polySurface2[0]',
+      nodePath: 'Root / WheelRoot / Combined3DWheel_3DWheel_front_L_Instance1_Src4 / polySurface2',
+      boundsMin: [-0.0105, 0, -0.017], boundsMax: [0.0105, 0.007, 0.017],
+    },
+  ];
+  assert.equal(isPlausibleWheelGeometry(items[0]), true);
+  const groups = aggregateVehicleWheelGroups(items);
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].item.nodeKey, parent);
+  assert.equal(groups[0].role.role, 'vehicle-wheel');
+});
+
+test('multi-mesh ladders are collapsed into one climbable parent profile', () => {
+  const parent = 'Root[0]/Ladder_State_01_0[0]';
+  const items = [0, 1, 2].map(index => ({
+    ...mesh('Object_' + index, [0.12, 2.2, 0.16]),
+    nodeKey: parent + '/Object_' + index + '[' + index + ']',
+    nodePath: 'Root / Ladder_State_01_0 / Object_' + index,
+  }));
+  const groups = aggregateLadderGroups(items);
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].nodeKey, parent);
+  assert.equal(groups[0].dimensions[1], 2.2);
+  assert.equal(classifyComponent(mesh('Object_4'), 'world-prop', 'data/models/assets/others/stair.glb').kind, 'stairs');
+});
+
+test('only real climbable prop roles make traversal candidates; collision proxies and building walls are excluded', () => {
+  const fence = classifyComponent(mesh('Fence_Panel_01', [2.1, 1.2, 0.12]), 'world-prop', 'data/models/assets/others/fence.glb');
+  const wall = classifyComponent(mesh('wall_01', [4, 5, 0.2]), 'world-prop', 'data/models/assets/buildings/store.glb');
+  assert.equal(fence.kind, 'obstacle');
+  assert.equal(wall.kind, 'wall');
+  const proxy = classifyComponent(mesh('col_wall_01', [2, 1.2, 0.2], { collisionProxy: true }), 'world-prop', 'data/models/assets/others/fence.glb');
+  assert.equal(proxy, null);
 });
