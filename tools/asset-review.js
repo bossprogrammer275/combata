@@ -38,6 +38,13 @@ let manifest = [];
 let currentIndex = -1;
 let currentMeshObjects = [];
 let isolatedMesh = null;
+let currentCalibration = null;
+let currentCalibrationStale = false;
+let selectedCalibrationNodeKey = null;
+let calibrationOverlayRoot = null;
+let calibrationOverlayObjects = [];
+let showCollisionOverlay = false;
+let showSurfaceOverlay = true;
 let resizeObserver;
 
 function resize() {
@@ -54,6 +61,10 @@ resizeObserver.observe(canvas.parentElement);
 window.addEventListener('resize', resize);
 
 function disposeCurrent() {
+  clearCalibrationOverlay();
+  currentCalibration = null;
+  currentCalibrationStale = false;
+  selectedCalibrationNodeKey = null;
   currentMeshObjects = [];
   isolatedMesh = null;
   $('mesh-list')?.replaceChildren();
@@ -116,11 +127,13 @@ function inspect(root, gltf) {
       n = n.parent;
     }
     const label = chain.join(' / ') || obj.name || 'unnamed mesh';
+    const nodeKey = getAssetNodeKey(root, obj);
     obj.updateWorldMatrix(true, false);
     const meshBounds = new THREE.Box3().setFromObject(obj);
     const meshSize = meshBounds.getSize(new THREE.Vector3());
     const meshCenter = meshBounds.getCenter(new THREE.Vector3());
     meshDetails.push({
+      nodeKey,
       name: label,
       dimensions: [meshSize.x, meshSize.y, meshSize.z].map(v => Number(v.toFixed(3))),
       center: [meshCenter.x, meshCenter.y, meshCenter.z].map(v => Number(v.toFixed(3))),
@@ -129,7 +142,7 @@ function inspect(root, gltf) {
         : Math.floor((obj.geometry?.getAttribute('position')?.count || 0) / 3),
       materials: mats.map(material => material?.name || 'unnamed'),
     });
-    meshObjects.push({ object: obj, label, visibleAtLoad: obj.visible });
+    meshObjects.push({ object: obj, label, nodeKey, visibleAtLoad: obj.visible });
     if (!seen.has(label)) { seen.add(label); meshNames.push(label); }
   });
   currentMeshObjects = meshObjects;
@@ -166,6 +179,410 @@ function inspect(root, gltf) {
     meshDetails,
     emptyBounds: !Number.isFinite(center.x) || size.length() < 0.0001,
   };
+}
+
+
+function getAssetNodeKey(root, node) {
+  const parts = [];
+  let currentNode = node;
+  while (currentNode && currentNode !== root) {
+    const parent = currentNode.parent;
+    const index = parent ? parent.children.indexOf(currentNode) : 0;
+    parts.unshift(`${currentNode.name || currentNode.type || 'node'}[${index}]`);
+    currentNode = parent;
+  }
+  return parts.join('/');
+}
+
+function calibrationHasAnchor(value) {
+  if (typeof value === 'number') return Number.isFinite(value);
+  if (typeof value === 'string') return value.trim().length > 0 && Number.isFinite(Number(value));
+  if (Array.isArray(value)) return value.length >= 3 && value.slice(0, 3).every(item => Number.isFinite(Number(item)));
+  if (!value || typeof value !== 'object') return false;
+  if (Array.isArray(value.position)) return value.position.length >= 3 && value.position.slice(0, 3).every(item => Number.isFinite(Number(item)));
+  if (value.position && ['x', 'y', 'z'].every(key => Number.isFinite(Number(value.position[key])))) return true;
+  return ['x', 'y', 'z'].every(key => Number.isFinite(Number(value[key])));
+}
+
+function selectedCalibrationComponent() {
+  return currentCalibration?.components?.find(component => component.nodeKey === selectedCalibrationNodeKey) || null;
+}
+
+function selectedCalibrationSurface() {
+  return currentCalibration?.road?.surfaces?.find(surface => surface.nodeKey === selectedCalibrationNodeKey) || null;
+}
+
+function disposeOverlayObject(object) {
+  object.traverse?.(child => {
+    child.geometry?.dispose?.();
+    const materials = Array.isArray(child.material) ? child.material : child.material ? [child.material] : [];
+    materials.forEach(material => material?.dispose?.());
+  });
+  if (object.geometry) object.geometry.dispose();
+  const materials = Array.isArray(object.material) ? object.material : object.material ? [object.material] : [];
+  materials.forEach(material => material?.dispose?.());
+}
+
+function clearCalibrationOverlay() {
+  if (calibrationOverlayRoot) {
+    calibrationOverlayRoot.traverse(child => {
+      if (child.geometry) child.geometry.dispose();
+      const materials = Array.isArray(child.material) ? child.material : child.material ? [child.material] : [];
+      materials.forEach(material => material?.dispose?.());
+    });
+    calibrationOverlayRoot.removeFromParent();
+  }
+  calibrationOverlayRoot = null;
+  calibrationOverlayObjects = [];
+}
+
+function addCalibrationBox(bounds, color = 0xe07b72, opacity = 0.92) {
+  if (!calibrationOverlayRoot || !bounds?.min || !bounds?.max) return;
+  const min = bounds.min, max = bounds.max;
+  const size = new THREE.Vector3(
+    Number(max[0]) - Number(min[0]),
+    Number(max[1]) - Number(min[1]),
+    Number(max[2]) - Number(min[2]),
+  );
+  if (![size.x, size.y, size.z].every(Number.isFinite) || Math.max(size.x, size.y, size.z) <= 0) return;
+  const geometry = new THREE.EdgesGeometry(new THREE.BoxGeometry(
+    Math.max(0.005, size.x), Math.max(0.005, size.y), Math.max(0.005, size.z),
+  ));
+  const material = new THREE.LineBasicMaterial({ color, transparent: true, opacity, depthTest: false });
+  const lines = new THREE.LineSegments(geometry, material);
+  lines.position.set(
+    (Number(min[0]) + Number(max[0])) * 0.5,
+    (Number(min[1]) + Number(max[1])) * 0.5,
+    (Number(min[2]) + Number(max[2])) * 0.5,
+  );
+  lines.renderOrder = 1000;
+  calibrationOverlayRoot.add(lines);
+}
+
+function addCalibrationMarker(position, color, radius = 0.13) {
+  if (!calibrationOverlayRoot || !Array.isArray(position) || position.length < 3) return;
+  if (!position.slice(0, 3).every(value => Number.isFinite(Number(value)))) return;
+  const geometry = new THREE.SphereGeometry(radius, 10, 8);
+  const material = new THREE.MeshBasicMaterial({ color, depthTest: false });
+  const marker = new THREE.Mesh(geometry, material);
+  marker.position.set(Number(position[0]), Number(position[1]), Number(position[2]));
+  marker.renderOrder = 1001;
+  calibrationOverlayRoot.add(marker);
+}
+
+function renderCalibrationOverlay() {
+  clearCalibrationOverlay();
+  if (!current || !currentCalibration) return;
+  calibrationOverlayRoot = new THREE.Group();
+  calibrationOverlayRoot.name = 'asset-calibration-review-overlays';
+  calibrationOverlayRoot.renderOrder = 999;
+  current.add(calibrationOverlayRoot);
+
+  if (showCollisionOverlay) {
+    for (const box of currentCalibration.collision?.boxes || []) {
+      if (Array.isArray(box) && box.length >= 6) {
+        const [x, y, z, w, h, d] = box;
+        addCalibrationBox({
+          min: [x - w / 2, y - h / 2, z - d / 2],
+          max: [x + w / 2, y + h / 2, z + d / 2],
+        }, 0xe07b72, 0.78);
+      } else if (box?.center && box?.size) {
+        const [x, y, z] = box.center, [w, h, d] = box.size;
+        addCalibrationBox({
+          min: [x - w / 2, y - h / 2, z - d / 2],
+          max: [x + w / 2, y + h / 2, z + d / 2],
+        }, 0xe07b72, 0.78);
+      } else if (box?.min && box?.max) {
+        addCalibrationBox(box, 0xe07b72, 0.78);
+      }
+    }
+  }
+
+  if (showSurfaceOverlay) {
+    const surfaces = currentCalibration.road?.surfaces || [];
+    for (const surface of surfaces) {
+      const component = currentCalibration.components?.find(item => item.nodeKey === surface.nodeKey);
+      if (component?.bounds) addCalibrationBox(component.bounds, surface.runtimeEnabled ? 0x79d4a1 : 0xd6b86e, 0.95);
+      const connection = surface.connection;
+      if (connection?.start?.position && connection?.end?.position) {
+        addCalibrationMarker(connection.start.position, connection.accepted === true ? 0x47d78b : 0xe1b65d, 0.17);
+        addCalibrationMarker(connection.end.position, connection.accepted === true ? 0x47d78b : 0xe1b65d, 0.17);
+        const points = [
+          new THREE.Vector3(...connection.start.position),
+          new THREE.Vector3(...connection.end.position),
+        ];
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        const material = new THREE.LineBasicMaterial({
+          color: connection.accepted === true ? 0x47d78b : 0xe1b65d,
+          depthTest: false,
+        });
+        const line = new THREE.Line(geometry, material);
+        line.renderOrder = 1002;
+        calibrationOverlayRoot.add(line);
+      }
+    }
+  }
+
+  const selected = selectedCalibrationComponent();
+  if (selected?.bounds) addCalibrationBox(selected.bounds, 0x75b9ef, 1);
+  current.updateMatrixWorld(true);
+}
+
+function setCalibrationStatus(message, tone = 'normal') {
+  const node = $('calibration-status');
+  node.textContent = message;
+  node.className = tone === 'error' ? 'error' : tone === 'warning' ? 'warning' : '';
+}
+
+function updateCalibrationSummary() {
+  if (!currentCalibration) return;
+  const components = currentCalibration.components || [];
+  const surfaces = currentCalibration.road?.surfaces || [];
+  $('calibration-components').textContent = components.length;
+  $('calibration-boxes').textContent = currentCalibration.collision?.boxCount
+    ?? currentCalibration.collision?.boxes?.length ?? 0;
+  $('calibration-surfaces').textContent = surfaces.length;
+  const status = currentCalibrationStale ? 'STALE SOURCE HASH · regenerate calibration before saving'
+    : (currentCalibration.review?.status || 'needs-review').toUpperCase()
+      + ' · ' + (currentCalibration.review?.outstanding?.length || 0) + ' outstanding';
+  setCalibrationStatus(status, currentCalibrationStale ? 'error' : currentCalibration.review?.approved ? 'normal' : 'warning');
+}
+
+function refreshCalibrationEditors() {
+  const select = $('calibration-component');
+  const components = currentCalibration?.components || [];
+  const previous = selectedCalibrationNodeKey;
+  select.replaceChildren();
+  for (const component of components) {
+    const option = document.createElement('option');
+    option.value = component.nodeKey;
+    const state = component.requiresReview === false ? 'reviewed' : 'needs review';
+    option.textContent = `${component.role} · ${component.name || component.nodePath || component.nodeKey} · ${state}`;
+    select.append(option);
+  }
+  if (!components.length) {
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'No detected components';
+    select.append(option);
+    selectedCalibrationNodeKey = null;
+  } else {
+    selectedCalibrationNodeKey = components.some(item => item.nodeKey === previous)
+      ? previous : components[0].nodeKey;
+    select.value = selectedCalibrationNodeKey;
+  }
+  const component = selectedCalibrationComponent();
+  $('calibration-json').value = component ? JSON.stringify(component, null, 2) : '';
+  const surface = selectedCalibrationSurface();
+  $('calibration-connection-json').value = surface?.connection ? JSON.stringify(surface.connection, null, 2) : '';
+  const hasComponent = !!component;
+  const hasSurface = !!surface;
+  $('calibration-save-component').disabled = !hasComponent || currentCalibrationStale;
+  $('calibration-accept-component').disabled = !hasComponent || currentCalibrationStale;
+  $('calibration-save-connection').disabled = !hasSurface || currentCalibrationStale;
+  $('calibration-accept-connection').disabled = !hasSurface || currentCalibrationStale;
+  updateCalibrationSummary();
+}
+
+async function loadCalibrationForCurrent() {
+  currentCalibration = null;
+  currentCalibrationStale = false;
+  selectedCalibrationNodeKey = null;
+  if (!currentEntry) return;
+  try {
+    const response = await fetch('/api/asset-calibration?path=' + encodeURIComponent(currentEntry.path), { cache: 'no-store' });
+    if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || ('HTTP ' + response.status));
+    const result = await response.json();
+    currentCalibration = result.exists ? result.data : null;
+    currentCalibrationStale = !!result.stale;
+    if (!currentCalibration) {
+      $('calibration-components').textContent = '—';
+      $('calibration-boxes').textContent = '—';
+      $('calibration-surfaces').textContent = '—';
+      $('calibration-component').replaceChildren();
+      $('calibration-json').value = '';
+      $('calibration-connection-json').value = '';
+      setCalibrationStatus('No sidecar yet · run pnpm calibrate:asset -- ' + currentEntry.path, 'warning');
+      ['calibration-save-component','calibration-accept-component','calibration-save-connection','calibration-accept-connection'].forEach(id => { $(id).disabled = true; });
+      renderCalibrationOverlay();
+      return;
+    }
+    refreshCalibrationEditors();
+    if (currentCalibrationStale) {
+      setCalibrationStatus('STALE SOURCE HASH · source model changed; rerun calibrator before saving', 'error');
+      ['calibration-save-component','calibration-accept-component','calibration-save-connection','calibration-accept-connection'].forEach(id => { $(id).disabled = true; });
+    } else if (!currentCalibration.review?.approved) {
+      setCalibrationStatus((currentCalibration.review?.status || 'NEEDS REVIEW').toUpperCase()
+        + ' · ' + (currentCalibration.review?.outstanding?.length || 0) + ' outstanding', 'warning');
+    }
+    renderCalibrationOverlay();
+  } catch (error) {
+    setCalibrationStatus('Calibration API unavailable: ' + (error?.message || String(error)), 'error');
+  }
+}
+
+function recomputeCalibrationReview() {
+  if (!currentCalibration) return;
+  const components = currentCalibration.components || [];
+  const outstanding = [
+    ...components.filter(component => component.requiresReview !== false).map(component => ({
+      componentId: component.id, nodeKey: component.nodeKey, role: component.role,
+      reason: 'Confirm component identity, bounds, anchors and runtime behaviour.',
+    })),
+    ...(currentCalibration.traversal || []).filter(candidate => candidate.requiresReview !== false).map(candidate => ({
+      componentId: candidate.componentId, nodeKey: candidate.nodeKey, role: candidate.actionCandidate,
+      reason: 'Confirm animation contact, capsule clearance and landing support.',
+    })),
+    ...(currentCalibration.road?.surfaces || []).filter(surface =>
+      surface.connection?.status !== 'estimated'
+      || surface.connection?.accepted !== true
+      || surface.connection?.requiresReview !== false
+    ).map(surface => ({
+      componentId: surface.id, nodeKey: surface.nodeKey, role: surface.role,
+      reason: 'Approve the imported road/bridge connection after checking endpoints and width.',
+    })),
+  ];
+  currentCalibration.review ||= {};
+  currentCalibration.review.outstanding = outstanding;
+  currentCalibration.review.approved = outstanding.length === 0;
+  currentCalibration.review.status = outstanding.length ? 'needs-review' : 'approved';
+  currentCalibration.review.lastReviewedAt = new Date().toISOString();
+  currentCalibration.interactions = components.filter(component => component.interaction).map(component => ({
+    componentId: component.id,
+    nodeKey: component.nodeKey,
+    kind: component.interaction.kind,
+    accepted: component.interaction.accepted === true,
+    requiredAnchors: component.interaction.requiredAnchors || [],
+    bounds: component.bounds,
+    confidence: component.confidence,
+    requiresReview: component.requiresReview !== false,
+  }));
+  currentCalibration.collision ||= {};
+  currentCalibration.collision.excludedDriveableMeshKeys = components
+    .filter(component => component.runtimeEnabled === true
+      && ['bridge-deck', 'road-surface', 'road-straight-module', 'road-corner-module', 'walkable-surface'].includes(component.role))
+    .map(component => component.nodeKey);
+}
+
+function saveParsedComponent() {
+  if (!currentCalibration || currentCalibrationStale) throw new Error('Calibration is missing or stale.');
+  const component = JSON.parse($('calibration-json').value);
+  if (component.nodeKey !== selectedCalibrationNodeKey) throw new Error('Component nodeKey cannot be changed.');
+  const index = currentCalibration.components.findIndex(item => item.nodeKey === selectedCalibrationNodeKey);
+  if (index < 0) throw new Error('Selected component no longer exists.');
+  currentCalibration.components[index] = component;
+  recomputeCalibrationReview();
+  refreshCalibrationEditors();
+  renderCalibrationOverlay();
+  return component;
+}
+
+function saveSelectedComponent() {
+  try {
+    saveParsedComponent();
+    setCalibrationStatus('Component edits applied in memory. Save the sidecar after reviewing.', 'normal');
+  } catch (error) {
+    setCalibrationStatus('Component edit rejected: ' + (error?.message || String(error)), 'error');
+  }
+}
+
+function acceptSelectedComponent() {
+  try {
+    const component = saveParsedComponent();
+    const interaction = component.interaction;
+    if (interaction) {
+      const anchors = interaction.anchors || {};
+      const missing = (interaction.requiredAnchors || []).filter(key => !calibrationHasAnchor(anchors[key]));
+      if (missing.length) throw new Error('Missing required anchors: ' + missing.join(', '));
+      interaction.accepted = true;
+    }
+    component.manual = true;
+    component.requiresReview = false;
+    recomputeCalibrationReview();
+    refreshCalibrationEditors();
+    renderCalibrationOverlay();
+    setCalibrationStatus('Component accepted locally. Save the sidecar to make the decision persistent.', 'normal');
+  } catch (error) {
+    setCalibrationStatus('Acceptance rejected: ' + (error?.message || String(error)), 'error');
+  }
+}
+
+function saveSelectedConnection() {
+  try {
+    if (!currentCalibration || currentCalibrationStale) throw new Error('Calibration is missing or stale.');
+    const surface = selectedCalibrationSurface();
+    if (!surface) throw new Error('Select a road/bridge surface component first.');
+    const connection = JSON.parse($('calibration-connection-json').value);
+    surface.connection = connection;
+    const component = selectedCalibrationComponent();
+    if (component && connection.accepted !== true) component.requiresReview = true;
+    recomputeCalibrationReview();
+    refreshCalibrationEditors();
+    renderCalibrationOverlay();
+    setCalibrationStatus('Connection edits applied in memory. Review the endpoint overlay before approval.', 'normal');
+  } catch (error) {
+    setCalibrationStatus('Connection edit rejected: ' + (error?.message || String(error)), 'error');
+  }
+}
+
+function approveSelectedRoadConnection() {
+  try {
+    if (!currentCalibration || currentCalibrationStale) throw new Error('Calibration is missing or stale.');
+    const surface = selectedCalibrationSurface();
+    const component = selectedCalibrationComponent();
+    if (!surface || !component) throw new Error('Select a road/bridge surface component first.');
+    const allowedRoles = ['bridge-deck', 'road-surface', 'road-straight-module', 'road-corner-module'];
+    if (!allowedRoles.includes(component.role) || component.runtimeEnabled !== true) {
+      throw new Error('This source mesh is not in a recognised driveable-surface collision profile.');
+    }
+    const excluded = currentCalibration.collision?.excludedDriveableMeshKeys || [];
+    if (!excluded.includes(component.nodeKey)) {
+      throw new Error('Surface is not excluded from static box generation. Regenerate calibration before approving it.');
+    }
+    const connection = JSON.parse($('calibration-connection-json').value);
+    if (connection.status !== 'estimated') throw new Error('Curved/ambiguous geometry needs a manually measured connection profile before approval.');
+    if (!Array.isArray(connection.start?.position) || !Array.isArray(connection.end?.position)
+      || ![...connection.start.position, ...connection.end.position].slice(0, 6).every(value => Number.isFinite(Number(value)))
+      || !(Number(connection.width) > 0.5)) {
+      throw new Error('Connection needs finite local endpoints and a usable width.');
+    }
+    connection.accepted = true;
+    connection.requiresReview = false;
+    connection.method = connection.method || 'manual-review-of-bounds-estimate';
+    surface.connection = connection;
+    surface.runtimeEnabled = true;
+    surface.requiresReview = false;
+    component.runtimeEnabled = true;
+    component.requiresReview = false;
+    component.manual = true;
+    recomputeCalibrationReview();
+    refreshCalibrationEditors();
+    renderCalibrationOverlay();
+    setCalibrationStatus('Tyre route approved locally. Save the sidecar to activate it in the game on next world load.', 'normal');
+  } catch (error) {
+    setCalibrationStatus('Route approval rejected: ' + (error?.message || String(error)), 'error');
+  }
+}
+
+async function persistCalibration() {
+  if (!currentCalibration || currentCalibrationStale || !currentEntry) {
+    setCalibrationStatus('Cannot save missing or stale calibration.', 'error');
+    return;
+  }
+  try {
+    recomputeCalibrationReview();
+    const response = await fetch('/api/asset-calibration', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: currentEntry.path, data: JSON.stringify(currentCalibration, null, 2) }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || ('HTTP ' + response.status));
+    setCalibrationStatus('Saved ' + result.path + ' · reload the world to apply accepted anchors/routes.', 'normal');
+    refreshCalibrationEditors();
+  } catch (error) {
+    setCalibrationStatus('Calibration save failed: ' + (error?.message || String(error)), 'error');
+  }
 }
 
 function frame(root) {
@@ -278,6 +695,7 @@ async function loadAsset(index) {
   frame(current);
   const report = inspect(current, gltf);
   updatePanel(report, index, manifest.length, report.emptyBounds ? 'Loaded, but model bounds are empty or degenerate.' : 'Loaded and rendered successfully.');
+  await loadCalibrationForCurrent();
   return report;
 }
 
@@ -301,6 +719,28 @@ async function setView(view) {
 async function init() {
   $('mesh-filter').addEventListener('input', renderMeshList);
   $('mesh-show-all').addEventListener('click', showAllMeshes);
+  $('calibration-component').addEventListener('change', event => {
+    selectedCalibrationNodeKey = event.target.value || null;
+    refreshCalibrationEditors();
+    renderCalibrationOverlay();
+    const mesh = currentMeshObjects.find(item => item.nodeKey === selectedCalibrationNodeKey)?.object;
+    if (mesh) isolateMesh(mesh);
+  });
+  $('calibration-show-collision').addEventListener('click', () => {
+    showCollisionOverlay = !showCollisionOverlay;
+    $('calibration-show-collision').textContent = showCollisionOverlay ? 'Hide collision boxes' : 'Show collision boxes';
+    renderCalibrationOverlay();
+  });
+  $('calibration-show-surfaces').addEventListener('click', () => {
+    showSurfaceOverlay = !showSurfaceOverlay;
+    $('calibration-show-surfaces').textContent = showSurfaceOverlay ? 'Hide road profiles' : 'Show road profiles';
+    renderCalibrationOverlay();
+  });
+  $('calibration-save-component').addEventListener('click', saveSelectedComponent);
+  $('calibration-accept-component').addEventListener('click', acceptSelectedComponent);
+  $('calibration-save-connection').addEventListener('click', saveSelectedConnection);
+  $('calibration-accept-connection').addEventListener('click', approveSelectedRoadConnection);
+  $('calibration-persist').addEventListener('click', persistCalibration);
   $('asset-prev').addEventListener('click', () => {
     if (currentIndex > 0) loadAsset(currentIndex - 1).catch(reportLoadError);
   });
@@ -313,7 +753,8 @@ async function init() {
   manifest = await response.json();
   $('status').textContent = 'Manifest loaded · ' + manifest.length + ' model files queued.';
   window.__ASSET_REVIEW__ = {
-    manifest, loadAsset, setView, showAllMeshes,
+    manifest, loadAsset, setView, showAllMeshes, loadCalibrationForCurrent,
+    getCalibration: () => currentCalibration,
     isolateMesh: (index) => currentMeshObjects[index] && isolateMesh(currentMeshObjects[index].object),
     getCurrent: () => currentEntry,
     getMeshList: () => currentMeshObjects.map(({ label, visibleAtLoad }) => ({ label, visibleAtLoad })),
