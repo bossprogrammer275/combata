@@ -8,6 +8,8 @@ import {
   aggregateVehicleWheelGroups,
   aggregateLadderGroups,
   aggregateNamedAssetSeat,
+  isNativeCollisionProxy,
+  buildNativeCollisionProxyRecords,
   localConnection,
   makeComponent,
   buildRoadProfiles,
@@ -260,4 +262,36 @@ test('an explicitly named plastic chair is aggregated as one review-only seat', 
   assert.equal(component.interaction.kind, 'seat');
   assert.deepEqual(component.interaction.requiredAnchors, ['approach', 'pelvis', 'seatFacing', 'exit']);
   assert.equal(component.requiresReview, true);
+});
+
+
+test('authored col_* meshes are recorded as native collision authority, not generated duplicate boxes', () => {
+  const items = [
+    {
+      ...mesh('col_wall_01', [2, 2.5, 0.2], { collisionProxy: true }),
+      nodeKey: 'Root[0]/collision_proxies[0]/col_wall_01[0]',
+      nodePath: 'Root / collision_proxies / col_wall_01',
+      collisionProxy: true,
+    },
+    {
+      ...mesh('window_01', [0.8, 0.8, 0.05], { collisionProxy: true }),
+      nodeKey: 'Root[0]/window_01[1]',
+      nodePath: 'Root / window_01',
+      collisionProxy: true,
+    },
+    {
+      ...mesh('wall_01', [4, 3, 0.2]),
+      nodeKey: 'Root[0]/wall_01[2]',
+      nodePath: 'Root / wall_01',
+      collisionProxy: false,
+    },
+  ];
+  assert.equal(isNativeCollisionProxy(items[0]), true);
+  assert.equal(isNativeCollisionProxy(items[1]), false);
+  assert.equal(isNativeCollisionProxy(items[2]), false);
+  const proxies = buildNativeCollisionProxyRecords(items);
+  assert.equal(proxies.length, 1);
+  assert.equal(proxies[0].nodeKey, items[0].nodeKey);
+  assert.equal(proxies[0].runtimeAuthority, 'world-native-col-proxy');
+  assert.deepEqual(proxies[0].bounds.size, [2, 2.5, 0.2]);
 });
