@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Upload civilian_001 to Mixamo using the saved local browser profile."""
+"""Upload npc_core_001 to Mixamo using the saved local browser profile."""
 from __future__ import annotations
 import argparse
 import json
@@ -11,8 +11,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 MIXAMO_DIR = ROOT / "tools" / "mixamo-mcp"
-OUT = ROOT / "data" / "models" / "npc" / "civilian_001"
-CHARACTER_ID = "civilian_001"
+OUT = ROOT / "data" / "models" / "npc" / "npc_core_001"
+CHARACTER_ID = "npc_core_001"
 AUTO_MODE = False
 SOURCE_BUNDLE = OUT / f"{CHARACTER_ID}_mixamo_source.zip"
 
@@ -776,7 +776,7 @@ def download_clip(page, download_mod, animations_mod, output_path, include_skin,
 def parse_args():
     parser = argparse.ArgumentParser(description="Rig the civilian and download selected Mixamo animation clips.")
     parser.add_argument("--animations", default="idle,walk,run,sprint,jump,crouch_idle,crouch_walk,talk,phone,sit_idle,sit_down,stand_up,look_around,work_idle,wave,hit_reaction,fear_reaction,flee_run,fall_death,get_up")
-    parser.add_argument("--id", default="civilian_001")
+    parser.add_argument("--id", default="npc_core_001")
     parser.add_argument("--fps", type=int, default=30, choices=(24, 25, 30, 48, 50, 60))
     parser.add_argument("--output", default=None)
     parser.add_argument("--auto", action="store_true", help="Automatically rank, select and download matching animation clips.")
