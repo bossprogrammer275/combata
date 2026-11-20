@@ -304,18 +304,17 @@ function renderCalibrationOverlay() {
       const component = currentCalibration.components?.find(item => item.nodeKey === surface.nodeKey);
       if (component?.bounds) addCalibrationBox(component.bounds, surface.runtimeEnabled ? 0x79d4a1 : 0xd6b86e, 0.95);
       const connection = surface.connection;
-      if (connection?.start?.position && connection?.end?.position) {
-        addCalibrationMarker(connection.start.position, connection.accepted === true ? 0x47d78b : 0xe1b65d, 0.17);
-        addCalibrationMarker(connection.end.position, connection.accepted === true ? 0x47d78b : 0xe1b65d, 0.17);
-        const points = [
-          new THREE.Vector3(...connection.start.position),
-          new THREE.Vector3(...connection.end.position),
-        ];
+      const localPoints = Array.isArray(connection?.points) && connection.points.length >= 2
+        ? connection.points
+        : (connection?.start?.position && connection?.end?.position
+          ? [connection.start.position, connection.end.position] : []);
+      if (localPoints.length >= 2) {
+        const color = connection.accepted === true ? 0x47d78b : 0xe1b65d;
+        addCalibrationMarker(localPoints[0], color, 0.17);
+        addCalibrationMarker(localPoints[localPoints.length - 1], color, 0.17);
+        const points = localPoints.map(point => new THREE.Vector3(Number(point[0]), Number(point[1]), Number(point[2])));
         const geometry = new THREE.BufferGeometry().setFromPoints(points);
-        const material = new THREE.LineBasicMaterial({
-          color: connection.accepted === true ? 0x47d78b : 0xe1b65d,
-          depthTest: false,
-        });
+        const material = new THREE.LineBasicMaterial({ color, depthTest: false });
         const line = new THREE.Line(geometry, material);
         line.renderOrder = 1002;
         calibrationOverlayRoot.add(line);
@@ -572,9 +571,17 @@ function approveSelectedRoadConnection() {
     const connection = JSON.parse($('calibration-connection-json').value);
     if (connection.status !== 'estimated') throw new Error('Curved/ambiguous geometry needs a manually measured connection profile before approval.');
     if (!Array.isArray(connection.start?.position) || !Array.isArray(connection.end?.position)
-      || ![...connection.start.position, ...connection.end.position].slice(0, 6).every(value => Number.isFinite(Number(value)))
+      || ![...connection.start.position.slice(0, 3), ...connection.end.position.slice(0, 3)].every(value => Number.isFinite(Number(value)))
       || !(Number(connection.width) > 0.5)) {
       throw new Error('Connection needs finite local endpoints and a usable width.');
+    }
+    const needsPolyline = /curve|sloped|ramp/i.test(surface.sectionKind || '')
+      || surface.role === 'road-corner-module';
+    if (needsPolyline && (!Array.isArray(connection.points)
+      || connection.points.length < 3
+      || connection.points.some(point => !Array.isArray(point)
+        || point.length < 3 || !point.slice(0, 3).every(value => Number.isFinite(Number(value)))))) {
+      throw new Error('Curved/sloped surfaces need at least three manually measured centreline points.');
     }
     connection.accepted = true;
     connection.requiresReview = false;
