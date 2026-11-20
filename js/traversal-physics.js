@@ -188,9 +188,15 @@ export function buildLadderTraversalPath(options = {}) {
   if (!start || climbPoints.length < 2 || climbPoints.some(point => !point)) return null;
   const rungSpacing = Number(options.rungSpacing);
   if (!Number.isFinite(rungSpacing) || rungSpacing < 0.12 || rungSpacing > 0.6) return null;
-  const pathPoints = [start, ...climbPoints];
+  const mountBottom = point3(options.mountBottom);
+  const mountTop = point3(options.mountTop);
   const topOut = point3(options.topOut);
-  if (topOut) pathPoints.push(topOut);
+  const pathPoints = [start];
+  for (const point of [mountBottom, ...climbPoints, mountTop, topOut]) {
+    if (!point) continue;
+    if (distance3(pathPoints.at(-1), point) > 0.04) pathPoints.push(point);
+  }
+  if (pathPoints.length < 3) return null;
   const distances = [0];
   for (let i = 1; i < pathPoints.length; i++) {
     distances.push(distances[i - 1] + distance3(pathPoints[i - 1], pathPoints[i]));
