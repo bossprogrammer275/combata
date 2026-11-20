@@ -7,6 +7,7 @@ import {
   isPlausibleWheelGeometry,
   aggregateVehicleWheelGroups,
   aggregateLadderGroups,
+  aggregateNamedAssetSeat,
   localConnection,
   makeComponent,
   buildRoadProfiles,
@@ -224,4 +225,39 @@ test('only real climbable prop roles make traversal candidates; collision proxie
   assert.equal(wall.kind, 'wall');
   const proxy = classifyComponent(mesh('col_wall_01', [2, 1.2, 0.2], { collisionProxy: true }), 'world-prop', 'data/models/assets/others/fence.glb');
   assert.equal(proxy, null);
+});
+
+
+test('an explicitly named plastic chair is aggregated as one review-only seat', () => {
+  const items = [
+    {
+      ...mesh('SeatMesh', [0.4, 0.35, 0.4]),
+      nodeKey: 'Root[0]/ChairGroup[0]/SeatMesh[0]',
+      nodePath: 'Root / ChairGroup / SeatMesh',
+      boundsMin: [-0.3, 0.4, -0.3],
+      boundsMax: [0.3, 0.8, 0.3],
+    },
+    {
+      ...mesh('LegMesh', [0.08, 0.45, 0.08]),
+      nodeKey: 'Root[0]/ChairGroup[0]/LegMesh[1]',
+      nodePath: 'Root / ChairGroup / LegMesh',
+      boundsMin: [-0.25, 0, -0.25],
+      boundsMax: [0.25, 0.45, 0.25],
+    },
+    {
+      ...mesh('col_wall_01', [0.6, 0.8, 0.6], { collisionProxy: true }),
+      nodeKey: 'Root[0]/collision_proxies[1]/col_wall_01[0]',
+      nodePath: 'Root / collision_proxies / col_wall_01',
+      collisionProxy: true,
+    },
+  ];
+  const result = aggregateNamedAssetSeat(items, 'data/models/assets/others/plastic_chair.glb');
+  assert.ok(result);
+  assert.equal(result.item.nodeKey, 'Root[0]/ChairGroup[0]');
+  assert.equal(result.role.kind, 'seat');
+  assert.deepEqual(result.item.dimensions, [0.6, 0.8, 0.6]);
+  const component = makeComponent(result.item, result.role, 0, 'world-prop');
+  assert.equal(component.interaction.kind, 'seat');
+  assert.deepEqual(component.interaction.requiredAnchors, ['approach', 'pelvis', 'seatFacing', 'exit']);
+  assert.equal(component.requiresReview, true);
 });
