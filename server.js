@@ -66,7 +66,7 @@ const CALIBRATION_ROOTS = [
 
 function resolveCalibrationSource(input) {
   const raw = String(input || '').replace(/\\/g, '/').replace(/^\/+/, '');
-  if (!raw || raw.includes('..') || !/\\.(glb|gltf)$/i.test(raw)) return null;
+  if (!raw || raw.includes('..') || !/\.(glb|gltf)$/i.test(raw)) return null;
   const absolute = resolve(__dirname, raw);
   const allowed = CALIBRATION_ROOTS.some(root => {
     const rel = relative(root, absolute);
