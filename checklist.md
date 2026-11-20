@@ -985,7 +985,8 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 - [x] Add regression tests for road/bridge calibration and for traversal paths, capsule blockage, supported landing, limb-contact contracts and ladder/obstacle geometry rules.
 - [x] Add `.github/workflows/asset-calibrator-tests.yml` covering calibration, traversal, player/NPC, world, physics, editor and server syntax.
 - [x] Source-level syntax parsing succeeded for all touched runtime, editor, calibration and test modules in this editing session.
-- [ ] Complete the current GitHub Actions run for the combined calibration/traversal tests and native `node --check` sweep. Latest run: [44812890463](https://github.com/bossprogrammer275/combata/actions/runs/44812890463), currently queued when this checklist was updated.
+- [x] Run the combined calibration/traversal regression suite in GitHub Actions: **18 passed, 0 failed**. Run [44812890463](https://github.com/bossprogrammer275/combata/actions/runs/44812890463) completed successfully.
+- [x] Run the native `node --check` sweep over the calibrator, traversal solver, player, civilians, NPC animation system, world, physics, vehicles, review UI and server in the same CI job.
 - [ ] Generate, validate and visually review sidecars for the modular bridge kit, Road Pack, street-road asset, sidewalk pack, representative building/prop assets and all current vehicle GLBs/GLTFs.
 - [ ] Compare generated unified collision boxes against existing `*_col.json` sidecars and actual world behaviour before migrating or replacing any legacy sidecar.
 - [ ] Complete scale/origin/up-axis inference using trustworthy reference dimensions. Do not auto-rescale assets with unknown source units.
@@ -1005,7 +1006,7 @@ pnpm test:asset-calibration
 pnpm dev
 ```
 
-The calibrator writes `scene_calibration.json` beside the source glTF and does not rewrite the model. The combined test command is configured, but the latest GitHub Actions run is still queued; do not describe the regression suite as passing until that run completes. No representative source-asset sidecars or in-game traversal/physics tests have been executed yet.
+The calibrator writes `scene_calibration.json` beside the source glTF and does not rewrite the model. The 18 regression tests and native syntax sweep passed in GitHub Actions run [44812890463](https://github.com/bossprogrammer275/combata/actions/runs/44812890463). No representative source-asset sidecars have yet been generated/reviewed, and no browser/in-game traversal or physics test has been executed.
 ### Phase 7 — Test world and surface engine
 
 - [ ] Create `test.json`.
@@ -1067,7 +1068,7 @@ The core gameplay/test stage is not complete until:
 1. Read this entire `checklist.md` first.
 2. Treat `npc_core_001` as the only active humanoid asset; do not recreate the deleted legacy model folders or runtime modules.
 3. Inspect the current GitHub `main` branch and actual files before editing.
-4. Continue Phase 6A from its first unchecked item: complete the pending calibration/traversal CI run, then generate and validate sidecars for the bridge kit, Road Pack, street-road, sidewalks, representative buildings/props and current vehicle assets. Inspect/correct each result in `/tools/asset-review.html`.
+4. Continue Phase 6A from its first unchecked item: generate and validate sidecars for the bridge kit, Road Pack, street-road, sidewalks, representative buildings/props and current vehicle assets. Inspect/correct each result in `/tools/asset-review.html`. The 18 calibration/traversal regression tests and native syntax sweep already pass in CI run [44812890463](https://github.com/bossprogrammer275/combata/actions/runs/44812890463).
 5. Run actual browser/in-game traversal, road/bridge, NPC-seat and vehicle interaction tests. Then finish door swing/open-state collision, stair/platform measurements and any remaining scale/axis/connection work. Do not mark runtime gates complete until observed in-game.
 6. Keep NPC base-rig/animation verification open until its browser tests pass.
 7. Do not create `test.json`, populate a test map or begin Phase 7 until the user has explained the test-world design and explicitly starts that phase.
