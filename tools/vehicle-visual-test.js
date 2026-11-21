@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { VehicleSystem, CAR_PHYSICS, diagnoseCarWheelMeshes } from '../js/vehicles.js';
+import { Player } from '../js/player.js';
 
 const canvas=document.getElementById('view');
 const status=document.getElementById('status');
@@ -36,9 +37,10 @@ const world={
   },
 };
 const system=new VehicleSystem(scene,world,camera,null,null);
-const player={pos:new THREE.Vector3(),yaw:0};
+const player=new Player(camera,world,null,null);
 let current=null;
-const report={vehicles:{},screenshots:[],errors:[]};
+let interactionHelpers=[];
+const report={vehicles:{},vehicleTransitions:{},screenshots:[],errors:[]};
 let wheelHelpers=[];
 let wheelMarkerMeshes=[];
 
@@ -253,6 +255,105 @@ window.__vehicleVisualTest={
   exterior(){return setExterior();},
   setCabinLights(dome,dashboard){return setCabinLights(dome,dashboard);},
   setCameraSide(side){return setCameraSide(side);},
+  showInteractionDiagnostics() {
+    for (const helper of interactionHelpers) scene.remove(helper);
+    interactionHelpers=[];
+    const anchors=current?.interactionAnchors;
+    if(!current||!anchors)return {seats:[],doors:[]};
+    const makeMarker=(local,color,radius)=>{
+      const worldPoint=current.root.localToWorld(local.clone());
+      const marker=new THREE.Mesh(
+        new THREE.SphereGeometry(radius,12,8),
+        new THREE.MeshBasicMaterial({color,depthTest:false})
+      );
+      marker.position.copy(worldPoint);marker.renderOrder=20;
+      scene.add(marker);interactionHelpers.push(marker);
+    };
+    const seats=(anchors.seats||[]).map(seat=>{
+      makeMarker(seat.anchors.occupant,seat.accepted?0x40ed8a:0xffbf47,0.13);
+      makeMarker(seat.anchors.entry,0x35a7ff,0.095);
+      return {name:seat.name,role:seat.role,accepted:seat.accepted,estimated:seat.estimated,
+        occupant:seat.anchors.occupant.toArray(),entry:seat.anchors.entry.toArray()};
+    });
+    const doors=(anchors.doorCandidates||[]).map(item=>({
+      name:item.name,accepted:item.accepted,reason:item.reason,
+      center:item.bounds.center.toArray(),size:item.bounds.size.toArray(),
+    }));
+    render();
+    return {seats,doors,inventory:anchors.meshInventory||[]};
+  },
+  async startEntry(kind) {
+    await load(kind);
+    system.driver=null;
+    if(!player.char._isBuilt){
+      const began=performance.now();
+      while(!player.char._isBuilt&&performance.now()-began<25000){
+        await new Promise(resolve=>setTimeout(resolve,40));
+      }
+    }
+    if(!player.char._isBuilt)throw new Error('npc_core_001 player rig did not finish loading');
+    const vehicle=current;
+    player.char.setFirstPerson(false);
+    player.pos.set(vehicle.pos.x+vehicle.half.x+0.7,vehicle.pos.y,vehicle.pos.z+0.1);
+    player.vel.set(0,0,0);player.yaw=0;player.bodyYaw=0;
+    player.onGround=true;player.firstPerson=false;player.actionAnimation=null;
+    if(player.char.root.parent!==scene)scene.add(player.char.root);
+    player.char.root.visible=true;
+    player.char.setState(player.getState(),0);
+    const result={
+      model:kind,
+      actionDurations:{
+        punch:player.char.getActionDuration('punch'),
+        enter:player.char.getActionDuration('enter_vehicle'),
+        exit:player.char.getActionDuration('exit_vehicle'),
+        driving:player.char.getActionDuration('vehicle_driver_idle'),
+      },
+      seats:vehicle.interactionAnchors?.seats?.map(s=>({name:s.name,role:s.role,accepted:s.accepted,estimated:s.estimated}))||[],
+      doors:vehicle.interactionAnchors?.doorCandidates?.map(d=>d.name)||[],
+    };
+    const ok=system.enter(vehicle,player);
+    report.vehicleTransitions[kind]={...result,entryStarted:ok};
+    if(!ok)throw new Error(kind+' entry refused: '+JSON.stringify(result));
+    render();
+    return report.vehicleTransitions[kind];
+  },
+  advanceTransition(frames=60) {
+    let count=0;
+    for(;count<frames&&(system._enterState||system.driver);count++){
+      system.update(1/60,{},player);
+      scene.updateMatrixWorld(true);
+    }
+    render();
+    return {
+      transition:system._enterState?.mode||null,
+      phase:system._enterState?.phase||null,
+      t:system._enterState?.t||0,
+      duration:system._enterState?.duration||0,
+      driving:!!system.driver,
+      playerParent:player.char.root.parent?.name||'',
+      playerWorldPosition:player.char.root.getWorldPosition(new THREE.Vector3()).toArray(),
+      pose:player.char._poseMode,
+      frames:count,
+    };
+  },
+  startExit() {
+    const started=system.exit(player);
+    render();
+    return {started,driver:!!system.driver,phase:system._enterState?.phase||null};
+  },
+  finishInteractionTest() {
+    const result={
+      exited:!system.driver&&!system._enterState,
+      restoredToScene:player.char.root.parent===scene,
+      finalPose:player.char._poseMode,
+      finalPosition:player.pos.toArray(),
+      interaction:report.vehicleTransitions[current?.kind]||null,
+    };
+    if(player.char.root.parent)player.char.root.parent.remove(player.char.root);
+    for(const helper of interactionHelpers)scene.remove(helper);
+    interactionHelpers=[];
+    return result;
+  },
   setWheelSteering(angle){return setWheelSteering(angle);},
   showWheelOverview(){return showWheelOverview();},
   focusWheel(quadrant){return focusWheel(quadrant);},

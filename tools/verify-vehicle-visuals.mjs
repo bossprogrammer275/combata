@@ -200,6 +200,36 @@ try{
   for(const spec of configs){
     const base=await page.evaluate(async kind=>await window.__vehicleVisualTest.load(kind),spec.kind);
     check(spec.kind+' loads through the actual VehicleSystem',base.meshCount>0,'meshes='+base.meshCount);
+    console.log('VEHICLE MESH INVENTORY '+JSON.stringify({
+      kind:spec.kind, rootDimensions:base.rootDimensions,
+      namedCabinMeshes:base.cabinMeshes, meshNameSamples:base.meshNameSamples,
+      interactionMeshes:base.interactionMeshes,
+    }));
+    const interactionInventory=await page.evaluate(()=>window.__vehicleVisualTest.showInteractionDiagnostics());
+    console.log('VEHICLE SEAT/DOOR AUDIT '+JSON.stringify({kind:spec.kind,seats:interactionInventory.seats,doors:interactionInventory.doors,inventory:interactionInventory.inventory}));
+    await capture(page,spec.prefix+'-seat-door-anchor-audit');
+    const entryStart=await page.evaluate(async kind=>window.__vehicleVisualTest.startEntry(kind),spec.kind);
+    check(spec.kind+' loads all player interaction animations',
+      entryStart.actionDurations.enter>0&&entryStart.actionDurations.exit>0&&entryStart.actionDurations.punch>0,
+      JSON.stringify(entryStart.actionDurations));
+    check(spec.kind+' exposes a driver-seat entry target',entryStart.entryStarted,JSON.stringify(entryStart));
+    await page.evaluate(()=>window.__vehicleVisualTest.advanceTransition(72));
+    await capture(page,spec.prefix+'-enter-animation');
+    let transition=await page.evaluate(()=>window.__vehicleVisualTest.advanceTransition(600));
+    check(spec.kind+' completes the enter transition and seats the actual rig',
+      transition.driving&&transition.playerParent!=='Scene',
+      JSON.stringify(transition));
+    await capture(page,spec.prefix+'-seated');
+    const exit=await page.evaluate(()=>window.__vehicleVisualTest.startExit());
+    check(spec.kind+' starts the real exit animation',exit.started,JSON.stringify(exit));
+    await page.evaluate(()=>window.__vehicleVisualTest.advanceTransition(72));
+    await capture(page,spec.prefix+'-exit-animation');
+    transition=await page.evaluate(()=>window.__vehicleVisualTest.advanceTransition(600));
+    const finished=await page.evaluate(()=>window.__vehicleVisualTest.finishInteractionTest());
+    check(spec.kind+' completes exit and restores player world collision state',
+      finished.exited&&finished.restoredToScene,
+      JSON.stringify({transition,finished}));
+    await capture(page,spec.prefix+'-after-exit');
     check(spec.kind+' has four road-wheel rigs',base.wheelCount===4,'wheels='+base.wheelCount);
     const wheelDiagnostics=base.wheelDiagnostics;
     const expectedQuadrants=['front-left','front-right','rear-left','rear-right'];
