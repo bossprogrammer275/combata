@@ -1223,7 +1223,8 @@
         "radius": 7,
         "count": 100
       }
-    ]
+    ],
+    "expectedAssetCount": 61
   },
   "streaming": {
     "enabled": false,
