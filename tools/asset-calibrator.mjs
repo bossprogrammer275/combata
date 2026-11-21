@@ -966,7 +966,7 @@ async function main() {
   if (failed) process.exitCode = 1;
 }
 
-export { calibrateOne, classifyAssetType, classifyComponent, isCollisionProxyComponent, isDecorativeAssetPath, isPlausibleWheelGeometry, aggregateVehicleWheelGroups, aggregateLadderGroups, aggregateNamedAssetSeat, isNativeCollisionProxy, buildNativeCollisionProxyRecords, localConnection, interactionSpec, makeComponent, buildRoadProfiles, buildBridgeProfile, preserveReviewedCalibration };
+export { calibrateOne, classifyAssetType, classifyComponent, isCollisionProxyComponent, isDecorativeAssetPath, isPlausibleWheelGeometry, aggregateVehicleWheelGroups, aggregateLadderGroups, aggregateNamedAssetSeat, isNativeCollisionProxy, buildNativeCollisionProxyRecords, localConnection, interactionSpec, makeComponent, buildRoadProfiles, buildBridgeProfile };
 
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : '';
 if (invokedPath && import.meta.url === pathToFileURL(invokedPath).href) {
