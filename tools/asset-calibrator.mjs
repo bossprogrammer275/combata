@@ -356,6 +356,7 @@ function aggregateVehicleDoorPanelCandidates(meshDetails, manifest) {
   if (!(width > 0 && height > 0 && length > 0)) return [];
   // glTF sources are not guaranteed to be centred at the origin. Do all
   // longitudinal checks in asset-centred coordinates, just like runtime.
+  // Keep this normalization shared with the browser-side mesh bounds audit.
   const assetCenterZ = (Number(boundsMin[2]) + Number(boundsMax[2])) * 0.5;
   const panels = [];
   const wheelAxles = [length * 0.25, -length * 0.25];
