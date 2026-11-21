@@ -7,6 +7,7 @@ import {
   isDecorativeAssetPath,
   isPlausibleWheelGeometry,
   aggregateVehicleWheelGroups,
+  aggregateVehicleDoorPanelCandidates,
   aggregateLadderGroups,
   aggregateNamedAssetSeat,
   isNativeCollisionProxy,
@@ -597,4 +598,44 @@ test('CamelCase vehicle doors are semantic candidates but not fixed colliders', 
   const role = classifyComponent(item, 'vehicle', 'data/models/cars/test-car/scene.gltf');
   assert.equal(role.kind, 'door');
   assert.equal(role.role, 'door-panel');
+});
+
+test('anonymous side-panel geometry becomes review-only door candidates and wheels/body meshes are rejected', () => {
+  const width = 2, height = 1.8, length = 5;
+  const makePanel = (name, x) => mesh(name, [0.18, 0.9, 1.0], {
+    boundsMin: [x - 0.09, 0.35, 0.0],
+    boundsMax: [x + 0.09, 1.25, 1.0],
+  });
+  const items = [
+    makePanel('Anonymous_Left_Front_Panel', -0.8),
+    makePanel('Anonymous_Right_Front_Panel', 0.8),
+    mesh('Wheel_FL', [0.30, 0.66, 0.66], {
+      boundsMin: [0.65, 0.0, 0.92],
+      boundsMax: [0.95, 0.66, 1.58],
+    }),
+    mesh('Combined_Car_Body', [width, height, length], {
+      boundsMin: [-1, 0, -2.5],
+      boundsMax: [1, height, 2.5],
+    }),
+  ];
+  const candidates = aggregateVehicleDoorPanelCandidates(items, {
+    dimensions: [width, height, length],
+    boundsMin: [-1, 0, -2.5],
+    boundsMax: [1, height, 2.5],
+  });
+  assert.equal(candidates.length, 2);
+  assert.deepEqual(candidates.map(item => item.side).sort(), ['left-side', 'right-side']);
+  assert.ok(candidates.every(item => item.accepted === false && item.requiresReview));
+  assert.ok(candidates.every(item => item.hingeCandidates.length === 2));
+});
+test('a single combined vehicle body does not become a false door candidate', () => {
+  const body = mesh('Lamborghini_Aventador_Body', [2.2, 1.13, 4.7], {
+    boundsMin: [-1.1, 0, -2.35],
+    boundsMax: [1.1, 1.13, 2.35],
+  });
+  assert.equal(aggregateVehicleDoorPanelCandidates([body], {
+    dimensions: [2.2, 1.13, 4.7],
+    boundsMin: [-1.1, 0, -2.35],
+    boundsMax: [1.1, 1.13, 2.35],
+  }).length, 0);
 });
