@@ -1171,6 +1171,39 @@ export class World {
     this.namedLocations = [...seen.values()];
   }
 
+  _reportTestWorldAssetLoads(assets = []) {
+    if (!this.sceneData?.testWorld) return null;
+    const normalize = url => String(url || '').replace(/\\/g, '/').replace(/^\.\//, '');
+    const remaining = new Map();
+    for (const asset of assets) {
+      const key = normalize(asset.url);
+      remaining.set(key, (remaining.get(key) || 0) + 1);
+    }
+    for (const component of this.worldKitComponents) {
+      const key = normalize(component.root?.userData?.worldKit?.sourceUrl);
+      const count = remaining.get(key) || 0;
+      if (count > 0) remaining.set(key, count - 1);
+    }
+    const missing = [];
+    for (const [url, count] of remaining) {
+      for (let i = 0; i < count; i++) missing.push(url);
+    }
+    const expectedCount = Number(this.sceneData.testWorld.expectedAssetCount) || assets.length;
+    const loadedCount = assets.length - missing.length;
+    this.testWorldAssetReport = {
+      expectedCount,
+      loadedCount,
+      missing,
+      complete: loadedCount === expectedCount && missing.length === 0,
+    };
+    if (this.testWorldAssetReport.complete) {
+      console.info('[TestWorld] All ' + loadedCount + ' authored GLB/glTF assets loaded successfully.');
+    } else {
+      console.error('[TestWorld] Asset load mismatch:', this.testWorldAssetReport);
+    }
+    return this.testWorldAssetReport;
+  }
+
   async _spawnGLBAssets(sd) {
     const assets = (sd && sd.glbAssets) || [];
     if (!assets.length) {
@@ -1194,6 +1227,7 @@ export class World {
       for (let i = 0; i < assets.length; i += concurrency) {
         await Promise.allSettled(assets.slice(i, i + concurrency).map(asset => this._loadGLBAsset(asset)));
       }
+      this._reportTestWorldAssetLoads(assets);
       this._rebuildGrid();
       return;
     }
