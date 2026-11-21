@@ -2357,14 +2357,16 @@ export class VehicleSystem {
     return best;
   }
 
-  enter(veh, player) {
+  enter(veh, player, requestedSeatId = null) {
     if (!veh || !player || this.driver || this._enterState || Math.abs(Number(veh.speed) || 0) > 1.25) return false;
     const seats = veh.interactionAnchors?.seats || [];
     if (!seats.length) return false;
+    if (requestedSeatId && !seats.some(seat => seat.id === requestedSeatId)) return false;
     veh.root.updateWorldMatrix(true, false);
     const localPlayer = veh.root.worldToLocal(player.pos.clone());
     let selected = null;
     for (const seat of seats) {
+      if (requestedSeatId && seat.id !== requestedSeatId) continue;
       if (seat.reserved || !seat.anchors?.occupant) continue;
       for (const side of [1, -1]) {
         const entryLocal = new THREE.Vector3(
