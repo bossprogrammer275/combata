@@ -45,12 +45,20 @@ assert.ok(map.roads?.length >= 5, 'Street network needs intersections and ramp c
 
 const rampRoads = map.roads.filter(road => /ramp/i.test(road.name || ''));
 assert.ok(rampRoads.length >= 3, 'Multiple diagonal hill ramps must be present.');
+const pointToSegmentDistance = (point, a, b) => {
+  const dx = b[0] - a[0], dz = b[1] - a[1];
+  const lengthSq = dx * dx + dz * dz;
+  const t = lengthSq > 1e-8
+    ? Math.max(0, Math.min(1, ((point[0] - a[0]) * dx + (point[1] - a[1]) * dz) / lengthSq))
+    : 0;
+  return Math.hypot(point[0] - (a[0] + dx * t), point[1] - (a[1] + dz * t));
+};
 for (const road of rampRoads) {
   const elevations = road.points.map(point => Number(point[2]) || 0);
   assert.ok(Math.max(...elevations) - Math.min(...elevations) > 1, road.name + ' must have a real height profile.');
   const endpoint = road.points.at(-1);
-  assert.ok(map.roads.some(other => other !== road && other.points.some(point =>
-    Math.hypot(point[0] - endpoint[0], point[1] - endpoint[1]) < 2)),
+  assert.ok(map.roads.some(other => other !== road && other.points.slice(1).some((point, index) =>
+    pointToSegmentDistance(endpoint, other.points[index], point) < 2)),
   road.name + ' must connect back into a street.');
 }
 assert.ok(map.ground?.hills?.length >= 4, 'The test map needs multiple authored hills.');
