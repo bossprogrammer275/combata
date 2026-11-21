@@ -600,42 +600,45 @@ test('CamelCase vehicle doors are semantic candidates but not fixed colliders', 
   assert.equal(role.role, 'door-panel');
 });
 
-test('anonymous side-panel geometry becomes review-only door candidates and wheels/body meshes are rejected', () => {
-  const width = 2, height = 1.8, length = 5;
-  const makePanel = (name, x) => mesh(name, [0.18, 0.9, 1.0], {
-    boundsMin: [x - 0.09, 0.35, 0.0],
-    boundsMax: [x + 0.09, 1.25, 1.0],
+test('anonymous side-panel geometry is detected with an offset asset origin; wheels and body meshes are rejected', () => {
+  const width = 2.0096, height = 1.7223, length = 5.2454;
+  const boundsMin = [-1.0188, -0.0220, -12.6305];
+  const boundsMax = [0.9908, 1.7003, -7.3852];
+  const makePanel = (name, x, localZ) => mesh(name, [0.191, 0.852, 1.077], {
+    boundsMin: [x - 0.0955, 0.5, -10.0079 + localZ - 0.5385],
+    boundsMax: [x + 0.0955, 1.352, -10.0079 + localZ + 0.5385],
   });
   const items = [
-    makePanel('Anonymous_Left_Front_Panel', -0.8),
-    makePanel('Anonymous_Right_Front_Panel', 0.8),
+    makePanel('Anonymous_Left_Front_Panel', -0.916, 0.805),
+    makePanel('Anonymous_Right_Front_Panel', 0.916, 0.805),
+    makePanel('Anonymous_Left_Rear_Panel', -0.87, -0.275),
+    makePanel('Anonymous_Right_Rear_Panel', 0.87, -0.275),
     mesh('Wheel_FL', [0.30, 0.66, 0.66], {
-      boundsMin: [0.65, 0.0, 0.92],
-      boundsMax: [0.95, 0.66, 1.58],
+      boundsMin: [0.65, 0.0, -8.97],
+      boundsMax: [0.95, 0.66, -8.31],
     }),
     mesh('Combined_Car_Body', [width, height, length], {
-      boundsMin: [-1, 0, -2.5],
-      boundsMax: [1, height, 2.5],
+      boundsMin, boundsMax,
     }),
   ];
   const candidates = aggregateVehicleDoorPanelCandidates(items, {
-    dimensions: [width, height, length],
-    boundsMin: [-1, 0, -2.5],
-    boundsMax: [1, height, 2.5],
+    dimensions: [width, height, length], boundsMin, boundsMax,
   });
-  assert.equal(candidates.length, 2);
-  assert.deepEqual(candidates.map(item => item.side).sort(), ['left-side', 'right-side']);
+  assert.equal(candidates.length, 4);
+  assert.deepEqual(candidates.map(item => item.side).sort(), [
+    'left-side','left-side','right-side','right-side',
+  ]);
   assert.ok(candidates.every(item => item.accepted === false && item.requiresReview));
   assert.ok(candidates.every(item => item.hingeCandidates.length === 2));
 });
 test('a single combined vehicle body does not become a false door candidate', () => {
   const body = mesh('Lamborghini_Aventador_Body', [2.2, 1.13, 4.7], {
-    boundsMin: [-1.1, 0, -2.35],
-    boundsMax: [1.1, 1.13, 2.35],
+    boundsMin: [-1.1, 0, -7.35],
+    boundsMax: [1.1, 1.13, -2.65],
   });
   assert.equal(aggregateVehicleDoorPanelCandidates([body], {
     dimensions: [2.2, 1.13, 4.7],
-    boundsMin: [-1.1, 0, -2.35],
-    boundsMax: [1.1, 1.13, 2.35],
+    boundsMin: [-1.1, 0, -7.35],
+    boundsMax: [1.1, 1.13, -2.65],
   }).length, 0);
 });
