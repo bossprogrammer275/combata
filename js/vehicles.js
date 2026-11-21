@@ -202,7 +202,7 @@ function collectVehicleInteractionAnchors(model, vehicleRoot) {
   // These supplied cars export generic interior nodes rather than seat names.
   // Use one measured cockpit envelope near the steering wheel / front cabin as
   // a usable driver anchor, but keep it visibly marked as estimated.
-  if (!output.seats.some(seat => seat.accepted)) {
+  if (!output.seats.length) {
     const steering = steeringNodes[0] || null;
     const occupant = steering
       ? new THREE.Vector3(
@@ -2334,7 +2334,18 @@ export class VehicleSystem {
     const anchors = veh.interactionAnchors;
     const seat = anchors?.driverSeat || anchors?.seats?.find(item => item.role === 'driver') || anchors?.seats?.[0];
     if (!seat?.anchors?.entry || !seat?.anchors?.occupant || !seat?.anchors?.exit) return false;
-    veh.activeSeat = seat;
+    // Prefer the side the player is actually standing beside, while always
+    // keeping the occupant anchor at the selected driver seat.
+    veh.root.updateWorldMatrix(true, false);
+    const localPlayer = veh.root.worldToLocal(player.pos.clone());
+    const entryLocal = seat.anchors.entry.clone();
+    const exitLocal = seat.anchors.exit.clone();
+    const approachSide = localPlayer.x >= 0 ? 1 : -1;
+    if (Math.sign(entryLocal.x || 1) !== approachSide) {
+      entryLocal.x = Math.abs(entryLocal.x) * approachSide;
+      exitLocal.x = Math.abs(exitLocal.x) * approachSide;
+    }
+    veh.activeSeat = { ...seat, anchors: { ...seat.anchors, entry: entryLocal, exit: exitLocal } };
     const entry = this._vehicleAnchorWorld(veh, 'entry');
     const occupant = this._vehicleAnchorWorld(veh, 'occupant');
     if (!entry || !occupant) { veh.activeSeat = null; return false; }
