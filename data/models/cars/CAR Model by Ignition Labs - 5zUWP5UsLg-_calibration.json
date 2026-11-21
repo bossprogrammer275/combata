@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:06:39.489Z",
+  "generatedAt": "2026-11-21T21:19:14.112Z",
   "source": {
     "assetUrl": "data/models/cars/CAR Model by Ignition Labs - 5zUWP5UsLg-.glb",
     "fileName": "CAR Model by Ignition Labs - 5zUWP5UsLg-.glb",
@@ -377,6 +377,176 @@
     "collisionAuthority": "js/vehicles.js dynamic body and wheel hardpoint classifier",
     "dynamicBodyBoxesGeneratedHere": false,
     "driverSeatCandidateId": null,
+    "meshInventory": [
+      {
+        "nodeKey": "Lamborghini_Aventador_Body[0]",
+        "nodePath": "Lamborghini_Aventador_Body",
+        "name": "Lamborghini_Aventador_Body",
+        "dimensions": [
+          230.20279693603516,
+          104.60139656066895,
+          489.44068908691406
+        ],
+        "center": [
+          -19.541500091552734,
+          65.29299831390381,
+          -27.04894256591797
+        ],
+        "boundsMin": [
+          -134.6428985595703,
+          12.992300033569336,
+          -271.769287109375
+        ],
+        "boundsMax": [
+          95.55989837646484,
+          117.59369659423828,
+          217.67140197753906
+        ],
+        "vertexCount": 5829,
+        "triangleCount": 7268,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Lamborghini_Aventador_Glass[1]",
+        "nodePath": "Lamborghini_Aventador_Glass",
+        "name": "Lamborghini_Aventador_Glass",
+        "dimensions": [
+          175.78050231933594,
+          58.10219955444336,
+          275.5941925048828
+        ],
+        "center": [
+          -19.54145050048828,
+          81.89319801330566,
+          49.33159637451172
+        ],
+        "boundsMin": [
+          -107.43170166015625,
+          52.842098236083984,
+          -88.46549987792969
+        ],
+        "boundsMax": [
+          68.34880065917969,
+          110.94429779052734,
+          187.12869262695312
+        ],
+        "vertexCount": 114,
+        "triangleCount": 128,
+        "collisionProxy": true
+      },
+      {
+        "nodeKey": "Lamborghini_Aventador_Wheel_FL[2]",
+        "nodePath": "Lamborghini_Aventador_Wheel_FL",
+        "name": "Lamborghini_Aventador_Wheel_FL",
+        "dimensions": [
+          30.50139617919922,
+          69.1172004044056,
+          69.11740112304688
+        ],
+        "center": [
+          65.88759994506836,
+          34.599000200629234,
+          99.43879699707031
+        ],
+        "boundsMin": [
+          50.63690185546875,
+          0.04039999842643738,
+          64.88009643554688
+        ],
+        "boundsMax": [
+          81.13829803466797,
+          69.15760040283203,
+          133.99749755859375
+        ],
+        "vertexCount": 655,
+        "triangleCount": 714,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Lamborghini_Aventador_Wheel_FR[3]",
+        "nodePath": "Lamborghini_Aventador_Wheel_FR",
+        "name": "Lamborghini_Aventador_Wheel_FR",
+        "dimensions": [
+          30.50139617919922,
+          69.1172004044056,
+          69.11740112304688
+        ],
+        "center": [
+          -104.97050094604492,
+          34.599000200629234,
+          99.43879699707031
+        ],
+        "boundsMin": [
+          -120.22119903564453,
+          0.04039999842643738,
+          64.88009643554688
+        ],
+        "boundsMax": [
+          -89.71980285644531,
+          69.15760040283203,
+          133.99749755859375
+        ],
+        "vertexCount": 655,
+        "triangleCount": 714,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Lamborghini_Aventador_Wheel_RL[4]",
+        "nodePath": "Lamborghini_Aventador_Wheel_RL",
+        "name": "Lamborghini_Aventador_Wheel_RL",
+        "dimensions": [
+          32.10530090332031,
+          72.75150063633919,
+          72.75169372558594
+        ],
+        "center": [
+          65.8875503540039,
+          36.41615031659603,
+          -175.46814727783203
+        ],
+        "boundsMin": [
+          49.83489990234375,
+          0.04039999842643738,
+          -211.843994140625
+        ],
+        "boundsMax": [
+          81.94020080566406,
+          72.79190063476562,
+          -139.09230041503906
+        ],
+        "vertexCount": 655,
+        "triangleCount": 714,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Lamborghini_Aventador_Wheel_RR[5]",
+        "nodePath": "Lamborghini_Aventador_Wheel_RR",
+        "name": "Lamborghini_Aventador_Wheel_RR",
+        "dimensions": [
+          32.10530090332031,
+          72.75150063633919,
+          72.75169372558594
+        ],
+        "center": [
+          -104.97055053710938,
+          36.41615031659603,
+          -175.46814727783203
+        ],
+        "boundsMin": [
+          -121.02320098876953,
+          0.04039999842643738,
+          -211.843994140625
+        ],
+        "boundsMax": [
+          -88.91790008544922,
+          72.79190063476562,
+          -139.09230041503906
+        ],
+        "vertexCount": 655,
+        "triangleCount": 714,
+        "collisionProxy": false
+      }
+    ],
     "seatCandidates": [],
     "doorCandidates": [],
     "candidates": [

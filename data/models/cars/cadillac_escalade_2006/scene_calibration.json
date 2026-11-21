@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:06:39.804Z",
+  "generatedAt": "2026-11-21T21:19:14.410Z",
   "source": {
     "assetUrl": "data/models/cars/cadillac_escalade_2006/scene.gltf",
     "fileName": "scene.gltf",
@@ -59,6 +59,1016 @@
     "collisionAuthority": "js/vehicles.js dynamic body and wheel hardpoint classifier",
     "dynamicBodyBoxesGeneratedHere": false,
     "driverSeatCandidateId": null,
+    "meshInventory": [
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_2[0]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_2",
+        "name": "Object_2",
+        "dimensions": [
+          60.4822998046875,
+          13.200302124023452,
+          18.05139923095703
+        ],
+        "center": [
+          -0.024150848388671875,
+          72.35414886474612,
+          -103.71580123901366
+        ],
+        "boundsMin": [
+          -30.265300750732422,
+          65.75399780273439,
+          -112.74150085449217
+        ],
+        "boundsMax": [
+          30.216999053955078,
+          78.95429992675784,
+          -94.69010162353514
+        ],
+        "vertexCount": 248,
+        "triangleCount": 260,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_3[1]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_3",
+        "name": "Object_3",
+        "dimensions": [
+          56.98470115661621,
+          3.6233005523681676,
+          4.341499328613281
+        ],
+        "center": [
+          -0.1188497543334961,
+          23.022549629211404,
+          103.15105056762695
+        ],
+        "boundsMin": [
+          -28.6112003326416,
+          21.21089935302732,
+          100.98030090332031
+        ],
+        "boundsMax": [
+          28.37350082397461,
+          24.834199905395486,
+          105.3218002319336
+        ],
+        "vertexCount": 150,
+        "triangleCount": 104,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_4[2]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_4",
+        "name": "Object_4",
+        "dimensions": [
+          7.315700531005859,
+          3.390600204467777,
+          6.42340087890625
+        ],
+        "center": [
+          -31.842050552368164,
+          23.343899726867654,
+          100.83419799804688
+        ],
+        "boundsMin": [
+          -35.499900817871094,
+          21.648599624633764,
+          97.62249755859375
+        ],
+        "boundsMax": [
+          -28.184200286865234,
+          25.03919982910154,
+          104.0458984375
+        ],
+        "vertexCount": 24,
+        "triangleCount": 14,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_5[3]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_5",
+        "name": "Object_5",
+        "dimensions": [
+          3.2294000387191772,
+          0.3607006072998047,
+          6.066398620605469
+        ],
+        "center": [
+          -0.024100005626678467,
+          16.493649482727026,
+          109.7067985534668
+        ],
+        "boundsMin": [
+          -1.638800024986267,
+          16.313299179077124,
+          106.67359924316406
+        ],
+        "boundsMax": [
+          1.5906000137329102,
+          16.67399978637693,
+          112.73999786376953
+        ],
+        "vertexCount": 84,
+        "triangleCount": 80,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_6[4]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_6",
+        "name": "Object_6",
+        "dimensions": [
+          18.513400077819824,
+          0.9708023071289205,
+          0.5355987548828125
+        ],
+        "center": [
+          -0.07210016250610352,
+          75.26459884643558,
+          -95.80989837646483
+        ],
+        "boundsMin": [
+          -9.328800201416016,
+          74.77919769287111,
+          -96.07769775390624
+        ],
+        "boundsMax": [
+          9.184599876403809,
+          75.75000000000003,
+          -95.54209899902342
+        ],
+        "vertexCount": 6,
+        "triangleCount": 4,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_7[5]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_7",
+        "name": "Object_7",
+        "dimensions": [
+          78.89739990234375,
+          25.67199897766118,
+          220.17030334472656
+        ],
+        "center": [
+          0.16930007934570312,
+          41.10159969329834,
+          -0.5846481323242116
+        ],
+        "boundsMin": [
+          -39.27939987182617,
+          28.26560020446775,
+          -110.6697998046875
+        ],
+        "boundsMax": [
+          39.61800003051758,
+          53.93759918212893,
+          109.50050354003908
+        ],
+        "vertexCount": 52,
+        "triangleCount": 26,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_8[6]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_8",
+        "name": "Object_8",
+        "dimensions": [
+          79.40399932861328,
+          62.73629951477056,
+          213.85780334472656
+        ],
+        "center": [
+          0.047298431396484375,
+          45.82124996185303,
+          -0.8442001342773366
+        ],
+        "boundsMin": [
+          -39.654701232910156,
+          14.45310020446775,
+          -107.77310180664062
+        ],
+        "boundsMax": [
+          39.749298095703125,
+          77.18939971923831,
+          106.08470153808595
+        ],
+        "vertexCount": 1368,
+        "triangleCount": 1092,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_9[7]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_9",
+        "name": "Object_9",
+        "dimensions": [
+          71.72880172729492,
+          22.907302856445355,
+          165.11369705200195
+        ],
+        "center": [
+          0.04730033874511719,
+          66.18144989013672,
+          -22.37924766540526
+        ],
+        "boundsMin": [
+          -35.817100524902344,
+          54.72779846191405,
+          -104.93609619140624
+        ],
+        "boundsMax": [
+          35.91170120239258,
+          77.6351013183594,
+          60.17760086059572
+        ],
+        "vertexCount": 272,
+        "triangleCount": 272,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_10[8]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_10",
+        "name": "Object_10",
+        "dimensions": [
+          78.03120040893555,
+          64.9799013137818,
+          226.8466033935547
+        ],
+        "center": [
+          -0.024099349975585938,
+          46.52575063705444,
+          7.105427357601002e-15
+        ],
+        "boundsMin": [
+          -39.03969955444336,
+          14.03579998016355,
+          -113.42330169677734
+        ],
+        "boundsMax": [
+          38.99150085449219,
+          79.01570129394534,
+          113.42330169677736
+        ],
+        "vertexCount": 501,
+        "triangleCount": 538,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_11[9]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_11",
+        "name": "Object_11",
+        "dimensions": [
+          72.94670104980469,
+          5.1554994583130185,
+          136.34259796142578
+        ],
+        "center": [
+          -0.13105010986328125,
+          16.347249507904053,
+          6.309299468994141
+        ],
+        "boundsMin": [
+          -36.604400634765625,
+          13.769499778747543,
+          -61.86199951171875
+        ],
+        "boundsMax": [
+          36.34230041503906,
+          18.92499923706056,
+          74.48059844970703
+        ],
+        "vertexCount": 508,
+        "triangleCount": 720,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_12[10]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_12",
+        "name": "Object_12",
+        "dimensions": [
+          96.69189834594727,
+          62.07139968872076,
+          222.91210174560547
+        ],
+        "center": [
+          -0.0003490447998046875,
+          47.778799057006836,
+          -0.616748809814446
+        ],
+        "boundsMin": [
+          -48.34629821777344,
+          16.74309921264646,
+          -112.07279968261719
+        ],
+        "boundsMax": [
+          48.34560012817383,
+          78.81449890136722,
+          110.8393020629883
+        ],
+        "vertexCount": 5542,
+        "triangleCount": 6221,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_13[11]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_13",
+        "name": "Object_13",
+        "dimensions": [
+          77.27459716796875,
+          23.510301113128694,
+          154.68470001220703
+        ],
+        "center": [
+          -0.13109970092773438,
+          16.34105038642883,
+          6.309253692626953
+        ],
+        "boundsMin": [
+          -38.76839828491211,
+          4.585899829864483,
+          -71.03309631347656
+        ],
+        "boundsMax": [
+          38.50619888305664,
+          28.09620094299318,
+          83.65160369873047
+        ],
+        "vertexCount": 2440,
+        "triangleCount": 2880,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_14[12]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_14",
+        "name": "Object_14",
+        "dimensions": [
+          77.27470016479492,
+          23.510301113128694,
+          154.68470001220703
+        ],
+        "center": [
+          -0.13104820251464844,
+          16.34105038642883,
+          6.309253692626953
+        ],
+        "boundsMin": [
+          -38.76839828491211,
+          4.585899829864483,
+          -71.03309631347656
+        ],
+        "boundsMax": [
+          38.50630187988281,
+          28.09620094299318,
+          83.65160369873047
+        ],
+        "vertexCount": 6652,
+        "triangleCount": 7040,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_15[13]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_15",
+        "name": "Object_15",
+        "dimensions": [
+          77.27429962158203,
+          23.315300941467317,
+          154.48799896240234
+        ],
+        "center": [
+          -0.13105010986328125,
+          16.340850353240963,
+          6.309299468994141
+        ],
+        "boundsMin": [
+          -38.7681999206543,
+          4.683199882507306,
+          -70.93470001220703
+        ],
+        "boundsMax": [
+          38.506099700927734,
+          27.998500823974624,
+          83.55329895019531
+        ],
+        "vertexCount": 1920,
+        "triangleCount": 2400,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_16[14]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_16",
+        "name": "Object_16",
+        "dimensions": [
+          72.00809860229492,
+          34.223098754882855,
+          207.56819915771484
+        ],
+        "center": [
+          -0.07214927673339844,
+          38.26824951171875,
+          1.7402992248535227
+        ],
+        "boundsMin": [
+          -36.07619857788086,
+          21.15670013427732,
+          -102.0438003540039
+        ],
+        "boundsMax": [
+          35.93190002441406,
+          55.37979888916018,
+          105.52439880371095
+        ],
+        "vertexCount": 64,
+        "triangleCount": 44,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_17[15]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_17",
+        "name": "Object_17",
+        "dimensions": [
+          78.7775993347168,
+          17.263198852539105,
+          216.5377960205078
+        ],
+        "center": [
+          0.04549980163574219,
+          45.097900390625,
+          0.8115005493164205
+        ],
+        "boundsMin": [
+          -39.343299865722656,
+          36.46630096435545,
+          -107.45739746093749
+        ],
+        "boundsMax": [
+          39.43429946899414,
+          53.72949981689455,
+          109.08039855957033
+        ],
+        "vertexCount": 3130,
+        "triangleCount": 2414,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_18[16]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_18",
+        "name": "Object_18",
+        "dimensions": [
+          78.88790130615234,
+          62.66180229187017,
+          210.4833984375
+        ],
+        "center": [
+          -0.07144927978515625,
+          45.860100746154785,
+          0.5665969848632884
+        ],
+        "boundsMin": [
+          -39.51539993286133,
+          14.529199600219703,
+          -104.67510223388672
+        ],
+        "boundsMax": [
+          39.372501373291016,
+          77.19100189208987,
+          105.8082962036133
+        ],
+        "vertexCount": 778,
+        "triangleCount": 628,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_19[17]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_19",
+        "name": "Object_19",
+        "dimensions": [
+          59.76350021362305,
+          6.151996612548828,
+          2.4001007080078125
+        ],
+        "center": [
+          -0.07214927673339844,
+          41.48299980163572,
+          99.95265197753908
+        ],
+        "boundsMin": [
+          -29.953899383544922,
+          38.40700149536131,
+          98.75260162353517
+        ],
+        "boundsMax": [
+          29.809600830078125,
+          44.558998107910135,
+          101.15270233154298
+        ],
+        "vertexCount": 116,
+        "triangleCount": 128,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_20[18]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_20",
+        "name": "Object_20",
+        "dimensions": [
+          73.35089874267578,
+          40.35889816284185,
+          206.72949981689453
+        ],
+        "center": [
+          -0.07215118408203125,
+          56.058847427368164,
+          -0.003353118896470164
+        ],
+        "boundsMin": [
+          -36.74760055541992,
+          35.879398345947244,
+          -103.36810302734374
+        ],
+        "boundsMax": [
+          36.60329818725586,
+          76.23829650878909,
+          103.3613967895508
+        ],
+        "vertexCount": 355,
+        "triangleCount": 440,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_21[19]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_21",
+        "name": "Object_21",
+        "dimensions": [
+          74.23470306396484,
+          22.136099815368684,
+          153.20550537109375
+        ],
+        "center": [
+          -0.13105010986328125,
+          16.3489499092102,
+          6.3092498779296875
+        ],
+        "boundsMin": [
+          -37.2484016418457,
+          5.28090000152586,
+          -70.29350280761719
+        ],
+        "boundsMax": [
+          36.98630142211914,
+          27.416999816894545,
+          82.91200256347656
+        ],
+        "vertexCount": 1280,
+        "triangleCount": 1136,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_22[20]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_22",
+        "name": "Object_22",
+        "dimensions": [
+          71.07000350952148,
+          51.99640274047856,
+          163.7651023864746
+        ],
+        "center": [
+          -0.07159996032714844,
+          49.957700729370124,
+          -22.7924518585205
+        ],
+        "boundsMin": [
+          -35.60660171508789,
+          23.959499359130845,
+          -104.67500305175781
+        ],
+        "boundsMax": [
+          35.463401794433594,
+          75.9559020996094,
+          59.09009933471681
+        ],
+        "vertexCount": 1847,
+        "triangleCount": 1425,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_23[21]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_23",
+        "name": "Object_23",
+        "dimensions": [
+          62.71030044555664,
+          47.93680191040042,
+          120.64559936523439
+        ],
+        "center": [
+          -0.023950576782226562,
+          49.57340049743652,
+          -13.595100402832024
+        ],
+        "boundsMin": [
+          -31.379100799560547,
+          25.604999542236317,
+          -73.91790008544922
+        ],
+        "boundsMax": [
+          31.331199645996094,
+          73.54180145263673,
+          46.72769927978517
+        ],
+        "vertexCount": 237,
+        "triangleCount": 158,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_24[22]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_24",
+        "name": "Object_24",
+        "dimensions": [
+          74.76070022583008,
+          65.6822996139527,
+          216.2769012451172
+        ],
+        "center": [
+          0.04765129089355469,
+          47.37064981460571,
+          1.141448974609382
+        ],
+        "boundsMin": [
+          -37.332698822021484,
+          14.52950000762937,
+          -106.99700164794922
+        ],
+        "boundsMax": [
+          37.428001403808594,
+          80.21179962158206,
+          109.27989959716798
+        ],
+        "vertexCount": 2156,
+        "triangleCount": 1831,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_25[23]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_25",
+        "name": "Object_25",
+        "dimensions": [
+          93.8661003112793,
+          54.540397644043026,
+          211.70549774169922
+        ],
+        "center": [
+          0.06144905090332031,
+          48.48099899291992,
+          -0.5316505432128835
+        ],
+        "boundsMin": [
+          -46.87160110473633,
+          21.210800170898413,
+          -106.3843994140625
+        ],
+        "boundsMax": [
+          46.99449920654297,
+          75.75119781494143,
+          105.32109832763673
+        ],
+        "vertexCount": 382,
+        "triangleCount": 270,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_26[24]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_26",
+        "name": "Object_26",
+        "dimensions": [
+          69.14720153808594,
+          3.1917991638183594,
+          2.4141998291015625
+        ],
+        "center": [
+          -0.07220077514648438,
+          39.550500869751,
+          -101.73329925537108
+        ],
+        "boundsMin": [
+          -34.64580154418945,
+          37.95460128784182,
+          -102.94039916992186
+        ],
+        "boundsMax": [
+          34.501399993896484,
+          41.14640045166018,
+          -100.5261993408203
+        ],
+        "vertexCount": 140,
+        "triangleCount": 100,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_27[25]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_27",
+        "name": "Object_27",
+        "dimensions": [
+          72.88870239257812,
+          5.176799774169952,
+          136.3567008972168
+        ],
+        "center": [
+          -0.13105010986328125,
+          16.356800079345703,
+          6.30925178527832
+        ],
+        "boundsMin": [
+          -36.575401306152344,
+          13.768400192260726,
+          -61.86909866333008
+        ],
+        "boundsMax": [
+          36.31330108642578,
+          18.94519996643068,
+          74.48760223388672
+        ],
+        "vertexCount": 172,
+        "triangleCount": 168,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_28[26]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_28",
+        "name": "Object_28",
+        "dimensions": [
+          77.131103515625,
+          45.96520042419438,
+          166.49169921875
+        ],
+        "center": [
+          0.052249908447265625,
+          54.66470050811768,
+          -28.164550781249993
+        ],
+        "boundsMin": [
+          -38.513301849365234,
+          31.682100296020497,
+          -111.410400390625
+        ],
+        "boundsMax": [
+          38.617801666259766,
+          77.64730072021487,
+          55.081298828125014
+        ],
+        "vertexCount": 545,
+        "triangleCount": 485,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_29[27]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_29",
+        "name": "Object_29",
+        "dimensions": [
+          72.02529907226562,
+          9.627799987792969,
+          3.5175018310546875
+        ],
+        "center": [
+          -0.0621490478515625,
+          41.69240188598631,
+          95.91445159912111
+        ],
+        "boundsMin": [
+          -36.074798583984375,
+          36.87850189208982,
+          94.15570068359376
+        ],
+        "boundsMax": [
+          35.95050048828125,
+          46.50630187988279,
+          97.67320251464845
+        ],
+        "vertexCount": 24,
+        "triangleCount": 20,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_30[28]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_30",
+        "name": "Object_30",
+        "dimensions": [
+          96.71179962158203,
+          64.59599685668951,
+          222.22410583496094
+        ],
+        "center": [
+          0,
+          46.83199882507324,
+          -0.3242492675781179
+        ],
+        "boundsMin": [
+          -48.355899810791016,
+          14.53400039672849,
+          -111.4363021850586
+        ],
+        "boundsMax": [
+          48.355899810791016,
+          79.129997253418,
+          110.78780364990236
+        ],
+        "vertexCount": 6954,
+        "triangleCount": 6390,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_31[29]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_31",
+        "name": "Object_31",
+        "dimensions": [
+          72.86489868164062,
+          16.126800537109375,
+          2.8479995727539062
+        ],
+        "center": [
+          -0.07215118408203125,
+          46.83720016479494,
+          -98.00529861450194
+        ],
+        "boundsMin": [
+          -36.504600524902344,
+          38.773799896240256,
+          -99.42929840087889
+        ],
+        "boundsMax": [
+          36.36029815673828,
+          54.90060043334963,
+          -96.58129882812499
+        ],
+        "vertexCount": 188,
+        "triangleCount": 84,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_32[30]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_32",
+        "name": "Object_32",
+        "dimensions": [
+          73.35079956054688,
+          38.02799987792974,
+          201.60590362548828
+        ],
+        "center": [
+          -0.07220077514648438,
+          56.596099853515625,
+          -2.565151214599595
+        ],
+        "boundsMin": [
+          -36.74760055541992,
+          37.58209991455076,
+          -103.36810302734374
+        ],
+        "boundsMax": [
+          36.60319900512695,
+          75.6100997924805,
+          98.23780059814455
+        ],
+        "vertexCount": 1218,
+        "triangleCount": 940,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_33[31]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_33",
+        "name": "Object_33",
+        "dimensions": [
+          77.0073013305664,
+          32.08959826827053,
+          163.27460479736328
+        ],
+        "center": [
+          -0.13105010986328125,
+          16.35139913856983,
+          6.309299468994148
+        ],
+        "boundsMin": [
+          -38.634700775146484,
+          0.30660000443456603,
+          -75.3280029296875
+        ],
+        "boundsMax": [
+          38.37260055541992,
+          32.39619827270509,
+          87.9466018676758
+        ],
+        "vertexCount": 2340,
+        "triangleCount": 2640,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_34[32]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_34",
+        "name": "Object_34",
+        "dimensions": [
+          67.95149993896484,
+          30.859201431274457,
+          192.70130157470703
+        ],
+        "center": [
+          -0.07294845581054688,
+          29.51710033416748,
+          1.630352020263679
+        ],
+        "boundsMin": [
+          -34.04869842529297,
+          14.087499618530252,
+          -94.72029876708984
+        ],
+        "boundsMax": [
+          33.902801513671875,
+          44.94670104980471,
+          97.9810028076172
+        ],
+        "vertexCount": 4985,
+        "triangleCount": 3213,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_35[33]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_35",
+        "name": "Object_35",
+        "dimensions": [
+          60.6151008605957,
+          39.007902145385785,
+          217.8405990600586
+        ],
+        "center": [
+          -0.6011505126953125,
+          39.30275058746338,
+          1.6293983459472727
+        ],
+        "boundsMin": [
+          -30.908700942993164,
+          19.798799514770483,
+          -107.29090118408203
+        ],
+        "boundsMax": [
+          29.70639991760254,
+          58.80670166015627,
+          110.54969787597658
+        ],
+        "vertexCount": 1034,
+        "triangleCount": 786,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_36[34]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_36",
+        "name": "Object_36",
+        "dimensions": [
+          70.96969985961914,
+          18.78119659423831,
+          104.73940305411816
+        ],
+        "center": [
+          -0.06545066833496094,
+          63.977397918701186,
+          -52.30530152469872
+        ],
+        "boundsMin": [
+          -35.55030059814453,
+          54.58679962158203,
+          -104.6750030517578
+        ],
+        "boundsMax": [
+          35.41939926147461,
+          73.36799621582034,
+          0.06440000236036023
+        ],
+        "vertexCount": 142,
+        "triangleCount": 158,
+        "collisionProxy": false
+      },
+      {
+        "nodeKey": "Sketchfab_model[0]/Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles[0]/Object_37[35]",
+        "nodePath": "Sketchfab_model / Car_2012_Cadillac_Escalade_ESV_Forza_Horizon_N260419objcleanermaterialmergergles / Object_37",
+        "name": "Object_37",
+        "dimensions": [
+          69.31689834594727,
+          10.61629867553711,
+          3.932098388671875
+        ],
+        "center": [
+          -0.07214927673339844,
+          42.28555107116697,
+          97.48394775390626
+        ],
+        "boundsMin": [
+          -34.73059844970703,
+          36.977401733398416,
+          95.51789855957033
+        ],
+        "boundsMax": [
+          34.586299896240234,
+          47.593700408935526,
+          99.4499969482422
+        ],
+        "vertexCount": 348,
+        "triangleCount": 480,
+        "collisionProxy": false
+      }
+    ],
     "seatCandidates": [],
     "doorCandidates": [],
     "candidates": [],
