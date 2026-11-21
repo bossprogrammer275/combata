@@ -218,6 +218,14 @@ try{
         && interactionInventory.seats.every(seat=>seat.occupant?.length===3
           && seat.occupant[1] <= base.rootDimensions.y*0.25),
       JSON.stringify(interactionInventory.seats.map(seat=>({name:seat.name,occupant:seat.occupant,roofY:base.rootDimensions.y}))));
+    check(spec.kind+' keeps unreviewed door-panel candidates non-interactive',
+      interactionInventory.doors.every(door=>door.accepted===false&&door.estimated===true),
+      JSON.stringify(interactionInventory.doors.map(door=>({name:door.name,side:door.side,source:door.source,accepted:door.accepted,meshes:door.meshCount}))));
+    if(spec.kind==='cybertruck'){
+      check('Cybertruck exposes measured side-panel candidates on both sides for hinge review',
+        ['left-side','right-side'].every(side=>interactionInventory.doors.some(door=>door.side===side)),
+        JSON.stringify(interactionInventory.doors.map(door=>({name:door.name,side:door.side,center:door.center,size:door.size,meshes:door.meshCount}))));
+    }
     await capture(page,spec.prefix+'-seat-door-anchor-audit');
     const entryStart=await page.evaluate(async kind=>window.__vehicleVisualTest.startEntry(kind),spec.kind);
     check(spec.kind+' loads all player interaction animations',
