@@ -212,18 +212,42 @@ function subdivideMeshCollision(mesh, cellSize, verticalQuantum, thickness, minC
     for (let i = 0; i + 2 < posAttr.count; i += 3) tris.push([i, i + 1, i + 2]);
   }
 
-  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-  for (const p of worldVerts) {
-    minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
-    minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z);
+  let rawMinX = Infinity, rawMaxX = -Infinity, rawMinZ = Infinity, rawMaxZ = -Infinity;
+  for (const point of worldVerts) {
+    rawMinX = Math.min(rawMinX, point.x); rawMaxX = Math.max(rawMaxX, point.x);
+    rawMinZ = Math.min(rawMinZ, point.z); rawMaxZ = Math.max(rawMaxZ, point.z);
   }
-  if (!Number.isFinite(minX) || !Number.isFinite(minZ)) return [];
-  const gridPadding = cellSize * 0.1;
-  minX -= gridPadding; maxX += gridPadding; minZ -= gridPadding; maxZ += gridPadding;
+  if (![rawMinX, rawMaxX, rawMinZ, rawMaxZ].every(Number.isFinite)) return [];
 
-  const cols = Math.ceil((maxX - minX) / cellSize);
-  const rows = Math.ceil((maxZ - minZ) / cellSize);
-  if (cols <= 0 || rows <= 0 || cols * rows > 50000) return [];
+  // Keep the nominal 2%-of-height resolution for ordinary meshes. Very long,
+  // thin assets (speed bumps, rails, kerbs) can otherwise exceed the 50k cell
+  // safety cap solely because their XZ aspect ratio is extreme. Coarsen only
+  // that mesh's grid enough to stay below the cap; triangle coverage still
+  // determines occupied cells, so this never falls back to a broad AABB.
+  const maxGridCells = 50000;
+  let gridCellSize = cellSize;
+  const makeGrid = value => {
+    const padding = value * 0.1;
+    const minX = rawMinX - padding, maxX = rawMaxX + padding;
+    const minZ = rawMinZ - padding, maxZ = rawMaxZ + padding;
+    return {
+      minX, maxX, minZ, maxZ,
+      cols: Math.ceil((maxX - minX) / value),
+      rows: Math.ceil((maxZ - minZ) / value),
+    };
+  };
+  let grid = makeGrid(gridCellSize);
+  if (grid.cols * grid.rows > maxGridCells) {
+    const footprint = Math.max(0, rawMaxX - rawMinX) * Math.max(0, rawMaxZ - rawMinZ);
+    gridCellSize = Math.max(gridCellSize, Math.sqrt(footprint / (maxGridCells * 0.8)));
+    grid = makeGrid(gridCellSize);
+    for (let attempt = 0; grid.cols * grid.rows > maxGridCells && attempt < 12; attempt++) {
+      gridCellSize *= 1.12;
+      grid = makeGrid(gridCellSize);
+    }
+  }
+  if (grid.cols <= 0 || grid.rows <= 0 || grid.cols * grid.rows > maxGridCells) return [];
+  const { minX, maxX, minZ, maxZ, cols, rows } = grid;
 
   // Triangle-first accumulation. The old implementation scanned every triangle
   // for every cell (O(cells * triangles)), freezing on detailed building meshes.
@@ -236,18 +260,18 @@ function subdivideMeshCollision(mesh, cellSize, verticalQuantum, thickness, minC
     const txMax = Math.max(a.x, b.x, c.x);
     const tzMin = Math.min(a.z, b.z, c.z);
     const tzMax = Math.max(a.z, b.z, c.z);
-    const c0 = Math.max(0, Math.min(cols - 1, Math.floor((txMin - minX) / cellSize)));
-    const c1 = Math.max(0, Math.min(cols - 1, Math.floor((txMax - minX) / cellSize)));
-    const r0 = Math.max(0, Math.min(rows - 1, Math.floor((tzMin - minZ) / cellSize)));
-    const r1 = Math.max(0, Math.min(rows - 1, Math.floor((tzMax - minZ) / cellSize)));
+    const c0 = Math.max(0, Math.min(cols - 1, Math.floor((txMin - minX) / gridCellSize)));
+    const c1 = Math.max(0, Math.min(cols - 1, Math.floor((txMax - minX) / gridCellSize)));
+    const r0 = Math.max(0, Math.min(rows - 1, Math.floor((tzMin - minZ) / gridCellSize)));
+    const r1 = Math.max(0, Math.min(rows - 1, Math.floor((tzMax - minZ) / gridCellSize)));
     const yMin = Math.min(a.y, b.y, c.y);
     const yMax = Math.max(a.y, b.y, c.y);
 
     for (let ci = c0; ci <= c1; ci++) {
-      const cellMinX = minX + ci * cellSize;
+      const cellMinX = minX + ci * gridCellSize;
       const cellMaxX = cellMinX + cellSize;
       for (let ri = r0; ri <= r1; ri++) {
-        const cellMinZ = minZ + ri * cellSize;
+        const cellMinZ = minZ + ri * gridCellSize;
         const cellMaxZ = cellMinZ + cellSize;
         if (!triangleIntersectsRectXZ(a, b, c, cellMinX, cellMaxX, cellMinZ, cellMaxZ)) continue;
         const key = ci * rows + ri;
@@ -315,15 +339,16 @@ function subdivideMeshCollision(mesh, cellSize, verticalQuantum, thickness, minC
         for (let z = ri; z < ri + spanZ; z++) remaining.delete(x + ',' + z);
       }
 
-      const w = spanX * cellSize, d = spanZ * cellSize;
-      const x = minX + ci * cellSize + w / 2;
-      const z = minZ + ri * cellSize + d / 2;
+      const w = spanX * gridCellSize, d = spanZ * gridCellSize;
+      const x = minX + ci * gridCellSize + w / 2;
+      const z = minZ + ri * gridCellSize + d / 2;
       const h = Math.max(0, layer.yMax - layer.yMin) + thickness;
       if (h < minCellHeight) continue;
       const cy = layer.yMin + h / 2 - thickness / 6;
       boxes.push([x, cy, z, w, h, d]);
     }
   }
+  boxes.effectiveCellSize = gridCellSize;
   return boxes;
 }
 
@@ -404,6 +429,8 @@ async function processGLB(inputPath, options = {}) {
   let subdivCount = 0;
   let skippedUnrasterizableMeshes = 0;
   let skippedBySemanticPolicy = 0;
+  let adaptiveSubdividedMeshes = 0;
+  let largestAdaptiveCellSize = modelCellSize;
 
   scene.traverse((obj) => {
     if (!obj.isMesh) return;
@@ -466,6 +493,10 @@ async function processGLB(inputPath, options = {}) {
       if (sub.length > 0) {
         boxes.push(...sub);
         subdivCount++;
+        if (sub.effectiveCellSize > modelCellSize * 1.000001) {
+          adaptiveSubdividedMeshes++;
+          largestAdaptiveCellSize = Math.max(largestAdaptiveCellSize, sub.effectiveCellSize);
+        }
         console.log(`  [SUBDIVIDED] "${obj.name}" → ${sub.length} cells`);
         return;
       }
