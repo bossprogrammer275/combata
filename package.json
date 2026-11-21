@@ -11,7 +11,7 @@
     "calibrate:asset": "node tools/asset-calibrator.mjs",
     "recalibrate:gameplay-assets": "node tools/recalibrate-gameplay-assets.mjs",
     "validate:asset-calibration": "node tools/validate-asset-calibration.mjs",
-    "test:asset-calibration": "node --test tools/asset-calibrator.test.mjs tools/traversal-physics.test.mjs",
+    "test:asset-calibration": "node --test tools/asset-calibrator.test.mjs tools/process-glbs.test.mjs tools/traversal-physics.test.mjs",
     "compare:asset-calibration": "node tools/compare-asset-calibrations.mjs",
     "test:test-world": "node tools/verify-test-world.mjs"
   },

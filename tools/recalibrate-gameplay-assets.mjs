@@ -39,6 +39,25 @@ async function run(){
     try{results.push(await calibrateOne(file));}
     catch(error){failures.push({asset:relative(file),error:String(error?.stack||error)});console.error(`[Recalibrate] FAILED ${relative(file)}: ${error?.stack||error}`);}
   }
+  // The speed bump previously exceeded the triangle grid's safety cap and
+  // silently produced an empty collision sidecar. Keep a real asset regression
+  // check in the generation job so the fix is verified after every rebuild.
+  const speedBumpSource = path.join(ROOT, 'data', 'models', 'assets', 'roads', 'speed_bump.glb');
+  if (fs.existsSync(speedBumpSource)) {
+    const speedBumpSidecar = path.join(ROOT, 'data', 'models', 'assets', 'roads', 'speed_bump_col.json');
+    try {
+      const manifest = JSON.parse(fs.readFileSync(speedBumpSidecar, 'utf8'));
+      if (!Array.isArray(manifest.boxes) || manifest.boxes.length === 0
+        || !(manifest.collisionStats?.adaptiveSubdividedMeshes > 0)) {
+        throw new Error('speed_bump_col.json must contain adaptive triangle-derived collision boxes');
+      }
+      console.log(`[Recalibrate] Speed bump collision verified: ${manifest.boxes.length} boxes · adaptive grid ${manifest.collisionStats.largestAdaptiveCellSize}m`);
+    } catch (error) {
+      failures.push({ asset: 'data/models/assets/roads/speed_bump.glb', error: String(error?.stack || error) });
+      console.error('[Recalibrate] SPEED BUMP COLLISION CHECK FAILED:', error?.stack || error);
+    }
+  }
+
   const summary={
     selectedModels:models.length,archivedSidecars:sidecars.length,
     calibrationProfiles:results.filter(item=>!item.skipped).length,

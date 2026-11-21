@@ -558,7 +558,7 @@ async function processGLB(inputPath, options = {}) {
 
 // ─── CLI ───
 
-export { loadGLB, nodeKey, nodePath, processGLB };
+export { loadGLB, nodeKey, nodePath, processGLB, subdivideMeshCollision };
 
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : '';
 const isDirectRun = invokedPath && import.meta.url === pathToFileURL(invokedPath).href;
