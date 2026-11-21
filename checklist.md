@@ -958,7 +958,8 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 - [ ] Identify real driver and passenger seat meshes/anchors for each vehicle; do not use one generic seat as a passenger layout.
 - [ ] Calibrate driver/passenger door hinges, handle/hand contact, open/closed transforms and per-door collision states.
 - [ ] Add working door open/close animation around reviewed pivots; doors must not be guessed from chassis bounding boxes.
-- [ ] Test entry/exit, seating and collision restoration on all four vehicles, including crowded parking positions.
+- [x] Add browser automation that enters/exits every estimated seat with the correct driver/passenger idle animation and checks that passenger inputs cannot drive the car.
+- [ ] Pass the all-seat browser run and visually compare every estimated seat against the real cabin; test crowded parking and collision restoration.
 
 ### Phase 6 — Traversal system
 

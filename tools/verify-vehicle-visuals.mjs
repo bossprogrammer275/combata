@@ -219,6 +219,10 @@ try{
       entryStart.actionDurations.enter>0&&entryStart.actionDurations.exit>0
       &&entryStart.actionDurations.punch>0&&entryStart.actionDurations.sitting>0,
       JSON.stringify(entryStart.actionDurations));
+    const expectedSeats={lambo:2,bugatti:2,cybertruck:5,escalade:7}[spec.kind];
+    check(spec.kind+' exposes the expected model-specific seat layout',
+      entryStart.seats.length===expectedSeats,
+      'expected='+expectedSeats+' actual='+entryStart.seats.length);
     check(spec.kind+' exposes a driver-seat entry target',entryStart.entryStarted,JSON.stringify(entryStart));
     await page.evaluate(()=>window.__vehicleVisualTest.advanceTransition(72));
     await capture(page,spec.prefix+'-enter-animation');

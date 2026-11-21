@@ -293,8 +293,11 @@ window.__vehicleVisualTest={
     player.actionAnimation=null;
     player.firstPerson=false;
     player.char.setFirstPerson(false);
+    if(player.char.root.parent!==scene)scene.add(player.char.root);
     player.char.root.position.copy(player.pos);
     player.char.root.visible=true;
+    camera.position.set(player.pos.x-3,player.pos.y+2.1,player.pos.z+3.2);
+    camera.lookAt(player.pos.x,player.pos.y+0.9,player.pos.z);
     const started=player.startPunch();
     player.char.setState(player.getState(),1/60);
     player.char.update(0.36);
@@ -303,7 +306,6 @@ window.__vehicleVisualTest={
       pose:player.char._poseMode,
       weaponHidden:player.char.weaponMount?.visible===false,
       clipDuration:player.char.getActionDuration('punch'),
-      impactWindowReached:player._punchElapsed>=0,
     };
     report.punch=result;
     player.actionAnimation=null;
@@ -396,7 +398,7 @@ window.__vehicleVisualTest={
       if(player.char.root.parent!==scene)scene.add(player.char.root);
       player.char.root.visible=true;
       player.char.setState(player.getState(),0);
-      const started=system.enter(vehicle,player);
+      const started=system.enter(vehicle,player,seat.id);
       if(!started)throw new Error(kind+' could not start entry for seat '+seat.id);
       for(let frame=0;frame<900&&(system._enterState||!system.driver);frame++) {
         system.update(1/60,{},player);scene.updateMatrixWorld(true);
@@ -405,13 +407,16 @@ window.__vehicleVisualTest={
         &&player.char.root.parent===vehicle.root;
       const expectedPose=seat.role==='driver'?'vehicle_driver_idle':'sit_idle';
       const poseCorrect=player.char._poseMode===expectedPose;
+      const speedBeforePassengerInput=vehicle.speed;
+      if(seat.role!=='driver')system.update(1/60,{forward:1,right:1,jump:true},player);
+      const passengerControlsLocked=seat.role==='driver'||vehicle.speed===speedBeforePassengerInput;
       const exitStarted=system.exit(player);
       for(let frame=0;frame<500&&system._enterState;frame++) {
         system.update(1/60,{},player);scene.updateMatrixWorld(true);
       }
       const exited=!system.driver&&!system._enterState&&player.char.root.parent===scene;
-      results.push({id:seat.id,role:seat.role,estimated:seat.estimated,started,entered,pose:player.char._poseMode,expectedPose,poseCorrect,exitStarted,exited});
-      if(!entered||!poseCorrect||!exitStarted||!exited)throw new Error(kind+' seat interaction failed: '+JSON.stringify(results.at(-1)));
+      results.push({id:seat.id,role:seat.role,estimated:seat.estimated,started,entered,pose:player.char._poseMode,expectedPose,poseCorrect,passengerControlsLocked,exitStarted,exited});
+      if(!entered||!poseCorrect||!passengerControlsLocked||!exitStarted||!exited)throw new Error(kind+' seat interaction failed: '+JSON.stringify(results.at(-1)));
     }
     render();
     return {kind,seatCount:results.length,results};
