@@ -1010,12 +1010,17 @@ pnpm dev
 The calibrator writes `scene_calibration.json` beside the source glTF and does not rewrite the model. The 18 regression tests and native syntax sweep passed in GitHub Actions run [44812890463](https://github.com/bossprogrammer275/combata/actions/runs/44812890463). No representative source-asset sidecars have yet been generated/reviewed, and no browser/in-game traversal or physics test has been executed.
 ### Phase 7 — Test world and surface engine
 
-- [ ] Create `test.json`.
-- [ ] Implement individually authored ground/road/surface geometry.
-- [ ] Populate each unique existing asset once.
-- [ ] Add missing traversal pieces.
-- [ ] Set `test.json` as default.
-- [ ] Verify scale, collisions, materials, streaming and vehicles.
+- [x] Create `data/worlds/test.json` as a compact 250m × 250m gameplay test block.
+- [x] Implement metre-space subdivided terrain with four height-mapped hills, matching support-height queries and Rapier terrain collision.
+- [x] Build the test road network from the ground/road renderer: two-way street, sidewalks, connected intersections, street bases and four diagonal descending hill ramps.
+- [x] Place all 61 unique GLB/glTF assets from `data/models/assets` exactly once, each at a separate inspection position.
+- [x] Add scale references, 1.0m / 1.6m / 2.7m obstacle tests, ladder/stair assets, crates, ledges, rocks, sand and decorative grass.
+- [x] Add four authored NPC role spawns and four looping traffic vehicles; keep four parked test vehicles available for entry/exit checks.
+- [x] Make `test.json` the default gameplay scene.
+- [x] Disable world streaming for this map and cap GLB decoding to one asset at a time on the low-memory test target.
+- [x] Add live source-wide model size editing (uniform scale, width, height and depth) with persistent metadata in `data/asset-overrides.json`.
+- [x] Add `pnpm test:test-world` / `npm run test:test-world` integrity checks; GitHub Actions confirms the test-world inventory, map settings, terrain/ramp profiles and authored NPC/traffic configuration pass.
+- [ ] Complete an in-browser visual pass for all 61 imported assets, including exact dimensions, material appearance, collisions, terrain contact, vehicle placement and traversal feel.
 
 ### Phase 8 — Full gameplay validation
 
