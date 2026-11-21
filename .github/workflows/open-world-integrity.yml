@@ -118,11 +118,43 @@ jobs:
               git commit -m "chore: refresh city collision sidecars [skip ci]"
               for attempt in 1 2 3; do
                 git fetch origin main
-                git rebase origin/main
-                if git push origin HEAD:main; then
+                if git rebase origin/main; then
+                  if git push origin HEAD:main; then
+                    exit 0
+                  fi
+                  echo "Push raced with another main update (attempt $attempt/3); rebasing and retrying."
+                  continue
+                fi
+
+                # These files are deterministic generated output. If another
+                # writer refreshed the same sidecars first, don't merge two
+                # generated JSON snapshots: reset to the latest main and
+                # regenerate the same source set against that exact tree.
+                git rebase --abort || true
+                git reset --hard origin/main
+                echo "Generated sidecars conflicted with main; regenerating from latest main (attempt $attempt/3)."
+                node tools/process-glbs.js "${sources[@]}"
+                for source in "${sources[@]}"; do
+                  sidecar="${source%.glb}_col.json"
+                  node --input-type=module -e '
+                    import crypto from "node:crypto";
+                    import fs from "node:fs";
+                    const [source, sidecar] = process.argv.slice(1);
+                    const data = JSON.parse(fs.readFileSync(sidecar, "utf8"));
+                    const hash = crypto.createHash("sha256").update(fs.readFileSync(source)).digest("hex");
+                    if (data.generatorVersion !== 2 || data.sourceSha256 !== hash ||
+                        !Array.isArray(data.boxes) || data.boxes.length === 0 ||
+                        !data.boxes.every(box => Array.isArray(box) && box.length >= 6 && box.every(Number.isFinite))) {
+                      throw new Error(sidecar + " failed regeneration validation");
+                    }
+                  ' "$source" "$sidecar"
+                  git add -- "$sidecar"
+                done
+                if git diff --cached --quiet; then
+                  echo "Latest main already contains the current collision sidecars."
                   exit 0
                 fi
-                echo "Push raced with another main update (attempt $attempt/3); rebasing and retrying."
+                git commit -m "chore: refresh city collision sidecars [skip ci]"
               done
               echo "::error::Could not publish generated city collision sidecars after three retries."
               exit 1
