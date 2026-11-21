@@ -71,7 +71,9 @@ function vehicleSemanticAncestor(node, root, kind) {
 function buildEstimatedVehicleSeatLayout(kind, bounds) {
   const { min, max, size, center } = bounds;
   const width = size.x, height = size.y, length = size.z;
-  const seatY = min.y + height * 0.50;
+  // Character root is at the seated character's foot/floor contact, not at hip height.
+  // Half-height anchors left the humanoid visibly sitting on top of the roof in the browser.
+  const seatY = min.y + Math.min(0.25, height * 0.16);
   const driverX = Math.min(width * 0.22, 0.46);
   const passengerX = -driverX;
   const frontZ = max.z - Math.min(1.15, length * 0.27);
