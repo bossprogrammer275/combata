@@ -959,7 +959,7 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 
 ### Phase 6A — Unified asset calibration (implementation in progress; asset/runtime validation pending)
 
-**Calibration and traversal code is implemented to first-pass scope. Real asset sidecars, browser playback and in-game physics acceptance are still pending. Do not start the test-world phase until the user supplies its design brief.**
+**Calibration and traversal code is implemented to first-pass scope. Representative asset sidecars, browser playback and in-game physics acceptance remain pending. Phase 7 has now started from the user's supplied test-world brief.**
 
 - [x] Add the unified CLI entry point: `tools/asset-calibrator.mjs`.
 - [x] Reuse `tools/process-glbs.js` as the internal collision scan stage instead of maintaining a disconnected collision generator.
@@ -1019,7 +1019,9 @@ The calibrator writes `scene_calibration.json` beside the source glTF and does n
 - [x] Make `test.json` the default gameplay scene.
 - [x] Disable world streaming for this map and cap GLB decoding to one asset at a time on the low-memory test target.
 - [x] Add live source-wide model size editing (uniform scale, width, height and depth) with persistent metadata in `data/asset-overrides.json`.
-- [x] Add `pnpm test:test-world` / `npm run test:test-world` integrity checks; GitHub Actions confirms the test-world inventory, map settings, terrain/ramp profiles and authored NPC/traffic configuration pass.
+- [x] Add `pnpm test:test-world` / `npm run test:test-world` integrity checks for the source inventory, distinct placements, road/ramp intersections, NPC roles, traffic, vegetation collision exclusions and global size editor.
+- [x] Add a runtime load report comparing actual `worldKitComponents` against the 61 expected placements; any missing or failed model is reported in the game console.
+- [ ] Run the final enhanced integrity workflow and confirm the runtime report reaches 61/61 loaded models.
 - [ ] Complete an in-browser visual pass for all 61 imported assets, including exact dimensions, material appearance, collisions, terrain contact, vehicle placement and traversal feel.
 
 ### Phase 8 — Full gameplay validation
