@@ -1619,7 +1619,7 @@ let aePreviewToken = 0;
 let aeGlobalDimensions = { scale: 1, widthM: null, heightM: null, depthM: null };
 
 function globalAssetOverrideKey(url) {
-  return '/' + String(url || '').replace(/\\/g, '/').replace(/^\\.\\//, '').replace(/^\\/+/, '');
+  return '/' + String(url || '').replace(/\\/g, '/').replace(/^\.\//, '').replace(/^\/+/, '');
 }
 
 function normalizeGlobalDimensions(value = {}) {
