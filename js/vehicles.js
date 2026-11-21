@@ -236,10 +236,88 @@ function collectVehicleInteractionAnchors(model, vehicleRoot, kind) {
   });
 
   for (const item of namedDoors) output.doorCandidates.push({
-    name: item.name, node: item.node, bounds: item.bounds,
+    name: item.name, node: item.node, nodes: [item.node], bounds: item.bounds,
+    side: item.bounds.center.x >= 0 ? 'right-side' : 'left-side',
     accepted: false, estimated: true,
+    source: 'semantic-node-name',
     reason: 'Door mesh name found; hinge and open/closed transforms still require visual review.',
   });
+
+  // Some source cars export unlabelled body panels as independent meshes. Find
+  // likely vertical side-panel assemblies by their measured bounds only. This
+  // is a review inventory, never an automatic hinge or accepted door record.
+  if (!output.doorCandidates.length) {
+    const panels = [];
+    const wheelAxles = [length * 0.25, -length * 0.25];
+    model.traverse(node => {
+      if (!node.isMesh || !node.geometry?.attributes?.position) return;
+      if (vehicleSemanticAncestor(node, model, 'door')) return;
+      const tokens = vehicleNodeTokens(node.name);
+      if (tokens.some(token => ['wheel','tire','tyre','rim','glass','window','mirror','trim','bumper','hood','bonnet','roof'].includes(token))) return;
+      const bounds = vehicleLocalBounds(node, vehicleRoot);
+      if (!bounds) return;
+      const c = bounds.center, d = bounds.size;
+      const sideDistance = Math.abs(c.x);
+      const heightRatio = (c.y - min.y) / Math.max(0.001, height);
+      const nearAxle = wheelAxles.some(z => Math.abs(c.z - z) < length * 0.07);
+      const panelShape = d.x <= Math.max(0.24, width * 0.16)
+        && d.y >= height * 0.28 && d.y <= height * 0.86
+        && d.z >= length * 0.11 && d.z <= length * 0.32;
+      const sidePosition = sideDistance >= width * 0.30 && sideDistance <= width * 0.58;
+      const verticalPosition = heightRatio >= 0.34 && heightRatio <= 0.78;
+      const longitudinalPosition = Math.abs(c.z) <= length * 0.39 && !nearAxle;
+      if (!panelShape || !sidePosition || !verticalPosition || !longitudinalPosition) return;
+      panels.push({ node, bounds, side: c.x >= 0 ? 'right-side' : 'left-side', z: c.z });
+    });
+
+    const clusters = [];
+    for (const panel of panels) {
+      let cluster = clusters.find(item =>
+        item.side === panel.side && Math.abs(item.z - panel.z) <= length * 0.085);
+      if (!cluster) {
+        cluster = { side: panel.side, z: panel.z, items: [] };
+        clusters.push(cluster);
+      }
+      cluster.items.push(panel);
+      cluster.z = cluster.items.reduce((sum, item) => sum + item.z, 0) / cluster.items.length;
+    }
+    clusters.sort((a, b) => {
+      const sideOrder = a.side.localeCompare(b.side);
+      return sideOrder || b.z - a.z;
+    });
+
+    for (const [index, cluster] of clusters.entries()) {
+      const groupMin = new THREE.Vector3(
+        Math.min(...cluster.items.map(item => item.bounds.min.x)),
+        Math.min(...cluster.items.map(item => item.bounds.min.y)),
+        Math.min(...cluster.items.map(item => item.bounds.min.z)),
+      );
+      const groupMax = new THREE.Vector3(
+        Math.max(...cluster.items.map(item => item.bounds.max.x)),
+        Math.max(...cluster.items.map(item => item.bounds.max.y)),
+        Math.max(...cluster.items.map(item => item.bounds.max.z)),
+      );
+      const groupSize = groupMax.clone().sub(groupMin);
+      const groupCenter = groupMin.clone().add(groupMax).multiplyScalar(0.5);
+      output.doorCandidates.push({
+        name: 'Unlabelled ' + cluster.side + ' panel candidate ' + (index + 1),
+        node: cluster.items.length === 1 ? cluster.items[0].node : null,
+        nodes: cluster.items.map(item => item.node),
+        bounds: { min: groupMin, max: groupMax, size: groupSize, center: groupCenter },
+        side: cluster.side,
+        row: cluster.z >= 0 ? 'front-half' : 'rear-half',
+        meshCount: cluster.items.length,
+        accepted: false,
+        estimated: true,
+        source: 'measured-side-panel-geometry',
+        hingeCandidates: [
+          { position: [groupCenter.x, groupCenter.y, groupMin.z], axis: [0, 1, 0] },
+          { position: [groupCenter.x, groupCenter.y, groupMax.z], axis: [0, 1, 0] },
+        ],
+        reason: 'Bounds resemble a vertical exterior door panel. Confirm the actual moving surface and hinge edge in the GLB before enabling animation.',
+      });
+    }
+  }
 
   // Fill missing seats from the per-model estimated layout. Generated anchors
   // remain review-only until their positions are checked against the rendered cabin.
