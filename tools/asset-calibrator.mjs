@@ -830,6 +830,22 @@ async function calibrateOne(file) {
         collisionAuthority: 'js/vehicles.js dynamic body and wheel hardpoint classifier',
         dynamicBodyBoxesGeneratedHere: false,
         driverSeatCandidateId: driver?.id || null,
+        // Preserve the complete source mesh inventory in car profiles. These
+        // models often export anonymous interior meshes, so seat/door detection
+        // cannot be trusted from names alone. Asset Review can inspect bounds
+        // and stable node keys without re-opening the source GLB.
+        meshInventory: scanned.meshDetails.map(item => ({
+          nodeKey: item.nodeKey,
+          nodePath: item.nodePath,
+          name: item.name,
+          dimensions: item.dimensions,
+          center: item.center,
+          boundsMin: item.boundsMin,
+          boundsMax: item.boundsMax,
+          vertexCount: item.vertexCount,
+          triangleCount: item.triangleCount,
+          collisionProxy: item.collisionProxy === true,
+        })),
         seatCandidates: seats.map(component => {
           const [cx] = component.bounds.center;
           const [, sy] = component.bounds.size;
