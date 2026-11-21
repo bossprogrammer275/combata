@@ -1613,11 +1613,11 @@ export class World {
       const baseScale = { x: scaleFactor * sx, y: scaleFactor * sy, z: scaleFactor * sz };
       const dimensionScale = {
         x: Number.isFinite(targetWidthM) && targetWidthM > 0 && rawSize.x > 1e-4
-          ? targetWidthM / (rawSize.x * baseScale.x) : 1,
+          ? targetWidthM / (rawSize.x * baseScale.x * globalScale) : 1,
         y: Number.isFinite(targetHeightM) && targetHeightM > 0 && rawSize.y > 1e-4
-          ? targetHeightM / (rawSize.y * baseScale.y) : 1,
+          ? targetHeightM / (rawSize.y * baseScale.y * globalScale) : 1,
         z: Number.isFinite(targetDepthM) && targetDepthM > 0 && rawSize.z > 1e-4
-          ? targetDepthM / (rawSize.z * baseScale.z) : 1,
+          ? targetDepthM / (rawSize.z * baseScale.z * globalScale) : 1,
       };
       const finalScale = {
         x: baseScale.x * globalScale * dimensionScale.x,
