@@ -224,6 +224,7 @@ function subdivideMeshCollision(mesh, cellSize, verticalQuantum, thickness, minC
   // safety cap solely because their XZ aspect ratio is extreme. Coarsen only
   // that mesh's grid enough to stay below the cap; triangle coverage still
   // determines occupied cells, so this never falls back to a broad AABB.
+  // Generator output also records the adaptive cell size for sidecar regression checks.
   const maxGridCells = 50000;
   let gridCellSize = cellSize;
   const makeGrid = value => {
