@@ -23,6 +23,7 @@ assert.equal(new Set(placedAssets).size, placedAssets.length, 'A model asset app
 assert.deepEqual(placedAssets, sourceAssets, 'Test map must include every source GLB/glTF asset and no unknown path.');
 
 assert.equal(map.id, 'test');
+assert.equal(map.testWorld?.expectedAssetCount, 61, 'Runtime must verify all 61 authored model placements.');
 assert.equal(map.bounds, 125, 'The test block must stay within a 250m square.');
 assert.equal(map.ground?.size, 250, 'Ground footprint must be 250m across.');
 const placementKeys = map.glbAssets.map(asset => asset.x + ',' + asset.z);
@@ -92,6 +93,8 @@ assert.match(worldSource, /_terrainHeightAt/);
 assert.match(worldSource, /groundHeightAt\(x, z, maxHeight = Infinity\)/);
 assert.match(worldSource, /configuredConcurrency/);
 assert.match(worldSource, /assetDimensionBase/);
+assert.match(worldSource, /_reportTestWorldAssetLoads/);
+assert.match(worldSource, /All ' \+ loadedCount \+ ' authored GLB\/glTF assets loaded successfully/);
 assert.match(worldSource, /dimensions\.widthM/);
 assert.match(worldSource, /dimensions\.heightM/);
 
