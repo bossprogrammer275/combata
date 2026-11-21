@@ -13,7 +13,7 @@ const clipPromises = new Map();
 const IN_PLACE = new Set([
   'walk','walk_aim','run','rifle_run','sprint','crouch_walk','crouch_walk_aim',
   'jump_idle','obstacle_climb','ladder_climb_up',
-  'punch','enter_vehicle','exit_vehicle','vehicle_driver_idle',
+  'punch','enter_vehicle','exit_vehicle','vehicle_driver_idle','sit_idle',
 ]);
 export const NPC_ANIMATION_ALIASES = Object.freeze({
   crouch: 'crouch_idle', crouchWalk: 'crouch_walk', jump: 'jump_idle',

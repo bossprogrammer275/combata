@@ -948,9 +948,11 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 
 - [x] Generate the missing `scene_calibration.json` sidecars for all four current vehicle GLBs.
 - [x] Add a measured runtime mesh inventory (mesh name, hierarchy path and local bounds) for vehicle inspection.
-- [x] Add a clearly flagged estimated driver-seat fallback for models whose exported nodes have no seat labels; never record this as an accepted calibration.
-- [x] Connect `Entering Car.fbx`, `Exiting Car.fbx` and `Driving.fbx` to a timed driver entry/exit and seated-character state machine.
-- [x] Keep the player capsule disabled only during the in-cabin phase; restore position and collision on exit or a cancelled approach.
+- [x] Add clearly flagged estimated driver-seat anchors for cars with anonymous interior meshes; never record them as accepted calibration.
+- [x] Add model-specific estimated seat layouts: 2 seats for each sports car, 5 Cybertruck seats and 7 Escalade seats.
+- [x] Select the nearest seat from the row/side the player approaches; use Driving.fbx for the driver and Sitting Idle.fbx for passengers.
+- [x] Connect Entering Car.fbx, Exiting Car.fbx and the seated idle clips to timed entry/exit and player attachment.
+- [x] Keep the player capsule disabled only during the in-cabin phase; restore position and collision on exit or a cancelled/blocked approach.
 - [ ] Inspect each car's actual body, interior, seats, glass and moving door meshes in the browser inventory.
 - [ ] Identify real driver and passenger seat meshes/anchors for each vehicle; do not use one generic seat as a passenger layout.
 - [ ] Calibrate driver/passenger door hinges, handle/hand contact, open/closed transforms and per-door collision states.

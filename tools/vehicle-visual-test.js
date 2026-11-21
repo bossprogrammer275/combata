@@ -307,8 +307,9 @@ window.__vehicleVisualTest={
         enter:player.char.getActionDuration('enter_vehicle'),
         exit:player.char.getActionDuration('exit_vehicle'),
         driving:player.char.getActionDuration('vehicle_driver_idle'),
+        sitting:player.char.getActionDuration('sit_idle'),
       },
-      seats:vehicle.interactionAnchors?.seats?.map(s=>({name:s.name,role:s.role,accepted:s.accepted,estimated:s.estimated}))||[],
+      seats:vehicle.interactionAnchors?.seats?.map(s=>({id:s.id,name:s.name,role:s.role,row:s.row,accepted:s.accepted,estimated:s.estimated}))||[],
       doors:vehicle.interactionAnchors?.doorCandidates?.map(d=>d.name)||[],
     };
     const ok=system.enter(vehicle,player);
@@ -341,6 +342,48 @@ window.__vehicleVisualTest={
     const started=system.exit(player);
     render();
     return {started,driver:!!system.driver,phase:system._enterState?.phase||null};
+  },
+  async verifyAllSeats(kind) {
+    await load(kind);
+    system.driver=null;
+    const vehicle=current;
+    if(!player.char._isBuilt) {
+      const began=performance.now();
+      while(!player.char._isBuilt&&performance.now()-began<25000) {
+        await new Promise(resolve=>setTimeout(resolve,40));
+      }
+    }
+    if(!player.char._isBuilt)throw new Error('npc_core_001 player rig not ready for seat test');
+    const results=[];
+    for(const seat of vehicle.interactionAnchors?.seats||[]) {
+      const local=seat.anchors.occupant.clone();
+      const side=local.x>=0?1:-1;
+      local.x+=side*(vehicle.half.x+0.85);
+      const start=vehicle.root.localToWorld(local);
+      player.pos.copy(start);player.vel.set(0,0,0);player.onGround=true;
+      player.firstPerson=false;player.char.setFirstPerson(false);player.actionAnimation=null;
+      if(player.char.root.parent!==scene)scene.add(player.char.root);
+      player.char.root.visible=true;
+      player.char.setState(player.getState(),0);
+      const started=system.enter(vehicle,player);
+      if(!started)throw new Error(kind+' could not start entry for seat '+seat.id);
+      for(let frame=0;frame<900&&(system._enterState||!system.driver);frame++) {
+        system.update(1/60,{},player);scene.updateMatrixWorld(true);
+      }
+      const entered=!!system.driver&&vehicle.activeSeat?.id===seat.id
+        &&player.char.root.parent===vehicle.root;
+      const expectedPose=seat.role==='driver'?'vehicle_driver_idle':'sit_idle';
+      const poseCorrect=player.char._poseMode===expectedPose;
+      const exitStarted=system.exit(player);
+      for(let frame=0;frame<500&&system._enterState;frame++) {
+        system.update(1/60,{},player);scene.updateMatrixWorld(true);
+      }
+      const exited=!system.driver&&!system._enterState&&player.char.root.parent===scene;
+      results.push({id:seat.id,role:seat.role,estimated:seat.estimated,started,entered,pose:player.char._poseMode,expectedPose,poseCorrect,exitStarted,exited});
+      if(!entered||!poseCorrect||!exitStarted||!exited)throw new Error(kind+' seat interaction failed: '+JSON.stringify(results.at(-1)));
+    }
+    render();
+    return {kind,seatCount:results.length,results};
   },
   finishInteractionTest() {
     const result={

@@ -68,7 +68,47 @@ function vehicleSemanticAncestor(node, root, kind) {
   return false;
 }
 
-function collectVehicleInteractionAnchors(model, vehicleRoot) {
+function buildEstimatedVehicleSeatLayout(kind, bounds) {
+  const { min, max, size, center } = bounds;
+  const width = size.x, height = size.y, length = size.z;
+  const seatY = min.y + height * 0.50;
+  const driverX = Math.min(width * 0.22, 0.46);
+  const passengerX = -driverX;
+  const frontZ = max.z - Math.min(1.15, length * 0.27);
+  const middleZ = center.z - length * 0.02;
+  const rearZ = min.z + Math.min(1.45, length * 0.27);
+  const definitions = [];
+  const add = (id, role, label, x, z, row) => definitions.push({ id, role, label, x, z, row });
+  add('driver', 'driver', 'Estimated driver seat', driverX, frontZ, 'front');
+  add('front-passenger', 'front-passenger', 'Estimated front passenger seat', passengerX, frontZ, 'front');
+  if (kind === 'cybertruck') {
+    add('rear-left', 'rear-passenger', 'Estimated rear-left passenger seat', driverX, rearZ, 'rear');
+    add('rear-center', 'rear-passenger', 'Estimated rear-center passenger seat', 0, rearZ, 'rear');
+    add('rear-right', 'rear-passenger', 'Estimated rear-right passenger seat', passengerX, rearZ, 'rear');
+  } else if (kind === 'escalade') {
+    add('middle-left', 'middle-passenger', 'Estimated middle-left passenger seat', driverX, middleZ, 'middle');
+    add('middle-right', 'middle-passenger', 'Estimated middle-right passenger seat', passengerX, middleZ, 'middle');
+    add('third-left', 'rear-passenger', 'Estimated third-row left passenger seat', driverX, rearZ, 'rear');
+    add('third-center', 'rear-passenger', 'Estimated third-row centre passenger seat', 0, rearZ, 'rear');
+    add('third-right', 'rear-passenger', 'Estimated third-row right passenger seat', passengerX, rearZ, 'rear');
+  }
+  return definitions.map(def => {
+    const occupant = new THREE.Vector3(def.x, seatY, def.z);
+    const side = occupant.x >= 0 ? 1 : -1;
+    return {
+      componentId: null, id: def.id, name: def.label, node: null,
+      accepted: false, estimated: true, role: def.role, row: def.row, bounds: null,
+      anchors: {
+        occupant,
+        entry: new THREE.Vector3(occupant.x + side * (width * 0.5 + 0.42), min.y + 0.03, occupant.z),
+        exit: new THREE.Vector3(occupant.x + side * (width * 0.5 + 0.82), min.y + 0.03, occupant.z),
+        seatFacing: new THREE.Vector3(0, 0, 1),
+      },
+    };
+  });
+}
+
+function collectVehicleInteractionAnchors(model, vehicleRoot, kind) {
   const output = { doors: [], seats: [], seatCandidates: [], doorCandidates: [], meshInventory: [] };
   model.updateWorldMatrix(true, true);
   vehicleRoot.updateWorldMatrix(true, true);
@@ -199,43 +239,31 @@ function collectVehicleInteractionAnchors(model, vehicleRoot) {
     reason: 'Door mesh name found; hinge and open/closed transforms still require visual review.',
   });
 
-  // These supplied cars export generic interior nodes rather than seat names.
-  // Use one measured cockpit envelope near the steering wheel / front cabin as
-  // a usable driver anchor, but keep it visibly marked as estimated.
-  if (!output.seats.length) {
-    const steering = steeringNodes[0] || null;
-    const occupant = steering
-      ? new THREE.Vector3(
-        steering.x,
-        THREE.MathUtils.clamp(steering.y - 0.14, min.y + height * 0.36, max.y - 0.18),
-        steering.z - length * 0.09,
-      )
-      : new THREE.Vector3(
-        center.x + Math.max(0.22, Math.min(0.42, width * 0.18)),
-        min.y + height * 0.48,
-        center.z + length * 0.12,
-      );
-    const side = occupant.x >= 0 ? 1 : -1;
-    const generic = {
-      componentId: null, name: steering ? 'Estimated seat near steering wheel' : 'Estimated driver seat',
-      node: null, accepted: false, estimated: true, role: 'driver',
-      anchors: {
-        occupant,
-        entry: new THREE.Vector3(center.x + side * (width * 0.5 + 0.48), min.y + 0.03, occupant.z),
-        exit: new THREE.Vector3(center.x + side * (width * 0.5 + 0.92), min.y + 0.03, occupant.z),
-        seatFacing: new THREE.Vector3(0, 0, 1),
-      },
-    };
-    output.seats.push(generic);
+  // Fill missing seats from the per-model estimated layout. Generated anchors
+  // remain review-only until their positions are checked against the rendered cabin.
+  const expectedSeats = buildEstimatedVehicleSeatLayout(kind, overall);
+  const existingIds = new Set(output.seats.map(seat => seat.id).filter(Boolean));
+  for (const expected of expectedSeats) {
+    if (existingIds.has(expected.id)) continue;
+    const matched = output.seats.find(seat =>
+      seat.estimated
+      && Math.abs(seat.anchors.occupant.x - expected.anchors.occupant.x) < width * 0.18
+      && Math.abs(seat.anchors.occupant.z - expected.anchors.occupant.z) < length * 0.14);
+    if (matched) {
+      matched.id = expected.id;
+      matched.role = expected.role;
+      matched.row = expected.row;
+      continue;
+    }
+    output.seats.push(expected);
+    existingIds.add(expected.id);
   }
-
-  output.seatCandidates = output.seats.filter(seat => seat.estimated);
   const steering = steeringNodes[0];
   const namedDriver = output.seats.find(seat => seat.role === 'driver');
   const nearestSteering = steering ? output.seats.slice().sort((a, b) =>
     a.anchors.occupant.distanceTo(steering) - b.anchors.occupant.distanceTo(steering))[0] : null;
-  output.driverSeat = output.seats.find(seat => seat.accepted && seat.role === 'driver')
-    || namedDriver || nearestSteering || output.seats[0] || null;
+  output.seatCandidates = output.seats.filter(seat => seat.estimated);
+  output.driverSeat = namedDriver || nearestSteering || output.seats[0] || null;
   if (output.driverSeat?.anchors) {
     output.occupant = output.driverSeat.anchors.occupant.clone();
     output.entry = output.driverSeat.anchors.entry.clone();
@@ -2105,7 +2133,7 @@ export class VehicleSystem {
       });
       root.updateMatrixWorld(true);
       clone.updateMatrixWorld(true);
-      const interactionAnchors = collectVehicleInteractionAnchors(clone, root);
+      const interactionAnchors = collectVehicleInteractionAnchors(clone, root, kind);
       const rootInverse = root.matrixWorld.clone().invert();
       clone.traverse((o) => {
         if (!(o.userData && o.userData.wheelPivot)) return;
@@ -2331,26 +2359,34 @@ export class VehicleSystem {
 
   enter(veh, player) {
     if (!veh || !player || this.driver || this._enterState || Math.abs(Number(veh.speed) || 0) > 1.25) return false;
-    const anchors = veh.interactionAnchors;
-    const seat = anchors?.driverSeat || anchors?.seats?.find(item => item.role === 'driver') || anchors?.seats?.[0];
-    if (!seat?.anchors?.entry || !seat?.anchors?.occupant || !seat?.anchors?.exit) return false;
-    // Prefer the side the player is actually standing beside, while always
-    // keeping the occupant anchor at the selected driver seat.
+    const seats = veh.interactionAnchors?.seats || [];
+    if (!seats.length) return false;
     veh.root.updateWorldMatrix(true, false);
     const localPlayer = veh.root.worldToLocal(player.pos.clone());
-    const entryLocal = seat.anchors.entry.clone();
-    const exitLocal = seat.anchors.exit.clone();
-    const approachSide = localPlayer.x >= 0 ? 1 : -1;
-    if (Math.sign(entryLocal.x || 1) !== approachSide) {
-      entryLocal.x = Math.abs(entryLocal.x) * approachSide;
-      exitLocal.x = Math.abs(exitLocal.x) * approachSide;
+    let selected = null;
+    for (const seat of seats) {
+      if (seat.reserved || !seat.anchors?.occupant) continue;
+      for (const side of [1, -1]) {
+        const entryLocal = new THREE.Vector3(
+          seat.anchors.occupant.x + side * ((veh.half?.x || 1.0) + 0.42),
+          Math.max(0.02, seat.anchors.entry?.y ?? 0.03),
+          seat.anchors.occupant.z,
+        );
+        const exitLocal = new THREE.Vector3(
+          seat.anchors.occupant.x + side * ((veh.half?.x || 1.0) + 0.82),
+          Math.max(0.02, seat.anchors.exit?.y ?? 0.03),
+          seat.anchors.occupant.z,
+        );
+        const distance = Math.hypot(entryLocal.x - localPlayer.x, entryLocal.z - localPlayer.z);
+        if (!selected || distance < selected.distance) selected = { seat, entryLocal, exitLocal, distance };
+      }
     }
-    veh.activeSeat = { ...seat, anchors: { ...seat.anchors, entry: entryLocal, exit: exitLocal } };
+    if (!selected || selected.distance > 4.8) return false;
+    const seat = selected.seat;
+    veh.activeSeat = { ...seat, reserved: true, anchors: { ...seat.anchors, entry: selected.entryLocal, exit: selected.exitLocal } };
     const entry = this._vehicleAnchorWorld(veh, 'entry');
     const occupant = this._vehicleAnchorWorld(veh, 'occupant');
     if (!entry || !occupant) { veh.activeSeat = null; return false; }
-    const distance = Math.hypot(entry.x - player.pos.x, entry.z - player.pos.z);
-    if (distance > 4.8) { veh.activeSeat = null; return false; }
     const sampled = this.world?.groundHeightAt?.(entry.x, entry.z, player.pos.y + 1.4);
     if (Number.isFinite(sampled) && Math.abs(sampled - entry.y) < 1.2) entry.y = sampled;
     this._removeParkedCollider(veh);
@@ -2377,7 +2413,7 @@ export class VehicleSystem {
     const facing = this._vehicleAnchorForwardWorld(veh, 'seatFacing');
     if (facing) player.yaw = Math.atan2(-facing.x, -facing.z);
     player.vel?.set?.(0, 0, 0);
-    player.actionAnimation = 'vehicle_driver_idle';
+    player.actionAnimation = veh.activeSeat?.role === 'driver' ? 'vehicle_driver_idle' : 'sit_idle';
     player.char?.setState?.(player.getState(), 0);
     player.char?.root?.updateMatrixWorld?.(true);
     if (player.char?.root) {
@@ -2395,7 +2431,7 @@ export class VehicleSystem {
     const camDist = 5.5, camH = 3.2;
     this._camPos = new THREE.Vector3(veh.pos.x - cx * camDist, camH, veh.pos.z - cz * camDist);
     this._camLook = new THREE.Vector3(veh.pos.x + cx * 4.5, 1.0, veh.pos.z + cz * 4.5);
-    if (this._speedometerCanvas) this._speedometerCanvas.style.display = 'block';
+    if (this._speedometerCanvas) this._speedometerCanvas.style.display = veh.activeSeat?.role === 'driver' ? 'block' : 'none';
   }
 
   _vehicleAnchorWorld(veh, name) {
@@ -2548,13 +2584,20 @@ export class VehicleSystem {
       const move = Math.min(distance, 2.7 * step);
       if (distance > 0.015 && move > 0) {
         const mx = dx / distance * move, mz = dz / distance * move;
-        player.pos.x += mx; player.pos.z += mz;
-        player._animationVelocityX = mx / Math.max(step, 1e-4);
-        player._animationVelocityZ = mz / Math.max(step, 1e-4);
-        player.yaw = Math.atan2(-dx, -dz); player.bodyYaw = player.yaw;
-        player.phase = (player.phase || 0) + step * 7.5;
-        const support = this.world?.groundHeightAt?.(player.pos.x, player.pos.z, player.pos.y + 0.25);
-        if (Number.isFinite(support) && Math.abs(support - player.pos.y) < 0.45) player.pos.y = support;
+        const nextX = player.pos.x + mx, nextZ = player.pos.z + mz;
+        if (this.world?.colliderAt?.(nextX, nextZ, player.radius || 0.42)) {
+          state.stalled += step;
+          player._animationVelocityX = player._animationVelocityZ = 0;
+        } else {
+          player.pos.x = nextX; player.pos.z = nextZ;
+          player._animationVelocityX = mx / Math.max(step, 1e-4);
+          player._animationVelocityZ = mz / Math.max(step, 1e-4);
+          player.yaw = Math.atan2(-dx, -dz); player.bodyYaw = player.yaw;
+          player.phase = (player.phase || 0) + step * 7.5;
+          const support = this.world?.groundHeightAt?.(player.pos.x, player.pos.z, player.pos.y + 0.25);
+          if (Number.isFinite(support) && Math.abs(support - player.pos.y) < 0.45) player.pos.y = support;
+          state.stalled = 0;
+        }
       } else {
         player._animationVelocityX = player._animationVelocityZ = 0;
       }
@@ -2565,7 +2608,7 @@ export class VehicleSystem {
         state.phase = 'enter'; state.t = 0; state.start = player.pos.clone();
         player.actionAnimation = 'enter_vehicle';
         if (this.physics) this.physics.setPlayerCollisionEnabled(false);
-      } else if (state.t > 3.8) {
+      } else if (state.stalled > 0.75 || state.t > 3.8) {
         this._cancelEnter(player, state);
         return false;
       }
@@ -2690,6 +2733,8 @@ export class VehicleSystem {
       player.char.update(dt);
       if (player.char.root?.parent === v.root) player.char.root.getWorldPosition(player.pos);
     }
+    // Passengers stay seated but receive no vehicle-driving controls.
+    if (v.activeSeat && v.activeSeat.role !== 'driver') return;
 
     const throttle = input.forward || 0;
     const rawSteerValue = THREE.MathUtils.clamp(input.right || 0, -1, 1);

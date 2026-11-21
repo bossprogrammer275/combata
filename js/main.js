@@ -1229,8 +1229,7 @@ class Game {
           if (this.state === 'playing') {
             this.audio.resume();
             if (this.vehicles && this.vehicles.driver) {
-              this.vehicles.exit(this.player);
-              this.audio.stopEngine();
+              if (this.vehicles.exit(this.player)) this.audio.stopEngine();
             } else if (this.civilians && this.player.onGround && !this.player.skydive && this.civilians.tryInteract(this.player)) {
               // Civilian interaction takes priority over nearby vehicle/tool interaction.
             } else if (this.vehicles && this.player.onGround && !this.player.skydive) {
@@ -1267,7 +1266,7 @@ class Game {
           if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
             this.toggleFullMap();
-          } else if (this.state === 'playing' && this.vehicles?.driver?.kind === 'cybertruck') {
+          } else if (this.state === 'playing' && this.vehicles?.driver?.activeSeat?.role === 'driver' && this.vehicles?.driver?.kind === 'cybertruck') {
             const mode = this.vehicles.toggleDriveMode();
             if (mode) this.hud.toast(mode === 'beast' ? 'DRIVE MODE: CYBERBEAST' : 'DRIVE MODE: DUAL MOTOR AWD');
           }
@@ -1659,6 +1658,7 @@ class Game {
 
     const driving = !!(this.vehicles && this.vehicles.driver);
     const entering = !!(this.vehicles && this.vehicles._enterState);
+    const passenger = driving && this.vehicles.driver.activeSeat?.role !== 'driver';
 
     // Move kinematic gameplay objects first, then advance Rapier. Stepping
     // before movement made collision/query state trail player and vehicle transforms.
@@ -1731,7 +1731,9 @@ class Game {
     if (vpEl) {
       const near = !driving && this.player.onGround && !this.player.skydive && this.vehicles && this.vehicles.nearest(this.player.pos.x, this.player.pos.z, 4.5);
       vpEl.classList.toggle('hidden', !near && !driving);
-      if (driving) vpEl.textContent = 'PRESS [E] TO EXIT · [↑/W] DRIVE · [↓/S] BRAKE+REVERSE · [←→/AD] STEER · [SPACE] HANDBRAKE';
+      if (driving) vpEl.textContent = passenger
+        ? 'PASSENGER · PRESS [E] TO EXIT'
+        : 'PRESS [E] TO EXIT · [↑/W] DRIVE · [↓/S] BRAKE+REVERSE · [←→/AD] STEER · [SPACE] HANDBRAKE';
       else if (near) vpEl.textContent = 'PRESS [E] TO ENTER ' + near.kind.toUpperCase();
     }
 
@@ -1836,7 +1838,9 @@ class Game {
     const showCrosshair = !this.player.skydive && !driving && this.weapons.adsT > 0.3;
     document.getElementById('crosshair').style.opacity = showCrosshair ? Math.min(1, (this.weapons.adsT - 0.3) * 2.5) : 0;
     this.hud.setStance(driving
-      ? `DRIVING · ${Math.round(Math.abs(this.vehicles.driver.speed) * 3.6)} KM/H · [E] EXIT`
+      ? (passenger
+        ? 'PASSENGER · [E] EXIT'
+        : `DRIVING · ${Math.round(Math.abs(this.vehicles.driver.speed) * 3.6)} KM/H · [E] EXIT`)
       : (this.player.crouched ? 'CROUCHED' : this.player.sprinting ? 'SPRINTING' : 'STANDING') + ' · [SHIFT] SPRINT · [C] CROUCH');
     this.hud.drawMinimap(this.player, this.enemyMgr.enemies, this.world);
     if (this.fullMapOpen) this.hud.drawFullMap(this.player, this.enemyMgr.enemies, this.world);

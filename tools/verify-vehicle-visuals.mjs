@@ -210,7 +210,8 @@ try{
     await capture(page,spec.prefix+'-seat-door-anchor-audit');
     const entryStart=await page.evaluate(async kind=>window.__vehicleVisualTest.startEntry(kind),spec.kind);
     check(spec.kind+' loads all player interaction animations',
-      entryStart.actionDurations.enter>0&&entryStart.actionDurations.exit>0&&entryStart.actionDurations.punch>0,
+      entryStart.actionDurations.enter>0&&entryStart.actionDurations.exit>0
+      &&entryStart.actionDurations.punch>0&&entryStart.actionDurations.sitting>0,
       JSON.stringify(entryStart.actionDurations));
     check(spec.kind+' exposes a driver-seat entry target',entryStart.entryStarted,JSON.stringify(entryStart));
     await page.evaluate(()=>window.__vehicleVisualTest.advanceTransition(72));
@@ -230,6 +231,11 @@ try{
       finished.exited&&finished.restoredToScene,
       JSON.stringify({transition,finished}));
     await capture(page,spec.prefix+'-after-exit');
+    const allSeats=await page.evaluate(async kind=>window.__vehicleVisualTest.verifyAllSeats(kind),spec.kind);
+    const expectedSeats={lambo:2,bugatti:2,cybertruck:5,escalade:7}[spec.kind];
+    check(spec.kind+' provides an entry/exit action for every model seat',
+      allSeats.seatCount===expectedSeats&&allSeats.results.every(item=>item.entered&&item.poseCorrect&&item.exited),
+      JSON.stringify({seatCount:allSeats.seatCount,seats:allSeats.results}));
     check(spec.kind+' has four road-wheel rigs',base.wheelCount===4,'wheels='+base.wheelCount);
     const wheelDiagnostics=base.wheelDiagnostics;
     const expectedQuadrants=['front-left','front-right','rear-left','rear-right'];

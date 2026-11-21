@@ -9,7 +9,7 @@ const PLAYER_ANIMATION_KEYS = Object.freeze([
   'crouch_idle', 'crouch_walk', 'crouch_walk_aim',
   'rifle_aim_idle', 'crouch_aim_idle', 'reload_idle', 'jump_idle',
   'obstacle_climb', 'ladder_climb_up',
-  'punch', 'enter_vehicle', 'exit_vehicle', 'vehicle_driver_idle'
+  'punch', 'enter_vehicle', 'exit_vehicle', 'vehicle_driver_idle', 'sit_idle'
 ]);
 let _baseGroup = null;
 let _clips = {};
