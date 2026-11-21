@@ -958,7 +958,8 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 - [ ] Identify real driver and passenger seat meshes/anchors for each vehicle; do not use one generic seat as a passenger layout.
 - [ ] Calibrate driver/passenger door hinges, handle/hand contact, open/closed transforms and per-door collision states.
 - [ ] Add working door open/close animation around reviewed pivots; doors must not be guessed from chassis bounding boxes.
-- [x] Add browser automation that enters/exits every estimated seat with the correct driver/passenger idle animation and checks that passenger inputs cannot drive the car.
+- [x] Add browser automation that enters/exits every estimated seat by explicit seat ID, checks the driver/passenger idle animation and ensures passenger inputs cannot drive the car.
+- [x] Add a browser mesh audit with visual overlays for review-only anonymous door-panel candidates.
 - [ ] Pass the all-seat browser run and visually compare every estimated seat against the real cabin; test crowded parking and collision restoration.
 
 ### Phase 6 — Traversal system
@@ -972,7 +973,7 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 
 ### Phase 6A — Unified asset calibration (implementation in progress; asset/runtime validation pending)
 
-**The reset/recalibration pipeline and collision safety changes are implemented. A complete 62-model batch passed with 62 calibration profiles, 58 collision sidecars and zero failures. Runtime visual review, manual anchor approval and collision acceptance remain open.**
+**The reset/recalibration pipeline and collision safety changes are implemented. Latest batch [44953982962](https://github.com/bossprogrammer275/combata/actions/runs/44953982962) passed with 62 calibration profiles, 58 collision sidecars and zero failures. It also regenerated the speed bump as 3,812 adaptive triangle-derived boxes. The Cybertruck profile has six grouped review-only side-panel candidates. Runtime visual review, manual anchor approval and collision acceptance remain open.**
 
 - [x] Add the unified CLI entry point: `tools/asset-calibrator.mjs`.
 - [x] Reuse `tools/process-glbs.js` as the internal collision scan stage instead of maintaining a disconnected collision generator.
@@ -1006,6 +1007,11 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 - [x] Stop using a broad enclosing AABB when a complex/open mesh produces no stable triangle coverage; record skipped meshes rather than inventing invisible solid geometry.
 - [x] Exclude visual-only shrubs, bushes, hedges, grasses, flowers, weeds and foliage from gameplay collision calibration.
 - [x] Preserve a full source mesh inventory for each vehicle profile so anonymous exported interior nodes can be reviewed by stable node path and bounds.
+- [x] Detect anonymous vehicle side-panel geometry by measured bounds and save left/right/front/rear candidates as review-only door candidates; never infer an approved hinge from a bounding box.
+- [x] Normalize vehicle side-panel detection against each asset's measured origin so shifted GLB origins do not break candidate classification.
+- [x] Add per-mesh adaptive triangle-grid subdivision for long/thin collision geometry; the real speed bump now produces 3,812 boxes with a recorded adaptive cell size.
+- [x] Add collision regression tests for long thin speed bumps and doorway gaps so the scanner cannot silently skip a valid road profile or fill a doorway with a broad AABB.
+- [x] Verify the recalibration batch archives old sidecars, skips visual-only vegetation, regenerates 62 profiles and 58 collision sidecars, and fails on calibration errors.
 - [ ] Visually review the modular bridge kit, Road Pack, street-road asset, sidewalk pack, representative building/prop assets and all four current vehicle GLBs/GLTFs.
 - [ ] Compare regenerated collision shapes against the old sidecars and actual in-world contacts before treating them as accepted.
 - [ ] Complete scale/origin/up-axis inference using trustworthy reference dimensions. Do not auto-rescale assets with unknown source units.
@@ -1026,7 +1032,7 @@ pnpm test:asset-calibration
 pnpm dev
 ```
 
-The calibrator writes `scene_calibration.json` beside the source GLB/glTF and does not rewrite the model. The batch reset/rebuild completed successfully in [44949768947](https://github.com/bossprogrammer275/combata/actions/runs/44949768947). The integrity suite passed on [18abfb7d](https://github.com/bossprogrammer275/combata/actions/runs/44950708494). The four car sidecars are present; their semantic seat/door candidates are empty because the exports expose no recognisable seat/door labels. Runtime uses a flagged estimated driver seat only until the browser mesh audit and manual anchor review are complete.
+The calibrator writes `scene_calibration.json` beside the source GLB/glTF and does not rewrite the model. Latest batch [44953982962](https://github.com/bossprogrammer275/combata/actions/runs/44953982962) archived 120 old sidecars and regenerated 62 profiles plus 58 collision sidecars with zero failures. The speed-bump sidecar now contains 3,812 boxes and reports adaptive subdivision. The car GLBs do not expose recognisable seat labels; runtime seat layouts remain explicitly estimated. Cybertruck side-panel candidates are saved as review-only geometry candidates. No vehicle door hinge has been approved or animated yet. Browser visual verification remains open.
 ### Phase 7 — Test world and surface engine
 
 - [x] Create `data/worlds/test.json` as a compact 250m × 250m gameplay test block.
@@ -1040,7 +1046,7 @@ The calibrator writes `scene_calibration.json` beside the source GLB/glTF and do
 - [x] Add live source-wide model size editing (uniform scale, width, height and depth) with persistent metadata in `data/asset-overrides.json`.
 - [x] Add `pnpm test:test-world` / `npm run test:test-world` integrity checks for the source inventory, distinct placements, road/ramp intersections, NPC roles, traffic, vegetation collision exclusions and global size editor.
 - [x] Add a runtime load report comparing actual `worldKitComponents` against the 61 expected placements; any missing or failed model is reported in the game console.
-- [ ] Run the final enhanced integrity workflow and confirm the runtime report reaches 61/61 loaded models.
+- [x] Confirm the runtime report reaches 61/61 loaded models; the supplied game console reported: `[TestWorld] All 61 authored GLB/glTF assets loaded successfully.`
 - [ ] Complete an in-browser visual pass for all 61 imported assets, including exact dimensions, material appearance, collisions, terrain contact, vehicle placement and traversal feel.
 
 ### Phase 8 — Full gameplay validation
