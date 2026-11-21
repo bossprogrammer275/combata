@@ -191,6 +191,14 @@ try{
       && soundSmoke.ultraLow.contextClosed,
     JSON.stringify(soundSmoke.ultraLow));
 
+  const traversal=await page.evaluate(()=>window.__vehicleVisualTest.testTraversalAnimations());
+  for(const animation of ['obstacle_climb','ladder_climb_up']){
+    const result=traversal.find(item=>item.animation===animation);
+    check(animation+' is loaded and selected as the actual player traversal pose',
+      !!result&&result.activePose===animation&&result.duration>0&&result.actionLoaded,
+      JSON.stringify(result));
+    await capture(page,'player-'+animation.replaceAll('_','-')+'-animation');
+  }
   const punch=await page.evaluate(()=>window.__vehicleVisualTest.testPunchAnimation());
   check('Punching.fbx plays as the unarmed action and hides the equipped weapon',
     punch.started&&punch.pose==='punch'&&punch.weaponHidden&&punch.clipDuration>=0.9,
