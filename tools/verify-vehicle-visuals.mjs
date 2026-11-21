@@ -242,7 +242,6 @@ try{
       JSON.stringify({transition,finished}));
     await capture(page,spec.prefix+'-after-exit');
     const allSeats=await page.evaluate(async kind=>window.__vehicleVisualTest.verifyAllSeats(kind),spec.kind);
-    const expectedSeats={lambo:2,bugatti:2,cybertruck:5,escalade:7}[spec.kind];
     check(spec.kind+' provides an entry/exit action for every model seat',
       allSeats.seatCount===expectedSeats&&allSeats.results.every(item=>item.entered&&item.poseCorrect&&item.exited),
       JSON.stringify({seatCount:allSeats.seatCount,seats:allSeats.results}));
