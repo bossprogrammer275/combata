@@ -36,7 +36,7 @@ class Game {
     this.profile = new Profile();
     this.stats = { score: 0, kills: 0, deaths: 0, shotsFired: 0, shotsHit: 0 };
     this.match = null;
-    this.input = { forward: 0, right: 0, sprint: false, crouch: false, jump: false, climb: false, fire: false, ads: false, throwGrenade: false, mouseDX: 0, mouseDY: 0, toRoof: false };
+    this.input = { forward: 0, right: 0, sprint: false, crouch: false, jump: false, climb: false, melee: false, fire: false, ads: false, throwGrenade: false, mouseDX: 0, mouseDY: 0, toRoof: false };
     this.playerTeam = -1; // -1: every NPC is hostile to the player
     this.fullMapOpen = false;
     this.transitMenuOpen = false;
@@ -1183,6 +1183,12 @@ class Game {
         case 'ShiftLeft': case 'ShiftRight': I.sprint = true; break;
         case 'Space': I.jump = true; e.preventDefault(); break;
         case 'KeyR': if (this.state === 'playing' && !this.player.skydive && !(this.vehicles && this.vehicles.driver)) this.weapons.startReload(this); break;
+        case 'KeyP':
+          if (this.state === 'playing' && !this.player.skydive && !this.vehicles?.driver && !this.vehicles?._enterState) {
+            I.melee = true;
+            e.preventDefault();
+          }
+          break;
         case 'KeyX': if (this.state === 'playing' && !this.player.skydive && !(this.vehicles && this.vehicles.driver)) this.input.throwGrenade = true; break;
         case 'KeyF': if (this.state === 'playing' && this.nearLoot) this.lootPickup(); else I.climb = true; e.preventDefault(); break;
         case 'KeyZ': if (this.state === 'playing') I.climb = true; e.preventDefault(); break;
@@ -1783,6 +1789,31 @@ class Game {
       this.weapons.update(dt, this.input, hittables, this._onWeaponKill, this);
     }
     this.enemyMgr.update(dt, this.player, this._onPlayerDamage, this);
+    if (!driving && !entering && this.player.consumePunchImpact?.()) {
+      const origin = this.player.pos;
+      const forward = new THREE.Vector3(-Math.sin(this.player.yaw), 0, -Math.cos(this.player.yaw));
+      let target = null;
+      let nearestDistance = 1.45;
+      for (const enemy of this.enemyMgr.enemies) {
+        if (!enemy?.alive || !enemy.pos) continue;
+        const delta = new THREE.Vector3(
+          enemy.pos.x - origin.x, 0, enemy.pos.z - origin.z,
+        );
+        const distance = delta.length();
+        if (distance < 0.12 || distance > nearestDistance
+          || Math.abs((enemy.pos.y || 0) - origin.y) > 1.1) continue;
+        if (delta.normalize().dot(forward) < 0.25) continue;
+        target = enemy;
+        nearestDistance = distance;
+      }
+      if (target) {
+        const damage = 24;
+        const killed = target.takeDamage(damage, false);
+        if (killed) this._onWeaponKill(target, false, { name: 'Fists', id: 'melee' });
+        const impact = target.pos.clone().add(new THREE.Vector3(0, 1.0, 0));
+        this.fx.burst(impact, 7, new THREE.Color(1, 0.55, 0.16), 2.4, 0.45, 0.55, 1.1);
+      }
+    }
     if (this.civilians) {
       const shots = this.stats.shotsFired || 0;
       const playerFired = shots > (this._lastCivilianShotCount || 0);
@@ -1798,6 +1829,7 @@ class Game {
     }
     this.tools.update(dt);
     this.input.jump = false;
+    this.input.melee = false;
 
     const spread = (this.weapons.def.spreadHip * (1 - this.weapons.adsT) + this.weapons.def.spreadAds * this.weapons.adsT) * 900 + 8;
     this.hud.setCrosshairSpread(driving ? 0 : (this.weapons.adsT > .7 ? 2 : spread));

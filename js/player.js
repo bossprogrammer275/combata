@@ -94,6 +94,11 @@ export class Player {
     this.bodyYaw = this.yaw; // visual facing of the mesh (turns to move/aim, NOT to look)
     this.weaponType = 'rifle'; // updated from WeaponSystem each frame
     this.firstPerson = false;  // V toggles third <-> first person
+    this.actionAnimation = null;
+    this._punchElapsed = 0;
+    this._punchCooldown = 0;
+    this._punchImpactPending = false;
+    this._punchImpactFired = false;
   }
 
   // networkable description of this character (also fed to the local rig).
@@ -129,12 +134,31 @@ export class Player {
       stairClimb: this.stairClimbing ? 1 : 0,
       traversalAnimation: this._traversal?.plan?.animation || null,
       traversalAnimationTimeScale: 1,
+      actionAnimation: this.actionAnimation || null,
     };
   }
 
   // copy physics transform + pose onto the visible rig — FBX-only, no procedural fallback
   syncCharacter(dt = 1 / 60) {
     this.char.setState(this.getState(), dt);
+  }
+
+  startPunch() {
+    if (this.reloadLocked || this.skydive || this.climbing || this._traversal
+      || this._climbPhase || this._punchCooldown > 0
+      || ['enter_vehicle', 'exit_vehicle', 'vehicle_driver_idle'].includes(this.actionAnimation)) return false;
+    this.actionAnimation = 'punch';
+    this._punchElapsed = 0;
+    this._punchCooldown = 0.62;
+    this._punchImpactPending = false;
+    this._punchImpactFired = false;
+    return true;
+  }
+
+  consumePunchImpact() {
+    if (!this._punchImpactPending) return false;
+    this._punchImpactPending = false;
+    return true;
   }
 
   setReloading(enabled) {
@@ -230,12 +254,24 @@ export class Player {
 
   update(dt, input) {
     const k = this.reloadLocked
-      ? { ...input, forward: 0, right: 0, sprint: false, jump: false, crouch: false, climb: false, ads: false, fire: false }
+      ? { ...input, forward: 0, right: 0, sprint: false, jump: false, crouch: false, climb: false, ads: false, fire: false, melee: false }
       : input;
     // Track the physical key even while controls are locked so holding Space
     // through a reload cannot trigger a delayed jump when the reload ends.
     const jumpPressed = !this.reloadLocked && !!input.jump && !this._jumpWasDown;
     this._jumpWasDown = !!input.jump;
+    this._punchCooldown = Math.max(0, this._punchCooldown - Math.min(Math.max(dt, 0), 0.05));
+    if (k.melee && !this.actionAnimation) this.startPunch();
+    if (this.actionAnimation === 'punch') {
+      this._punchElapsed += Math.min(Math.max(dt, 0), 0.05);
+      // The strike is applied once during forward arm extension.
+      if (!this._punchImpactFired && this._punchElapsed >= 0.34) {
+        this._punchImpactFired = true;
+        this._punchImpactPending = true;
+      }
+      const clipDuration = this.char.getActionDuration?.('punch') || 1.0;
+      if (this._punchElapsed >= clipDuration) this.actionAnimation = null;
+    }
 
     // ---- SKYDIVE / PARACHUTE BRANCH (drop from the plane) ----
     if (this.skydive) {

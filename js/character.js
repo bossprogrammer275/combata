@@ -8,7 +8,8 @@ const PLAYER_ANIMATION_KEYS = Object.freeze([
   'idle', 'walk', 'walk_aim', 'run', 'rifle_run', 'sprint',
   'crouch_idle', 'crouch_walk', 'crouch_walk_aim',
   'rifle_aim_idle', 'crouch_aim_idle', 'reload_idle', 'jump_idle',
-  'obstacle_climb', 'ladder_climb_up'
+  'obstacle_climb', 'ladder_climb_up',
+  'punch', 'enter_vehicle', 'exit_vehicle', 'vehicle_driver_idle'
 ]);
 let _baseGroup = null;
 let _clips = {};
@@ -128,7 +129,7 @@ export class Character {
     for (const [key, clip] of Object.entries(_clips)) {
       const action = this._mixer.clipAction(clip, clone);
       action.enabled = true;
-      const oneShot = key === 'jump_idle' || key === 'reload_idle' || key === 'obstacle_climb';
+      const oneShot = ['jump_idle', 'reload_idle', 'obstacle_climb', 'punch', 'enter_vehicle', 'exit_vehicle'].includes(key);
       action.setLoop(oneShot ? THREE.LoopOnce : THREE.LoopRepeat, oneShot ? 1 : Infinity);
       action.clampWhenFinished = oneShot;
       action.reset();
@@ -195,8 +196,9 @@ export class Character {
   applyPose(state = {}, dt = 1 / 60) {
     if (!this._mixer || !this._model) return;
 
-    let desired = this._actions[state.traversalAnimation] ? state.traversalAnimation
-      : resolvePlayerAnimation(state, this._poseMode || 'idle');
+    let desired = this._actions[state.actionAnimation] ? state.actionAnimation
+      : this._actions[state.traversalAnimation] ? state.traversalAnimation
+        : resolvePlayerAnimation(state, this._poseMode || 'idle');
     if (!this._actions[desired]) {
       const fallback = {
         walk_aim: 'walk', rifle_run: 'run',
@@ -210,6 +212,7 @@ export class Character {
     const aiming = Number(state.aim) > 0.1;
 
     this._pendingWeaponPose = { aiming, moving };
+    if (this.weaponMount) this.weaponMount.visible = desired !== 'punch';
 
     // Only enter/reset a clip when the state actually changes. This prevents
     // locomotion clips from restarting every frame or blending in response to
@@ -307,10 +310,15 @@ export class Character {
     this.applyWeaponPose(dt);
   }
 
+  getActionDuration(key) {
+    return Number(this._actions[key]?.getClip?.().duration) || 0;
+  }
+
   setRestPose() {
     this._forceRestPose = true;
     this._poseMode = 'idle';
     this._pendingWeaponPose = { aiming: false, moving: false };
+    if (this.weaponMount) this.weaponMount.visible = true;
     this._wasAirborne = false;
     this._prevAirborne = false;
     if (!this._isBuilt || !this._mixer) return;
