@@ -8,6 +8,9 @@ export function resolvePlayerAnimation(state = {}, previous = 'idle') {
   const groundSpeed = Math.max(0, hasMeasuredSpeed ? state.groundSpeed : (intent > 0.05 ? fallbackSpeed : 0));
   const moving = groundSpeed > (MOVING_MODES.has(previous) ? 0.14 : 0.24);
   const crouched = Number(state.crouch) > 0.5;
+  // Missing optional state fields represent their neutral (grounded) value.
+  // Number(undefined) is NaN, and NaN < 0.5 is false.
+  const airborne = Number(state.airborne) || 0;
   const rifle = !state.weaponType || state.weaponType === 'rifle';
   const aiming = rifle && Number(state.aim) > 0.1;
 
@@ -15,7 +18,7 @@ export function resolvePlayerAnimation(state = {}, previous = 'idle') {
     // Reloading.fbx is the only downloaded rifle reload. Other weapon classes
     // retain their current pose instead of borrowing a rifle-specific action.
     if (!rifle) return previous || 'idle';
-    return !moving && !crouched && Number(state.airborne) < 0.5 ? 'reload_idle' : previous;
+    return !moving && !crouched && airborne < 0.5 ? 'reload_idle' : previous;
   }
 
   // Jumping.fbx is an idle-start jump only. Moving jumps keep their locomotion pose.
