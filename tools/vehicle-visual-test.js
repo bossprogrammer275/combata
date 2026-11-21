@@ -314,6 +314,41 @@ window.__vehicleVisualTest={
     render();
     return {seats,doors,inventory:anchors.meshInventory||[]};
   },
+  async testTraversalAnimations() {
+    if(!player.char._isBuilt) {
+      const began=performance.now();
+      while(!player.char._isBuilt&&performance.now()-began<25000) {
+        await new Promise(resolve=>setTimeout(resolve,40));
+      }
+    }
+    if(!player.char._isBuilt)throw new Error('npc_core_001 player rig not ready for traversal tests');
+    player.actionAnimation=null;
+    player.firstPerson=false;
+    player.char.setFirstPerson(false);
+    if(player.char.root.parent!==scene)scene.add(player.char.root);
+    player.char.root.position.copy(player.pos);
+    player.char.root.visible=true;
+    camera.position.set(player.pos.x-3,player.pos.y+2.1,player.pos.z+3.2);
+    camera.lookAt(player.pos.x,player.pos.y+0.9,player.pos.z);
+    const results=[];
+    for(const animation of ['obstacle_climb','ladder_climb_up']) {
+      const state={...player.getState(),actionAnimation:null,traversalAnimation:animation,traversalAnimationTimeScale:1};
+      player.char.setState(state,1/60);
+      player.char.update(0.42);
+      const result={
+        animation,
+        activePose:player.char._poseMode,
+        duration:player.char.getActionDuration(animation),
+        actionLoaded:player.char._actions[animation]?.isRunning?.()===true,
+      };
+      results.push(result);
+      render();
+    }
+    report.traversalAnimations=results;
+    player.char.setState(player.getState(),1/60);
+    render();
+    return results;
+  },
   async testPunchAnimation() {
     if(!player.char._isBuilt) {
       const began=performance.now();
