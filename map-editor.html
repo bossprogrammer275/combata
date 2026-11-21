@@ -1726,6 +1726,7 @@ function openAssetEditor(cat, idx) {
   const previewToken = ++aePreviewToken;
   aePreviewRoot = null;
   aeGlobalDimensions = { scale: 1, widthM: null, heightM: null, depthM: null };
+  if (cat === 'glbAssets') loadGlobalAssetDimensions(it.url, previewToken);
   const wrap = $('#assetEditor');
   wrap.style.display = 'flex';
   const name = it.kind || it.type || cat;
@@ -1779,7 +1780,6 @@ function openAssetEditor(cat, idx) {
         }
         applyAeGlobalDimensions(true);
         renderAeControls();
-        loadGlobalAssetDimensions(it.url, previewToken);
       }).catch(error => {
         console.error('[AssetEditor] Model preview failed:', error);
       });
