@@ -4,6 +4,7 @@ import {
   classifyAssetType,
   classifyComponent,
   isCollisionProxyComponent,
+  isDecorativeAssetPath,
   isPlausibleWheelGeometry,
   aggregateVehicleWheelGroups,
   aggregateLadderGroups,
@@ -577,3 +578,23 @@ test('a changed source hash discards all old approvals and leaves new geometry r
   assert.equal(bridge.sections[0].connection.accepted, false);
 });
 
+
+test('visual-only vegetation is excluded from gameplay calibration but tree assets remain physical', () => {
+  for (const asset of [
+    'data/models/assets/others/low_poly_shrub.glb',
+    'data/models/assets/others/real_bush.glb',
+    'data/models/assets/others/hedge.glb',
+    'data/models/assets/others/grass_patch.glb',
+    'data/models/assets/vegetation/fern/scene.gltf',
+    'data/models/assets/plants/flowers/scene.gltf',
+  ]) assert.equal(isDecorativeAssetPath(asset), true, asset);
+  assert.equal(isDecorativeAssetPath('data/models/assets/others/palm_tree.glb'), false);
+  assert.equal(isDecorativeAssetPath('data/models/cars/test-car/scene.gltf'), false);
+});
+test('CamelCase vehicle doors are semantic candidates but not fixed colliders', () => {
+  const item = mesh('FrontLeftDoorPanel', [1.1, 1, 0.12], { collisionProxy: true });
+  assert.equal(isCollisionProxyComponent(item), false);
+  const role = classifyComponent(item, 'vehicle', 'data/models/cars/test-car/scene.gltf');
+  assert.equal(role.kind, 'door');
+  assert.equal(role.role, 'door-panel');
+});

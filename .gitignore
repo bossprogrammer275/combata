@@ -4,3 +4,4 @@ tools/mixamo-mcp/.venv/
 tools/mixamo-mcp/browser_profile/
 tools/mixamo-mcp/page_dump.html
 tools/**/__pycache__/
+.asset-calibration-backups/

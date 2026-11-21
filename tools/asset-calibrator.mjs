@@ -43,6 +43,12 @@ function stableNodeName(mesh) {
   return String(mesh.name || '').trim();
 }
 
+function isDecorativeAssetPath(assetPath) {
+  const value = String(assetPath || '').toLowerCase().replace(/\\/g, '/');
+  return /(?:^|[\\/_-])(?:shrub|bush|hedge|grass|foliage|weed|flower|flowers|fern|petals?|fronds?)(?:[\\/_-]|\\.)/.test(value)
+    || /(?:^|\\/)vegetation\\//.test(value)
+    || /(?:^|\\/)plants?\\//.test(value);
+}
 function classifyAssetType(assetPath) {
   const value = assetPath.toLowerCase().replace(/\\/g, '/');
   if (value.includes('/cars/')) return 'vehicle';
@@ -92,10 +98,9 @@ function isCollisionProxyComponent(item) {
   const pathParts = String(item?.nodePath || '').toLowerCase().split(' / ').map(part => part.trim());
   if (/^(?:col_|trim_|window_|roof_detail|sign|awning)/.test(name) || /^room_\d+_marker$/.test(name)) return true;
   if (pathParts.some(part => part === 'collision_proxies' || part.startsWith('col_'))) return true;
-  // process-glbs marks door meshes as collisionProxy so they do not become
-  // solid boxes. They must remain visible to semantic door calibration.
-  const explicitDoor = /^(?:door|doorpanel|door_panel)(?:_|$)/.test(name)
-    || pathParts.some(part => /^door_[^/]+$/.test(part));
+  const explicitDoor = [name, ...pathParts].some(value =>
+    normalizedNameTokens(value).some(token =>
+      ['door', 'doors', 'doorpanel', 'hatch', 'tailgate', 'trunk', 'boot'].includes(token)));
   return item?.collisionProxy === true && !explicitDoor;
 }
 function isNativeCollisionProxy(item) {
@@ -131,7 +136,7 @@ function isPlausibleWheelGeometry(item) {
 }
 
 function classifyComponent(item, assetType, assetPath) {
-  if (isCollisionProxyComponent(item)) return null;
+  if (isDecorativeAssetPath(assetPath) || isCollisionProxyComponent(item)) return null;
 
   const name = stableNodeName(item);
   const tokens = normalizedNameTokens(name);
@@ -646,6 +651,13 @@ async function calibrateOne(file) {
   const sourceSize = fs.statSync(file).size;
   const baseName = path.parse(file).name;
   const outputPath = path.join(path.dirname(file), `${baseName}_calibration.json`);
+  const collisionOutputPath = path.join(path.dirname(file), `${baseName}_col.json`);
+  if (isDecorativeAssetPath(assetPath)) {
+    fs.rmSync(outputPath, { force: true });
+    fs.rmSync(collisionOutputPath, { force: true });
+    console.log(`[Calibrator] Skipping visual-only vegetation: ${assetPath}`);
+    return { assetPath, skipped: true, reason: 'decorative-vegetation' };
+  }
   const previousFile = fs.existsSync(outputPath)
     ? (() => { try { return JSON.parse(fs.readFileSync(outputPath, 'utf8')); } catch { return null; } })()
     : null;
@@ -798,13 +810,56 @@ async function calibrateOne(file) {
       requiresReview: c.requiresReview,
     })),
     traversal,
-    vehicle: isVehicle ? {
-      collisionAuthority: 'js/vehicles.js dynamic body and wheel hardpoint classifier',
-      dynamicBodyBoxesGeneratedHere: false,
-      candidates: components.filter(c => ['vehicle-wheel', 'vehicle-seat', 'door-panel', 'steering-wheel'].includes(c.role))
-        .map(c => ({ componentId: c.id, nodeKey: c.nodeKey, role: c.role, bounds: c.bounds, confidence: c.confidence, requiresReview: true })),
-      note: 'Existing measured wheel classifier remains authoritative for wheel hardpoints; calibrated candidates are diagnostic until reviewed.',
-    } : null,
+    vehicle: isVehicle ? (() => {
+      const seats = components.filter(component => component.role === 'vehicle-seat');
+      const doors = components.filter(component => component.role === 'door-panel');
+      const steering = components.find(component => component.role === 'steering-wheel');
+      const driver = seats.find(component => /driver/i.test(component.name + ' ' + component.nodePath))
+        || (steering && seats.length ? seats.slice().sort((a, b) => {
+          const distance = item => Math.hypot(
+            item.bounds.center[0] - steering.bounds.center[0],
+            item.bounds.center[2] - steering.bounds.center[2],
+          );
+          return distance(a) - distance(b);
+        })[0] : seats[0] || null);
+      return {
+        collisionAuthority: 'js/vehicles.js dynamic body and wheel hardpoint classifier',
+        dynamicBodyBoxesGeneratedHere: false,
+        driverSeatCandidateId: driver?.id || null,
+        seatCandidates: seats.map(component => {
+          const [cx] = component.bounds.center;
+          const [, sy] = component.bounds.size;
+          const [minY] = component.bounds.min, [maxY] = component.bounds.max;
+          const side = cx >= 0 ? 1 : -1;
+          const name = component.name + ' ' + component.nodePath;
+          return {
+            componentId: component.id, nodeKey: component.nodeKey, name: component.name,
+            bounds: component.bounds,
+            suggestedSeatRole: /driver/i.test(name) ? 'driver'
+              : /rear/i.test(name) ? 'rear-passenger'
+                : /passenger/i.test(name) ? 'passenger' : 'unassigned',
+            estimatedAnchors: {
+              occupant: [cx, Math.min(maxY + 0.34, minY + Math.max(0.18, sy * 0.92)), component.bounds.center[2]],
+              entry: [cx + side * Math.max(0.7, component.bounds.size[0] * 0.85), minY, component.bounds.center[2]],
+              exit: [cx + side * Math.max(1.0, component.bounds.size[0] * 1.25), minY, component.bounds.center[2]],
+              seatFacing: [0, 0, 1],
+            }, accepted: false, requiresReview: true,
+          };
+        }),
+        doorCandidates: doors.map(component => ({
+          componentId: component.id, nodeKey: component.nodeKey, name: component.name,
+          bounds: component.bounds, estimatedHandle: component.bounds.center,
+          hingeCandidates: [
+            [component.bounds.center[0], component.bounds.center[1], component.bounds.min[2]],
+            [component.bounds.center[0], component.bounds.center[1], component.bounds.max[2]],
+          ],
+          hingeAxisCandidate: [0, 1, 0], accepted: false, requiresReview: true,
+        })),
+        candidates: components.filter(c => ['vehicle-wheel', 'vehicle-seat', 'door-panel', 'steering-wheel'].includes(c.role))
+          .map(c => ({ componentId: c.id, nodeKey: c.nodeKey, role: c.role, bounds: c.bounds, confidence: c.confidence, requiresReview: true })),
+        note: 'Seat centres, door hinges and entry clearances are review-only candidates until confirmed against rendered geometry.',
+      };
+    })() : null,
     review: (() => {
       const outstanding = [
         ...components.filter(component => component.requiresReview).map(component => ({
@@ -843,8 +898,24 @@ async function calibrateOne(file) {
   };
 
   fs.writeFileSync(outputPath, JSON.stringify(calibration, null, 2) + '\n', 'utf8');
+  if (isVehicle) {
+    fs.rmSync(collisionOutputPath, { force: true });
+  } else {
+    const collisionSidecar = {
+      ...scanned.manifest, generatorVersion: 3,
+      boxes: collisionBoxes, collisionStats: scanned.collisionStats,
+    };
+    fs.writeFileSync(collisionOutputPath, JSON.stringify(collisionSidecar) + '\n', 'utf8');
+  }
   console.log(`[Calibrator] Wrote ${relativeAssetPath(outputPath)} · ${components.length} semantic components · ${collisionBoxes.length} collision boxes · ${road?.surfaces.length || 0} driveable surfaces`);
-  return { assetPath, outputPath: relativeAssetPath(outputPath), components: components.length, boxes: collisionBoxes.length, surfaces: road?.surfaces.length || 0, bridgeSections: bridge?.sections.length || 0 };
+  return {
+    assetPath, outputPath: relativeAssetPath(outputPath),
+    collisionOutputPath: isVehicle ? null : relativeAssetPath(collisionOutputPath),
+    skipped: false, components: components.length, boxes: collisionBoxes.length,
+    surfaces: road?.surfaces.length || 0, bridgeSections: bridge?.sections.length || 0,
+    vehicleSeatCandidates: calibration.vehicle?.seatCandidates?.length || 0,
+    vehicleDoorCandidates: calibration.vehicle?.doorCandidates?.length || 0,
+  };
 }
 
 async function expandInput(input) {
@@ -891,7 +962,7 @@ async function main() {
   if (failed) process.exitCode = 1;
 }
 
-export { calibrateOne, classifyAssetType, classifyComponent, isCollisionProxyComponent, isPlausibleWheelGeometry, aggregateVehicleWheelGroups, aggregateLadderGroups, aggregateNamedAssetSeat, isNativeCollisionProxy, buildNativeCollisionProxyRecords, localConnection, interactionSpec, makeComponent, buildRoadProfiles, buildBridgeProfile, preserveReviewedCalibration };
+export { calibrateOne, classifyAssetType, classifyComponent, isCollisionProxyComponent, isDecorativeAssetPath, isPlausibleWheelGeometry, aggregateVehicleWheelGroups, aggregateLadderGroups, aggregateNamedAssetSeat, isNativeCollisionProxy, buildNativeCollisionProxyRecords, localConnection, interactionSpec, makeComponent, buildRoadProfiles, buildBridgeProfile, preserveReviewedCalibration };
 
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : '';
 if (invokedPath && import.meta.url === pathToFileURL(invokedPath).href) {

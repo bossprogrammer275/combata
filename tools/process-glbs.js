@@ -330,26 +330,43 @@ function subdivideMeshCollision(mesh, cellSize, verticalQuantum, thickness, minC
 function meshNeedsSubdivision(mesh) {
   const geo = mesh.geometry;
   if (!geo || !geo.attributes.position) return false;
-  const verts = geo.attributes.position.count;
-  if (verts > 50) return true;
+  const vertices = geo.attributes.position.count;
+  const triangles = Math.floor((geo.index?.count ?? vertices) / 3);
+  // Multi-face meshes are rasterised from real triangles. Their enclosing
+  // AABBs can fill gaps in hollow doors, windows, frames and diagonal walls.
+  if (vertices > 50 || triangles > 8) return true;
   mesh.updateWorldMatrix(true, false);
   geo.computeBoundingBox();
-  const lb = geo.boundingBox;
-  if (!lb) return false;
-  const s = new THREE.Vector3().subVectors(lb.max, lb.min);
-  return s.x * s.y * s.z > 8 || Math.max(s.x, s.y, s.z) / (Math.min(s.x, s.y, s.z) + 0.01) > 4;
+  const bounds = geo.boundingBox;
+  if (!bounds) return false;
+  const size = new THREE.Vector3().subVectors(bounds.max, bounds.min);
+  const sorted = [size.x, size.y, size.z].sort((a, b) => a - b);
+  return size.x * size.y * size.z > 8 || sorted[2] / (sorted[0] + 0.01) > 4;
 }
-
+function semanticTokens(value) {
+  return String(value || '').replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+}
+function isDecorativeNodeName(value) {
+  return semanticTokens(value).some(token =>
+    /^(?:leaf|leaves|foliage|grass|shrub|bush|hedge|flower|flowers|weed|fern|petal|frond|plant)$/.test(token));
+}
+function isDoorOrGlassNodeName(value) {
+  return semanticTokens(value).some(token =>
+    /^(?:door|doors|doorpanel|hatch|tailgate|trunk|boot|window|windows|glazing|glass|glasspane|windshield|windscreen)$/.test(token));
+}
 function shouldSkip(object) {
-  // Semantic prefixes are allowed on either the mesh or a parent collection.
-  // This is common when GLB assets are exported from Blender.
+  // Semantic exclusions may live on a parent collection, not the mesh.
+  // Doors/glass move or remain transparent; decorative foliage is visual-only.
   let current = object;
   while (current) {
-    const n = (current.name || '').toLowerCase();
+    const name = current.name || '';
+    const lower = name.toLowerCase();
     if (
-      n.startsWith('col_') || n.startsWith('trim_') || n.startsWith('window_') ||
-      n.startsWith('roof_detail') || n.startsWith('sign') || n.startsWith('awning') ||
-      n.startsWith('door_') || /^room_\d+_marker$/.test(n)
+      lower.startsWith('col_') || lower.startsWith('trim_') || lower.startsWith('window_') ||
+      lower.startsWith('roof_detail') || lower.startsWith('sign') || lower.startsWith('awning') ||
+      /^room_\d+_marker$/.test(lower)
+      || isDecorativeNodeName(name) || isDoorOrGlassNodeName(name)
     ) return true;
     current = current.parent;
   }
@@ -385,6 +402,8 @@ async function processGLB(inputPath, options = {}) {
 
   const boxes = [];
   let subdivCount = 0;
+  let skippedUnrasterizableMeshes = 0;
+  let skippedBySemanticPolicy = 0;
 
   scene.traverse((obj) => {
     if (!obj.isMesh) return;
@@ -425,7 +444,10 @@ async function processGLB(inputPath, options = {}) {
         boundsMin: worldBox.min.toArray(),
         boundsMax: worldBox.max.toArray(),
       });
-    if (shouldSkip(obj) || excludedNodeKeys.has(key) || excludedByRule) return;
+    if (shouldSkip(obj) || excludedNodeKeys.has(key) || excludedByRule) {
+      skippedBySemanticPolicy++;
+      return;
+    }
 
     const min = lb.min.clone().applyMatrix4(obj.matrixWorld);
     const max = lb.max.clone().applyMatrix4(obj.matrixWorld);
@@ -447,6 +469,11 @@ async function processGLB(inputPath, options = {}) {
         console.log(`  [SUBDIVIDED] "${obj.name}" → ${sub.length} cells`);
         return;
       }
+      // Never turn an open/complex mesh into a broad AABB when triangle
+      // coverage is empty. A missing collider is safer than an invisible wall.
+      skippedUnrasterizableMeshes++;
+      console.warn(`  [SKIP] "${obj.name}" has no stable triangle coverage; no AABB fallback`);
+      return;
     }
 
     const center = [min.x + s.x / 2, min.y + s.y / 2, min.z + s.z / 2];
@@ -489,7 +516,13 @@ async function processGLB(inputPath, options = {}) {
   if (options.log !== false) {
     console.log(`  Scanned ${meshDetails.length} mesh components; excluded ${excludedNodeKeys.size} calibrated components`);
   }
-  return { manifest, meshDetails, collisionStats: { boxes: boxes.length, subdividedMeshes: subdivCount } };
+  return {
+    manifest, meshDetails,
+    collisionStats: {
+      boxes: boxes.length, subdividedMeshes: subdivCount,
+      skippedUnrasterizableMeshes, skippedBySemanticPolicy,
+    },
+  };
 }
 
 // ─── CLI ───
