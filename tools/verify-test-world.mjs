@@ -23,6 +23,11 @@ assert.equal(new Set(placedAssets).size, placedAssets.length, 'A model asset app
 assert.deepEqual(placedAssets, sourceAssets, 'Test map must include every source GLB/glTF asset and no unknown path.');
 
 assert.equal(map.id, 'test');
+assert.equal(map.bounds, 125, 'The test block must stay within a 250m square.');
+assert.equal(map.ground?.size, 250, 'Ground footprint must be 250m across.');
+const placementKeys = map.glbAssets.map(asset => asset.x + ',' + asset.z);
+assert.equal(new Set(placementKeys).size, placementKeys.length,
+  'Each test asset must occupy a separate inspection position.');
 assert.equal(map.streaming?.enabled, false, 'Streaming must be disabled in the test world.');
 assert.equal(map.streaming?.assetConcurrency, 1, 'Test world uses one-asset loading concurrency for the low-memory target.');
 assert.equal(map.disableAutoSpawns, true, 'Ambient combat spawns must not contaminate the interaction test.');
@@ -43,6 +48,10 @@ assert.ok(rampRoads.length >= 3, 'Multiple diagonal hill ramps must be present.'
 for (const road of rampRoads) {
   const elevations = road.points.map(point => Number(point[2]) || 0);
   assert.ok(Math.max(...elevations) - Math.min(...elevations) > 1, road.name + ' must have a real height profile.');
+  const endpoint = road.points.at(-1);
+  assert.ok(map.roads.some(other => other !== road && other.points.some(point =>
+    Math.hypot(point[0] - endpoint[0], point[1] - endpoint[1]) < 2)),
+  road.name + ' must connect back into a street.');
 }
 assert.ok(map.ground?.hills?.length >= 4, 'The test map needs multiple authored hills.');
 assert.ok(map.ground?.cellSize > 0, 'Terrain must use a subdivided, measurable grid.');
