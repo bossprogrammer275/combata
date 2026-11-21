@@ -2,7 +2,7 @@
   "id": "test",
   "name": "Open World — Gameplay Test World",
   "version": 1,
-  "bounds": 128,
+  "bounds": 125,
   "disableAutoSpawns": true,
   "disableHostiles": true,
   "startPoint": {
@@ -11,7 +11,7 @@
     "yaw": 3.141592653589793
   },
   "ground": {
-    "size": 260,
+    "size": 250,
     "color": "#767b66",
     "cellSize": 3.25,
     "hills": [
@@ -184,6 +184,11 @@
           -40,
           -40,
           0
+        ],
+        [
+          -18,
+          -18,
+          0
         ]
       ]
     },
@@ -213,6 +218,11 @@
         [
           40,
           -40,
+          0
+        ],
+        [
+          18,
+          -18,
           0
         ]
       ]
@@ -244,6 +254,11 @@
           -40,
           40,
           0
+        ],
+        [
+          -18,
+          15,
+          0
         ]
       ]
     },
@@ -273,6 +288,11 @@
         [
           40,
           40,
+          0
+        ],
+        [
+          18,
+          15,
           0
         ]
       ]
@@ -814,8 +834,8 @@
       "url": "./data/models/assets/others/low_poly_street_food_cart.glb",
       "name": "Street Food Cart",
       "x": 108,
-      "z": 112,
-      "elevation": 8.866,
+      "z": -78,
+      "elevation": 2.275420829942179,
       "targetH": 2.2
     }
   ],
