@@ -272,7 +272,7 @@ function subdivideMeshCollision(mesh, cellSize, verticalQuantum, thickness, minC
       const cellMaxX = cellMinX + cellSize;
       for (let ri = r0; ri <= r1; ri++) {
         const cellMinZ = minZ + ri * gridCellSize;
-        const cellMaxZ = cellMinZ + cellSize;
+        const cellMaxZ = cellMinZ + gridCellSize;
         if (!triangleIntersectsRectXZ(a, b, c, cellMinX, cellMaxX, cellMinZ, cellMaxZ)) continue;
         const key = ci * rows + ri;
         let cell = cells.get(key);
