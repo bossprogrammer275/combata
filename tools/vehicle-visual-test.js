@@ -467,8 +467,11 @@ window.__vehicleVisualTest={
       player.char.setState(player.getState(),0);
       const started=system.enter(vehicle,player,seat.id);
       if(!started)throw new Error(kind+' could not start entry for seat '+seat.id);
-      for(let frame=0;frame<900&&(system._enterState||!system.driver);frame++) {
-        system.update(1/60,{},player);scene.updateMatrixWorld(true);
+      // updateEnterExit clamps transition steps at 0.05 seconds. Running
+      // the harness at that maximum supported step keeps full clip durations
+      // while avoiding thousands of unnecessary 60Hz test-only updates.
+      for(let frame=0;frame<240&&(system._enterState||!system.driver);frame++) {
+        system.update(0.05,{},player);scene.updateMatrixWorld(true);
       }
       const entered=!!system.driver&&vehicle.activeSeat?.id===seat.id
         &&player.char.root.parent===vehicle.root;
@@ -478,8 +481,8 @@ window.__vehicleVisualTest={
       if(seat.role!=='driver')system.update(1/60,{forward:1,right:1,jump:true},player);
       const passengerControlsLocked=seat.role==='driver'||vehicle.speed===speedBeforePassengerInput;
       const exitStarted=system.exit(player);
-      for(let frame=0;frame<500&&system._enterState;frame++) {
-        system.update(1/60,{},player);scene.updateMatrixWorld(true);
+      for(let frame=0;frame<180&&system._enterState;frame++) {
+        system.update(0.05,{},player);scene.updateMatrixWorld(true);
       }
       const exited=!system.driver&&!system._enterState&&player.char.root.parent===scene;
       results.push({id:seat.id,role:seat.role,estimated:seat.estimated,started,entered,pose:player.char._poseMode,expectedPose,poseCorrect,passengerControlsLocked,exitStarted,exited});
