@@ -1,0 +1,455 @@
+{
+  "schemaVersion": 1,
+  "kind": "open-world-asset-calibration",
+  "generator": {
+    "id": "open-world-unified-asset-calibrator",
+    "version": 1
+  },
+  "generatedAt": "2026-11-21T21:06:35.274Z",
+  "source": {
+    "assetUrl": "data/models/assets/others/ladder (1).glb",
+    "fileName": "ladder (1).glb",
+    "format": "glb",
+    "bytes": 1103928,
+    "sha256": "9c04437c320977c64b0d162239f8930b149a9461ea81c91f7395ecbaa7264a10"
+  },
+  "coordinateSpace": "model-local-after-source-node-transforms",
+  "units": {
+    "worldConvention": "one game-world unit equals one metre",
+    "sourceUnitStatus": "unverified",
+    "sourceDimensionsRequirePhysicalReference": true,
+    "noAutomaticRescale": true
+  },
+  "bounds": {
+    "min": [
+      10.622294799432572,
+      1.2056416508758332,
+      -4.7969458148701225
+    ],
+    "max": [
+      12.130293021031294,
+      67.31289822127634,
+      4.615681654672277
+    ],
+    "size": [
+      1.5079982215987222,
+      66.10725657040051,
+      9.4126274695424
+    ]
+  },
+  "collision": {
+    "generator": "process-glbs-triangle-grid-v2",
+    "mode": "static-boxes",
+    "coordinateSpace": "model-local",
+    "boxes": [
+      [
+        11.812225442491075,
+        1.6992625565779103,
+        -0.30165236808287865,
+        2.6442902628160203,
+        1.1525096892812858,
+        9.25501591985607
+      ],
+      [
+        11.15115287678707,
+        1.6992625565779103,
+        4.986928157549162,
+        1.3221451314080102,
+        1.1525096892812858,
+        1.3221451314080102
+      ],
+      [
+        11.812225442491075,
+        6.077239794514814,
+        -0.30165236808287865,
+        2.6442902628160203,
+        1.1525096892812858,
+        9.25501591985607
+      ],
+      [
+        11.15115287678707,
+        6.077239794514814,
+        4.986928157549162,
+        1.3221451314080102,
+        1.1525096892812858,
+        1.3221451314080102
+      ],
+      [
+        11.812225442491075,
+        10.455200099685067,
+        -0.30165236808287865,
+        2.6442902628160203,
+        1.1524758237479784,
+        9.25501591985607
+      ],
+      [
+        11.15115287678707,
+        10.455200099685067,
+        4.986928157549162,
+        1.3221451314080102,
+        1.1524758237479784,
+        1.3221451314080102
+      ],
+      [
+        11.812225442491075,
+        14.833159753595062,
+        -0.30165236808287865,
+        2.6442902628160203,
+        1.152510991801795,
+        9.25501591985607
+      ],
+      [
+        11.15115287678707,
+        14.833159753595062,
+        4.986928157549162,
+        1.3221451314080102,
+        1.152510991801795,
+        1.3221451314080102
+      ],
+      [
+        11.812225442491075,
+        19.211136991531966,
+        -0.30165236808287865,
+        2.6442902628160203,
+        1.152510991801795,
+        9.25501591985607
+      ],
+      [
+        11.15115287678707,
+        19.211136991531966,
+        4.986928157549162,
+        1.3221451314080102,
+        1.152510991801795,
+        1.3221451314080102
+      ],
+      [
+        11.812225442491075,
+        23.589097296702217,
+        -0.30165236808287865,
+        2.6442902628160203,
+        1.1524771262684912,
+        9.25501591985607
+      ],
+      [
+        11.15115287678707,
+        23.589097296702217,
+        4.986928157549162,
+        1.3221451314080102,
+        1.1524771262684912,
+        1.3221451314080102
+      ],
+      [
+        11.812225442491075,
+        27.96705727624234,
+        -0.30165236808287865,
+        2.6442902628160203,
+        1.1525116430620497,
+        9.25501591985607
+      ],
+      [
+        11.15115287678707,
+        27.96705727624234,
+        4.986928157549162,
+        1.3221451314080102,
+        1.1525116430620497,
+        1.3221451314080102
+      ],
+      [
+        11.812225442491075,
+        32.345017255782466,
+        -0.30165236808287865,
+        2.6442902628160203,
+        1.1524979665966744,
+        9.25501591985607
+      ],
+      [
+        11.15115287678707,
+        32.345017255782466,
+        4.986928157549162,
+        1.3221451314080102,
+        1.1524979665966744,
+        1.3221451314080102
+      ],
+      [
+        11.812225442491075,
+        36.50408190651263,
+        -0.30165236808287865,
+        2.6442902628160203,
+        1.1524981294117442,
+        9.25501591985607
+      ],
+      [
+        11.15115287678707,
+        36.50408190651263,
+        4.986928157549162,
+        1.3221451314080102,
+        1.1524981294117442,
+        1.3221451314080102
+      ],
+      [
+        11.812225442491075,
+        40.88205222480932,
+        -0.30165236808287865,
+        2.6442902628160203,
+        1.1525116430620532,
+        9.25501591985607
+      ],
+      [
+        11.15115287678707,
+        40.88205222480932,
+        4.986928157549162,
+        1.3221451314080102,
+        1.1525116430620532,
+        1.3221451314080102
+      ],
+      [
+        11.812225442491075,
+        45.26001252997957,
+        -0.30165236808287865,
+        2.6442902628160203,
+        1.1524777775287494,
+        9.25501591985607
+      ],
+      [
+        11.15115287678707,
+        45.26001252997957,
+        4.986928157549162,
+        1.3221451314080102,
+        1.1524777775287494,
+        1.3221451314080102
+      ],
+      [
+        11.812225442491075,
+        49.6379725095197,
+        -0.30165236808287865,
+        2.6442902628160203,
+        1.1525122943223043,
+        9.25501591985607
+      ],
+      [
+        11.15115287678707,
+        49.6379725095197,
+        4.986928157549162,
+        1.3221451314080102,
+        1.1525122943223043,
+        1.3221451314080102
+      ],
+      [
+        11.812225442491075,
+        54.015932163429696,
+        -0.30165236808287865,
+        2.6442902628160203,
+        1.1524771262684912,
+        9.25501591985607
+      ],
+      [
+        11.15115287678707,
+        54.015932163429696,
+        4.986928157549162,
+        1.3221451314080102,
+        1.1524771262684912,
+        1.3221451314080102
+      ],
+      [
+        11.812225442491075,
+        58.39389181733969,
+        -0.30165236808287865,
+        2.6442902628160203,
+        1.1525122943223043,
+        9.25501591985607
+      ],
+      [
+        11.15115287678707,
+        58.39389181733969,
+        4.986928157549162,
+        1.3221451314080102,
+        1.1525122943223043,
+        1.3221451314080102
+      ],
+      [
+        11.812225442491075,
+        62.771869055276596,
+        -0.30165236808287865,
+        2.6442902628160203,
+        1.1525122943223043,
+        9.25501591985607
+      ],
+      [
+        11.15115287678707,
+        62.771869055276596,
+        4.986928157549162,
+        1.3221451314080102,
+        1.1525122943223043,
+        1.3221451314080102
+      ],
+      [
+        11.812225442491075,
+        67.14982936044684,
+        -0.30165236808287865,
+        2.6442902628160203,
+        1.1524784287890075,
+        9.25501591985607
+      ],
+      [
+        11.15115287678707,
+        67.14982936044684,
+        4.986928157549162,
+        1.3221451314080102,
+        1.1524784287890075,
+        1.3221451314080102
+      ]
+    ],
+    "boxCount": 32,
+    "nativeProxies": [],
+    "nativeProxyCount": 0,
+    "nativeProxyAuthority": null,
+    "excludedDriveableMeshKeys": [],
+    "exactSurfacePhysics": false,
+    "sourceSha256": "9c04437c320977c64b0d162239f8930b149a9461ea81c91f7395ecbaa7264a10"
+  },
+  "road": null,
+  "bridge": null,
+  "components": [
+    {
+      "id": "component-001-sketchfab-model-0-ladderfbx-0-rootnode-0-ladder-noback001-1-",
+      "nodeKey": "Sketchfab_model[0]/ladderfbx[0]/RootNode[0]/ladder-noback001[1]",
+      "nodePath": "Sketchfab_model / ladderfbx / RootNode / ladder-noback001",
+      "name": "ladder-noback001",
+      "sectionId": null,
+      "role": "ladder",
+      "kind": "ladder",
+      "confidence": 0.82,
+      "detection": "aggregated-ladder-group",
+      "bounds": {
+        "min": [
+          10.622294799432572,
+          1.2056416508758332,
+          -4.7969458148701225
+        ],
+        "max": [
+          12.130293021031294,
+          67.31289822127634,
+          4.615681654672277
+        ],
+        "size": [
+          1.5079982215987222,
+          66.10725657040051,
+          9.4126274695424
+        ],
+        "center": [
+          11.376293910231933,
+          34.25926993607609,
+          -0.09063208009892287
+        ]
+      },
+      "requiresReview": true,
+      "interaction": {
+        "kind": "ladder",
+        "accepted": false,
+        "requiredAnchors": [
+          "mountBottom",
+          "mountTop",
+          "climbPath",
+          "topOut",
+          "bottomDismount"
+        ]
+      },
+      "runtimeEnabled": false
+    }
+  ],
+  "interactions": [
+    {
+      "componentId": "component-001-sketchfab-model-0-ladderfbx-0-rootnode-0-ladder-noback001-1-",
+      "nodeKey": "Sketchfab_model[0]/ladderfbx[0]/RootNode[0]/ladder-noback001[1]",
+      "kind": "ladder",
+      "accepted": false,
+      "requiredAnchors": [
+        "mountBottom",
+        "mountTop",
+        "climbPath",
+        "topOut",
+        "bottomDismount"
+      ],
+      "bounds": {
+        "min": [
+          10.622294799432572,
+          1.2056416508758332,
+          -4.7969458148701225
+        ],
+        "max": [
+          12.130293021031294,
+          67.31289822127634,
+          4.615681654672277
+        ],
+        "size": [
+          1.5079982215987222,
+          66.10725657040051,
+          9.4126274695424
+        ],
+        "center": [
+          11.376293910231933,
+          34.25926993607609,
+          -0.09063208009892287
+        ]
+      },
+      "confidence": 0.82,
+      "requiresReview": true
+    }
+  ],
+  "traversal": [
+    {
+      "componentId": "component-001-sketchfab-model-0-ladderfbx-0-rootnode-0-ladder-noback001-1-",
+      "nodeKey": "Sketchfab_model[0]/ladderfbx[0]/RootNode[0]/ladder-noback001[1]",
+      "actionCandidate": "ladder-climb",
+      "obstacleHeightSourceUnits": 66.10725657040051,
+      "playerProfileRequired": "npc_core_001",
+      "capabilities": {
+        "ladderClimbUpAnimation": true,
+        "ladderClimbDown": false,
+        "obstacleClimbAnimation": false,
+        "vaultAnimation": false,
+        "mantleAnimation": false,
+        "ledgeHangAnimation": false
+      },
+      "coordinateSpace": "component-local",
+      "anchors": {},
+      "animation": null,
+      "manual": false,
+      "accepted": false,
+      "runtimeEnabled": false,
+      "requiresReview": true,
+      "note": "Measure approach, full timed root path, hand/foot contacts, mount/rung points, capsule clearance and supported landing before enabling traversal."
+    }
+  ],
+  "vehicle": null,
+  "review": {
+    "status": "needs-review",
+    "approved": false,
+    "outstanding": [
+      {
+        "componentId": "component-001-sketchfab-model-0-ladderfbx-0-rootnode-0-ladder-noback001-1-",
+        "nodeKey": "Sketchfab_model[0]/ladderfbx[0]/RootNode[0]/ladder-noback001[1]",
+        "role": "ladder",
+        "reason": "Confirm component identity, bounds, anchors and runtime behaviour in Asset Lab before accepting."
+      },
+      {
+        "componentId": "component-001-sketchfab-model-0-ladderfbx-0-rootnode-0-ladder-noback001-1-",
+        "nodeKey": "Sketchfab_model[0]/ladderfbx[0]/RootNode[0]/ladder-noback001[1]",
+        "role": "ladder-climb",
+        "reason": "Confirm animation contact, player capsule clearance and landing support before enabling traversal."
+      }
+    ],
+    "preservedManualReview": false
+  },
+  "scan": {
+    "meshCount": 1,
+    "collisionBoxCount": 32,
+    "collisionStats": {
+      "boxes": 32,
+      "subdividedMeshes": 1,
+      "skippedUnrasterizableMeshes": 0,
+      "skippedBySemanticPolicy": 0
+    }
+  },
+  "manualOverrides": {}
+}

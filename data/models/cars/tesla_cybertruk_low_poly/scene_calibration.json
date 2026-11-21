@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "kind": "open-world-asset-calibration",
+  "generator": {
+    "id": "open-world-unified-asset-calibrator",
+    "version": 1
+  },
+  "generatedAt": "2026-11-21T21:06:40.154Z",
+  "source": {
+    "assetUrl": "data/models/cars/tesla_cybertruk_low_poly/scene.gltf",
+    "fileName": "scene.gltf",
+    "format": "gltf",
+    "bytes": 1194973,
+    "sha256": "e9728ddf5e60aee6e08e4b6a046b87b60f62a8735bd1d8897e5d8ac2ea6714d8"
+  },
+  "coordinateSpace": "model-local-after-source-node-transforms",
+  "units": {
+    "worldConvention": "one game-world unit equals one metre",
+    "sourceUnitStatus": "unverified",
+    "sourceDimensionsRequirePhysicalReference": true,
+    "noAutomaticRescale": true
+  },
+  "bounds": {
+    "min": [
+      -1.01881558096821,
+      -0.021967878174848125,
+      -12.63052429965456
+    ],
+    "max": [
+      0.9907848827737964,
+      1.7003328896984549,
+      -7.385173479948037
+    ],
+    "size": [
+      2.0096004637420064,
+      1.7223007678733029,
+      5.245350819706523
+    ]
+  },
+  "collision": {
+    "generator": "process-glbs-triangle-grid-v2",
+    "mode": "dynamic-vehicle-runtime",
+    "coordinateSpace": "model-local",
+    "boxes": [],
+    "boxCount": 0,
+    "nativeProxies": [],
+    "nativeProxyCount": 0,
+    "nativeProxyAuthority": null,
+    "excludedDriveableMeshKeys": [],
+    "exactSurfacePhysics": false,
+    "sourceSha256": "e9728ddf5e60aee6e08e4b6a046b87b60f62a8735bd1d8897e5d8ac2ea6714d8"
+  },
+  "road": null,
+  "bridge": null,
+  "components": [],
+  "interactions": [],
+  "traversal": [],
+  "vehicle": {
+    "collisionAuthority": "js/vehicles.js dynamic body and wheel hardpoint classifier",
+    "dynamicBodyBoxesGeneratedHere": false,
+    "driverSeatCandidateId": null,
+    "seatCandidates": [],
+    "doorCandidates": [],
+    "candidates": [],
+    "note": "Seat centres, door hinges and entry clearances are review-only candidates until confirmed against rendered geometry."
+  },
+  "review": {
+    "status": "approved",
+    "approved": true,
+    "outstanding": [],
+    "preservedManualReview": false
+  },
+  "scan": {
+    "meshCount": 591,
+    "collisionBoxCount": 0,
+    "collisionStats": {
+      "boxes": 7005,
+      "subdividedMeshes": 591,
+      "skippedUnrasterizableMeshes": 0,
+      "skippedBySemanticPolicy": 0
+    }
+  },
+  "manualOverrides": {}
+}

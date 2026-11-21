@@ -1,0 +1,174 @@
+{
+  "schemaVersion": 1,
+  "kind": "open-world-asset-calibration",
+  "generator": {
+    "id": "open-world-unified-asset-calibrator",
+    "version": 1
+  },
+  "generatedAt": "2026-11-21T21:06:37.700Z",
+  "source": {
+    "assetUrl": "data/models/assets/roads/speed_bump.glb",
+    "fileName": "speed_bump.glb",
+    "format": "glb",
+    "bytes": 2795308,
+    "sha256": "b27b23c65ae26978604ea65de0ac3412ef82cd6a191d1a42c238fffd316d08fe"
+  },
+  "coordinateSpace": "model-local-after-source-node-transforms",
+  "units": {
+    "worldConvention": "one game-world unit equals one metre",
+    "sourceUnitStatus": "unverified",
+    "sourceDimensionsRequirePhysicalReference": true,
+    "noAutomaticRescale": true
+  },
+  "bounds": {
+    "min": [
+      -0.9999999776482582,
+      -0.20817065828397377,
+      -8.435403537676688
+    ],
+    "max": [
+      0.9999999776482582,
+      0.1031863075671682,
+      1.4886006552442947
+    ],
+    "size": [
+      1.9999999552965164,
+      0.311356965851142,
+      9.924004192920982
+    ]
+  },
+  "collision": {
+    "generator": "process-glbs-triangle-grid-v2",
+    "mode": "hybrid-static-and-surface",
+    "coordinateSpace": "model-local",
+    "boxes": [],
+    "boxCount": 0,
+    "nativeProxies": [],
+    "nativeProxyCount": 0,
+    "nativeProxyAuthority": null,
+    "excludedDriveableMeshKeys": [],
+    "exactSurfacePhysics": true,
+    "sourceSha256": "b27b23c65ae26978604ea65de0ac3412ef82cd6a191d1a42c238fffd316d08fe"
+  },
+  "road": {
+    "coordinateSpace": "model-local",
+    "surfaces": [
+      {
+        "id": "component-001-sketchfab-model-0-9c721f11a88b4feeb3b063ba32b240b1fbx-0-rootnode-0-cube-0-cube-material-0-0-",
+        "nodeKey": "Sketchfab_model[0]/9c721f11a88b4feeb3b063ba32b240b1fbx[0]/RootNode[0]/Cube[0]/Cube_Material_0[0]",
+        "nodePath": "Sketchfab_model / 9c721f11a88b4feeb3b063ba32b240b1fbx / RootNode / Cube / Cube_Material_0",
+        "role": "road-surface-candidate",
+        "sectionId": null,
+        "sectionKind": "unknown-profile",
+        "kind": "road",
+        "physics": {
+          "collider": "triangle-surface",
+          "frictionHint": 0.72,
+          "restitution": 0
+        },
+        "bounds": {
+          "min": [
+            -0.9999999776482582,
+            -0.20817065828397377,
+            -8.435403537676688
+          ],
+          "max": [
+            0.9999999776482582,
+            0.1031863075671682,
+            1.4886006552442947
+          ],
+          "size": [
+            1.9999999552965164,
+            0.311356965851142,
+            9.924004192920982
+          ],
+          "center": [
+            0,
+            -0.05249217535840278,
+            -3.473401441216197
+          ]
+        },
+        "connection": {
+          "status": "review-required",
+          "method": "manual-centreline-required-for-curved-sloped-or-unknown-profile",
+          "requiresReview": true
+        },
+        "confidence": 0.58,
+        "requiresReview": true,
+        "runtimeEnabled": false
+      }
+    ],
+    "connectionPolicy": "Use node-referenced source triangles for physics. Bounds endpoints are alignment estimates only; curves and ambiguous assets need centreline review."
+  },
+  "bridge": null,
+  "components": [
+    {
+      "id": "component-001-sketchfab-model-0-9c721f11a88b4feeb3b063ba32b240b1fbx-0-rootnode-0-cube-0-cube-material-0-0-",
+      "nodeKey": "Sketchfab_model[0]/9c721f11a88b4feeb3b063ba32b240b1fbx[0]/RootNode[0]/Cube[0]/Cube_Material_0[0]",
+      "nodePath": "Sketchfab_model / 9c721f11a88b4feeb3b063ba32b240b1fbx / RootNode / Cube / Cube_Material_0",
+      "name": "Cube_Material_0",
+      "sectionId": null,
+      "role": "road-surface-candidate",
+      "kind": "driveable-surface",
+      "confidence": 0.58,
+      "detection": "horizontal-geometry",
+      "bounds": {
+        "min": [
+          -0.9999999776482582,
+          -0.20817065828397377,
+          -8.435403537676688
+        ],
+        "max": [
+          0.9999999776482582,
+          0.1031863075671682,
+          1.4886006552442947
+        ],
+        "size": [
+          1.9999999552965164,
+          0.311356965851142,
+          9.924004192920982
+        ],
+        "center": [
+          0,
+          -0.05249217535840278,
+          -3.473401441216197
+        ]
+      },
+      "requiresReview": true,
+      "runtimeEnabled": false
+    }
+  ],
+  "interactions": [],
+  "traversal": [],
+  "vehicle": null,
+  "review": {
+    "status": "needs-review",
+    "approved": false,
+    "outstanding": [
+      {
+        "componentId": "component-001-sketchfab-model-0-9c721f11a88b4feeb3b063ba32b240b1fbx-0-rootnode-0-cube-0-cube-material-0-0-",
+        "nodeKey": "Sketchfab_model[0]/9c721f11a88b4feeb3b063ba32b240b1fbx[0]/RootNode[0]/Cube[0]/Cube_Material_0[0]",
+        "role": "road-surface-candidate",
+        "reason": "Confirm component identity, bounds, anchors and runtime behaviour in Asset Lab before accepting."
+      },
+      {
+        "componentId": "component-001-sketchfab-model-0-9c721f11a88b4feeb3b063ba32b240b1fbx-0-rootnode-0-cube-0-cube-material-0-0-",
+        "nodeKey": "Sketchfab_model[0]/9c721f11a88b4feeb3b063ba32b240b1fbx[0]/RootNode[0]/Cube[0]/Cube_Material_0[0]",
+        "role": "road-surface-candidate",
+        "reason": "Review centreline/endpoints and approve the driveable connection before enabling custom tyre-surface sampling."
+      }
+    ],
+    "preservedManualReview": false
+  },
+  "scan": {
+    "meshCount": 1,
+    "collisionBoxCount": 0,
+    "collisionStats": {
+      "boxes": 0,
+      "subdividedMeshes": 0,
+      "skippedUnrasterizableMeshes": 1,
+      "skippedBySemanticPolicy": 0
+    }
+  },
+  "manualOverrides": {}
+}

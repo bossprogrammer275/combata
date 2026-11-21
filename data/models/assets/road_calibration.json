@@ -1,0 +1,174 @@
+{
+  "schemaVersion": 1,
+  "kind": "open-world-asset-calibration",
+  "generator": {
+    "id": "open-world-unified-asset-calibrator",
+    "version": 1
+  },
+  "generatedAt": "2026-11-21T21:06:37.163Z",
+  "source": {
+    "assetUrl": "data/models/assets/road.glb",
+    "fileName": "road.glb",
+    "format": "glb",
+    "bytes": 3836360,
+    "sha256": "3d060419b6ec6b7324a63f208ff3ae423a3a893546d554aab555f3ad79c01990"
+  },
+  "coordinateSpace": "model-local-after-source-node-transforms",
+  "units": {
+    "worldConvention": "one game-world unit equals one metre",
+    "sourceUnitStatus": "unverified",
+    "sourceDimensionsRequirePhysicalReference": true,
+    "noAutomaticRescale": true
+  },
+  "bounds": {
+    "min": [
+      -3.6233095452189445,
+      -0.04837675248235051,
+      -2.120859654319562
+    ],
+    "max": [
+      3.6233095452189445,
+      0.1688405307181301,
+      2.1208596346935216
+    ],
+    "size": [
+      7.246619090437889,
+      0.21721728320048062,
+      4.2417192890130835
+    ]
+  },
+  "collision": {
+    "generator": "process-glbs-triangle-grid-v2",
+    "mode": "hybrid-static-and-surface",
+    "coordinateSpace": "model-local",
+    "boxes": [],
+    "boxCount": 0,
+    "nativeProxies": [],
+    "nativeProxyCount": 0,
+    "nativeProxyAuthority": null,
+    "excludedDriveableMeshKeys": [],
+    "exactSurfacePhysics": true,
+    "sourceSha256": "3d060419b6ec6b7324a63f208ff3ae423a3a893546d554aab555f3ad79c01990"
+  },
+  "road": {
+    "coordinateSpace": "model-local",
+    "surfaces": [
+      {
+        "id": "component-001-sketchfab-model-0-713a71d26c214567a4a94e14cf5790dafbx-0-rootnode-0-plane-0-plane-estrada-0-0-",
+        "nodeKey": "Sketchfab_model[0]/713a71d26c214567a4a94e14cf5790dafbx[0]/RootNode[0]/Plane[0]/Plane_Estrada_0[0]",
+        "nodePath": "Sketchfab_model / 713a71d26c214567a4a94e14cf5790dafbx / RootNode / Plane / Plane_Estrada_0",
+        "role": "road-surface-candidate",
+        "sectionId": null,
+        "sectionKind": "unknown-profile",
+        "kind": "road",
+        "physics": {
+          "collider": "triangle-surface",
+          "frictionHint": 0.72,
+          "restitution": 0
+        },
+        "bounds": {
+          "min": [
+            -3.6233095452189445,
+            -0.04837675248235051,
+            -2.120859654319562
+          ],
+          "max": [
+            3.6233095452189445,
+            0.1688405307181301,
+            2.1208596346935216
+          ],
+          "size": [
+            7.246619090437889,
+            0.21721728320048062,
+            4.2417192890130835
+          ],
+          "center": [
+            0,
+            0.06023188911788979,
+            -9.81302017422081e-9
+          ]
+        },
+        "connection": {
+          "status": "review-required",
+          "method": "manual-centreline-required-for-curved-sloped-or-unknown-profile",
+          "requiresReview": true
+        },
+        "confidence": 0.58,
+        "requiresReview": true,
+        "runtimeEnabled": false
+      }
+    ],
+    "connectionPolicy": "Use node-referenced source triangles for physics. Bounds endpoints are alignment estimates only; curves and ambiguous assets need centreline review."
+  },
+  "bridge": null,
+  "components": [
+    {
+      "id": "component-001-sketchfab-model-0-713a71d26c214567a4a94e14cf5790dafbx-0-rootnode-0-plane-0-plane-estrada-0-0-",
+      "nodeKey": "Sketchfab_model[0]/713a71d26c214567a4a94e14cf5790dafbx[0]/RootNode[0]/Plane[0]/Plane_Estrada_0[0]",
+      "nodePath": "Sketchfab_model / 713a71d26c214567a4a94e14cf5790dafbx / RootNode / Plane / Plane_Estrada_0",
+      "name": "Plane_Estrada_0",
+      "sectionId": null,
+      "role": "road-surface-candidate",
+      "kind": "driveable-surface",
+      "confidence": 0.58,
+      "detection": "horizontal-geometry",
+      "bounds": {
+        "min": [
+          -3.6233095452189445,
+          -0.04837675248235051,
+          -2.120859654319562
+        ],
+        "max": [
+          3.6233095452189445,
+          0.1688405307181301,
+          2.1208596346935216
+        ],
+        "size": [
+          7.246619090437889,
+          0.21721728320048062,
+          4.2417192890130835
+        ],
+        "center": [
+          0,
+          0.06023188911788979,
+          -9.81302017422081e-9
+        ]
+      },
+      "requiresReview": true,
+      "runtimeEnabled": false
+    }
+  ],
+  "interactions": [],
+  "traversal": [],
+  "vehicle": null,
+  "review": {
+    "status": "needs-review",
+    "approved": false,
+    "outstanding": [
+      {
+        "componentId": "component-001-sketchfab-model-0-713a71d26c214567a4a94e14cf5790dafbx-0-rootnode-0-plane-0-plane-estrada-0-0-",
+        "nodeKey": "Sketchfab_model[0]/713a71d26c214567a4a94e14cf5790dafbx[0]/RootNode[0]/Plane[0]/Plane_Estrada_0[0]",
+        "role": "road-surface-candidate",
+        "reason": "Confirm component identity, bounds, anchors and runtime behaviour in Asset Lab before accepting."
+      },
+      {
+        "componentId": "component-001-sketchfab-model-0-713a71d26c214567a4a94e14cf5790dafbx-0-rootnode-0-plane-0-plane-estrada-0-0-",
+        "nodeKey": "Sketchfab_model[0]/713a71d26c214567a4a94e14cf5790dafbx[0]/RootNode[0]/Plane[0]/Plane_Estrada_0[0]",
+        "role": "road-surface-candidate",
+        "reason": "Review centreline/endpoints and approve the driveable connection before enabling custom tyre-surface sampling."
+      }
+    ],
+    "preservedManualReview": false
+  },
+  "scan": {
+    "meshCount": 1,
+    "collisionBoxCount": 0,
+    "collisionStats": {
+      "boxes": 0,
+      "subdividedMeshes": 0,
+      "skippedUnrasterizableMeshes": 1,
+      "skippedBySemanticPolicy": 0
+    }
+  },
+  "manualOverrides": {}
+}

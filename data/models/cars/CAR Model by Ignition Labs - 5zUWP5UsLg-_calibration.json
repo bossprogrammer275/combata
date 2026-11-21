@@ -1,0 +1,544 @@
+{
+  "schemaVersion": 1,
+  "kind": "open-world-asset-calibration",
+  "generator": {
+    "id": "open-world-unified-asset-calibrator",
+    "version": 1
+  },
+  "generatedAt": "2026-11-21T21:06:39.489Z",
+  "source": {
+    "assetUrl": "data/models/cars/CAR Model by Ignition Labs - 5zUWP5UsLg-.glb",
+    "fileName": "CAR Model by Ignition Labs - 5zUWP5UsLg-.glb",
+    "format": "glb",
+    "bytes": 1829316,
+    "sha256": "c04bb20bce55ea878e4b340ed23492a1d6834bd40fdafc5512c06abd7c7079eb"
+  },
+  "coordinateSpace": "model-local-after-source-node-transforms",
+  "units": {
+    "worldConvention": "one game-world unit equals one metre",
+    "sourceUnitStatus": "unverified",
+    "sourceDimensionsRequirePhysicalReference": true,
+    "noAutomaticRescale": true
+  },
+  "bounds": {
+    "min": [
+      -134.6428985595703,
+      0.04039999842643738,
+      -271.769287109375
+    ],
+    "max": [
+      95.55989837646484,
+      117.59369659423828,
+      217.67140197753906
+    ],
+    "size": [
+      230.20279693603516,
+      117.55329659581184,
+      489.44068908691406
+    ]
+  },
+  "collision": {
+    "generator": "process-glbs-triangle-grid-v2",
+    "mode": "dynamic-vehicle-runtime",
+    "coordinateSpace": "model-local",
+    "boxes": [],
+    "boxCount": 0,
+    "nativeProxies": [],
+    "nativeProxyCount": 0,
+    "nativeProxyAuthority": null,
+    "excludedDriveableMeshKeys": [],
+    "exactSurfacePhysics": false,
+    "sourceSha256": "c04bb20bce55ea878e4b340ed23492a1d6834bd40fdafc5512c06abd7c7079eb"
+  },
+  "road": null,
+  "bridge": null,
+  "components": [
+    {
+      "id": "component-001-lamborghini-aventador-wheel-fl-2-",
+      "nodeKey": "Lamborghini_Aventador_Wheel_FL[2]",
+      "nodePath": "Lamborghini_Aventador_Wheel_FL",
+      "name": "Lamborghini_Aventador_Wheel_FL",
+      "sectionId": null,
+      "role": "vehicle-wheel",
+      "kind": "wheel",
+      "confidence": 0.82,
+      "detection": "aggregated-wheel-group",
+      "bounds": {
+        "min": [
+          50.63690185546875,
+          0.04039999842643738,
+          64.88009643554688
+        ],
+        "max": [
+          81.13829803466797,
+          69.15760040283203,
+          133.99749755859375
+        ],
+        "size": [
+          30.50139617919922,
+          69.1172004044056,
+          69.11740112304688
+        ],
+        "center": [
+          65.88759994506836,
+          34.599000200629234,
+          99.43879699707031
+        ]
+      },
+      "requiresReview": true,
+      "interaction": {
+        "kind": "vehicle-wheel",
+        "accepted": false,
+        "requiredAnchors": [
+          "axle",
+          "radius",
+          "steeringAxis"
+        ]
+      },
+      "runtimeEnabled": false
+    },
+    {
+      "id": "component-002-lamborghini-aventador-wheel-fr-3-",
+      "nodeKey": "Lamborghini_Aventador_Wheel_FR[3]",
+      "nodePath": "Lamborghini_Aventador_Wheel_FR",
+      "name": "Lamborghini_Aventador_Wheel_FR",
+      "sectionId": null,
+      "role": "vehicle-wheel",
+      "kind": "wheel",
+      "confidence": 0.82,
+      "detection": "aggregated-wheel-group",
+      "bounds": {
+        "min": [
+          -120.22119903564453,
+          0.04039999842643738,
+          64.88009643554688
+        ],
+        "max": [
+          -89.71980285644531,
+          69.15760040283203,
+          133.99749755859375
+        ],
+        "size": [
+          30.50139617919922,
+          69.1172004044056,
+          69.11740112304688
+        ],
+        "center": [
+          -104.97050094604492,
+          34.599000200629234,
+          99.43879699707031
+        ]
+      },
+      "requiresReview": true,
+      "interaction": {
+        "kind": "vehicle-wheel",
+        "accepted": false,
+        "requiredAnchors": [
+          "axle",
+          "radius",
+          "steeringAxis"
+        ]
+      },
+      "runtimeEnabled": false
+    },
+    {
+      "id": "component-003-lamborghini-aventador-wheel-rl-4-",
+      "nodeKey": "Lamborghini_Aventador_Wheel_RL[4]",
+      "nodePath": "Lamborghini_Aventador_Wheel_RL",
+      "name": "Lamborghini_Aventador_Wheel_RL",
+      "sectionId": null,
+      "role": "vehicle-wheel",
+      "kind": "wheel",
+      "confidence": 0.82,
+      "detection": "aggregated-wheel-group",
+      "bounds": {
+        "min": [
+          49.83489990234375,
+          0.04039999842643738,
+          -211.843994140625
+        ],
+        "max": [
+          81.94020080566406,
+          72.79190063476562,
+          -139.09230041503906
+        ],
+        "size": [
+          32.10530090332031,
+          72.75150063633919,
+          72.75169372558594
+        ],
+        "center": [
+          65.8875503540039,
+          36.41615031659603,
+          -175.46814727783203
+        ]
+      },
+      "requiresReview": true,
+      "interaction": {
+        "kind": "vehicle-wheel",
+        "accepted": false,
+        "requiredAnchors": [
+          "axle",
+          "radius",
+          "steeringAxis"
+        ]
+      },
+      "runtimeEnabled": false
+    },
+    {
+      "id": "component-004-lamborghini-aventador-wheel-rr-5-",
+      "nodeKey": "Lamborghini_Aventador_Wheel_RR[5]",
+      "nodePath": "Lamborghini_Aventador_Wheel_RR",
+      "name": "Lamborghini_Aventador_Wheel_RR",
+      "sectionId": null,
+      "role": "vehicle-wheel",
+      "kind": "wheel",
+      "confidence": 0.82,
+      "detection": "aggregated-wheel-group",
+      "bounds": {
+        "min": [
+          -121.02320098876953,
+          0.04039999842643738,
+          -211.843994140625
+        ],
+        "max": [
+          -88.91790008544922,
+          72.79190063476562,
+          -139.09230041503906
+        ],
+        "size": [
+          32.10530090332031,
+          72.75150063633919,
+          72.75169372558594
+        ],
+        "center": [
+          -104.97055053710938,
+          36.41615031659603,
+          -175.46814727783203
+        ]
+      },
+      "requiresReview": true,
+      "interaction": {
+        "kind": "vehicle-wheel",
+        "accepted": false,
+        "requiredAnchors": [
+          "axle",
+          "radius",
+          "steeringAxis"
+        ]
+      },
+      "runtimeEnabled": false
+    }
+  ],
+  "interactions": [
+    {
+      "componentId": "component-001-lamborghini-aventador-wheel-fl-2-",
+      "nodeKey": "Lamborghini_Aventador_Wheel_FL[2]",
+      "kind": "vehicle-wheel",
+      "accepted": false,
+      "requiredAnchors": [
+        "axle",
+        "radius",
+        "steeringAxis"
+      ],
+      "bounds": {
+        "min": [
+          50.63690185546875,
+          0.04039999842643738,
+          64.88009643554688
+        ],
+        "max": [
+          81.13829803466797,
+          69.15760040283203,
+          133.99749755859375
+        ],
+        "size": [
+          30.50139617919922,
+          69.1172004044056,
+          69.11740112304688
+        ],
+        "center": [
+          65.88759994506836,
+          34.599000200629234,
+          99.43879699707031
+        ]
+      },
+      "confidence": 0.82,
+      "requiresReview": true
+    },
+    {
+      "componentId": "component-002-lamborghini-aventador-wheel-fr-3-",
+      "nodeKey": "Lamborghini_Aventador_Wheel_FR[3]",
+      "kind": "vehicle-wheel",
+      "accepted": false,
+      "requiredAnchors": [
+        "axle",
+        "radius",
+        "steeringAxis"
+      ],
+      "bounds": {
+        "min": [
+          -120.22119903564453,
+          0.04039999842643738,
+          64.88009643554688
+        ],
+        "max": [
+          -89.71980285644531,
+          69.15760040283203,
+          133.99749755859375
+        ],
+        "size": [
+          30.50139617919922,
+          69.1172004044056,
+          69.11740112304688
+        ],
+        "center": [
+          -104.97050094604492,
+          34.599000200629234,
+          99.43879699707031
+        ]
+      },
+      "confidence": 0.82,
+      "requiresReview": true
+    },
+    {
+      "componentId": "component-003-lamborghini-aventador-wheel-rl-4-",
+      "nodeKey": "Lamborghini_Aventador_Wheel_RL[4]",
+      "kind": "vehicle-wheel",
+      "accepted": false,
+      "requiredAnchors": [
+        "axle",
+        "radius",
+        "steeringAxis"
+      ],
+      "bounds": {
+        "min": [
+          49.83489990234375,
+          0.04039999842643738,
+          -211.843994140625
+        ],
+        "max": [
+          81.94020080566406,
+          72.79190063476562,
+          -139.09230041503906
+        ],
+        "size": [
+          32.10530090332031,
+          72.75150063633919,
+          72.75169372558594
+        ],
+        "center": [
+          65.8875503540039,
+          36.41615031659603,
+          -175.46814727783203
+        ]
+      },
+      "confidence": 0.82,
+      "requiresReview": true
+    },
+    {
+      "componentId": "component-004-lamborghini-aventador-wheel-rr-5-",
+      "nodeKey": "Lamborghini_Aventador_Wheel_RR[5]",
+      "kind": "vehicle-wheel",
+      "accepted": false,
+      "requiredAnchors": [
+        "axle",
+        "radius",
+        "steeringAxis"
+      ],
+      "bounds": {
+        "min": [
+          -121.02320098876953,
+          0.04039999842643738,
+          -211.843994140625
+        ],
+        "max": [
+          -88.91790008544922,
+          72.79190063476562,
+          -139.09230041503906
+        ],
+        "size": [
+          32.10530090332031,
+          72.75150063633919,
+          72.75169372558594
+        ],
+        "center": [
+          -104.97055053710938,
+          36.41615031659603,
+          -175.46814727783203
+        ]
+      },
+      "confidence": 0.82,
+      "requiresReview": true
+    }
+  ],
+  "traversal": [],
+  "vehicle": {
+    "collisionAuthority": "js/vehicles.js dynamic body and wheel hardpoint classifier",
+    "dynamicBodyBoxesGeneratedHere": false,
+    "driverSeatCandidateId": null,
+    "seatCandidates": [],
+    "doorCandidates": [],
+    "candidates": [
+      {
+        "componentId": "component-001-lamborghini-aventador-wheel-fl-2-",
+        "nodeKey": "Lamborghini_Aventador_Wheel_FL[2]",
+        "role": "vehicle-wheel",
+        "bounds": {
+          "min": [
+            50.63690185546875,
+            0.04039999842643738,
+            64.88009643554688
+          ],
+          "max": [
+            81.13829803466797,
+            69.15760040283203,
+            133.99749755859375
+          ],
+          "size": [
+            30.50139617919922,
+            69.1172004044056,
+            69.11740112304688
+          ],
+          "center": [
+            65.88759994506836,
+            34.599000200629234,
+            99.43879699707031
+          ]
+        },
+        "confidence": 0.82,
+        "requiresReview": true
+      },
+      {
+        "componentId": "component-002-lamborghini-aventador-wheel-fr-3-",
+        "nodeKey": "Lamborghini_Aventador_Wheel_FR[3]",
+        "role": "vehicle-wheel",
+        "bounds": {
+          "min": [
+            -120.22119903564453,
+            0.04039999842643738,
+            64.88009643554688
+          ],
+          "max": [
+            -89.71980285644531,
+            69.15760040283203,
+            133.99749755859375
+          ],
+          "size": [
+            30.50139617919922,
+            69.1172004044056,
+            69.11740112304688
+          ],
+          "center": [
+            -104.97050094604492,
+            34.599000200629234,
+            99.43879699707031
+          ]
+        },
+        "confidence": 0.82,
+        "requiresReview": true
+      },
+      {
+        "componentId": "component-003-lamborghini-aventador-wheel-rl-4-",
+        "nodeKey": "Lamborghini_Aventador_Wheel_RL[4]",
+        "role": "vehicle-wheel",
+        "bounds": {
+          "min": [
+            49.83489990234375,
+            0.04039999842643738,
+            -211.843994140625
+          ],
+          "max": [
+            81.94020080566406,
+            72.79190063476562,
+            -139.09230041503906
+          ],
+          "size": [
+            32.10530090332031,
+            72.75150063633919,
+            72.75169372558594
+          ],
+          "center": [
+            65.8875503540039,
+            36.41615031659603,
+            -175.46814727783203
+          ]
+        },
+        "confidence": 0.82,
+        "requiresReview": true
+      },
+      {
+        "componentId": "component-004-lamborghini-aventador-wheel-rr-5-",
+        "nodeKey": "Lamborghini_Aventador_Wheel_RR[5]",
+        "role": "vehicle-wheel",
+        "bounds": {
+          "min": [
+            -121.02320098876953,
+            0.04039999842643738,
+            -211.843994140625
+          ],
+          "max": [
+            -88.91790008544922,
+            72.79190063476562,
+            -139.09230041503906
+          ],
+          "size": [
+            32.10530090332031,
+            72.75150063633919,
+            72.75169372558594
+          ],
+          "center": [
+            -104.97055053710938,
+            36.41615031659603,
+            -175.46814727783203
+          ]
+        },
+        "confidence": 0.82,
+        "requiresReview": true
+      }
+    ],
+    "note": "Seat centres, door hinges and entry clearances are review-only candidates until confirmed against rendered geometry."
+  },
+  "review": {
+    "status": "needs-review",
+    "approved": false,
+    "outstanding": [
+      {
+        "componentId": "component-001-lamborghini-aventador-wheel-fl-2-",
+        "nodeKey": "Lamborghini_Aventador_Wheel_FL[2]",
+        "role": "vehicle-wheel",
+        "reason": "Confirm component identity, bounds, anchors and runtime behaviour in Asset Lab before accepting."
+      },
+      {
+        "componentId": "component-002-lamborghini-aventador-wheel-fr-3-",
+        "nodeKey": "Lamborghini_Aventador_Wheel_FR[3]",
+        "role": "vehicle-wheel",
+        "reason": "Confirm component identity, bounds, anchors and runtime behaviour in Asset Lab before accepting."
+      },
+      {
+        "componentId": "component-003-lamborghini-aventador-wheel-rl-4-",
+        "nodeKey": "Lamborghini_Aventador_Wheel_RL[4]",
+        "role": "vehicle-wheel",
+        "reason": "Confirm component identity, bounds, anchors and runtime behaviour in Asset Lab before accepting."
+      },
+      {
+        "componentId": "component-004-lamborghini-aventador-wheel-rr-5-",
+        "nodeKey": "Lamborghini_Aventador_Wheel_RR[5]",
+        "role": "vehicle-wheel",
+        "reason": "Confirm component identity, bounds, anchors and runtime behaviour in Asset Lab before accepting."
+      }
+    ],
+    "preservedManualReview": false
+  },
+  "scan": {
+    "meshCount": 6,
+    "collisionBoxCount": 0,
+    "collisionStats": {
+      "boxes": 10737,
+      "subdividedMeshes": 5,
+      "skippedUnrasterizableMeshes": 0,
+      "skippedBySemanticPolicy": 1
+    }
+  },
+  "manualOverrides": {}
+}

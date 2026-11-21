@@ -1,0 +1,6293 @@
+{
+  "schemaVersion": 1,
+  "kind": "open-world-asset-calibration",
+  "generator": {
+    "id": "open-world-unified-asset-calibrator",
+    "version": 1
+  },
+  "generatedAt": "2026-11-21T21:06:32.613Z",
+  "source": {
+    "assetUrl": "data/models/assets/buildings/brooklyn_street_twin_buildings_low_poly/scene.gltf",
+    "fileName": "scene.gltf",
+    "format": "gltf",
+    "bytes": 374966,
+    "sha256": "e3545c114d3dfde80e266b02d8c298c73434d4e4ad71f3c8e3699f43ac2eb314"
+  },
+  "coordinateSpace": "model-local-after-source-node-transforms",
+  "units": {
+    "worldConvention": "one game-world unit equals one metre",
+    "sourceUnitStatus": "unverified",
+    "sourceDimensionsRequirePhysicalReference": true,
+    "noAutomaticRescale": true
+  },
+  "bounds": {
+    "min": [
+      -11.63173738469659,
+      -0.029150918842363493,
+      -0.6762993615713558
+    ],
+    "max": [
+      1.6895393859061982,
+      15.193721031604952,
+      21.76508354516903
+    ],
+    "size": [
+      13.321276770602788,
+      15.222871950447315,
+      22.441382906740387
+    ]
+  },
+  "collision": {
+    "generator": "process-glbs-triangle-grid-v2",
+    "mode": "authored-native-proxies",
+    "coordinateSpace": "model-local",
+    "boxes": [],
+    "boxCount": 0,
+    "nativeProxies": [
+      {
+        "nodeKey": "collision_proxies[1]/col_block_01[0]",
+        "nodePath": "collision_proxies / col_block_01",
+        "name": "col_block_01",
+        "bounds": {
+          "min": [
+            0.41056394577026367,
+            0.3927690386772156,
+            0.5920531153678894
+          ],
+          "max": [
+            1.6895394325256348,
+            2.5361223220825195,
+            1.4714441299438477
+          ],
+          "size": [
+            1.278975486755371,
+            2.143353283405304,
+            0.8793910145759583
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_02[1]",
+        "nodePath": "collision_proxies / col_block_02",
+        "name": "col_block_02",
+        "bounds": {
+          "min": [
+            -9.5554780960083,
+            2.502368688583374,
+            -0.6762993335723877
+          ],
+          "max": [
+            -8.691755294799805,
+            3.801882266998291,
+            -0.21969246864318848
+          ],
+          "size": [
+            0.8637228012084961,
+            1.299513578414917,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_03[2]",
+        "nodePath": "collision_proxies / col_block_03",
+        "name": "col_block_03",
+        "bounds": {
+          "min": [
+            -0.004687834065407515,
+            2.502368688583374,
+            -0.25351521372795105
+          ],
+          "max": [
+            1.2742875814437866,
+            3.379962205886841,
+            0.6258758306503296
+          ],
+          "size": [
+            1.2789754155091941,
+            0.8775935173034668,
+            0.8793910443782806
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_04[3]",
+        "nodePath": "collision_proxies / col_block_04",
+        "name": "col_block_04",
+        "bounds": {
+          "min": [
+            0.8258156776428223,
+            2.502368688583374,
+            1.0148372650146484
+          ],
+          "max": [
+            1.6895394325256348,
+            3.379962205886841,
+            1.4714441299438477
+          ],
+          "size": [
+            0.8637237548828125,
+            0.8775935173034668,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_05[4]",
+        "nodePath": "collision_proxies / col_block_05",
+        "name": "col_block_05",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            3.3462088108062744,
+            0.5920531153678894
+          ],
+          "max": [
+            -9.93751049041748,
+            4.645722389221191,
+            1.4714441299438477
+          ],
+          "size": [
+            0.8637237548828125,
+            1.299513578414917,
+            0.8793910145759583
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_06[5]",
+        "nodePath": "collision_proxies / col_block_06",
+        "name": "col_block_06",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            3.3462088108062744,
+            17.08063507080078
+          ],
+          "max": [
+            -6.200244426727295,
+            3.801882266998291,
+            20.91951560974121
+          ],
+          "size": [
+            4.1857380867004395,
+            0.4556734561920166,
+            3.8388805389404297
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_07[6]",
+        "nodePath": "collision_proxies / col_block_07",
+        "name": "col_block_07",
+        "bounds": {
+          "min": [
+            -6.233464241027832,
+            3.3462088108062744,
+            17.08063507080078
+          ],
+          "max": [
+            -2.047726631164551,
+            3.801882266998291,
+            20.91951560974121
+          ],
+          "size": [
+            4.185737609863281,
+            0.4556734561920166,
+            3.8388805389404297
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_08[7]",
+        "nodePath": "collision_proxies / col_block_08",
+        "name": "col_block_08",
+        "bounds": {
+          "min": [
+            -3.7419538497924805,
+            3.3462088108062744,
+            21.3084774017334
+          ],
+          "max": [
+            -3.2934818267822266,
+            3.801882266998291,
+            21.76508331298828
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556734561920166,
+            0.4566059112548828
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_09[8]",
+        "nodePath": "collision_proxies / col_block_09",
+        "name": "col_block_09",
+        "bounds": {
+          "min": [
+            -2.080946683883667,
+            3.3462088108062744,
+            17.08063507080078
+          ],
+          "max": [
+            0.859035849571228,
+            3.801882266998291,
+            20.91951560974121
+          ],
+          "size": [
+            2.939982533454895,
+            0.4556734561920166,
+            3.8388805389404297
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_10[9]",
+        "nodePath": "collision_proxies / col_block_10",
+        "name": "col_block_10",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            3.7681286334991455,
+            -0.25351521372795105
+          ],
+          "max": [
+            -10.352762222290039,
+            4.223802089691162,
+            0.20309168100357056
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556734561920166,
+            0.4566068947315216
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_11[10]",
+        "nodePath": "collision_proxies / col_block_11",
+        "name": "col_block_11",
+        "bounds": {
+          "min": [
+            -7.479219913482666,
+            3.7681286334991455,
+            17.92620277404785
+          ],
+          "max": [
+            -6.6154961585998535,
+            4.645722389221191,
+            19.228378295898438
+          ],
+          "size": [
+            0.8637237548828125,
+            0.8775937557220459,
+            1.302175521850586
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_12[11]",
+        "nodePath": "collision_proxies / col_block_12",
+        "name": "col_block_12",
+        "bounds": {
+          "min": [
+            -4.987709045410156,
+            3.7681286334991455,
+            1.0148372650146484
+          ],
+          "max": [
+            -4.539237022399902,
+            4.645722389221191,
+            1.4714441299438477
+          ],
+          "size": [
+            0.4484720230102539,
+            0.8775937557220459,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_13[12]",
+        "nodePath": "collision_proxies / col_block_13",
+        "name": "col_block_13",
+        "bounds": {
+          "min": [
+            -4.572457313537598,
+            3.7681286334991455,
+            0.5920531153678894
+          ],
+          "max": [
+            -4.123985290527344,
+            4.645722389221191,
+            1.4714441299438477
+          ],
+          "size": [
+            0.4484720230102539,
+            0.8775937557220459,
+            0.8793910145759583
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_14[13]",
+        "nodePath": "collision_proxies / col_block_14",
+        "name": "col_block_14",
+        "bounds": {
+          "min": [
+            -0.004687834065407515,
+            3.7681286334991455,
+            0.16926895081996918
+          ],
+          "max": [
+            0.859035849571228,
+            4.223802089691162,
+            0.6258758306503296
+          ],
+          "size": [
+            0.8637236836366355,
+            0.4556734561920166,
+            0.4566068798303604
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_15[14]",
+        "nodePath": "collision_proxies / col_block_15",
+        "name": "col_block_15",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            4.190048694610596,
+            0.16926895081996918
+          ],
+          "max": [
+            -10.352762222290039,
+            4.645722389221191,
+            0.6258758306503296
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556736946105957,
+            0.4566068798303604
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_16[15]",
+        "nodePath": "collision_proxies / col_block_16",
+        "name": "col_block_16",
+        "bounds": {
+          "min": [
+            -5.818212509155273,
+            4.190048694610596,
+            1.0148372650146484
+          ],
+          "max": [
+            -4.954488754272461,
+            4.645722389221191,
+            1.4714441299438477
+          ],
+          "size": [
+            0.8637237548828125,
+            0.4556736946105957,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_17[16]",
+        "nodePath": "collision_proxies / col_block_17",
+        "name": "col_block_17",
+        "bounds": {
+          "min": [
+            -9.970730781555176,
+            4.611968517303467,
+            20.885692596435547
+          ],
+          "max": [
+            -9.522258758544922,
+            5.489562034606934,
+            21.34229850769043
+          ],
+          "size": [
+            0.4484720230102539,
+            0.8775935173034668,
+            0.4566059112548828
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_18[17]",
+        "nodePath": "collision_proxies / col_block_18",
+        "name": "col_block_18",
+        "bounds": {
+          "min": [
+            -7.479219913482666,
+            4.611968517303467,
+            20.040124893188477
+          ],
+          "max": [
+            -5.784992694854736,
+            5.0676422119140625,
+            20.91951560974121
+          ],
+          "size": [
+            1.6942272186279297,
+            0.4556736946105957,
+            0.8793907165527344
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_19[18]",
+        "nodePath": "collision_proxies / col_block_19",
+        "name": "col_block_19",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            5.033888339996338,
+            20.040124893188477
+          ],
+          "max": [
+            -9.93751049041748,
+            5.489562034606934,
+            20.91951560974121
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556736946105957,
+            0.8793907165527344
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_20[19]",
+        "nodePath": "collision_proxies / col_block_20",
+        "name": "col_block_20",
+        "bounds": {
+          "min": [
+            -6.648715972900391,
+            7.14348840713501,
+            17.503419876098633
+          ],
+          "max": [
+            -4.539237022399902,
+            7.599161624908447,
+            18.80559539794922
+          ],
+          "size": [
+            2.1094789505004883,
+            0.4556732177734375,
+            1.302175521850586
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_21[20]",
+        "nodePath": "collision_proxies / col_block_21",
+        "name": "col_block_21",
+        "bounds": {
+          "min": [
+            -2.911450147628784,
+            7.14348840713501,
+            17.503419876098633
+          ],
+          "max": [
+            0.859035849571228,
+            7.599161624908447,
+            18.80559539794922
+          ],
+          "size": [
+            3.770485997200012,
+            0.4556732177734375,
+            1.302175521850586
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_22[21]",
+        "nodePath": "collision_proxies / col_block_22",
+        "name": "col_block_22",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            10.096927642822266,
+            1.0148372650146484
+          ],
+          "max": [
+            -6.200244426727295,
+            10.55260181427002,
+            5.276501655578613
+          ],
+          "size": [
+            4.1857380867004395,
+            0.4556741714477539,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_23[22]",
+        "nodePath": "collision_proxies / col_block_23",
+        "name": "col_block_23",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            10.096927642822266,
+            5.242678642272949
+          ],
+          "max": [
+            -6.200244426727295,
+            10.55260181427002,
+            9.504343032836914
+          ],
+          "size": [
+            4.1857380867004395,
+            0.4556741714477539,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_24[23]",
+        "nodePath": "collision_proxies / col_block_24",
+        "name": "col_block_24",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            10.096927642822266,
+            9.47052001953125
+          ],
+          "max": [
+            -6.200244426727295,
+            10.55260181427002,
+            13.732184410095215
+          ],
+          "size": [
+            4.1857380867004395,
+            0.4556741714477539,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_25[24]",
+        "nodePath": "collision_proxies / col_block_25",
+        "name": "col_block_25",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            10.096927642822266,
+            13.698362350463867
+          ],
+          "max": [
+            -6.200244426727295,
+            10.55260181427002,
+            17.114458084106445
+          ],
+          "size": [
+            4.1857380867004395,
+            0.4556741714477539,
+            3.416095733642578
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_26[25]",
+        "nodePath": "collision_proxies / col_block_26",
+        "name": "col_block_26",
+        "bounds": {
+          "min": [
+            -6.233464241027832,
+            10.096927642822266,
+            1.4376213550567627
+          ],
+          "max": [
+            -4.539237022399902,
+            10.55260181427002,
+            5.699285507202148
+          ],
+          "size": [
+            1.6942272186279297,
+            0.4556741714477539,
+            4.261664152145386
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_27[26]",
+        "nodePath": "collision_proxies / col_block_27",
+        "name": "col_block_27",
+        "bounds": {
+          "min": [
+            -6.233464241027832,
+            10.096927642822266,
+            5.665462970733643
+          ],
+          "max": [
+            -4.539237022399902,
+            10.55260181427002,
+            9.92712688446045
+          ],
+          "size": [
+            1.6942272186279297,
+            0.4556741714477539,
+            4.261663913726807
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_28[27]",
+        "nodePath": "collision_proxies / col_block_28",
+        "name": "col_block_28",
+        "bounds": {
+          "min": [
+            -6.233464241027832,
+            10.096927642822266,
+            9.893304824829102
+          ],
+          "max": [
+            -4.539237022399902,
+            10.55260181427002,
+            14.154969215393066
+          ],
+          "size": [
+            1.6942272186279297,
+            0.4556741714477539,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_block_29[28]",
+        "nodePath": "collision_proxies / col_block_29",
+        "name": "col_block_29",
+        "bounds": {
+          "min": [
+            -6.233464241027832,
+            10.096927642822266,
+            14.121146202087402
+          ],
+          "max": [
+            -4.539237022399902,
+            10.55260181427002,
+            17.114458084106445
+          ],
+          "size": [
+            1.6942272186279297,
+            0.4556741714477539,
+            2.993311882019043
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_01[29]",
+        "nodePath": "collision_proxies / col_column_01",
+        "name": "col_column_01",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            -0.029150918126106262,
+            0.5920531153678894
+          ],
+          "max": [
+            -9.93751049041748,
+            3.379962205886841,
+            1.8942283391952515
+          ],
+          "size": [
+            0.8637237548828125,
+            3.409113124012947,
+            1.302175223827362
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_02[30]",
+        "nodePath": "collision_proxies / col_column_02",
+        "name": "col_column_02",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            -0.029150918126106262,
+            19.617340087890625
+          ],
+          "max": [
+            -10.352762222290039,
+            4.223802089691162,
+            21.34229850769043
+          ],
+          "size": [
+            0.4484720230102539,
+            4.252953007817268,
+            1.7249584197998047
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_03[31]",
+        "nodePath": "collision_proxies / col_column_03",
+        "name": "col_column_03",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            -0.029150918126106262,
+            1.8604055643081665
+          ],
+          "max": [
+            -9.93751049041748,
+            3.379962205886841,
+            3.162580728530884
+          ],
+          "size": [
+            0.4484720230102539,
+            3.409113124012947,
+            1.3021751642227173
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_04[32]",
+        "nodePath": "collision_proxies / col_column_04",
+        "name": "col_column_04",
+        "bounds": {
+          "min": [
+            -5.818212509155273,
+            -0.029150918126106262,
+            1.0148372650146484
+          ],
+          "max": [
+            -4.954488754272461,
+            4.223802089691162,
+            1.4714441299438477
+          ],
+          "size": [
+            0.8637237548828125,
+            4.252953007817268,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_05[33]",
+        "nodePath": "collision_proxies / col_column_05",
+        "name": "col_column_05",
+        "bounds": {
+          "min": [
+            -4.987709045410156,
+            -0.029150918126106262,
+            0.5920531153678894
+          ],
+          "max": [
+            -4.123985290527344,
+            3.801882266998291,
+            1.4714441299438477
+          ],
+          "size": [
+            0.8637237548828125,
+            3.8310331851243973,
+            0.8793910145759583
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_06[34]",
+        "nodePath": "collision_proxies / col_column_06",
+        "name": "col_column_06",
+        "bounds": {
+          "min": [
+            -0.4199396073818207,
+            0.3927690386772156,
+            0.5920531153678894
+          ],
+          "max": [
+            0.028532307595014572,
+            4.223802089691162,
+            1.4714441299438477
+          ],
+          "size": [
+            0.44847191497683525,
+            3.8310330510139465,
+            0.8793910145759583
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_07[35]",
+        "nodePath": "collision_proxies / col_column_07",
+        "name": "col_column_07",
+        "bounds": {
+          "min": [
+            -0.004687834065407515,
+            0.3927690386772156,
+            1.0148372650146484
+          ],
+          "max": [
+            0.44378408789634705,
+            2.5361223220825195,
+            1.4714441299438477
+          ],
+          "size": [
+            0.44847192196175456,
+            2.143353283405304,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_08[36]",
+        "nodePath": "collision_proxies / col_column_08",
+        "name": "col_column_08",
+        "bounds": {
+          "min": [
+            -11.63173770904541,
+            2.080448865890503,
+            0.5920531153678894
+          ],
+          "max": [
+            -10.768013954162598,
+            4.223802089691162,
+            1.0486600399017334
+          ],
+          "size": [
+            0.8637237548828125,
+            2.143353223800659,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_09[37]",
+        "nodePath": "collision_proxies / col_column_09",
+        "name": "col_column_09",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            2.080448865890503,
+            0.16926895081996918
+          ],
+          "max": [
+            -10.352762222290039,
+            4.223802089691162,
+            0.6258758306503296
+          ],
+          "size": [
+            0.8637237548828125,
+            2.143353223800659,
+            0.4566068798303604
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_10[38]",
+        "nodePath": "collision_proxies / col_column_10",
+        "name": "col_column_10",
+        "bounds": {
+          "min": [
+            -0.004687834065407515,
+            2.080448865890503,
+            0.5920531153678894
+          ],
+          "max": [
+            0.44378408789634705,
+            6.333402156829834,
+            1.0486600399017334
+          ],
+          "size": [
+            0.44847192196175456,
+            4.252953290939331,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_11[39]",
+        "nodePath": "collision_proxies / col_column_11",
+        "name": "col_column_11",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            2.502368688583374,
+            -0.25351521372795105
+          ],
+          "max": [
+            -10.768013954162598,
+            4.223802089691162,
+            0.20309168100357056
+          ],
+          "size": [
+            0.4484720230102539,
+            1.721433401107788,
+            0.4566068947315216
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_12[40]",
+        "nodePath": "collision_proxies / col_column_12",
+        "name": "col_column_12",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            2.502368688583374,
+            6.511031150817871
+          ],
+          "max": [
+            -10.768013954162598,
+            4.223802089691162,
+            6.96763801574707
+          ],
+          "size": [
+            0.4484720230102539,
+            1.721433401107788,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_13[41]",
+        "nodePath": "collision_proxies / col_column_13",
+        "name": "col_column_13",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            2.502368688583374,
+            6.511031150817871
+          ],
+          "max": [
+            -9.93751049041748,
+            6.755321979522705,
+            6.96763801574707
+          ],
+          "size": [
+            0.4484720230102539,
+            4.252953290939331,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_14[42]",
+        "nodePath": "collision_proxies / col_column_14",
+        "name": "col_column_14",
+        "bounds": {
+          "min": [
+            -4.572457313537598,
+            2.502368688583374,
+            0.16926895081996918
+          ],
+          "max": [
+            -4.123985290527344,
+            4.645722389221191,
+            0.6258758306503296
+          ],
+          "size": [
+            0.4484720230102539,
+            2.1433537006378174,
+            0.4566068798303604
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_15[43]",
+        "nodePath": "collision_proxies / col_column_15",
+        "name": "col_column_15",
+        "bounds": {
+          "min": [
+            -11.63173770904541,
+            2.924288749694824,
+            0.16926895081996918
+          ],
+          "max": [
+            -11.183265686035156,
+            4.223802089691162,
+            0.6258758306503296
+          ],
+          "size": [
+            0.4484720230102539,
+            1.299513339996338,
+            0.4566068798303604
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_16[44]",
+        "nodePath": "collision_proxies / col_column_16",
+        "name": "col_column_16",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            2.924288749694824,
+            1.8604055643081665
+          ],
+          "max": [
+            -10.352762222290039,
+            7.177241802215576,
+            2.7397966384887695
+          ],
+          "size": [
+            0.4484720230102539,
+            4.252953052520752,
+            0.879391074180603
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_17[45]",
+        "nodePath": "collision_proxies / col_column_17",
+        "name": "col_column_17",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            3.3462088108062744,
+            1.4376213550567627
+          ],
+          "max": [
+            -10.352762222290039,
+            7.599161624908447,
+            1.8942283391952515
+          ],
+          "size": [
+            0.4484720230102539,
+            4.252952814102173,
+            0.45660698413848877
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_18[46]",
+        "nodePath": "collision_proxies / col_column_18",
+        "name": "col_column_18",
+        "bounds": {
+          "min": [
+            0.41056394577026367,
+            3.3462088108062744,
+            0.5920531153678894
+          ],
+          "max": [
+            1.2742875814437866,
+            7.599161624908447,
+            1.0486600399017334
+          ],
+          "size": [
+            0.863723635673523,
+            4.252952814102173,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_19[47]",
+        "nodePath": "collision_proxies / col_column_19",
+        "name": "col_column_19",
+        "bounds": {
+          "min": [
+            0.8258156776428223,
+            3.3462088108062744,
+            1.0148372650146484
+          ],
+          "max": [
+            1.2742875814437866,
+            7.599161624908447,
+            1.4714441299438477
+          ],
+          "size": [
+            0.44847190380096436,
+            4.252952814102173,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_20[48]",
+        "nodePath": "collision_proxies / col_column_20",
+        "name": "col_column_20",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            4.190048694610596,
+            5.665462970733643
+          ],
+          "max": [
+            -9.93751049041748,
+            6.755321979522705,
+            6.544854164123535
+          ],
+          "size": [
+            0.4484720230102539,
+            2.5652732849121094,
+            0.8793911933898926
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_21[49]",
+        "nodePath": "collision_proxies / col_column_21",
+        "name": "col_column_21",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            4.190048694610596,
+            19.617340087890625
+          ],
+          "max": [
+            -9.93751049041748,
+            5.489562034606934,
+            20.073945999145508
+          ],
+          "size": [
+            0.4484720230102539,
+            1.299513339996338,
+            0.4566059112548828
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_22[50]",
+        "nodePath": "collision_proxies / col_column_22",
+        "name": "col_column_22",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            4.190048694610596,
+            20.885692596435547
+          ],
+          "max": [
+            -9.93751049041748,
+            5.489562034606934,
+            21.34229850769043
+          ],
+          "size": [
+            0.4484720230102539,
+            1.299513339996338,
+            0.4566059112548828
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_23[51]",
+        "nodePath": "collision_proxies / col_column_23",
+        "name": "col_column_23",
+        "bounds": {
+          "min": [
+            -5.818212509155273,
+            4.190048694610596,
+            0.5920531153678894
+          ],
+          "max": [
+            -4.539237022399902,
+            8.443001747131348,
+            1.0486600399017334
+          ],
+          "size": [
+            1.278975486755371,
+            4.252953052520752,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_24[52]",
+        "nodePath": "collision_proxies / col_column_24",
+        "name": "col_column_24",
+        "bounds": {
+          "min": [
+            -0.4199396073818207,
+            4.190048694610596,
+            0.5920531153678894
+          ],
+          "max": [
+            0.028532307595014572,
+            8.443001747131348,
+            1.0486600399017334
+          ],
+          "size": [
+            0.44847191497683525,
+            4.252953052520752,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_25[53]",
+        "nodePath": "collision_proxies / col_column_25",
+        "name": "col_column_25",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            4.611968517303467,
+            1.0148372650146484
+          ],
+          "max": [
+            -10.352762222290039,
+            8.864921569824219,
+            1.4714441299438477
+          ],
+          "size": [
+            0.4484720230102539,
+            4.252953052520752,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_26[54]",
+        "nodePath": "collision_proxies / col_column_26",
+        "name": "col_column_26",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            4.611968517303467,
+            13.698362350463867
+          ],
+          "max": [
+            -10.352762222290039,
+            8.864921569824219,
+            15.423320770263672
+          ],
+          "size": [
+            0.4484720230102539,
+            4.252953052520752,
+            1.7249584197998047
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_27[55]",
+        "nodePath": "collision_proxies / col_column_27",
+        "name": "col_column_27",
+        "bounds": {
+          "min": [
+            -8.309722900390625,
+            4.611968517303467,
+            17.503419876098633
+          ],
+          "max": [
+            -7.445999622344971,
+            8.864921569824219,
+            17.960025787353516
+          ],
+          "size": [
+            0.8637232780456543,
+            4.252953052520752,
+            0.4566059112548828
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_28[56]",
+        "nodePath": "collision_proxies / col_column_28",
+        "name": "col_column_28",
+        "bounds": {
+          "min": [
+            -6.648715972900391,
+            4.611968517303467,
+            0.5920531153678894
+          ],
+          "max": [
+            -5.784992694854736,
+            8.864921569824219,
+            1.0486600399017334
+          ],
+          "size": [
+            0.8637232780456543,
+            4.252953052520752,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_29[57]",
+        "nodePath": "collision_proxies / col_column_29",
+        "name": "col_column_29",
+        "bounds": {
+          "min": [
+            -4.572457313537598,
+            4.611968517303467,
+            0.5920531153678894
+          ],
+          "max": [
+            -4.123985290527344,
+            8.864921569824219,
+            1.0486600399017334
+          ],
+          "size": [
+            0.4484720230102539,
+            4.252953052520752,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_30[58]",
+        "nodePath": "collision_proxies / col_column_30",
+        "name": "col_column_30",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            5.033888339996338,
+            12.430009841918945
+          ],
+          "max": [
+            -10.352762222290039,
+            9.28684139251709,
+            13.30940055847168
+          ],
+          "size": [
+            0.4484720230102539,
+            4.252953052520752,
+            0.8793907165527344
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_31[59]",
+        "nodePath": "collision_proxies / col_column_31",
+        "name": "col_column_31",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            6.299648284912109,
+            6.088247299194336
+          ],
+          "max": [
+            -10.352762222290039,
+            8.443001747131348,
+            6.544854164123535
+          ],
+          "size": [
+            0.4484720230102539,
+            2.1433534622192383,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_32[60]",
+        "nodePath": "collision_proxies / col_column_32",
+        "name": "col_column_32",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            6.299648284912109,
+            8.62495231628418
+          ],
+          "max": [
+            -10.352762222290039,
+            8.021081924438477,
+            9.081559181213379
+          ],
+          "size": [
+            0.4484720230102539,
+            1.7214336395263672,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_33[61]",
+        "nodePath": "collision_proxies / col_column_33",
+        "name": "col_column_33",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            6.299648284912109,
+            12.007225036621094
+          ],
+          "max": [
+            -10.352762222290039,
+            8.443001747131348,
+            12.463831901550293
+          ],
+          "size": [
+            0.4484720230102539,
+            2.1433534622192383,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_34[62]",
+        "nodePath": "collision_proxies / col_column_34",
+        "name": "col_column_34",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            6.299648284912109,
+            13.275577545166016
+          ],
+          "max": [
+            -10.352762222290039,
+            8.021081924438477,
+            13.732184410095215
+          ],
+          "size": [
+            0.4484720230102539,
+            1.7214336395263672,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_35[63]",
+        "nodePath": "collision_proxies / col_column_35",
+        "name": "col_column_35",
+        "bounds": {
+          "min": [
+            -0.004687834065407515,
+            6.299648284912109,
+            0.5920531153678894
+          ],
+          "max": [
+            0.44378408789634705,
+            10.55260181427002,
+            1.0486600399017334
+          ],
+          "size": [
+            0.44847192196175456,
+            4.25295352935791,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_36[64]",
+        "nodePath": "collision_proxies / col_column_36",
+        "name": "col_column_36",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            7.14348840713501,
+            1.8604055643081665
+          ],
+          "max": [
+            -10.352762222290039,
+            11.396441459655762,
+            2.7397966384887695
+          ],
+          "size": [
+            0.4484720230102539,
+            4.252953052520752,
+            0.879391074180603
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_37[65]",
+        "nodePath": "collision_proxies / col_column_37",
+        "name": "col_column_37",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            7.565408229827881,
+            1.4376213550567627
+          ],
+          "max": [
+            -10.352762222290039,
+            11.818361282348633,
+            1.8942283391952515
+          ],
+          "size": [
+            0.4484720230102539,
+            4.252953052520752,
+            0.45660698413848877
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_38[66]",
+        "nodePath": "collision_proxies / col_column_38",
+        "name": "col_column_38",
+        "bounds": {
+          "min": [
+            0.41056394577026367,
+            7.565408229827881,
+            0.5920531153678894
+          ],
+          "max": [
+            1.2742875814437866,
+            11.818361282348633,
+            1.0486600399017334
+          ],
+          "size": [
+            0.863723635673523,
+            4.252953052520752,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_39[67]",
+        "nodePath": "collision_proxies / col_column_39",
+        "name": "col_column_39",
+        "bounds": {
+          "min": [
+            0.8258156776428223,
+            7.565408229827881,
+            1.0148372650146484
+          ],
+          "max": [
+            1.2742875814437866,
+            11.818361282348633,
+            1.4714441299438477
+          ],
+          "size": [
+            0.44847190380096436,
+            4.252953052520752,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_40[68]",
+        "nodePath": "collision_proxies / col_column_40",
+        "name": "col_column_40",
+        "bounds": {
+          "min": [
+            -5.818212509155273,
+            8.409248352050781,
+            0.5920531153678894
+          ],
+          "max": [
+            -4.539237022399902,
+            12.240281105041504,
+            1.0486600399017334
+          ],
+          "size": [
+            1.278975486755371,
+            3.8310327529907227,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_41[69]",
+        "nodePath": "collision_proxies / col_column_41",
+        "name": "col_column_41",
+        "bounds": {
+          "min": [
+            -0.4199396073818207,
+            8.409248352050781,
+            0.5920531153678894
+          ],
+          "max": [
+            0.028532307595014572,
+            12.662200927734375,
+            1.0486600399017334
+          ],
+          "size": [
+            0.44847191497683525,
+            4.252952575683594,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_42[70]",
+        "nodePath": "collision_proxies / col_column_42",
+        "name": "col_column_42",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            8.831168174743652,
+            1.0148372650146484
+          ],
+          "max": [
+            -10.352762222290039,
+            12.240281105041504,
+            1.4714441299438477
+          ],
+          "size": [
+            0.4484720230102539,
+            3.4091129302978516,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_43[71]",
+        "nodePath": "collision_proxies / col_column_43",
+        "name": "col_column_43",
+        "bounds": {
+          "min": [
+            -8.309722900390625,
+            8.831168174743652,
+            17.503419876098633
+          ],
+          "max": [
+            -7.445999622344971,
+            11.818361282348633,
+            17.960025787353516
+          ],
+          "size": [
+            0.8637232780456543,
+            2.9871931076049805,
+            0.4566059112548828
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_44[72]",
+        "nodePath": "collision_proxies / col_column_44",
+        "name": "col_column_44",
+        "bounds": {
+          "min": [
+            -6.648715972900391,
+            8.831168174743652,
+            0.5920531153678894
+          ],
+          "max": [
+            -5.784992694854736,
+            12.240281105041504,
+            1.0486600399017334
+          ],
+          "size": [
+            0.8637232780456543,
+            3.4091129302978516,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_45[73]",
+        "nodePath": "collision_proxies / col_column_45",
+        "name": "col_column_45",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            9.253087997436523,
+            6.088247299194336
+          ],
+          "max": [
+            -10.352762222290039,
+            11.818361282348633,
+            6.544854164123535
+          ],
+          "size": [
+            0.4484720230102539,
+            2.5652732849121094,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_column_46[74]",
+        "nodePath": "collision_proxies / col_column_46",
+        "name": "col_column_46",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            9.253087997436523,
+            12.85279369354248
+          ],
+          "max": [
+            -10.352762222290039,
+            11.818361282348633,
+            13.732184410095215
+          ],
+          "size": [
+            0.4484720230102539,
+            2.5652732849121094,
+            0.8793907165527344
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_floor_01[75]",
+        "nodePath": "collision_proxies / col_floor_01",
+        "name": "col_floor_01",
+        "bounds": {
+          "min": [
+            -0.4199396073818207,
+            -0.029150918126106262,
+            0.5920531153678894
+          ],
+          "max": [
+            1.6895394325256348,
+            0.4265226423740387,
+            1.4714441299438477
+          ],
+          "size": [
+            2.1094790399074554,
+            0.45567356050014496,
+            0.8793910145759583
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_01[76]",
+        "nodePath": "collision_proxies / col_roof_01",
+        "name": "col_roof_01",
+        "bounds": {
+          "min": [
+            -4.572457313537598,
+            8.831168174743652,
+            0.5920531153678894
+          ],
+          "max": [
+            -4.123985290527344,
+            13.084121704101562,
+            1.0486600399017334
+          ],
+          "size": [
+            0.4484720230102539,
+            4.25295352935791,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_02[77]",
+        "nodePath": "collision_proxies / col_roof_02",
+        "name": "col_roof_02",
+        "bounds": {
+          "min": [
+            -6.233464241027832,
+            10.096927642822266,
+            1.0148372650146484
+          ],
+          "max": [
+            -4.123985290527344,
+            12.240281105041504,
+            1.4714441299438477
+          ],
+          "size": [
+            2.1094789505004883,
+            2.1433534622192383,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_03[78]",
+        "nodePath": "collision_proxies / col_roof_03",
+        "name": "col_roof_03",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            10.518847465515137,
+            1.0148372650146484
+          ],
+          "max": [
+            -10.768013954162598,
+            11.396441459655762,
+            1.4714441299438477
+          ],
+          "size": [
+            0.4484720230102539,
+            0.877593994140625,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_04[79]",
+        "nodePath": "collision_proxies / col_roof_04",
+        "name": "col_roof_04",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            10.518847465515137,
+            1.8604055643081665
+          ],
+          "max": [
+            -10.768013954162598,
+            11.396441459655762,
+            2.3170125484466553
+          ],
+          "size": [
+            0.4484720230102539,
+            0.877593994140625,
+            0.45660698413848877
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_05[80]",
+        "nodePath": "collision_proxies / col_roof_05",
+        "name": "col_roof_05",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            10.518847465515137,
+            2.7059738636016846
+          ],
+          "max": [
+            -10.768013954162598,
+            11.396441459655762,
+            3.162580728530884
+          ],
+          "size": [
+            0.4484720230102539,
+            0.877593994140625,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_06[81]",
+        "nodePath": "collision_proxies / col_roof_06",
+        "name": "col_roof_06",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            10.518847465515137,
+            3.551542282104492
+          ],
+          "max": [
+            -10.768013954162598,
+            11.396441459655762,
+            4.008149147033691
+          ],
+          "size": [
+            0.4484720230102539,
+            0.877593994140625,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_07[82]",
+        "nodePath": "collision_proxies / col_roof_07",
+        "name": "col_roof_07",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            10.518847465515137,
+            4.397110462188721
+          ],
+          "max": [
+            -10.768013954162598,
+            11.396441459655762,
+            4.85371732711792
+          ],
+          "size": [
+            0.4484720230102539,
+            0.877593994140625,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_08[83]",
+        "nodePath": "collision_proxies / col_roof_08",
+        "name": "col_roof_08",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            10.518847465515137,
+            5.242678642272949
+          ],
+          "max": [
+            -10.768013954162598,
+            11.396441459655762,
+            5.699285507202148
+          ],
+          "size": [
+            0.4484720230102539,
+            0.877593994140625,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_09[84]",
+        "nodePath": "collision_proxies / col_roof_09",
+        "name": "col_roof_09",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            10.518847465515137,
+            6.088247299194336
+          ],
+          "max": [
+            -10.768013954162598,
+            11.396441459655762,
+            6.544854164123535
+          ],
+          "size": [
+            0.4484720230102539,
+            0.877593994140625,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_10[85]",
+        "nodePath": "collision_proxies / col_roof_10",
+        "name": "col_roof_10",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            10.518847465515137,
+            6.9338154792785645
+          ],
+          "max": [
+            -10.768013954162598,
+            11.396441459655762,
+            7.390422344207764
+          ],
+          "size": [
+            0.4484720230102539,
+            0.877593994140625,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_100[86]",
+        "nodePath": "collision_proxies / col_roof_100",
+        "name": "col_roof_100",
+        "bounds": {
+          "min": [
+            0.41056394577026367,
+            14.31612777709961,
+            10.738872528076172
+          ],
+          "max": [
+            0.859035849571228,
+            14.771800994873047,
+            15.000536918640137
+          ],
+          "size": [
+            0.44847190380096436,
+            0.4556732177734375,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_101[87]",
+        "nodePath": "collision_proxies / col_roof_101",
+        "name": "col_roof_101",
+        "bounds": {
+          "min": [
+            0.41056394577026367,
+            14.31612777709961,
+            14.966713905334473
+          ],
+          "max": [
+            0.859035849571228,
+            14.771800994873047,
+            17.537242889404297
+          ],
+          "size": [
+            0.44847190380096436,
+            0.4556732177734375,
+            2.570528984069824
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_102[88]",
+        "nodePath": "collision_proxies / col_roof_102",
+        "name": "col_roof_102",
+        "bounds": {
+          "min": [
+            -4.987709045410156,
+            14.73804759979248,
+            0.5920531153678894
+          ],
+          "max": [
+            -4.539237022399902,
+            15.193720817565918,
+            1.0486600399017334
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556732177734375,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_103[89]",
+        "nodePath": "collision_proxies / col_roof_103",
+        "name": "col_roof_103",
+        "bounds": {
+          "min": [
+            -4.157205581665039,
+            14.73804759979248,
+            0.5920531153678894
+          ],
+          "max": [
+            -3.708733558654785,
+            15.193720817565918,
+            1.0486600399017334
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556732177734375,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_11[90]",
+        "nodePath": "collision_proxies / col_roof_11",
+        "name": "col_roof_11",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            10.518847465515137,
+            7.779383659362793
+          ],
+          "max": [
+            -10.768013954162598,
+            11.396441459655762,
+            8.235990524291992
+          ],
+          "size": [
+            0.4484720230102539,
+            0.877593994140625,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_12[91]",
+        "nodePath": "collision_proxies / col_roof_12",
+        "name": "col_roof_12",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            10.518847465515137,
+            8.62495231628418
+          ],
+          "max": [
+            -10.768013954162598,
+            11.396441459655762,
+            9.081559181213379
+          ],
+          "size": [
+            0.4484720230102539,
+            0.877593994140625,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_13[92]",
+        "nodePath": "collision_proxies / col_roof_13",
+        "name": "col_roof_13",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            10.518847465515137,
+            9.47052001953125
+          ],
+          "max": [
+            -10.768013954162598,
+            11.396441459655762,
+            13.732184410095215
+          ],
+          "size": [
+            0.4484720230102539,
+            0.877593994140625,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_14[93]",
+        "nodePath": "collision_proxies / col_roof_14",
+        "name": "col_roof_14",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            10.518847465515137,
+            13.698362350463867
+          ],
+          "max": [
+            -10.768013954162598,
+            11.396441459655762,
+            17.537242889404297
+          ],
+          "size": [
+            0.4484720230102539,
+            0.877593994140625,
+            3.8388805389404297
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_15[94]",
+        "nodePath": "collision_proxies / col_roof_15",
+        "name": "col_roof_15",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            10.518847465515137,
+            1.0148372650146484
+          ],
+          "max": [
+            -6.200244426727295,
+            12.240281105041504,
+            1.4714441299438477
+          ],
+          "size": [
+            4.1857380867004395,
+            1.7214336395263672,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_16[95]",
+        "nodePath": "collision_proxies / col_roof_16",
+        "name": "col_roof_16",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            10.518847465515137,
+            1.4376213550567627
+          ],
+          "max": [
+            -9.93751049041748,
+            11.818361282348633,
+            5.699285507202148
+          ],
+          "size": [
+            0.4484720230102539,
+            1.299513816833496,
+            4.261664152145386
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_17[96]",
+        "nodePath": "collision_proxies / col_roof_17",
+        "name": "col_roof_17",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            10.518847465515137,
+            5.665462970733643
+          ],
+          "max": [
+            -9.93751049041748,
+            11.818361282348633,
+            9.92712688446045
+          ],
+          "size": [
+            0.4484720230102539,
+            1.299513816833496,
+            4.261663913726807
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_18[97]",
+        "nodePath": "collision_proxies / col_roof_18",
+        "name": "col_roof_18",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            10.518847465515137,
+            9.893304824829102
+          ],
+          "max": [
+            -9.93751049041748,
+            11.818361282348633,
+            14.154969215393066
+          ],
+          "size": [
+            0.4484720230102539,
+            1.299513816833496,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_19[98]",
+        "nodePath": "collision_proxies / col_roof_19",
+        "name": "col_roof_19",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            10.518847465515137,
+            14.121146202087402
+          ],
+          "max": [
+            -9.93751049041748,
+            11.818361282348633,
+            17.114458084106445
+          ],
+          "size": [
+            0.4484720230102539,
+            1.299513816833496,
+            2.993311882019043
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_20[99]",
+        "nodePath": "collision_proxies / col_roof_20",
+        "name": "col_roof_20",
+        "bounds": {
+          "min": [
+            -9.970730781555176,
+            10.518847465515137,
+            9.47052001953125
+          ],
+          "max": [
+            -8.27650260925293,
+            10.97452163696289,
+            10.772695541381836
+          ],
+          "size": [
+            1.694228172302246,
+            0.4556741714477539,
+            1.302175521850586
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_21[100]",
+        "nodePath": "collision_proxies / col_roof_21",
+        "name": "col_roof_21",
+        "bounds": {
+          "min": [
+            -9.970730781555176,
+            10.518847465515137,
+            16.65785026550293
+          ],
+          "max": [
+            -5.784992694854736,
+            10.97452163696289,
+            17.114458084106445
+          ],
+          "size": [
+            4.1857380867004395,
+            0.4556741714477539,
+            0.4566078186035156
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_22[101]",
+        "nodePath": "collision_proxies / col_roof_22",
+        "name": "col_roof_22",
+        "bounds": {
+          "min": [
+            -9.5554780960083,
+            10.518847465515137,
+            12.85279369354248
+          ],
+          "max": [
+            -8.691755294799805,
+            11.396441459655762,
+            15.846105575561523
+          ],
+          "size": [
+            0.8637228012084961,
+            0.877593994140625,
+            2.993311882019043
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_23[102]",
+        "nodePath": "collision_proxies / col_roof_23",
+        "name": "col_roof_23",
+        "bounds": {
+          "min": [
+            -7.479219913482666,
+            10.518847465515137,
+            11.584441184997559
+          ],
+          "max": [
+            -4.954488754272461,
+            10.97452163696289,
+            12.886616706848145
+          ],
+          "size": [
+            2.524731159210205,
+            0.4556741714477539,
+            1.302175521850586
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_24[103]",
+        "nodePath": "collision_proxies / col_roof_24",
+        "name": "col_roof_24",
+        "bounds": {
+          "min": [
+            -5.818212509155273,
+            10.518847465515137,
+            16.65785026550293
+          ],
+          "max": [
+            -4.954488754272461,
+            10.97452163696289,
+            17.114458084106445
+          ],
+          "size": [
+            0.8637237548828125,
+            0.4556741714477539,
+            0.4566078186035156
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_25[104]",
+        "nodePath": "collision_proxies / col_roof_25",
+        "name": "col_roof_25",
+        "bounds": {
+          "min": [
+            -4.987709045410156,
+            10.518847465515137,
+            1.4376213550567627
+          ],
+          "max": [
+            -4.123985290527344,
+            10.97452163696289,
+            5.699285507202148
+          ],
+          "size": [
+            0.8637237548828125,
+            0.4556741714477539,
+            4.261664152145386
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_26[105]",
+        "nodePath": "collision_proxies / col_roof_26",
+        "name": "col_roof_26",
+        "bounds": {
+          "min": [
+            -4.987709045410156,
+            10.518847465515137,
+            5.665462970733643
+          ],
+          "max": [
+            -4.123985290527344,
+            10.97452163696289,
+            9.92712688446045
+          ],
+          "size": [
+            0.8637237548828125,
+            0.4556741714477539,
+            4.261663913726807
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_27[106]",
+        "nodePath": "collision_proxies / col_roof_27",
+        "name": "col_roof_27",
+        "bounds": {
+          "min": [
+            -4.987709045410156,
+            10.518847465515137,
+            9.893304824829102
+          ],
+          "max": [
+            -4.123985290527344,
+            10.97452163696289,
+            14.154969215393066
+          ],
+          "size": [
+            0.8637237548828125,
+            0.4556741714477539,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_28[107]",
+        "nodePath": "collision_proxies / col_roof_28",
+        "name": "col_roof_28",
+        "bounds": {
+          "min": [
+            -4.987709045410156,
+            10.518847465515137,
+            14.121146202087402
+          ],
+          "max": [
+            -4.123985290527344,
+            10.97452163696289,
+            17.114458084106445
+          ],
+          "size": [
+            0.8637237548828125,
+            0.4556741714477539,
+            2.993311882019043
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_29[108]",
+        "nodePath": "collision_proxies / col_roof_29",
+        "name": "col_roof_29",
+        "bounds": {
+          "min": [
+            -1.2504431009292603,
+            10.518847465515137,
+            17.503419876098633
+          ],
+          "max": [
+            0.859035849571228,
+            10.97452163696289,
+            18.80559539794922
+          ],
+          "size": [
+            2.1094789505004883,
+            0.4556741714477539,
+            1.302175521850586
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_30[109]",
+        "nodePath": "collision_proxies / col_roof_30",
+        "name": "col_roof_30",
+        "bounds": {
+          "min": [
+            -0.004687834065407515,
+            10.518847465515137,
+            0.5920531153678894
+          ],
+          "max": [
+            0.44378408789634705,
+            14.771800994873047,
+            1.0486600399017334
+          ],
+          "size": [
+            0.44847192196175456,
+            4.25295352935791,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_31[110]",
+        "nodePath": "collision_proxies / col_roof_31",
+        "name": "col_roof_31",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            10.940768241882324,
+            0.5920531153678894
+          ],
+          "max": [
+            -10.768013954162598,
+            11.396441459655762,
+            1.0486600399017334
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556732177734375,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_32[111]",
+        "nodePath": "collision_proxies / col_roof_32",
+        "name": "col_roof_32",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            10.940768241882324,
+            1.4376213550567627
+          ],
+          "max": [
+            -10.768013954162598,
+            11.396441459655762,
+            1.8942283391952515
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556732177734375,
+            0.45660698413848877
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_33[112]",
+        "nodePath": "collision_proxies / col_roof_33",
+        "name": "col_roof_33",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            10.940768241882324,
+            2.2831897735595703
+          ],
+          "max": [
+            -10.768013954162598,
+            11.396441459655762,
+            2.7397966384887695
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556732177734375,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_34[113]",
+        "nodePath": "collision_proxies / col_roof_34",
+        "name": "col_roof_34",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            10.940768241882324,
+            3.128757953643799
+          ],
+          "max": [
+            -10.768013954162598,
+            11.396441459655762,
+            3.585364818572998
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556732177734375,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_35[114]",
+        "nodePath": "collision_proxies / col_roof_35",
+        "name": "col_roof_35",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            10.940768241882324,
+            3.9743263721466064
+          ],
+          "max": [
+            -10.768013954162598,
+            11.396441459655762,
+            4.430932998657227
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556732177734375,
+            0.4566066265106201
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_36[115]",
+        "nodePath": "collision_proxies / col_roof_36",
+        "name": "col_roof_36",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            10.940768241882324,
+            4.819894790649414
+          ],
+          "max": [
+            -10.768013954162598,
+            11.396441459655762,
+            5.276501655578613
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556732177734375,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_37[116]",
+        "nodePath": "collision_proxies / col_roof_37",
+        "name": "col_roof_37",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            10.940768241882324,
+            5.665462970733643
+          ],
+          "max": [
+            -10.768013954162598,
+            11.396441459655762,
+            6.122069835662842
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556732177734375,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_38[117]",
+        "nodePath": "collision_proxies / col_roof_38",
+        "name": "col_roof_38",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            10.940768241882324,
+            6.511031150817871
+          ],
+          "max": [
+            -10.768013954162598,
+            11.396441459655762,
+            6.96763801574707
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556732177734375,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_39[118]",
+        "nodePath": "collision_proxies / col_roof_39",
+        "name": "col_roof_39",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            10.940768241882324,
+            7.3565993309021
+          ],
+          "max": [
+            -10.768013954162598,
+            11.396441459655762,
+            7.813206672668457
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556732177734375,
+            0.4566073417663574
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_40[119]",
+        "nodePath": "collision_proxies / col_roof_40",
+        "name": "col_roof_40",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            10.940768241882324,
+            8.202167510986328
+          ],
+          "max": [
+            -10.768013954162598,
+            11.396441459655762,
+            8.658774375915527
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556732177734375,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_41[120]",
+        "nodePath": "collision_proxies / col_roof_41",
+        "name": "col_roof_41",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            10.940768241882324,
+            9.047736167907715
+          ],
+          "max": [
+            -10.768013954162598,
+            11.396441459655762,
+            9.504343032836914
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556732177734375,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_42[121]",
+        "nodePath": "collision_proxies / col_roof_42",
+        "name": "col_roof_42",
+        "bounds": {
+          "min": [
+            -9.5554780960083,
+            10.940768241882324,
+            15.81228256225586
+          ],
+          "max": [
+            -8.27650260925293,
+            11.818361282348633,
+            16.268890380859375
+          ],
+          "size": [
+            1.278975486755371,
+            0.8775930404663086,
+            0.4566078186035156
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_43[122]",
+        "nodePath": "collision_proxies / col_roof_43",
+        "name": "col_roof_43",
+        "bounds": {
+          "min": [
+            -9.140226364135742,
+            10.940768241882324,
+            16.23506736755371
+          ],
+          "max": [
+            -7.861251354217529,
+            11.818361282348633,
+            16.691673278808594
+          ],
+          "size": [
+            1.278975009918213,
+            0.8775930404663086,
+            0.4566059112548828
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_44[123]",
+        "nodePath": "collision_proxies / col_roof_44",
+        "name": "col_roof_44",
+        "bounds": {
+          "min": [
+            -8.724974632263184,
+            10.940768241882324,
+            16.65785026550293
+          ],
+          "max": [
+            -7.445999622344971,
+            11.818361282348633,
+            17.114458084106445
+          ],
+          "size": [
+            1.278975009918213,
+            0.8775930404663086,
+            0.4566078186035156
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_45[124]",
+        "nodePath": "collision_proxies / col_roof_45",
+        "name": "col_roof_45",
+        "bounds": {
+          "min": [
+            -7.479219913482666,
+            10.940768241882324,
+            11.584441184997559
+          ],
+          "max": [
+            -5.3697404861450195,
+            11.396441459655762,
+            12.886616706848145
+          ],
+          "size": [
+            2.1094794273376465,
+            0.4556732177734375,
+            1.302175521850586
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_46[125]",
+        "nodePath": "collision_proxies / col_roof_46",
+        "name": "col_roof_46",
+        "bounds": {
+          "min": [
+            -5.402960777282715,
+            10.940768241882324,
+            12.007225036621094
+          ],
+          "max": [
+            -4.954488754272461,
+            11.396441459655762,
+            12.463831901550293
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556732177734375,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_47[126]",
+        "nodePath": "collision_proxies / col_roof_47",
+        "name": "col_roof_47",
+        "bounds": {
+          "min": [
+            -4.572457313537598,
+            10.940768241882324,
+            1.4376213550567627
+          ],
+          "max": [
+            -4.123985290527344,
+            14.771800994873047,
+            5.699285507202148
+          ],
+          "size": [
+            0.4484720230102539,
+            3.8310327529907227,
+            4.261664152145386
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_48[127]",
+        "nodePath": "collision_proxies / col_roof_48",
+        "name": "col_roof_48",
+        "bounds": {
+          "min": [
+            -4.572457313537598,
+            10.940768241882324,
+            5.665462970733643
+          ],
+          "max": [
+            -4.123985290527344,
+            14.771800994873047,
+            9.92712688446045
+          ],
+          "size": [
+            0.4484720230102539,
+            3.8310327529907227,
+            4.261663913726807
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_49[128]",
+        "nodePath": "collision_proxies / col_roof_49",
+        "name": "col_roof_49",
+        "bounds": {
+          "min": [
+            -4.572457313537598,
+            10.940768241882324,
+            9.893304824829102
+          ],
+          "max": [
+            -4.123985290527344,
+            14.771800994873047,
+            14.154969215393066
+          ],
+          "size": [
+            0.4484720230102539,
+            3.8310327529907227,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_50[129]",
+        "nodePath": "collision_proxies / col_roof_50",
+        "name": "col_roof_50",
+        "bounds": {
+          "min": [
+            -4.572457313537598,
+            10.940768241882324,
+            14.121146202087402
+          ],
+          "max": [
+            -4.123985290527344,
+            14.771800994873047,
+            17.114458084106445
+          ],
+          "size": [
+            0.4484720230102539,
+            3.8310327529907227,
+            2.993311882019043
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_51[130]",
+        "nodePath": "collision_proxies / col_roof_51",
+        "name": "col_roof_51",
+        "bounds": {
+          "min": [
+            -4.157205581665039,
+            10.940768241882324,
+            0.5920531153678894
+          ],
+          "max": [
+            -0.3867194652557373,
+            14.771800994873047,
+            1.0486600399017334
+          ],
+          "size": [
+            3.7704861164093018,
+            3.8310327529907227,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_52[131]",
+        "nodePath": "collision_proxies / col_roof_52",
+        "name": "col_roof_52",
+        "bounds": {
+          "min": [
+            -1.2504431009292603,
+            10.940768241882324,
+            17.503419876098633
+          ],
+          "max": [
+            -0.8019712567329407,
+            12.240281105041504,
+            18.80559539794922
+          ],
+          "size": [
+            0.4484718441963196,
+            1.2995128631591797,
+            1.302175521850586
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_53[132]",
+        "nodePath": "collision_proxies / col_roof_53",
+        "name": "col_roof_53",
+        "bounds": {
+          "min": [
+            -0.8351913690567017,
+            10.940768241882324,
+            18.348987579345703
+          ],
+          "max": [
+            0.44378408789634705,
+            12.240281105041504,
+            18.80559539794922
+          ],
+          "size": [
+            1.2789754569530487,
+            1.2995128631591797,
+            0.4566078186035156
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_54[133]",
+        "nodePath": "collision_proxies / col_roof_54",
+        "name": "col_roof_54",
+        "bounds": {
+          "min": [
+            0.41056394577026367,
+            10.940768241882324,
+            17.503419876098633
+          ],
+          "max": [
+            0.859035849571228,
+            12.240281105041504,
+            18.80559539794922
+          ],
+          "size": [
+            0.44847190380096436,
+            1.2995128631591797,
+            1.302175521850586
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_55[134]",
+        "nodePath": "collision_proxies / col_roof_55",
+        "name": "col_roof_55",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            11.362688064575195,
+            1.8604055643081665
+          ],
+          "max": [
+            -10.352762222290039,
+            12.240281105041504,
+            2.7397966384887695
+          ],
+          "size": [
+            0.4484720230102539,
+            0.8775930404663086,
+            0.879391074180603
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_56[135]",
+        "nodePath": "collision_proxies / col_roof_56",
+        "name": "col_roof_56",
+        "bounds": {
+          "min": [
+            -9.5554780960083,
+            11.362688064575195,
+            15.389498710632324
+          ],
+          "max": [
+            -8.691755294799805,
+            11.818361282348633,
+            15.846105575561523
+          ],
+          "size": [
+            0.8637228012084961,
+            0.4556732177734375,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_57[136]",
+        "nodePath": "collision_proxies / col_roof_57",
+        "name": "col_roof_57",
+        "bounds": {
+          "min": [
+            -0.8351913690567017,
+            11.362688064575195,
+            17.503419876098633
+          ],
+          "max": [
+            -0.3867194652557373,
+            12.240281105041504,
+            18.382810592651367
+          ],
+          "size": [
+            0.44847190380096436,
+            0.8775930404663086,
+            0.8793907165527344
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_58[137]",
+        "nodePath": "collision_proxies / col_roof_58",
+        "name": "col_roof_58",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            11.784607887268066,
+            1.4376213550567627
+          ],
+          "max": [
+            -9.93751049041748,
+            12.240281105041504,
+            1.8942283391952515
+          ],
+          "size": [
+            0.8637237548828125,
+            0.4556732177734375,
+            0.45660698413848877
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_59[138]",
+        "nodePath": "collision_proxies / col_roof_59",
+        "name": "col_roof_59",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            11.784607887268066,
+            2.7059738636016846
+          ],
+          "max": [
+            -10.352762222290039,
+            12.240281105041504,
+            4.85371732711792
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556732177734375,
+            2.1477434635162354
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_60[139]",
+        "nodePath": "collision_proxies / col_roof_60",
+        "name": "col_roof_60",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            11.784607887268066,
+            1.8604055643081665
+          ],
+          "max": [
+            -9.93751049041748,
+            12.240281105041504,
+            4.85371732711792
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556732177734375,
+            2.9933117628097534
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_61[140]",
+        "nodePath": "collision_proxies / col_roof_61",
+        "name": "col_roof_61",
+        "bounds": {
+          "min": [
+            -4.572457313537598,
+            11.784607887268066,
+            17.08063507080078
+          ],
+          "max": [
+            -2.047726631164551,
+            14.349881172180176,
+            17.537242889404297
+          ],
+          "size": [
+            2.524730682373047,
+            2.5652732849121094,
+            0.4566078186035156
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_62[141]",
+        "nodePath": "collision_proxies / col_roof_62",
+        "name": "col_roof_62",
+        "bounds": {
+          "min": [
+            0.41056394577026367,
+            11.784607887268066,
+            0.5920531153678894
+          ],
+          "max": [
+            1.2742875814437866,
+            14.771800994873047,
+            1.0486600399017334
+          ],
+          "size": [
+            0.863723635673523,
+            2.9871931076049805,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_63[142]",
+        "nodePath": "collision_proxies / col_roof_63",
+        "name": "col_roof_63",
+        "bounds": {
+          "min": [
+            0.8258156776428223,
+            11.784607887268066,
+            1.0148372650146484
+          ],
+          "max": [
+            1.2742875814437866,
+            14.771800994873047,
+            1.4714441299438477
+          ],
+          "size": [
+            0.44847190380096436,
+            2.9871931076049805,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_64[143]",
+        "nodePath": "collision_proxies / col_roof_64",
+        "name": "col_roof_64",
+        "bounds": {
+          "min": [
+            -4.572457313537598,
+            12.206527709960938,
+            1.0148372650146484
+          ],
+          "max": [
+            -4.123985290527344,
+            14.771800994873047,
+            1.4714441299438477
+          ],
+          "size": [
+            0.4484720230102539,
+            2.5652732849121094,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_65[144]",
+        "nodePath": "collision_proxies / col_roof_65",
+        "name": "col_roof_65",
+        "bounds": {
+          "min": [
+            -2.080946683883667,
+            12.206527709960938,
+            17.08063507080078
+          ],
+          "max": [
+            0.859035849571228,
+            14.349881172180176,
+            17.537242889404297
+          ],
+          "size": [
+            2.939982533454895,
+            2.1433534622192383,
+            0.4566078186035156
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_66[145]",
+        "nodePath": "collision_proxies / col_roof_66",
+        "name": "col_roof_66",
+        "bounds": {
+          "min": [
+            0.8258156776428223,
+            12.206527709960938,
+            14.121146202087402
+          ],
+          "max": [
+            1.2742875814437866,
+            14.771800994873047,
+            17.537242889404297
+          ],
+          "size": [
+            0.44847190380096436,
+            2.5652732849121094,
+            3.4160966873168945
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_67[146]",
+        "nodePath": "collision_proxies / col_roof_67",
+        "name": "col_roof_67",
+        "bounds": {
+          "min": [
+            -0.4199396073818207,
+            12.628447532653809,
+            0.5920531153678894
+          ],
+          "max": [
+            0.028532307595014572,
+            14.771800994873047,
+            1.0486600399017334
+          ],
+          "size": [
+            0.44847191497683525,
+            2.1433534622192383,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_68[147]",
+        "nodePath": "collision_proxies / col_roof_68",
+        "name": "col_roof_68",
+        "bounds": {
+          "min": [
+            0.8258156776428223,
+            12.628447532653809,
+            1.4376213550567627
+          ],
+          "max": [
+            1.2742875814437866,
+            14.771800994873047,
+            5.699285507202148
+          ],
+          "size": [
+            0.44847190380096436,
+            2.1433534622192383,
+            4.261664152145386
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_69[148]",
+        "nodePath": "collision_proxies / col_roof_69",
+        "name": "col_roof_69",
+        "bounds": {
+          "min": [
+            0.8258156776428223,
+            12.628447532653809,
+            5.665462970733643
+          ],
+          "max": [
+            1.2742875814437866,
+            14.771800994873047,
+            9.92712688446045
+          ],
+          "size": [
+            0.44847190380096436,
+            2.1433534622192383,
+            4.261663913726807
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_70[149]",
+        "nodePath": "collision_proxies / col_roof_70",
+        "name": "col_roof_70",
+        "bounds": {
+          "min": [
+            0.8258156776428223,
+            12.628447532653809,
+            9.893304824829102
+          ],
+          "max": [
+            1.2742875814437866,
+            14.771800994873047,
+            14.154969215393066
+          ],
+          "size": [
+            0.44847190380096436,
+            2.1433534622192383,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_71[150]",
+        "nodePath": "collision_proxies / col_roof_71",
+        "name": "col_roof_71",
+        "bounds": {
+          "min": [
+            -4.572457313537598,
+            13.05036735534668,
+            0.5920531153678894
+          ],
+          "max": [
+            -4.123985290527344,
+            15.193720817565918,
+            1.0486600399017334
+          ],
+          "size": [
+            0.4484720230102539,
+            2.1433534622192383,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_72[151]",
+        "nodePath": "collision_proxies / col_roof_72",
+        "name": "col_roof_72",
+        "bounds": {
+          "min": [
+            0.41056394577026367,
+            13.47228717803955,
+            17.503419876098633
+          ],
+          "max": [
+            1.2742875814437866,
+            14.349881172180176,
+            17.960025787353516
+          ],
+          "size": [
+            0.863723635673523,
+            0.877593994140625,
+            0.4566059112548828
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_73[152]",
+        "nodePath": "collision_proxies / col_roof_73",
+        "name": "col_roof_73",
+        "bounds": {
+          "min": [
+            -4.987709045410156,
+            13.894207954406738,
+            1.8604055643081665
+          ],
+          "max": [
+            -4.539237022399902,
+            14.771800994873047,
+            6.122069835662842
+          ],
+          "size": [
+            0.4484720230102539,
+            0.8775930404663086,
+            4.261664271354675
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_74[153]",
+        "nodePath": "collision_proxies / col_roof_74",
+        "name": "col_roof_74",
+        "bounds": {
+          "min": [
+            -4.987709045410156,
+            13.894207954406738,
+            6.088247299194336
+          ],
+          "max": [
+            -4.539237022399902,
+            14.771800994873047,
+            10.3499116897583
+          ],
+          "size": [
+            0.4484720230102539,
+            0.8775930404663086,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_75[154]",
+        "nodePath": "collision_proxies / col_roof_75",
+        "name": "col_roof_75",
+        "bounds": {
+          "min": [
+            -4.987709045410156,
+            13.894207954406738,
+            10.316088676452637
+          ],
+          "max": [
+            -4.539237022399902,
+            14.771800994873047,
+            14.577753067016602
+          ],
+          "size": [
+            0.4484720230102539,
+            0.8775930404663086,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_76[155]",
+        "nodePath": "collision_proxies / col_roof_76",
+        "name": "col_roof_76",
+        "bounds": {
+          "min": [
+            -4.987709045410156,
+            13.894207954406738,
+            14.543930053710938
+          ],
+          "max": [
+            -4.539237022399902,
+            14.771800994873047,
+            17.537242889404297
+          ],
+          "size": [
+            0.4484720230102539,
+            0.8775930404663086,
+            2.9933128356933594
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_77[156]",
+        "nodePath": "collision_proxies / col_roof_77",
+        "name": "col_roof_77",
+        "bounds": {
+          "min": [
+            -4.572457313537598,
+            13.894207954406738,
+            0.16926895081996918
+          ],
+          "max": [
+            -0.3867194652557373,
+            14.771800994873047,
+            0.6258758306503296
+          ],
+          "size": [
+            4.18573784828186,
+            0.8775930404663086,
+            0.4566068798303604
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_78[157]",
+        "nodePath": "collision_proxies / col_roof_78",
+        "name": "col_roof_78",
+        "bounds": {
+          "min": [
+            -4.572457313537598,
+            13.894207954406738,
+            17.503419876098633
+          ],
+          "max": [
+            -0.3867194652557373,
+            14.349881172180176,
+            17.960025787353516
+          ],
+          "size": [
+            4.18573784828186,
+            0.4556732177734375,
+            0.4566059112548828
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_79[158]",
+        "nodePath": "collision_proxies / col_roof_79",
+        "name": "col_roof_79",
+        "bounds": {
+          "min": [
+            -4.157205581665039,
+            13.894207954406738,
+            1.8604055643081665
+          ],
+          "max": [
+            0.028532307595014572,
+            14.349881172180176,
+            6.122069835662842
+          ],
+          "size": [
+            4.185737889260054,
+            0.4556732177734375,
+            4.261664271354675
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_80[159]",
+        "nodePath": "collision_proxies / col_roof_80",
+        "name": "col_roof_80",
+        "bounds": {
+          "min": [
+            -4.157205581665039,
+            13.894207954406738,
+            6.088247299194336
+          ],
+          "max": [
+            0.028532307595014572,
+            14.349881172180176,
+            10.3499116897583
+          ],
+          "size": [
+            4.185737889260054,
+            0.4556732177734375,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_81[160]",
+        "nodePath": "collision_proxies / col_roof_81",
+        "name": "col_roof_81",
+        "bounds": {
+          "min": [
+            -4.157205581665039,
+            13.894207954406738,
+            10.316088676452637
+          ],
+          "max": [
+            0.028532307595014572,
+            14.349881172180176,
+            14.577753067016602
+          ],
+          "size": [
+            4.185737889260054,
+            0.4556732177734375,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_82[161]",
+        "nodePath": "collision_proxies / col_roof_82",
+        "name": "col_roof_82",
+        "bounds": {
+          "min": [
+            -4.157205581665039,
+            13.894207954406738,
+            14.543930053710938
+          ],
+          "max": [
+            0.028532307595014572,
+            14.349881172180176,
+            17.114458084106445
+          ],
+          "size": [
+            4.185737889260054,
+            0.4556732177734375,
+            2.570528030395508
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_83[162]",
+        "nodePath": "collision_proxies / col_roof_83",
+        "name": "col_roof_83",
+        "bounds": {
+          "min": [
+            -0.4199396073818207,
+            13.894207954406738,
+            0.16926895081996918
+          ],
+          "max": [
+            1.2742875814437866,
+            14.771800994873047,
+            0.6258758306503296
+          ],
+          "size": [
+            1.6942271888256073,
+            0.8775930404663086,
+            0.4566068798303604
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_84[163]",
+        "nodePath": "collision_proxies / col_roof_84",
+        "name": "col_roof_84",
+        "bounds": {
+          "min": [
+            -0.4199396073818207,
+            13.894207954406738,
+            17.503419876098633
+          ],
+          "max": [
+            0.44378408789634705,
+            14.349881172180176,
+            17.960025787353516
+          ],
+          "size": [
+            0.8637236952781677,
+            0.4556732177734375,
+            0.4566059112548828
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_85[164]",
+        "nodePath": "collision_proxies / col_roof_85",
+        "name": "col_roof_85",
+        "bounds": {
+          "min": [
+            -0.004687834065407515,
+            13.894207954406738,
+            1.8604055643081665
+          ],
+          "max": [
+            0.859035849571228,
+            14.349881172180176,
+            6.122069835662842
+          ],
+          "size": [
+            0.8637236836366355,
+            0.4556732177734375,
+            4.261664271354675
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_86[165]",
+        "nodePath": "collision_proxies / col_roof_86",
+        "name": "col_roof_86",
+        "bounds": {
+          "min": [
+            -0.004687834065407515,
+            13.894207954406738,
+            6.088247299194336
+          ],
+          "max": [
+            0.859035849571228,
+            14.349881172180176,
+            10.3499116897583
+          ],
+          "size": [
+            0.8637236836366355,
+            0.4556732177734375,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_87[166]",
+        "nodePath": "collision_proxies / col_roof_87",
+        "name": "col_roof_87",
+        "bounds": {
+          "min": [
+            -0.004687834065407515,
+            13.894207954406738,
+            10.316088676452637
+          ],
+          "max": [
+            0.859035849571228,
+            14.349881172180176,
+            14.577753067016602
+          ],
+          "size": [
+            0.8637236836366355,
+            0.4556732177734375,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_88[167]",
+        "nodePath": "collision_proxies / col_roof_88",
+        "name": "col_roof_88",
+        "bounds": {
+          "min": [
+            -0.004687834065407515,
+            13.894207954406738,
+            14.543930053710938
+          ],
+          "max": [
+            0.859035849571228,
+            14.349881172180176,
+            17.114458084106445
+          ],
+          "size": [
+            0.8637236836366355,
+            0.4556732177734375,
+            2.570528030395508
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_89[168]",
+        "nodePath": "collision_proxies / col_roof_89",
+        "name": "col_roof_89",
+        "bounds": {
+          "min": [
+            -4.987709045410156,
+            14.31612777709961,
+            0.5920531153678894
+          ],
+          "max": [
+            -4.539237022399902,
+            14.771800994873047,
+            1.8942283391952515
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556732177734375,
+            1.302175223827362
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_90[169]",
+        "nodePath": "collision_proxies / col_roof_90",
+        "name": "col_roof_90",
+        "bounds": {
+          "min": [
+            -4.572457313537598,
+            14.31612777709961,
+            17.08063507080078
+          ],
+          "max": [
+            -4.123985290527344,
+            14.771800994873047,
+            17.537242889404297
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556732177734375,
+            0.4566078186035156
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_91[170]",
+        "nodePath": "collision_proxies / col_roof_91",
+        "name": "col_roof_91",
+        "bounds": {
+          "min": [
+            -4.157205581665039,
+            14.31612777709961,
+            1.0148372650146484
+          ],
+          "max": [
+            0.028532307595014572,
+            14.771800994873047,
+            2.3170125484466553
+          ],
+          "size": [
+            4.185737889260054,
+            0.4556732177734375,
+            1.3021752834320068
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_92[171]",
+        "nodePath": "collision_proxies / col_roof_92",
+        "name": "col_roof_92",
+        "bounds": {
+          "min": [
+            -4.157205581665039,
+            14.31612777709961,
+            2.2831897735595703
+          ],
+          "max": [
+            -3.708733558654785,
+            14.771800994873047,
+            6.544854164123535
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556732177734375,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_93[172]",
+        "nodePath": "collision_proxies / col_roof_93",
+        "name": "col_roof_93",
+        "bounds": {
+          "min": [
+            -4.157205581665039,
+            14.31612777709961,
+            6.511031150817871
+          ],
+          "max": [
+            -3.708733558654785,
+            14.771800994873047,
+            10.772695541381836
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556732177734375,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_94[173]",
+        "nodePath": "collision_proxies / col_roof_94",
+        "name": "col_roof_94",
+        "bounds": {
+          "min": [
+            -4.157205581665039,
+            14.31612777709961,
+            10.738872528076172
+          ],
+          "max": [
+            -3.708733558654785,
+            14.771800994873047,
+            15.000536918640137
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556732177734375,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_95[174]",
+        "nodePath": "collision_proxies / col_roof_95",
+        "name": "col_roof_95",
+        "bounds": {
+          "min": [
+            -4.157205581665039,
+            14.31612777709961,
+            14.966713905334473
+          ],
+          "max": [
+            -3.708733558654785,
+            14.771800994873047,
+            17.537242889404297
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556732177734375,
+            2.570528984069824
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_96[175]",
+        "nodePath": "collision_proxies / col_roof_96",
+        "name": "col_roof_96",
+        "bounds": {
+          "min": [
+            -1.2504431009292603,
+            14.31612777709961,
+            6.511031150817871
+          ],
+          "max": [
+            0.028532307595014572,
+            14.771800994873047,
+            7.813206672668457
+          ],
+          "size": [
+            1.2789754085242748,
+            0.4556732177734375,
+            1.302175521850586
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_97[176]",
+        "nodePath": "collision_proxies / col_roof_97",
+        "name": "col_roof_97",
+        "bounds": {
+          "min": [
+            -0.004687834065407515,
+            14.31612777709961,
+            1.0148372650146484
+          ],
+          "max": [
+            0.859035849571228,
+            14.771800994873047,
+            2.3170125484466553
+          ],
+          "size": [
+            0.8637236836366355,
+            0.4556732177734375,
+            1.3021752834320068
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_98[177]",
+        "nodePath": "collision_proxies / col_roof_98",
+        "name": "col_roof_98",
+        "bounds": {
+          "min": [
+            0.41056394577026367,
+            14.31612777709961,
+            2.2831897735595703
+          ],
+          "max": [
+            0.859035849571228,
+            14.771800994873047,
+            6.544854164123535
+          ],
+          "size": [
+            0.44847190380096436,
+            0.4556732177734375,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_roof_99[178]",
+        "nodePath": "collision_proxies / col_roof_99",
+        "name": "col_roof_99",
+        "bounds": {
+          "min": [
+            0.41056394577026367,
+            14.31612777709961,
+            6.511031150817871
+          ],
+          "max": [
+            0.859035849571228,
+            14.771800994873047,
+            10.772695541381836
+          ],
+          "size": [
+            0.44847190380096436,
+            0.4556732177734375,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_01[179]",
+        "nodePath": "collision_proxies / col_wall_01",
+        "name": "col_wall_01",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            -0.029150918126106262,
+            2.7059738636016846
+          ],
+          "max": [
+            -10.352762222290039,
+            4.223802089691162,
+            6.96763801574707
+          ],
+          "size": [
+            0.4484720230102539,
+            4.252953007817268,
+            4.261664152145386
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_02[180]",
+        "nodePath": "collision_proxies / col_wall_02",
+        "name": "col_wall_02",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            -0.029150918126106262,
+            6.9338154792785645
+          ],
+          "max": [
+            -10.352762222290039,
+            4.223802089691162,
+            11.195479393005371
+          ],
+          "size": [
+            0.4484720230102539,
+            4.252953007817268,
+            4.261663913726807
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_03[181]",
+        "nodePath": "collision_proxies / col_wall_03",
+        "name": "col_wall_03",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            -0.029150918126106262,
+            11.161657333374023
+          ],
+          "max": [
+            -10.352762222290039,
+            4.223802089691162,
+            15.423320770263672
+          ],
+          "size": [
+            0.4484720230102539,
+            4.252953007817268,
+            4.261663436889648
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_04[182]",
+        "nodePath": "collision_proxies / col_wall_04",
+        "name": "col_wall_04",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            -0.029150918126106262,
+            15.389498710632324
+          ],
+          "max": [
+            -10.352762222290039,
+            4.223802089691162,
+            19.65116310119629
+          ],
+          "size": [
+            0.4484720230102539,
+            4.252953007817268,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_05[183]",
+        "nodePath": "collision_proxies / col_wall_05",
+        "name": "col_wall_05",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            -0.029150918126106262,
+            20.885692596435547
+          ],
+          "max": [
+            -6.200244426727295,
+            4.223802089691162,
+            21.34229850769043
+          ],
+          "size": [
+            4.1857380867004395,
+            4.252953007817268,
+            0.4566059112548828
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_06[184]",
+        "nodePath": "collision_proxies / col_wall_06",
+        "name": "col_wall_06",
+        "bounds": {
+          "min": [
+            -9.970730781555176,
+            -0.029150918126106262,
+            1.0148372650146484
+          ],
+          "max": [
+            -5.784992694854736,
+            4.223802089691162,
+            1.4714441299438477
+          ],
+          "size": [
+            4.1857380867004395,
+            4.252953007817268,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_07[185]",
+        "nodePath": "collision_proxies / col_wall_07",
+        "name": "col_wall_07",
+        "bounds": {
+          "min": [
+            -6.233464241027832,
+            -0.029150918126106262,
+            20.885692596435547
+          ],
+          "max": [
+            -2.047726631164551,
+            3.801882266998291,
+            21.34229850769043
+          ],
+          "size": [
+            4.185737609863281,
+            3.8310331851243973,
+            0.4566059112548828
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_08[186]",
+        "nodePath": "collision_proxies / col_wall_08",
+        "name": "col_wall_08",
+        "bounds": {
+          "min": [
+            -4.157205581665039,
+            -0.029150918126106262,
+            1.0148372650146484
+          ],
+          "max": [
+            -0.3867194652557373,
+            4.223802089691162,
+            1.4714441299438477
+          ],
+          "size": [
+            3.7704861164093018,
+            4.252953007817268,
+            0.4566068649291992
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_09[187]",
+        "nodePath": "collision_proxies / col_wall_09",
+        "name": "col_wall_09",
+        "bounds": {
+          "min": [
+            -2.080946683883667,
+            -0.029150918126106262,
+            20.885692596435547
+          ],
+          "max": [
+            0.859035849571228,
+            3.801882266998291,
+            21.34229850769043
+          ],
+          "size": [
+            2.939982533454895,
+            3.8310331851243973,
+            0.4566059112548828
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_10[188]",
+        "nodePath": "collision_proxies / col_wall_10",
+        "name": "col_wall_10",
+        "bounds": {
+          "min": [
+            0.8258156776428223,
+            -0.029150918126106262,
+            1.4376213550567627
+          ],
+          "max": [
+            1.2742875814437866,
+            4.223802089691162,
+            5.699285507202148
+          ],
+          "size": [
+            0.44847190380096436,
+            4.252953007817268,
+            4.261664152145386
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_11[189]",
+        "nodePath": "collision_proxies / col_wall_11",
+        "name": "col_wall_11",
+        "bounds": {
+          "min": [
+            0.8258156776428223,
+            -0.029150918126106262,
+            5.665462970733643
+          ],
+          "max": [
+            1.2742875814437866,
+            4.223802089691162,
+            9.92712688446045
+          ],
+          "size": [
+            0.44847190380096436,
+            4.252953007817268,
+            4.261663913726807
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_12[190]",
+        "nodePath": "collision_proxies / col_wall_12",
+        "name": "col_wall_12",
+        "bounds": {
+          "min": [
+            0.8258156776428223,
+            -0.029150918126106262,
+            9.893304824829102
+          ],
+          "max": [
+            1.2742875814437866,
+            4.223802089691162,
+            14.154969215393066
+          ],
+          "size": [
+            0.44847190380096436,
+            4.252953007817268,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_13[191]",
+        "nodePath": "collision_proxies / col_wall_13",
+        "name": "col_wall_13",
+        "bounds": {
+          "min": [
+            0.8258156776428223,
+            -0.029150918126106262,
+            14.121146202087402
+          ],
+          "max": [
+            1.2742875814437866,
+            3.801882266998291,
+            18.382810592651367
+          ],
+          "size": [
+            0.44847190380096436,
+            3.8310331851243973,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_14[192]",
+        "nodePath": "collision_proxies / col_wall_14",
+        "name": "col_wall_14",
+        "bounds": {
+          "min": [
+            0.8258156776428223,
+            -0.029150918126106262,
+            18.348987579345703
+          ],
+          "max": [
+            1.2742875814437866,
+            3.801882266998291,
+            21.34229850769043
+          ],
+          "size": [
+            0.44847190380096436,
+            3.8310331851243973,
+            2.9933109283447266
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_15[193]",
+        "nodePath": "collision_proxies / col_wall_15",
+        "name": "col_wall_15",
+        "bounds": {
+          "min": [
+            -11.63173770904541,
+            2.080448865890503,
+            1.0148372650146484
+          ],
+          "max": [
+            -11.183265686035156,
+            3.801882266998291,
+            5.276501655578613
+          ],
+          "size": [
+            0.4484720230102539,
+            1.721433401107788,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_16[194]",
+        "nodePath": "collision_proxies / col_wall_16",
+        "name": "col_wall_16",
+        "bounds": {
+          "min": [
+            -11.63173770904541,
+            2.080448865890503,
+            5.242678642272949
+          ],
+          "max": [
+            -11.183265686035156,
+            3.801882266998291,
+            6.96763801574707
+          ],
+          "size": [
+            0.4484720230102539,
+            1.721433401107788,
+            1.724959373474121
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_17[195]",
+        "nodePath": "collision_proxies / col_wall_17",
+        "name": "col_wall_17",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            2.080448865890503,
+            -0.25351521372795105
+          ],
+          "max": [
+            -6.6154961585998535,
+            3.801882266998291,
+            0.20309168100357056
+          ],
+          "size": [
+            4.1857380867004395,
+            1.721433401107788,
+            0.4566068947315216
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_18[196]",
+        "nodePath": "collision_proxies / col_wall_18",
+        "name": "col_wall_18",
+        "bounds": {
+          "min": [
+            -6.648715972900391,
+            2.080448865890503,
+            -0.25351521372795105
+          ],
+          "max": [
+            -4.123985290527344,
+            3.801882266998291,
+            0.20309168100357056
+          ],
+          "size": [
+            2.524730682373047,
+            1.721433401107788,
+            0.4566068947315216
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_19[197]",
+        "nodePath": "collision_proxies / col_wall_19",
+        "name": "col_wall_19",
+        "bounds": {
+          "min": [
+            -4.157205581665039,
+            2.502368688583374,
+            -0.25351521372795105
+          ],
+          "max": [
+            0.028532307595014572,
+            3.379962205886841,
+            0.6258758306503296
+          ],
+          "size": [
+            4.185737889260054,
+            0.8775935173034668,
+            0.8793910443782806
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_20[198]",
+        "nodePath": "collision_proxies / col_wall_20",
+        "name": "col_wall_20",
+        "bounds": {
+          "min": [
+            -4.157205581665039,
+            2.502368688583374,
+            0.5920531153678894
+          ],
+          "max": [
+            -0.3867194652557373,
+            6.755321979522705,
+            1.0486600399017334
+          ],
+          "size": [
+            3.7704861164093018,
+            4.252953290939331,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_21[199]",
+        "nodePath": "collision_proxies / col_wall_21",
+        "name": "col_wall_21",
+        "bounds": {
+          "min": [
+            0.41056394577026367,
+            2.502368688583374,
+            0.5920531153678894
+          ],
+          "max": [
+            1.6895394325256348,
+            3.379962205886841,
+            1.0486600399017334
+          ],
+          "size": [
+            1.278975486755371,
+            0.8775935173034668,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_22[200]",
+        "nodePath": "collision_proxies / col_wall_22",
+        "name": "col_wall_22",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            3.3462088108062744,
+            1.0148372650146484
+          ],
+          "max": [
+            -10.768013954162598,
+            4.223802089691162,
+            5.276501655578613
+          ],
+          "size": [
+            0.4484720230102539,
+            0.8775932788848877,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_23[201]",
+        "nodePath": "collision_proxies / col_wall_23",
+        "name": "col_wall_23",
+        "bounds": {
+          "min": [
+            -11.216485977172852,
+            3.3462088108062744,
+            5.242678642272949
+          ],
+          "max": [
+            -10.768013954162598,
+            4.223802089691162,
+            6.544854164123535
+          ],
+          "size": [
+            0.4484720230102539,
+            0.8775932788848877,
+            1.302175521850586
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_24[202]",
+        "nodePath": "collision_proxies / col_wall_24",
+        "name": "col_wall_24",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            3.3462088108062744,
+            0.16926895081996918
+          ],
+          "max": [
+            -6.200244426727295,
+            4.645722389221191,
+            0.6258758306503296
+          ],
+          "size": [
+            4.1857380867004395,
+            1.299513578414917,
+            0.4566068798303604
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_25[203]",
+        "nodePath": "collision_proxies / col_wall_25",
+        "name": "col_wall_25",
+        "bounds": {
+          "min": [
+            -6.233464241027832,
+            3.3462088108062744,
+            0.16926895081996918
+          ],
+          "max": [
+            -4.539237022399902,
+            4.645722389221191,
+            0.6258758306503296
+          ],
+          "size": [
+            1.6942272186279297,
+            1.299513578414917,
+            0.4566068798303604
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_26[204]",
+        "nodePath": "collision_proxies / col_wall_26",
+        "name": "col_wall_26",
+        "bounds": {
+          "min": [
+            -4.157205581665039,
+            3.3462088108062744,
+            0.16926895081996918
+          ],
+          "max": [
+            0.028532307595014572,
+            4.223802089691162,
+            0.6258758306503296
+          ],
+          "size": [
+            4.185737889260054,
+            0.8775932788848877,
+            0.4566068798303604
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_27[205]",
+        "nodePath": "collision_proxies / col_wall_27",
+        "name": "col_wall_27",
+        "bounds": {
+          "min": [
+            -0.004687834065407515,
+            3.3462088108062744,
+            0.16926895081996918
+          ],
+          "max": [
+            1.2742875814437866,
+            3.801882266998291,
+            0.6258758306503296
+          ],
+          "size": [
+            1.2789754155091941,
+            0.4556734561920166,
+            0.4566068798303604
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_28[206]",
+        "nodePath": "collision_proxies / col_wall_28",
+        "name": "col_wall_28",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            3.7681286334991455,
+            17.08063507080078
+          ],
+          "max": [
+            -6.200244426727295,
+            8.021081924438477,
+            17.537242889404297
+          ],
+          "size": [
+            4.1857380867004395,
+            4.252953290939331,
+            0.4566078186035156
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_29[207]",
+        "nodePath": "collision_proxies / col_wall_29",
+        "name": "col_wall_29",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            3.7681286334991455,
+            17.503419876098633
+          ],
+          "max": [
+            -9.522258758544922,
+            4.223802089691162,
+            20.91951560974121
+          ],
+          "size": [
+            0.8637237548828125,
+            0.4556734561920166,
+            3.416095733642578
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_30[208]",
+        "nodePath": "collision_proxies / col_wall_30",
+        "name": "col_wall_30",
+        "bounds": {
+          "min": [
+            -9.5554780960083,
+            3.7681286334991455,
+            20.462907791137695
+          ],
+          "max": [
+            -7.445999622344971,
+            4.645722389221191,
+            20.91951560974121
+          ],
+          "size": [
+            2.10947847366333,
+            0.8775937557220459,
+            0.4566078186035156
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_31[209]",
+        "nodePath": "collision_proxies / col_wall_31",
+        "name": "col_wall_31",
+        "bounds": {
+          "min": [
+            -8.309722900390625,
+            3.7681286334991455,
+            17.503419876098633
+          ],
+          "max": [
+            -6.6154961585998535,
+            4.645722389221191,
+            17.960025787353516
+          ],
+          "size": [
+            1.6942267417907715,
+            0.8775937557220459,
+            0.4566059112548828
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_32[210]",
+        "nodePath": "collision_proxies / col_wall_32",
+        "name": "col_wall_32",
+        "bounds": {
+          "min": [
+            -7.479219913482666,
+            3.7681286334991455,
+            20.040124893188477
+          ],
+          "max": [
+            -4.539237022399902,
+            4.645722389221191,
+            20.91951560974121
+          ],
+          "size": [
+            2.9399828910827637,
+            0.8775937557220459,
+            0.8793907165527344
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_33[211]",
+        "nodePath": "collision_proxies / col_wall_33",
+        "name": "col_wall_33",
+        "bounds": {
+          "min": [
+            -6.233464241027832,
+            3.7681286334991455,
+            17.08063507080078
+          ],
+          "max": [
+            -2.047726631164551,
+            8.021081924438477,
+            17.537242889404297
+          ],
+          "size": [
+            4.185737609863281,
+            4.252953290939331,
+            0.4566078186035156
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_34[212]",
+        "nodePath": "collision_proxies / col_wall_34",
+        "name": "col_wall_34",
+        "bounds": {
+          "min": [
+            -6.233464241027832,
+            3.7681286334991455,
+            20.885692596435547
+          ],
+          "max": [
+            -4.539237022399902,
+            5.489562034606934,
+            21.34229850769043
+          ],
+          "size": [
+            1.6942272186279297,
+            1.721433401107788,
+            0.4566059112548828
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_35[213]",
+        "nodePath": "collision_proxies / col_wall_35",
+        "name": "col_wall_35",
+        "bounds": {
+          "min": [
+            -4.572457313537598,
+            3.7681286334991455,
+            17.503419876098633
+          ],
+          "max": [
+            -4.123985290527344,
+            5.911481857299805,
+            21.34229850769043
+          ],
+          "size": [
+            0.4484720230102539,
+            2.143353223800659,
+            3.838878631591797
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_36[214]",
+        "nodePath": "collision_proxies / col_wall_36",
+        "name": "col_wall_36",
+        "bounds": {
+          "min": [
+            -2.080946683883667,
+            3.7681286334991455,
+            17.08063507080078
+          ],
+          "max": [
+            0.859035849571228,
+            8.021081924438477,
+            17.537242889404297
+          ],
+          "size": [
+            2.939982533454895,
+            4.252953290939331,
+            0.4566078186035156
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_37[215]",
+        "nodePath": "collision_proxies / col_wall_37",
+        "name": "col_wall_37",
+        "bounds": {
+          "min": [
+            0.8258156776428223,
+            3.7681286334991455,
+            14.121146202087402
+          ],
+          "max": [
+            1.2742875814437866,
+            8.021081924438477,
+            17.537242889404297
+          ],
+          "size": [
+            0.44847190380096436,
+            4.252953290939331,
+            3.4160966873168945
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_38[216]",
+        "nodePath": "collision_proxies / col_wall_38",
+        "name": "col_wall_38",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            4.190048694610596,
+            2.7059738636016846
+          ],
+          "max": [
+            -10.352762222290039,
+            4.645722389221191,
+            6.96763801574707
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556736946105957,
+            4.261664152145386
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_39[217]",
+        "nodePath": "collision_proxies / col_wall_39",
+        "name": "col_wall_39",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            4.190048694610596,
+            6.9338154792785645
+          ],
+          "max": [
+            -10.352762222290039,
+            4.645722389221191,
+            11.195479393005371
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556736946105957,
+            4.261663913726807
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_40[218]",
+        "nodePath": "collision_proxies / col_wall_40",
+        "name": "col_wall_40",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            4.190048694610596,
+            11.161657333374023
+          ],
+          "max": [
+            -10.352762222290039,
+            4.645722389221191,
+            15.423320770263672
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556736946105957,
+            4.261663436889648
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_41[219]",
+        "nodePath": "collision_proxies / col_wall_41",
+        "name": "col_wall_41",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            4.190048694610596,
+            15.389498710632324
+          ],
+          "max": [
+            -10.352762222290039,
+            8.443001747131348,
+            17.537242889404297
+          ],
+          "size": [
+            0.4484720230102539,
+            4.252953052520752,
+            2.1477441787719727
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_42[220]",
+        "nodePath": "collision_proxies / col_wall_42",
+        "name": "col_wall_42",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            4.190048694610596,
+            1.4376213550567627
+          ],
+          "max": [
+            -9.93751049041748,
+            4.645722389221191,
+            5.699285507202148
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556736946105957,
+            4.261664152145386
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_43[221]",
+        "nodePath": "collision_proxies / col_wall_43",
+        "name": "col_wall_43",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            4.190048694610596,
+            8.202167510986328
+          ],
+          "max": [
+            -9.93751049041748,
+            6.755321979522705,
+            9.504343032836914
+          ],
+          "size": [
+            0.4484720230102539,
+            2.5652732849121094,
+            1.302175521850586
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_44[222]",
+        "nodePath": "collision_proxies / col_wall_44",
+        "name": "col_wall_44",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            4.190048694610596,
+            11.584441184997559
+          ],
+          "max": [
+            -9.93751049041748,
+            6.755321979522705,
+            14.154969215393066
+          ],
+          "size": [
+            0.4484720230102539,
+            2.5652732849121094,
+            2.570528030395508
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_45[223]",
+        "nodePath": "collision_proxies / col_wall_45",
+        "name": "col_wall_45",
+        "bounds": {
+          "min": [
+            -9.970730781555176,
+            4.190048694610596,
+            0.5920531153678894
+          ],
+          "max": [
+            -5.784992694854736,
+            4.645722389221191,
+            1.4714441299438477
+          ],
+          "size": [
+            4.1857380867004395,
+            0.4556736946105957,
+            0.8793910145759583
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_46[224]",
+        "nodePath": "collision_proxies / col_wall_46",
+        "name": "col_wall_46",
+        "bounds": {
+          "min": [
+            -9.970730781555176,
+            4.190048694610596,
+            17.503419876098633
+          ],
+          "max": [
+            -9.522258758544922,
+            4.645722389221191,
+            21.34229850769043
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556736946105957,
+            3.838878631591797
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_47[225]",
+        "nodePath": "collision_proxies / col_wall_47",
+        "name": "col_wall_47",
+        "bounds": {
+          "min": [
+            -9.5554780960083,
+            4.190048694610596,
+            20.885692596435547
+          ],
+          "max": [
+            -6.200244426727295,
+            5.489562034606934,
+            21.34229850769043
+          ],
+          "size": [
+            3.355233669281006,
+            1.299513339996338,
+            0.4566059112548828
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_48[226]",
+        "nodePath": "collision_proxies / col_wall_48",
+        "name": "col_wall_48",
+        "bounds": {
+          "min": [
+            0.8258156776428223,
+            4.190048694610596,
+            1.4376213550567627
+          ],
+          "max": [
+            1.2742875814437866,
+            8.443001747131348,
+            5.699285507202148
+          ],
+          "size": [
+            0.44847190380096436,
+            4.252953052520752,
+            4.261664152145386
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_49[227]",
+        "nodePath": "collision_proxies / col_wall_49",
+        "name": "col_wall_49",
+        "bounds": {
+          "min": [
+            0.8258156776428223,
+            4.190048694610596,
+            5.665462970733643
+          ],
+          "max": [
+            1.2742875814437866,
+            8.443001747131348,
+            9.92712688446045
+          ],
+          "size": [
+            0.44847190380096436,
+            4.252953052520752,
+            4.261663913726807
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_50[228]",
+        "nodePath": "collision_proxies / col_wall_50",
+        "name": "col_wall_50",
+        "bounds": {
+          "min": [
+            0.8258156776428223,
+            4.190048694610596,
+            9.893304824829102
+          ],
+          "max": [
+            1.2742875814437866,
+            8.443001747131348,
+            14.154969215393066
+          ],
+          "size": [
+            0.44847190380096436,
+            4.252953052520752,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_51[229]",
+        "nodePath": "collision_proxies / col_wall_51",
+        "name": "col_wall_51",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            4.611968517303467,
+            0.5920531153678894
+          ],
+          "max": [
+            -6.6154961585998535,
+            8.864921569824219,
+            1.0486600399017334
+          ],
+          "size": [
+            4.1857380867004395,
+            4.252953052520752,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_52[230]",
+        "nodePath": "collision_proxies / col_wall_52",
+        "name": "col_wall_52",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            4.611968517303467,
+            2.7059738636016846
+          ],
+          "max": [
+            -10.352762222290039,
+            8.864921569824219,
+            6.122069835662842
+          ],
+          "size": [
+            0.4484720230102539,
+            4.252953052520752,
+            3.4160959720611572
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_53[231]",
+        "nodePath": "collision_proxies / col_wall_53",
+        "name": "col_wall_53",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            4.611968517303467,
+            6.511031150817871
+          ],
+          "max": [
+            -10.352762222290039,
+            8.864921569824219,
+            8.658774375915527
+          ],
+          "size": [
+            0.4484720230102539,
+            4.252953052520752,
+            2.1477432250976562
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_54[232]",
+        "nodePath": "collision_proxies / col_wall_54",
+        "name": "col_wall_54",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            4.611968517303467,
+            9.047736167907715
+          ],
+          "max": [
+            -10.352762222290039,
+            5.0676422119140625,
+            13.30940055847168
+          ],
+          "size": [
+            0.4484720230102539,
+            0.4556736946105957,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_55[233]",
+        "nodePath": "collision_proxies / col_wall_55",
+        "name": "col_wall_55",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            5.033888339996338,
+            9.047736167907715
+          ],
+          "max": [
+            -10.352762222290039,
+            9.28684139251709,
+            12.041048049926758
+          ],
+          "size": [
+            0.4484720230102539,
+            4.252953052520752,
+            2.993311882019043
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_56[234]",
+        "nodePath": "collision_proxies / col_wall_56",
+        "name": "col_wall_56",
+        "bounds": {
+          "min": [
+            -4.157205581665039,
+            6.721568584442139,
+            0.5920531153678894
+          ],
+          "max": [
+            -0.3867194652557373,
+            10.97452163696289,
+            1.0486600399017334
+          ],
+          "size": [
+            3.7704861164093018,
+            4.252953052520752,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_57[235]",
+        "nodePath": "collision_proxies / col_wall_57",
+        "name": "col_wall_57",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            7.565408229827881,
+            5.665462970733643
+          ],
+          "max": [
+            -9.93751049041748,
+            9.708761215209961,
+            6.96763801574707
+          ],
+          "size": [
+            0.4484720230102539,
+            2.14335298538208,
+            1.3021750450134277
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_58[236]",
+        "nodePath": "collision_proxies / col_wall_58",
+        "name": "col_wall_58",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            7.565408229827881,
+            8.202167510986328
+          ],
+          "max": [
+            -9.93751049041748,
+            9.708761215209961,
+            9.504343032836914
+          ],
+          "size": [
+            0.4484720230102539,
+            2.14335298538208,
+            1.302175521850586
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_59[237]",
+        "nodePath": "collision_proxies / col_wall_59",
+        "name": "col_wall_59",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            7.565408229827881,
+            11.584441184997559
+          ],
+          "max": [
+            -9.93751049041748,
+            9.708761215209961,
+            14.154969215393066
+          ],
+          "size": [
+            0.4484720230102539,
+            2.14335298538208,
+            2.570528030395508
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_60[238]",
+        "nodePath": "collision_proxies / col_wall_60",
+        "name": "col_wall_60",
+        "bounds": {
+          "min": [
+            -6.648715972900391,
+            7.565408229827881,
+            17.503419876098633
+          ],
+          "max": [
+            -6.200244426727295,
+            8.443001747131348,
+            18.80559539794922
+          ],
+          "size": [
+            0.4484715461730957,
+            0.8775935173034668,
+            1.302175521850586
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_61[239]",
+        "nodePath": "collision_proxies / col_wall_61",
+        "name": "col_wall_61",
+        "bounds": {
+          "min": [
+            -6.233464241027832,
+            7.565408229827881,
+            18.348987579345703
+          ],
+          "max": [
+            -4.954488754272461,
+            8.443001747131348,
+            18.80559539794922
+          ],
+          "size": [
+            1.278975486755371,
+            0.8775935173034668,
+            0.4566078186035156
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_62[240]",
+        "nodePath": "collision_proxies / col_wall_62",
+        "name": "col_wall_62",
+        "bounds": {
+          "min": [
+            -4.987709045410156,
+            7.565408229827881,
+            17.503419876098633
+          ],
+          "max": [
+            -4.539237022399902,
+            8.443001747131348,
+            18.80559539794922
+          ],
+          "size": [
+            0.4484720230102539,
+            0.8775935173034668,
+            1.302175521850586
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_63[241]",
+        "nodePath": "collision_proxies / col_wall_63",
+        "name": "col_wall_63",
+        "bounds": {
+          "min": [
+            -2.911450147628784,
+            7.565408229827881,
+            17.503419876098633
+          ],
+          "max": [
+            -2.4629783630371094,
+            8.443001747131348,
+            18.80559539794922
+          ],
+          "size": [
+            0.4484717845916748,
+            0.8775935173034668,
+            1.302175521850586
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_64[242]",
+        "nodePath": "collision_proxies / col_wall_64",
+        "name": "col_wall_64",
+        "bounds": {
+          "min": [
+            -2.4961984157562256,
+            7.565408229827881,
+            18.348987579345703
+          ],
+          "max": [
+            -1.217223048210144,
+            8.443001747131348,
+            18.80559539794922
+          ],
+          "size": [
+            1.2789753675460815,
+            0.8775935173034668,
+            0.4566078186035156
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_65[243]",
+        "nodePath": "collision_proxies / col_wall_65",
+        "name": "col_wall_65",
+        "bounds": {
+          "min": [
+            -1.2504431009292603,
+            7.565408229827881,
+            17.503419876098633
+          ],
+          "max": [
+            -0.8019712567329407,
+            8.443001747131348,
+            18.80559539794922
+          ],
+          "size": [
+            0.4484718441963196,
+            0.8775935173034668,
+            1.302175521850586
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_66[244]",
+        "nodePath": "collision_proxies / col_wall_66",
+        "name": "col_wall_66",
+        "bounds": {
+          "min": [
+            -0.8351913690567017,
+            7.565408229827881,
+            18.348987579345703
+          ],
+          "max": [
+            0.44378408789634705,
+            8.443001747131348,
+            18.80559539794922
+          ],
+          "size": [
+            1.2789754569530487,
+            0.8775935173034668,
+            0.4566078186035156
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_67[245]",
+        "nodePath": "collision_proxies / col_wall_67",
+        "name": "col_wall_67",
+        "bounds": {
+          "min": [
+            0.41056394577026367,
+            7.565408229827881,
+            17.503419876098633
+          ],
+          "max": [
+            0.859035849571228,
+            8.443001747131348,
+            18.80559539794922
+          ],
+          "size": [
+            0.44847190380096436,
+            0.8775935173034668,
+            1.302175521850586
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_68[246]",
+        "nodePath": "collision_proxies / col_wall_68",
+        "name": "col_wall_68",
+        "bounds": {
+          "min": [
+            -10.385982513427734,
+            7.987328052520752,
+            17.08063507080078
+          ],
+          "max": [
+            -6.200244426727295,
+            11.818361282348633,
+            17.537242889404297
+          ],
+          "size": [
+            4.1857380867004395,
+            3.831033229827881,
+            0.4566078186035156
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_69[247]",
+        "nodePath": "collision_proxies / col_wall_69",
+        "name": "col_wall_69",
+        "bounds": {
+          "min": [
+            -6.233464241027832,
+            7.987328052520752,
+            17.08063507080078
+          ],
+          "max": [
+            -2.047726631164551,
+            11.818361282348633,
+            17.537242889404297
+          ],
+          "size": [
+            4.185737609863281,
+            3.831033229827881,
+            0.4566078186035156
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_70[248]",
+        "nodePath": "collision_proxies / col_wall_70",
+        "name": "col_wall_70",
+        "bounds": {
+          "min": [
+            -2.080946683883667,
+            7.987328052520752,
+            17.08063507080078
+          ],
+          "max": [
+            0.859035849571228,
+            12.240281105041504,
+            17.537242889404297
+          ],
+          "size": [
+            2.939982533454895,
+            4.252953052520752,
+            0.4566078186035156
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_71[249]",
+        "nodePath": "collision_proxies / col_wall_71",
+        "name": "col_wall_71",
+        "bounds": {
+          "min": [
+            0.8258156776428223,
+            7.987328052520752,
+            14.121146202087402
+          ],
+          "max": [
+            1.2742875814437866,
+            12.240281105041504,
+            17.537242889404297
+          ],
+          "size": [
+            0.44847190380096436,
+            4.252953052520752,
+            3.4160966873168945
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_72[250]",
+        "nodePath": "collision_proxies / col_wall_72",
+        "name": "col_wall_72",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            8.409248352050781,
+            15.389498710632324
+          ],
+          "max": [
+            -10.352762222290039,
+            11.818361282348633,
+            17.537242889404297
+          ],
+          "size": [
+            0.4484720230102539,
+            3.4091129302978516,
+            2.1477441787719727
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_73[251]",
+        "nodePath": "collision_proxies / col_wall_73",
+        "name": "col_wall_73",
+        "bounds": {
+          "min": [
+            0.8258156776428223,
+            8.409248352050781,
+            1.4376213550567627
+          ],
+          "max": [
+            1.2742875814437866,
+            12.662200927734375,
+            5.699285507202148
+          ],
+          "size": [
+            0.44847190380096436,
+            4.252952575683594,
+            4.261664152145386
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_74[252]",
+        "nodePath": "collision_proxies / col_wall_74",
+        "name": "col_wall_74",
+        "bounds": {
+          "min": [
+            0.8258156776428223,
+            8.409248352050781,
+            5.665462970733643
+          ],
+          "max": [
+            1.2742875814437866,
+            12.662200927734375,
+            9.92712688446045
+          ],
+          "size": [
+            0.44847190380096436,
+            4.252952575683594,
+            4.261663913726807
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_75[253]",
+        "nodePath": "collision_proxies / col_wall_75",
+        "name": "col_wall_75",
+        "bounds": {
+          "min": [
+            0.8258156776428223,
+            8.409248352050781,
+            9.893304824829102
+          ],
+          "max": [
+            1.2742875814437866,
+            12.662200927734375,
+            14.154969215393066
+          ],
+          "size": [
+            0.44847190380096436,
+            4.252952575683594,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_76[254]",
+        "nodePath": "collision_proxies / col_wall_76",
+        "name": "col_wall_76",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            8.831168174743652,
+            0.5920531153678894
+          ],
+          "max": [
+            -6.6154961585998535,
+            12.240281105041504,
+            1.0486600399017334
+          ],
+          "size": [
+            4.1857380867004395,
+            3.4091129302978516,
+            0.456606924533844
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_77[255]",
+        "nodePath": "collision_proxies / col_wall_77",
+        "name": "col_wall_77",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            8.831168174743652,
+            2.7059738636016846
+          ],
+          "max": [
+            -10.352762222290039,
+            11.818361282348633,
+            6.122069835662842
+          ],
+          "size": [
+            0.4484720230102539,
+            2.9871931076049805,
+            3.4160959720611572
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_78[256]",
+        "nodePath": "collision_proxies / col_wall_78",
+        "name": "col_wall_78",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            8.831168174743652,
+            6.511031150817871
+          ],
+          "max": [
+            -10.352762222290039,
+            11.818361282348633,
+            8.658774375915527
+          ],
+          "size": [
+            0.4484720230102539,
+            2.9871931076049805,
+            2.1477432250976562
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_79[257]",
+        "nodePath": "collision_proxies / col_wall_79",
+        "name": "col_wall_79",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            8.831168174743652,
+            13.698362350463867
+          ],
+          "max": [
+            -10.352762222290039,
+            11.818361282348633,
+            15.423320770263672
+          ],
+          "size": [
+            0.4484720230102539,
+            2.9871931076049805,
+            1.7249584197998047
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      },
+      {
+        "nodeKey": "collision_proxies[1]/col_wall_80[258]",
+        "nodePath": "collision_proxies / col_wall_80",
+        "name": "col_wall_80",
+        "bounds": {
+          "min": [
+            -10.801234245300293,
+            9.253087997436523,
+            8.62495231628418
+          ],
+          "max": [
+            -10.352762222290039,
+            11.818361282348633,
+            12.886616706848145
+          ],
+          "size": [
+            0.4484720230102539,
+            2.5652732849121094,
+            4.261664390563965
+          ]
+        },
+        "source": "authored-col-mesh",
+        "runtimeAuthority": "world-native-col-proxy"
+      }
+    ],
+    "nativeProxyCount": 259,
+    "nativeProxyAuthority": "source-mesh-col-prefixes-consumed-by-world-runtime",
+    "excludedDriveableMeshKeys": [],
+    "exactSurfacePhysics": false,
+    "sourceSha256": "e3545c114d3dfde80e266b02d8c298c73434d4e4ad71f3c8e3699f43ac2eb314"
+  },
+  "road": null,
+  "bridge": null,
+  "components": [],
+  "interactions": [],
+  "traversal": [],
+  "vehicle": null,
+  "review": {
+    "status": "approved",
+    "approved": true,
+    "outstanding": [],
+    "preservedManualReview": false
+  },
+  "scan": {
+    "meshCount": 413,
+    "collisionBoxCount": 0,
+    "collisionStats": {
+      "boxes": 0,
+      "subdividedMeshes": 0,
+      "skippedUnrasterizableMeshes": 0,
+      "skippedBySemanticPolicy": 413
+    }
+  },
+  "manualOverrides": {}
+}

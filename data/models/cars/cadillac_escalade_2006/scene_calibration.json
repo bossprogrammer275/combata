@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "kind": "open-world-asset-calibration",
+  "generator": {
+    "id": "open-world-unified-asset-calibrator",
+    "version": 1
+  },
+  "generatedAt": "2026-11-21T21:06:39.804Z",
+  "source": {
+    "assetUrl": "data/models/cars/cadillac_escalade_2006/scene.gltf",
+    "fileName": "scene.gltf",
+    "format": "gltf",
+    "bytes": 67586,
+    "sha256": "e9517a1d62f3eef8196eaeb47ae0595ae25e3e98fb6f418adceab9e8a5c8b527"
+  },
+  "coordinateSpace": "model-local-after-source-node-transforms",
+  "units": {
+    "worldConvention": "one game-world unit equals one metre",
+    "sourceUnitStatus": "unverified",
+    "sourceDimensionsRequirePhysicalReference": true,
+    "noAutomaticRescale": true
+  },
+  "bounds": {
+    "min": [
+      -48.355899810791016,
+      0.30660000443456603,
+      -113.42330169677734
+    ],
+    "max": [
+      48.355899810791016,
+      80.21179962158206,
+      113.42330169677736
+    ],
+    "size": [
+      96.71179962158203,
+      79.90519961714749,
+      226.8466033935547
+    ]
+  },
+  "collision": {
+    "generator": "process-glbs-triangle-grid-v2",
+    "mode": "dynamic-vehicle-runtime",
+    "coordinateSpace": "model-local",
+    "boxes": [],
+    "boxCount": 0,
+    "nativeProxies": [],
+    "nativeProxyCount": 0,
+    "nativeProxyAuthority": null,
+    "excludedDriveableMeshKeys": [],
+    "exactSurfacePhysics": false,
+    "sourceSha256": "e9517a1d62f3eef8196eaeb47ae0595ae25e3e98fb6f418adceab9e8a5c8b527"
+  },
+  "road": null,
+  "bridge": null,
+  "components": [],
+  "interactions": [],
+  "traversal": [],
+  "vehicle": {
+    "collisionAuthority": "js/vehicles.js dynamic body and wheel hardpoint classifier",
+    "dynamicBodyBoxesGeneratedHere": false,
+    "driverSeatCandidateId": null,
+    "seatCandidates": [],
+    "doorCandidates": [],
+    "candidates": [],
+    "note": "Seat centres, door hinges and entry clearances are review-only candidates until confirmed against rendered geometry."
+  },
+  "review": {
+    "status": "approved",
+    "approved": true,
+    "outstanding": [],
+    "preservedManualReview": false
+  },
+  "scan": {
+    "meshCount": 36,
+    "collisionBoxCount": 0,
+    "collisionStats": {
+      "boxes": 13318,
+      "subdividedMeshes": 36,
+      "skippedUnrasterizableMeshes": 0,
+      "skippedBySemanticPolicy": 0
+    }
+  },
+  "manualOverrides": {}
+}

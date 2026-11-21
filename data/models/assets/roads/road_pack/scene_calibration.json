@@ -1,0 +1,724 @@
+{
+  "schemaVersion": 1,
+  "kind": "open-world-asset-calibration",
+  "generator": {
+    "id": "open-world-unified-asset-calibrator",
+    "version": 1
+  },
+  "generatedAt": "2026-11-21T21:06:37.248Z",
+  "source": {
+    "assetUrl": "data/models/assets/roads/road_pack/scene.gltf",
+    "fileName": "scene.gltf",
+    "format": "gltf",
+    "bytes": 26053,
+    "sha256": "39c6e59e79169d0b3a8d3c633a6d0b2b41be7d3d8bea4ecb7d69a1e81543550a"
+  },
+  "coordinateSpace": "model-local-after-source-node-transforms",
+  "units": {
+    "worldConvention": "one game-world unit equals one metre",
+    "sourceUnitStatus": "unverified",
+    "sourceDimensionsRequirePhysicalReference": true,
+    "noAutomaticRescale": true
+  },
+  "bounds": {
+    "min": [
+      -3.0649133565925224,
+      -0.2062178642319548,
+      -0.4600254655308116
+    ],
+    "max": [
+      1.0793142796631268,
+      -0.1937821658194922,
+      2.5296643745675533
+    ],
+    "size": [
+      4.144227636255649,
+      0.012435698412462587,
+      2.989689840098365
+    ]
+  },
+  "collision": {
+    "generator": "process-glbs-triangle-grid-v2",
+    "mode": "hybrid-static-and-surface",
+    "coordinateSpace": "model-local",
+    "boxes": [],
+    "boxCount": 0,
+    "nativeProxies": [],
+    "nativeProxyCount": 0,
+    "nativeProxyAuthority": null,
+    "excludedDriveableMeshKeys": [
+      "Sketchfab_model[0]/root[0]/GLTF_SceneRootNode[0]/Tube_0[0]/Object_4[0]",
+      "Sketchfab_model[0]/root[0]/GLTF_SceneRootNode[0]/Tube_3_1[1]/Object_6[0]",
+      "Sketchfab_model[0]/root[0]/GLTF_SceneRootNode[0]/Tube_2_2[2]/Object_8[0]",
+      "Sketchfab_model[0]/root[0]/GLTF_SceneRootNode[0]/Tube_4_3[3]/Object_10[0]",
+      "Sketchfab_model[0]/root[0]/GLTF_SceneRootNode[0]/Tube_1_4[4]/Object_12[0]",
+      "Sketchfab_model[0]/root[0]/GLTF_SceneRootNode[0]/Tube_5_5[5]/Object_14[0]"
+    ],
+    "exactSurfacePhysics": true,
+    "sourceSha256": "39c6e59e79169d0b3a8d3c633a6d0b2b41be7d3d8bea4ecb7d69a1e81543550a"
+  },
+  "road": {
+    "coordinateSpace": "model-local",
+    "surfaces": [
+      {
+        "id": "component-001-sketchfab-model-0-root-0-gltf-scenerootnode-0-tube-0-0-object-4-0-",
+        "nodeKey": "Sketchfab_model[0]/root[0]/GLTF_SceneRootNode[0]/Tube_0[0]/Object_4[0]",
+        "nodePath": "Sketchfab_model / root / GLTF_SceneRootNode / Tube_0 / Object_4",
+        "role": "road-straight-module",
+        "sectionId": null,
+        "sectionKind": "straight-span",
+        "kind": "road",
+        "physics": {
+          "collider": "triangle-surface",
+          "frictionHint": 0.72,
+          "restitution": 0
+        },
+        "bounds": {
+          "min": [
+            -1.773162179339371,
+            -0.20355043858020644,
+            -0.4538757362627012
+          ],
+          "max": [
+            -1.3668741821645458,
+            -0.1964494243285931,
+            0.2598150392214888
+          ],
+          "size": [
+            0.4062879971748252,
+            0.00710101425161333,
+            0.71369077548419
+          ],
+          "center": [
+            -1.5700181807519584,
+            -0.19999993145439976,
+            -0.09703034852060621
+          ]
+        },
+        "connection": {
+          "status": "estimated",
+          "method": "mesh-bounds-axis-estimate",
+          "start": {
+            "position": [
+              -1.5700181807519584,
+              -0.1964494243285931,
+              -0.4538757362627012
+            ],
+            "tangent": [
+              0,
+              0,
+              -1
+            ],
+            "elevation": -0.1964494243285931
+          },
+          "end": {
+            "position": [
+              -1.5700181807519584,
+              -0.1964494243285931,
+              0.2598150392214888
+            ],
+            "tangent": [
+              0,
+              0,
+              1
+            ],
+            "elevation": -0.1964494243285931
+          },
+          "accepted": false,
+          "width": 0.4062879971748252,
+          "length": 0.71369077548419,
+          "deckThickness": 0.00710101425161333,
+          "confidence": 0.68,
+          "requiresReview": true
+        },
+        "confidence": 0.98,
+        "requiresReview": true,
+        "runtimeEnabled": true
+      },
+      {
+        "id": "component-002-sketchfab-model-0-root-0-gltf-scenerootnode-0-tube-3-1-1-object-6-0-",
+        "nodeKey": "Sketchfab_model[0]/root[0]/GLTF_SceneRootNode[0]/Tube_3_1[1]/Object_6[0]",
+        "nodePath": "Sketchfab_model / root / GLTF_SceneRootNode / Tube_3_1 / Object_6",
+        "role": "road-straight-module",
+        "sectionId": null,
+        "sectionKind": "straight-span",
+        "kind": "road",
+        "physics": {
+          "collider": "triangle-surface",
+          "frictionHint": 0.72,
+          "restitution": 0
+        },
+        "bounds": {
+          "min": [
+            -1.1162896679156813,
+            -0.20355048898801187,
+            -0.44015352495001314
+          ],
+          "max": [
+            -0.7100016713956383,
+            -0.19644947436680385,
+            0.2735372501587861
+          ],
+          "size": [
+            0.406287996520043,
+            0.007101014621208018,
+            0.7136907751087993
+          ],
+          "center": [
+            -0.9131456696556598,
+            -0.19999998167740785,
+            -0.08330813739561352
+          ]
+        },
+        "connection": {
+          "status": "estimated",
+          "method": "mesh-bounds-axis-estimate",
+          "start": {
+            "position": [
+              -0.9131456696556598,
+              -0.19644947436680385,
+              -0.44015352495001314
+            ],
+            "tangent": [
+              0,
+              0,
+              -1
+            ],
+            "elevation": -0.19644947436680385
+          },
+          "end": {
+            "position": [
+              -0.9131456696556598,
+              -0.19644947436680385,
+              0.2735372501587861
+            ],
+            "tangent": [
+              0,
+              0,
+              1
+            ],
+            "elevation": -0.19644947436680385
+          },
+          "accepted": false,
+          "width": 0.406287996520043,
+          "length": 0.7136907751087993,
+          "deckThickness": 0.007101014621208018,
+          "confidence": 0.68,
+          "requiresReview": true
+        },
+        "confidence": 0.98,
+        "requiresReview": true,
+        "runtimeEnabled": true
+      },
+      {
+        "id": "component-003-sketchfab-model-0-root-0-gltf-scenerootnode-0-tube-2-2-2-object-8-0-",
+        "nodeKey": "Sketchfab_model[0]/root[0]/GLTF_SceneRootNode[0]/Tube_2_2[2]/Object_8[0]",
+        "nodePath": "Sketchfab_model / root / GLTF_SceneRootNode / Tube_2_2 / Object_8",
+        "role": "road-straight-module",
+        "sectionId": null,
+        "sectionKind": "straight-span",
+        "kind": "road",
+        "physics": {
+          "collider": "triangle-surface",
+          "frictionHint": 0.72,
+          "restitution": 0
+        },
+        "bounds": {
+          "min": [
+            -2.486132467081414,
+            -0.2035509128531019,
+            -0.4600254655308116
+          ],
+          "max": [
+            -2.059665372063248,
+            -0.1964495642861809,
+            2.5269106399789303
+          ],
+          "size": [
+            0.42646709501816593,
+            0.00710134856692099,
+            2.986936105509742
+          ],
+          "center": [
+            -2.272898919572331,
+            -0.2000002385696414,
+            1.0334425872240594
+          ]
+        },
+        "connection": {
+          "status": "estimated",
+          "method": "mesh-bounds-axis-estimate",
+          "start": {
+            "position": [
+              -2.272898919572331,
+              -0.1964495642861809,
+              -0.4600254655308116
+            ],
+            "tangent": [
+              0,
+              0,
+              -1
+            ],
+            "elevation": -0.1964495642861809
+          },
+          "end": {
+            "position": [
+              -2.272898919572331,
+              -0.1964495642861809,
+              2.5269106399789303
+            ],
+            "tangent": [
+              0,
+              0,
+              1
+            ],
+            "elevation": -0.1964495642861809
+          },
+          "accepted": false,
+          "width": 0.42646709501816593,
+          "length": 2.986936105509742,
+          "deckThickness": 0.00710134856692099,
+          "confidence": 0.68,
+          "requiresReview": true
+        },
+        "confidence": 0.98,
+        "requiresReview": true,
+        "runtimeEnabled": true
+      },
+      {
+        "id": "component-004-sketchfab-model-0-root-0-gltf-scenerootnode-0-tube-4-3-3-object-10-0-",
+        "nodeKey": "Sketchfab_model[0]/root[0]/GLTF_SceneRootNode[0]/Tube_4_3[3]/Object_10[0]",
+        "nodePath": "Sketchfab_model / root / GLTF_SceneRootNode / Tube_4_3 / Object_10",
+        "role": "road-straight-module",
+        "sectionId": null,
+        "sectionKind": "straight-span",
+        "kind": "road",
+        "physics": {
+          "collider": "triangle-surface",
+          "frictionHint": 0.72,
+          "restitution": 0
+        },
+        "bounds": {
+          "min": [
+            -3.0649133565925224,
+            -0.2035509217042759,
+            -0.45727173094218854
+          ],
+          "max": [
+            -2.6384462615743565,
+            -0.19644957313735492,
+            2.5296643745675533
+          ],
+          "size": [
+            0.42646709501816593,
+            0.00710134856692099,
+            2.986936105509742
+          ],
+          "center": [
+            -2.851679809083439,
+            -0.2000002474208154,
+            1.0361963218126824
+          ]
+        },
+        "connection": {
+          "status": "estimated",
+          "method": "mesh-bounds-axis-estimate",
+          "start": {
+            "position": [
+              -2.851679809083439,
+              -0.19644957313735492,
+              -0.45727173094218854
+            ],
+            "tangent": [
+              0,
+              0,
+              -1
+            ],
+            "elevation": -0.19644957313735492
+          },
+          "end": {
+            "position": [
+              -2.851679809083439,
+              -0.19644957313735492,
+              2.5296643745675533
+            ],
+            "tangent": [
+              0,
+              0,
+              1
+            ],
+            "elevation": -0.19644957313735492
+          },
+          "accepted": false,
+          "width": 0.42646709501816593,
+          "length": 2.986936105509742,
+          "deckThickness": 0.00710134856692099,
+          "confidence": 0.68,
+          "requiresReview": true
+        },
+        "confidence": 0.98,
+        "requiresReview": true,
+        "runtimeEnabled": true
+      },
+      {
+        "id": "component-005-sketchfab-model-0-root-0-gltf-scenerootnode-0-tube-1-4-4-object-12-0-",
+        "nodeKey": "Sketchfab_model[0]/root[0]/GLTF_SceneRootNode[0]/Tube_1_4[4]/Object_12[0]",
+        "nodePath": "Sketchfab_model / root / GLTF_SceneRootNode / Tube_1_4 / Object_12",
+        "role": "road-corner-module",
+        "sectionId": null,
+        "sectionKind": "curved-span",
+        "kind": "road",
+        "physics": {
+          "collider": "triangle-surface",
+          "frictionHint": 0.72,
+          "restitution": 0
+        },
+        "bounds": {
+          "min": [
+            0.37295150157135115,
+            -0.2062178642319548,
+            -0.3860149035692882
+          ],
+          "max": [
+            1.0793142796631268,
+            -0.1937821662873253,
+            0.28317566824469886
+          ],
+          "size": [
+            0.7063627780917756,
+            0.012435697944629481,
+            0.669190571813987
+          ],
+          "center": [
+            0.726132890617239,
+            -0.20000001525964006,
+            -0.051419617662294664
+          ]
+        },
+        "connection": {
+          "status": "review-required",
+          "method": "manual-centreline-required-for-curved-sloped-or-unknown-profile",
+          "requiresReview": true
+        },
+        "confidence": 0.98,
+        "requiresReview": true,
+        "runtimeEnabled": true
+      },
+      {
+        "id": "component-006-sketchfab-model-0-root-0-gltf-scenerootnode-0-tube-5-5-5-object-14-0-",
+        "nodeKey": "Sketchfab_model[0]/root[0]/GLTF_SceneRootNode[0]/Tube_5_5[5]/Object_14[0]",
+        "nodePath": "Sketchfab_model / root / GLTF_SceneRootNode / Tube_5_5 / Object_14",
+        "role": "road-corner-module",
+        "sectionId": null,
+        "sectionKind": "curved-span",
+        "kind": "road",
+        "physics": {
+          "collider": "triangle-surface",
+          "frictionHint": 0.72,
+          "restitution": 0
+        },
+        "bounds": {
+          "min": [
+            -0.5160297816583057,
+            -0.20621786312009913,
+            -0.38601491148806544
+          ],
+          "max": [
+            0.19033299705083792,
+            -0.1937821658194922,
+            0.2831756609755007
+          ],
+          "size": [
+            0.7063627787091437,
+            0.012435697300606924,
+            0.6691905724635661
+          ],
+          "center": [
+            -0.16284839230373388,
+            -0.20000001446979565,
+            -0.05141962525628238
+          ]
+        },
+        "connection": {
+          "status": "review-required",
+          "method": "manual-centreline-required-for-curved-sloped-or-unknown-profile",
+          "requiresReview": true
+        },
+        "confidence": 0.98,
+        "requiresReview": true,
+        "runtimeEnabled": true
+      }
+    ],
+    "connectionPolicy": "Use node-referenced source triangles for physics. Bounds endpoints are alignment estimates only; curves and ambiguous assets need centreline review."
+  },
+  "bridge": null,
+  "components": [
+    {
+      "id": "component-001-sketchfab-model-0-root-0-gltf-scenerootnode-0-tube-0-0-object-4-0-",
+      "nodeKey": "Sketchfab_model[0]/root[0]/GLTF_SceneRootNode[0]/Tube_0[0]/Object_4[0]",
+      "nodePath": "Sketchfab_model / root / GLTF_SceneRootNode / Tube_0 / Object_4",
+      "name": "Object_4",
+      "sectionId": null,
+      "role": "road-straight-module",
+      "kind": "road-straight-01",
+      "confidence": 0.98,
+      "detection": "world-kit-road-pack",
+      "bounds": {
+        "min": [
+          -1.773162179339371,
+          -0.20355043858020644,
+          -0.4538757362627012
+        ],
+        "max": [
+          -1.3668741821645458,
+          -0.1964494243285931,
+          0.2598150392214888
+        ],
+        "size": [
+          0.4062879971748252,
+          0.00710101425161333,
+          0.71369077548419
+        ],
+        "center": [
+          -1.5700181807519584,
+          -0.19999993145439976,
+          -0.09703034852060621
+        ]
+      },
+      "requiresReview": false,
+      "runtimeEnabled": true
+    },
+    {
+      "id": "component-002-sketchfab-model-0-root-0-gltf-scenerootnode-0-tube-3-1-1-object-6-0-",
+      "nodeKey": "Sketchfab_model[0]/root[0]/GLTF_SceneRootNode[0]/Tube_3_1[1]/Object_6[0]",
+      "nodePath": "Sketchfab_model / root / GLTF_SceneRootNode / Tube_3_1 / Object_6",
+      "name": "Object_6",
+      "sectionId": null,
+      "role": "road-straight-module",
+      "kind": "road-straight-02",
+      "confidence": 0.98,
+      "detection": "world-kit-road-pack",
+      "bounds": {
+        "min": [
+          -1.1162896679156813,
+          -0.20355048898801187,
+          -0.44015352495001314
+        ],
+        "max": [
+          -0.7100016713956383,
+          -0.19644947436680385,
+          0.2735372501587861
+        ],
+        "size": [
+          0.406287996520043,
+          0.007101014621208018,
+          0.7136907751087993
+        ],
+        "center": [
+          -0.9131456696556598,
+          -0.19999998167740785,
+          -0.08330813739561352
+        ]
+      },
+      "requiresReview": false,
+      "runtimeEnabled": true
+    },
+    {
+      "id": "component-003-sketchfab-model-0-root-0-gltf-scenerootnode-0-tube-2-2-2-object-8-0-",
+      "nodeKey": "Sketchfab_model[0]/root[0]/GLTF_SceneRootNode[0]/Tube_2_2[2]/Object_8[0]",
+      "nodePath": "Sketchfab_model / root / GLTF_SceneRootNode / Tube_2_2 / Object_8",
+      "name": "Object_8",
+      "sectionId": null,
+      "role": "road-straight-module",
+      "kind": "road-straight-long-01",
+      "confidence": 0.98,
+      "detection": "world-kit-road-pack",
+      "bounds": {
+        "min": [
+          -2.486132467081414,
+          -0.2035509128531019,
+          -0.4600254655308116
+        ],
+        "max": [
+          -2.059665372063248,
+          -0.1964495642861809,
+          2.5269106399789303
+        ],
+        "size": [
+          0.42646709501816593,
+          0.00710134856692099,
+          2.986936105509742
+        ],
+        "center": [
+          -2.272898919572331,
+          -0.2000002385696414,
+          1.0334425872240594
+        ]
+      },
+      "requiresReview": false,
+      "runtimeEnabled": true
+    },
+    {
+      "id": "component-004-sketchfab-model-0-root-0-gltf-scenerootnode-0-tube-4-3-3-object-10-0-",
+      "nodeKey": "Sketchfab_model[0]/root[0]/GLTF_SceneRootNode[0]/Tube_4_3[3]/Object_10[0]",
+      "nodePath": "Sketchfab_model / root / GLTF_SceneRootNode / Tube_4_3 / Object_10",
+      "name": "Object_10",
+      "sectionId": null,
+      "role": "road-straight-module",
+      "kind": "road-straight-long-02",
+      "confidence": 0.98,
+      "detection": "world-kit-road-pack",
+      "bounds": {
+        "min": [
+          -3.0649133565925224,
+          -0.2035509217042759,
+          -0.45727173094218854
+        ],
+        "max": [
+          -2.6384462615743565,
+          -0.19644957313735492,
+          2.5296643745675533
+        ],
+        "size": [
+          0.42646709501816593,
+          0.00710134856692099,
+          2.986936105509742
+        ],
+        "center": [
+          -2.851679809083439,
+          -0.2000002474208154,
+          1.0361963218126824
+        ]
+      },
+      "requiresReview": false,
+      "runtimeEnabled": true
+    },
+    {
+      "id": "component-005-sketchfab-model-0-root-0-gltf-scenerootnode-0-tube-1-4-4-object-12-0-",
+      "nodeKey": "Sketchfab_model[0]/root[0]/GLTF_SceneRootNode[0]/Tube_1_4[4]/Object_12[0]",
+      "nodePath": "Sketchfab_model / root / GLTF_SceneRootNode / Tube_1_4 / Object_12",
+      "name": "Object_12",
+      "sectionId": null,
+      "role": "road-corner-module",
+      "kind": "road-corner-01",
+      "confidence": 0.98,
+      "detection": "world-kit-road-pack",
+      "bounds": {
+        "min": [
+          0.37295150157135115,
+          -0.2062178642319548,
+          -0.3860149035692882
+        ],
+        "max": [
+          1.0793142796631268,
+          -0.1937821662873253,
+          0.28317566824469886
+        ],
+        "size": [
+          0.7063627780917756,
+          0.012435697944629481,
+          0.669190571813987
+        ],
+        "center": [
+          0.726132890617239,
+          -0.20000001525964006,
+          -0.051419617662294664
+        ]
+      },
+      "requiresReview": false,
+      "runtimeEnabled": true
+    },
+    {
+      "id": "component-006-sketchfab-model-0-root-0-gltf-scenerootnode-0-tube-5-5-5-object-14-0-",
+      "nodeKey": "Sketchfab_model[0]/root[0]/GLTF_SceneRootNode[0]/Tube_5_5[5]/Object_14[0]",
+      "nodePath": "Sketchfab_model / root / GLTF_SceneRootNode / Tube_5_5 / Object_14",
+      "name": "Object_14",
+      "sectionId": null,
+      "role": "road-corner-module",
+      "kind": "road-corner-02",
+      "confidence": 0.98,
+      "detection": "world-kit-road-pack",
+      "bounds": {
+        "min": [
+          -0.5160297816583057,
+          -0.20621786312009913,
+          -0.38601491148806544
+        ],
+        "max": [
+          0.19033299705083792,
+          -0.1937821658194922,
+          0.2831756609755007
+        ],
+        "size": [
+          0.7063627787091437,
+          0.012435697300606924,
+          0.6691905724635661
+        ],
+        "center": [
+          -0.16284839230373388,
+          -0.20000001446979565,
+          -0.05141962525628238
+        ]
+      },
+      "requiresReview": false,
+      "runtimeEnabled": true
+    }
+  ],
+  "interactions": [],
+  "traversal": [],
+  "vehicle": null,
+  "review": {
+    "status": "needs-review",
+    "approved": false,
+    "outstanding": [
+      {
+        "componentId": "component-001-sketchfab-model-0-root-0-gltf-scenerootnode-0-tube-0-0-object-4-0-",
+        "nodeKey": "Sketchfab_model[0]/root[0]/GLTF_SceneRootNode[0]/Tube_0[0]/Object_4[0]",
+        "role": "road-straight-module",
+        "reason": "Review centreline/endpoints and approve the driveable connection before enabling custom tyre-surface sampling."
+      },
+      {
+        "componentId": "component-002-sketchfab-model-0-root-0-gltf-scenerootnode-0-tube-3-1-1-object-6-0-",
+        "nodeKey": "Sketchfab_model[0]/root[0]/GLTF_SceneRootNode[0]/Tube_3_1[1]/Object_6[0]",
+        "role": "road-straight-module",
+        "reason": "Review centreline/endpoints and approve the driveable connection before enabling custom tyre-surface sampling."
+      },
+      {
+        "componentId": "component-003-sketchfab-model-0-root-0-gltf-scenerootnode-0-tube-2-2-2-object-8-0-",
+        "nodeKey": "Sketchfab_model[0]/root[0]/GLTF_SceneRootNode[0]/Tube_2_2[2]/Object_8[0]",
+        "role": "road-straight-module",
+        "reason": "Review centreline/endpoints and approve the driveable connection before enabling custom tyre-surface sampling."
+      },
+      {
+        "componentId": "component-004-sketchfab-model-0-root-0-gltf-scenerootnode-0-tube-4-3-3-object-10-0-",
+        "nodeKey": "Sketchfab_model[0]/root[0]/GLTF_SceneRootNode[0]/Tube_4_3[3]/Object_10[0]",
+        "role": "road-straight-module",
+        "reason": "Review centreline/endpoints and approve the driveable connection before enabling custom tyre-surface sampling."
+      },
+      {
+        "componentId": "component-005-sketchfab-model-0-root-0-gltf-scenerootnode-0-tube-1-4-4-object-12-0-",
+        "nodeKey": "Sketchfab_model[0]/root[0]/GLTF_SceneRootNode[0]/Tube_1_4[4]/Object_12[0]",
+        "role": "road-corner-module",
+        "reason": "Review centreline/endpoints and approve the driveable connection before enabling custom tyre-surface sampling."
+      },
+      {
+        "componentId": "component-006-sketchfab-model-0-root-0-gltf-scenerootnode-0-tube-5-5-5-object-14-0-",
+        "nodeKey": "Sketchfab_model[0]/root[0]/GLTF_SceneRootNode[0]/Tube_5_5[5]/Object_14[0]",
+        "role": "road-corner-module",
+        "reason": "Review centreline/endpoints and approve the driveable connection before enabling custom tyre-surface sampling."
+      }
+    ],
+    "preservedManualReview": false
+  },
+  "scan": {
+    "meshCount": 6,
+    "collisionBoxCount": 0,
+    "collisionStats": {
+      "boxes": 0,
+      "subdividedMeshes": 0,
+      "skippedUnrasterizableMeshes": 0,
+      "skippedBySemanticPolicy": 6
+    }
+  },
+  "manualOverrides": {}
+}

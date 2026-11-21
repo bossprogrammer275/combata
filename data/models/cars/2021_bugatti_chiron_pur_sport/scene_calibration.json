@@ -1,0 +1,202 @@
+{
+  "schemaVersion": 1,
+  "kind": "open-world-asset-calibration",
+  "generator": {
+    "id": "open-world-unified-asset-calibrator",
+    "version": 1
+  },
+  "generatedAt": "2026-11-21T21:06:39.306Z",
+  "source": {
+    "assetUrl": "data/models/cars/2021_bugatti_chiron_pur_sport/scene.gltf",
+    "fileName": "scene.gltf",
+    "format": "gltf",
+    "bytes": 3473398,
+    "sha256": "a3a8c4f1bb35d3099d1d94d3c4633653b2173981ec28db951466170bae78326d"
+  },
+  "coordinateSpace": "model-local-after-source-node-transforms",
+  "units": {
+    "worldConvention": "one game-world unit equals one metre",
+    "sourceUnitStatus": "unverified",
+    "sourceDimensionsRequirePhysicalReference": true,
+    "noAutomaticRescale": true
+  },
+  "bounds": {
+    "min": [
+      -0.010898439640586677,
+      -0.00007210982875542182,
+      -0.024257811957795635
+    ],
+    "max": [
+      0.010898439640586677,
+      0.011814687211483252,
+      0.022070312006690077
+    ],
+    "size": [
+      0.021796879281173354,
+      0.011886797040238675,
+      0.04632812396448571
+    ]
+  },
+  "collision": {
+    "generator": "process-glbs-triangle-grid-v2",
+    "mode": "dynamic-vehicle-runtime",
+    "coordinateSpace": "model-local",
+    "boxes": [],
+    "boxCount": 0,
+    "nativeProxies": [],
+    "nativeProxyCount": 0,
+    "nativeProxyAuthority": null,
+    "excludedDriveableMeshKeys": [],
+    "exactSurfacePhysics": false,
+    "sourceSha256": "a3a8c4f1bb35d3099d1d94d3c4633653b2173981ec28db951466170bae78326d"
+  },
+  "road": null,
+  "bridge": null,
+  "components": [
+    {
+      "id": "component-001-sketchfab-model-0-final-modelfbx-0-rootnode-0-wheel1a-3d-4-combined-wheels-3d-0-combined3dwheel-3dwheel-front-l-instance1-src4-0-",
+      "nodeKey": "Sketchfab_model[0]/FINAL_MODELfbx[0]/RootNode[0]/Wheel1A_3D[4]/Combined_Wheels_3D_[0]/Combined3DWheel_3DWheel_front_L_Instance1_Src4[0]",
+      "nodePath": "Sketchfab_model / FINAL_MODELfbx / RootNode / Wheel1A_3D / Combined_Wheels_3D_ / Combined3DWheel_3DWheel_front_L_Instance1_Src4",
+      "name": "Combined3DWheel_3DWheel_front_L_Instance1_Src4",
+      "sectionId": null,
+      "role": "vehicle-wheel",
+      "kind": "wheel",
+      "confidence": 0.82,
+      "detection": "aggregated-wheel-group",
+      "bounds": {
+        "min": [
+          -0.010316821217968451,
+          -0.00007210982875542182,
+          -0.01842468712621094
+        ],
+        "max": [
+          0.010316821612650387,
+          0.007114589957291254,
+          0.015628564509583706
+        ],
+        "size": [
+          0.020633642830618838,
+          0.007186699786046676,
+          0.034053251635794646
+        ],
+        "center": [
+          1.9734096821932834e-10,
+          0.003521240064267916,
+          -0.0013980613083136167
+        ]
+      },
+      "requiresReview": true,
+      "interaction": {
+        "kind": "vehicle-wheel",
+        "accepted": false,
+        "requiredAnchors": [
+          "axle",
+          "radius",
+          "steeringAxis"
+        ]
+      },
+      "runtimeEnabled": false
+    }
+  ],
+  "interactions": [
+    {
+      "componentId": "component-001-sketchfab-model-0-final-modelfbx-0-rootnode-0-wheel1a-3d-4-combined-wheels-3d-0-combined3dwheel-3dwheel-front-l-instance1-src4-0-",
+      "nodeKey": "Sketchfab_model[0]/FINAL_MODELfbx[0]/RootNode[0]/Wheel1A_3D[4]/Combined_Wheels_3D_[0]/Combined3DWheel_3DWheel_front_L_Instance1_Src4[0]",
+      "kind": "vehicle-wheel",
+      "accepted": false,
+      "requiredAnchors": [
+        "axle",
+        "radius",
+        "steeringAxis"
+      ],
+      "bounds": {
+        "min": [
+          -0.010316821217968451,
+          -0.00007210982875542182,
+          -0.01842468712621094
+        ],
+        "max": [
+          0.010316821612650387,
+          0.007114589957291254,
+          0.015628564509583706
+        ],
+        "size": [
+          0.020633642830618838,
+          0.007186699786046676,
+          0.034053251635794646
+        ],
+        "center": [
+          1.9734096821932834e-10,
+          0.003521240064267916,
+          -0.0013980613083136167
+        ]
+      },
+      "confidence": 0.82,
+      "requiresReview": true
+    }
+  ],
+  "traversal": [],
+  "vehicle": {
+    "collisionAuthority": "js/vehicles.js dynamic body and wheel hardpoint classifier",
+    "dynamicBodyBoxesGeneratedHere": false,
+    "driverSeatCandidateId": null,
+    "seatCandidates": [],
+    "doorCandidates": [],
+    "candidates": [
+      {
+        "componentId": "component-001-sketchfab-model-0-final-modelfbx-0-rootnode-0-wheel1a-3d-4-combined-wheels-3d-0-combined3dwheel-3dwheel-front-l-instance1-src4-0-",
+        "nodeKey": "Sketchfab_model[0]/FINAL_MODELfbx[0]/RootNode[0]/Wheel1A_3D[4]/Combined_Wheels_3D_[0]/Combined3DWheel_3DWheel_front_L_Instance1_Src4[0]",
+        "role": "vehicle-wheel",
+        "bounds": {
+          "min": [
+            -0.010316821217968451,
+            -0.00007210982875542182,
+            -0.01842468712621094
+          ],
+          "max": [
+            0.010316821612650387,
+            0.007114589957291254,
+            0.015628564509583706
+          ],
+          "size": [
+            0.020633642830618838,
+            0.007186699786046676,
+            0.034053251635794646
+          ],
+          "center": [
+            1.9734096821932834e-10,
+            0.003521240064267916,
+            -0.0013980613083136167
+          ]
+        },
+        "confidence": 0.82,
+        "requiresReview": true
+      }
+    ],
+    "note": "Seat centres, door hinges and entry clearances are review-only candidates until confirmed against rendered geometry."
+  },
+  "review": {
+    "status": "needs-review",
+    "approved": false,
+    "outstanding": [
+      {
+        "componentId": "component-001-sketchfab-model-0-final-modelfbx-0-rootnode-0-wheel1a-3d-4-combined-wheels-3d-0-combined3dwheel-3dwheel-front-l-instance1-src4-0-",
+        "nodeKey": "Sketchfab_model[0]/FINAL_MODELfbx[0]/RootNode[0]/Wheel1A_3D[4]/Combined_Wheels_3D_[0]/Combined3DWheel_3DWheel_front_L_Instance1_Src4[0]",
+        "role": "vehicle-wheel",
+        "reason": "Confirm component identity, bounds, anchors and runtime behaviour in Asset Lab before accepting."
+      }
+    ],
+    "preservedManualReview": false
+  },
+  "scan": {
+    "meshCount": 1128,
+    "collisionBoxCount": 0,
+    "collisionStats": {
+      "boxes": 46225,
+      "subdividedMeshes": 963,
+      "skippedUnrasterizableMeshes": 0,
+      "skippedBySemanticPolicy": 3
+    }
+  },
+  "manualOverrides": {}
+}
