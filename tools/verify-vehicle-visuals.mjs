@@ -213,6 +213,11 @@ try{
     }));
     const interactionInventory=await page.evaluate(()=>window.__vehicleVisualTest.showInteractionDiagnostics());
     console.log('VEHICLE SEAT/DOOR AUDIT '+JSON.stringify({kind:spec.kind,seats:interactionInventory.seats,doors:interactionInventory.doors,inventory:interactionInventory.inventory}));
+    check(spec.kind+' estimated occupant anchors stay in the lower cabin, not on the roof',
+      interactionInventory.seats.length>0
+        && interactionInventory.seats.every(seat=>seat.occupant?.length===3
+          && seat.occupant[1] <= base.rootDimensions.y*0.25),
+      JSON.stringify(interactionInventory.seats.map(seat=>({name:seat.name,occupant:seat.occupant,roofY:base.rootDimensions.y}))));
     await capture(page,spec.prefix+'-seat-door-anchor-audit');
     const entryStart=await page.evaluate(async kind=>window.__vehicleVisualTest.startEntry(kind),spec.kind);
     check(spec.kind+' loads all player interaction animations',
