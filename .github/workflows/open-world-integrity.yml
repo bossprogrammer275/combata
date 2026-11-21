@@ -8,12 +8,6 @@ on:
 permissions:
   contents: write
 
-# Serialize generated sidecar writers across workflows. This avoids races with
-# gameplay calibration batches that also commit generated files onto main.
-concurrency:
-  group: main-generated-sidecars
-  cancel-in-progress: false
-
 jobs:
   validate:
     runs-on: ubuntu-latest

@@ -16,10 +16,6 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
-# Share the write lock with city collision-sidecar generation.
-concurrency:
-  group: main-generated-sidecars
-  cancel-in-progress: false
 jobs:
   recalibrate:
     runs-on: ubuntu-latest
@@ -53,11 +49,27 @@ jobs:
           git commit -m "Rebuild gameplay calibration and collision sidecars"
           for attempt in 1 2 3; do
             git fetch origin main
-            git rebase origin/main
-            if git push origin HEAD:main; then
+            if git rebase origin/main; then
+              if git push origin HEAD:main; then
+                exit 0
+              fi
+              echo "Push raced with another main update (attempt $attempt/3); rebasing and retrying."
+              continue
+            fi
+
+            # Calibration sidecars are deterministic output from the source
+            # assets. If another writer refreshed any of the same files, don't
+            # merge snapshots; rebuild all gameplay profiles on latest main.
+            git rebase --abort || true
+            git reset --hard origin/main
+            echo "Calibration sidecars conflicted with main; rebuilding from latest main (attempt $attempt/3)."
+            pnpm recalibrate:gameplay-assets
+            git add data/models/assets data/models/cars
+            if git diff --cached --quiet; then
+              echo "Latest main already has the regenerated gameplay sidecars."
               exit 0
             fi
-            echo "Push raced with another main update (attempt $attempt/3); rebasing and retrying."
+            git commit -m "Rebuild gameplay calibration and collision sidecars"
           done
           echo "::error::Could not publish gameplay calibration sidecars after three retries."
           exit 1
