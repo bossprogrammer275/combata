@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:09.119Z",
+  "generatedAt": "2026-11-21T21:55:18.300Z",
   "source": {
     "assetUrl": "data/models/assets/others/plastic_chair.glb",
     "fileName": "plastic_chair.glb",
@@ -27913,7 +27913,9 @@
       "boxes": 3118,
       "subdividedMeshes": 9,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 117
+      "skippedBySemanticPolicy": 117,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.01949728000937763
     }
   },
   "manualOverrides": {}

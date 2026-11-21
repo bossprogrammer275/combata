@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:13.212Z",
+  "generatedAt": "2026-11-21T21:55:21.211Z",
   "source": {
     "assetUrl": "data/models/cars/2021_bugatti_chiron_pur_sport/scene.gltf",
     "fileName": "scene.gltf",
@@ -31781,7 +31781,9 @@
       "boxes": 46225,
       "subdividedMeshes": 963,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 3
+      "skippedBySemanticPolicy": 3,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.0002377359408047735
     }
   },
   "manualOverrides": {}

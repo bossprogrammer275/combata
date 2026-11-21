@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:09.257Z",
+  "generatedAt": "2026-11-21T21:55:18.395Z",
   "source": {
     "assetUrl": "data/models/assets/others/power_transformer_building__electricity.glb",
     "fileName": "power_transformer_building__electricity.glb",
@@ -11231,7 +11231,9 @@
       "boxes": 744,
       "subdividedMeshes": 1,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 217
+      "skippedBySemanticPolicy": 217,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 3.951777244262696
     }
   },
   "manualOverrides": {}

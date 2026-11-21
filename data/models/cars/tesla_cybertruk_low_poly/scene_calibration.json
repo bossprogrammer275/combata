@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:14.093Z",
+  "generatedAt": "2026-11-21T21:55:21.835Z",
   "source": {
     "assetUrl": "data/models/cars/tesla_cybertruk_low_poly/scene.gltf",
     "fileName": "scene.gltf",
@@ -17186,7 +17186,9 @@
       "boxes": 7005,
       "subdividedMeshes": 591,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 0
+      "skippedBySemanticPolicy": 0,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.03444601535746606
     }
   },
   "manualOverrides": {}

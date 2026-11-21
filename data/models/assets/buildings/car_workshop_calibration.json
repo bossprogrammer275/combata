@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:05.469Z",
+  "generatedAt": "2026-11-21T21:55:15.627Z",
   "source": {
     "assetUrl": "data/models/assets/buildings/car_workshop.glb",
     "fileName": "car_workshop.glb",
@@ -11935,7 +11935,9 @@
       "boxes": 1036,
       "subdividedMeshes": 2,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 150
+      "skippedBySemanticPolicy": 150,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 16.90815824121183
     }
   },
   "manualOverrides": {}

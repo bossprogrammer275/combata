@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:08.067Z",
+  "generatedAt": "2026-11-21T21:55:17.546Z",
   "source": {
     "assetUrl": "data/models/assets/others/game-ready_modular_metal_guardrail.glb",
     "fileName": "game-ready_modular_metal_guardrail.glb",
@@ -41015,7 +41015,9 @@
       "boxes": 4689,
       "subdividedMeshes": 1,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 143
+      "skippedBySemanticPolicy": 143,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.006118512161970139
     }
   },
   "manualOverrides": {}

@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:10.543Z",
+  "generatedAt": "2026-11-21T21:55:19.310Z",
   "source": {
     "assetUrl": "data/models/assets/roads/concrete_block_low_poly.glb",
     "fileName": "concrete_block_low_poly.glb",
@@ -526,7 +526,9 @@
       "boxes": 57,
       "subdividedMeshes": 2,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 0
+      "skippedBySemanticPolicy": 0,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.0206365626206465
     }
   },
   "manualOverrides": {}

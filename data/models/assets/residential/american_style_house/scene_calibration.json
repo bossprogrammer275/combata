@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:10.042Z",
+  "generatedAt": "2026-11-21T21:55:18.947Z",
   "source": {
     "assetUrl": "data/models/assets/residential/american_style_house/scene.gltf",
     "fileName": "scene.gltf",
@@ -7127,7 +7127,9 @@
       "boxes": 111,
       "subdividedMeshes": 16,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 409
+      "skippedBySemanticPolicy": 409,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 5.900141734719277
     }
   },
   "manualOverrides": {}

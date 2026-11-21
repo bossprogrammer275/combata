@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:08.134Z",
+  "generatedAt": "2026-11-21T21:55:17.592Z",
   "source": {
     "assetUrl": "data/models/assets/others/low_poly_electricity_pole/scene.gltf",
     "fileName": "scene.gltf",
@@ -351,7 +351,9 @@
       "boxes": 32,
       "subdividedMeshes": 15,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 1
+      "skippedBySemanticPolicy": 1,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.24000419616000726
     }
   },
   "manualOverrides": {}

@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:06.974Z",
+  "generatedAt": "2026-11-21T21:55:16.763Z",
   "source": {
     "assetUrl": "data/models/assets/buildings/low_poly__school_building/scene.gltf",
     "fileName": "scene.gltf",
@@ -8439,7 +8439,9 @@
       "boxes": 500,
       "subdividedMeshes": 2,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 182
+      "skippedBySemanticPolicy": 182,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 22.33434227649586
     }
   },
   "manualOverrides": {}

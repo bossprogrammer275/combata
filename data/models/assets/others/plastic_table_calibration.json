@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:09.203Z",
+  "generatedAt": "2026-11-21T21:55:18.358Z",
   "source": {
     "assetUrl": "data/models/assets/others/plastic_table.glb",
     "fileName": "plastic_table.glb",
@@ -4519,7 +4519,9 @@
       "boxes": 160,
       "subdividedMeshes": 1,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 132
+      "skippedBySemanticPolicy": 132,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.03609931088274924
     }
   },
   "manualOverrides": {}

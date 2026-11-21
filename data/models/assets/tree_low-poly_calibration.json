@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:11.712Z",
+  "generatedAt": "2026-11-21T21:55:20.117Z",
   "source": {
     "assetUrl": "data/models/assets/tree_low-poly.glb",
     "fileName": "tree_low-poly.glb",
@@ -983,7 +983,9 @@
       "boxes": 111,
       "subdividedMeshes": 1,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 2
+      "skippedBySemanticPolicy": 2,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 49.41092021309051
     }
   },
   "manualOverrides": {}

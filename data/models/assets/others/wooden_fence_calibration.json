@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:09.734Z",
+  "generatedAt": "2026-11-21T21:55:18.734Z",
   "source": {
     "assetUrl": "data/models/assets/others/wooden_fence.glb",
     "fileName": "wooden_fence.glb",
@@ -551,7 +551,9 @@
       "boxes": 51,
       "subdividedMeshes": 1,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 0
+      "skippedBySemanticPolicy": 0,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.39248554486259324
     }
   },
   "manualOverrides": {}

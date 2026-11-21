@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:09.543Z",
+  "generatedAt": "2026-11-21T21:55:18.609Z",
   "source": {
     "assetUrl": "data/models/assets/others/water_dispenser.glb",
     "fileName": "water_dispenser.glb",
@@ -6983,7 +6983,9 @@
       "boxes": 330,
       "subdividedMeshes": 3,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 178
+      "skippedBySemanticPolicy": 178,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.1217753945068792
     }
   },
   "manualOverrides": {}

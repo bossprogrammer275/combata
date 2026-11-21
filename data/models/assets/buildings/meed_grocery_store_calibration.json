@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:06.998Z",
+  "generatedAt": "2026-11-21T21:55:16.788Z",
   "source": {
     "assetUrl": "data/models/assets/buildings/meed_grocery_store.glb",
     "fileName": "meed_grocery_store.glb",
@@ -3658,7 +3658,9 @@
       "boxes": 0,
       "subdividedMeshes": 0,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 152
+      "skippedBySemanticPolicy": 152,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.2492812415146246
     }
   },
   "manualOverrides": {}

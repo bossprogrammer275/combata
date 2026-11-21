@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:07.552Z",
+  "generatedAt": "2026-11-21T21:55:17.178Z",
   "source": {
     "assetUrl": "data/models/assets/others/bridge_road_lowpoly.glb",
     "fileName": "bridge_road_lowpoly.glb",
@@ -26699,7 +26699,9 @@
       "boxes": 3315,
       "subdividedMeshes": 2,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 0
+      "skippedBySemanticPolicy": 0,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 1.178778950319164
     }
   },
   "manualOverrides": {}

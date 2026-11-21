@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:07.899Z",
+  "generatedAt": "2026-11-21T21:55:17.432Z",
   "source": {
     "assetUrl": "data/models/assets/others/freeway_streetlight_1/scene.gltf",
     "fileName": "scene.gltf",
@@ -679,7 +679,9 @@
       "boxes": 73,
       "subdividedMeshes": 17,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 1
+      "skippedBySemanticPolicy": 1,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 21.69030517578125
     }
   },
   "manualOverrides": {}

@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:10.245Z",
+  "generatedAt": "2026-11-21T21:55:19.102Z",
   "source": {
     "assetUrl": "data/models/assets/residential/nigeria_duplex/scene.gltf",
     "fileName": "scene.gltf",
@@ -31831,7 +31831,9 @@
       "boxes": 3199,
       "subdividedMeshes": 1,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 257
+      "skippedBySemanticPolicy": 257,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.018123645550271742
     }
   },
   "manualOverrides": {}

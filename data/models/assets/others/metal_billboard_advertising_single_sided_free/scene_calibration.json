@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:08.344Z",
+  "generatedAt": "2026-11-21T21:55:17.751Z",
   "source": {
     "assetUrl": "data/models/assets/others/metal_billboard_advertising_single_sided_free/scene.gltf",
     "fileName": "scene.gltf",
@@ -5143,7 +5143,9 @@
       "boxes": 328,
       "subdividedMeshes": 4,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 102
+      "skippedBySemanticPolicy": 102,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.25662828127145765
     }
   },
   "manualOverrides": {}

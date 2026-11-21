@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:06.907Z",
+  "generatedAt": "2026-11-21T21:55:16.713Z",
   "source": {
     "assetUrl": "data/models/assets/buildings/low_poly_-_industrial_warehouse.glb",
     "fileName": "low_poly_-_industrial_warehouse.glb",
@@ -3319,7 +3319,9 @@
       "boxes": 22,
       "subdividedMeshes": 1,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 128
+      "skippedBySemanticPolicy": 128,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.0018398444184099633
     }
   },
   "manualOverrides": {}

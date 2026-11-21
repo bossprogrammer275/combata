@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:13.722Z",
+  "generatedAt": "2026-11-21T21:55:21.559Z",
   "source": {
     "assetUrl": "data/models/cars/cadillac_escalade_2006/scene.gltf",
     "fileName": "scene.gltf",
@@ -1087,7 +1087,9 @@
       "boxes": 13318,
       "subdividedMeshes": 36,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 0
+      "skippedBySemanticPolicy": 0,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 1.5981039923429499
     }
   },
   "manualOverrides": {}

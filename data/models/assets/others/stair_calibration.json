@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:09.279Z",
+  "generatedAt": "2026-11-21T21:55:18.409Z",
   "source": {
     "assetUrl": "data/models/assets/others/stair.glb",
     "fileName": "stair.glb",
@@ -732,7 +732,9 @@
       "boxes": 68,
       "subdividedMeshes": 1,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 0
+      "skippedBySemanticPolicy": 0,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 9.231705017089846
     }
   },
   "manualOverrides": {}

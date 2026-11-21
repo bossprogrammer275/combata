@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:08.198Z",
+  "generatedAt": "2026-11-21T21:55:17.636Z",
   "source": {
     "assetUrl": "data/models/assets/others/low_poly_street_food_cart.glb",
     "fileName": "low_poly_street_food_cart.glb",
@@ -8175,7 +8175,9 @@
       "boxes": 518,
       "subdividedMeshes": 2,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 165
+      "skippedBySemanticPolicy": 165,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 22.58276262618847
     }
   },
   "manualOverrides": {}

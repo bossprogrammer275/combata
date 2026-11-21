@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:09.272Z",
+  "generatedAt": "2026-11-21T21:55:18.405Z",
   "source": {
     "assetUrl": "data/models/assets/others/psx_-_vending_machine.glb",
     "fileName": "psx_-_vending_machine.glb",
@@ -4591,7 +4591,9 @@
       "boxes": 40,
       "subdividedMeshes": 3,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 175
+      "skippedBySemanticPolicy": 175,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.0028041949725405497
     }
   },
   "manualOverrides": {}

@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:07.307Z",
+  "generatedAt": "2026-11-21T21:55:17.008Z",
   "source": {
     "assetUrl": "data/models/assets/low_poly_skyscraper.glb",
     "fileName": "low_poly_skyscraper.glb",
@@ -1935,7 +1935,9 @@
       "boxes": 53,
       "subdividedMeshes": 6,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 60
+      "skippedBySemanticPolicy": 60,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 6.798051250000001
     }
   },
   "manualOverrides": {}

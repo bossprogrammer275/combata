@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:07.619Z",
+  "generatedAt": "2026-11-21T21:55:17.228Z",
   "source": {
     "assetUrl": "data/models/assets/others/concrete_road_barrier_photoscanned/scene.gltf",
     "fileName": "scene.gltf",
@@ -24471,7 +24471,9 @@
       "boxes": 3041,
       "subdividedMeshes": 1,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 0
+      "skippedBySemanticPolicy": 0,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.01916314881521196
     }
   },
   "manualOverrides": {}

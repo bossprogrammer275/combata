@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:09.349Z",
+  "generatedAt": "2026-11-21T21:55:18.457Z",
   "source": {
     "assetUrl": "data/models/assets/others/standard_bus_stop.glb",
     "fileName": "standard_bus_stop.glb",
@@ -7591,7 +7591,9 @@
       "boxes": 502,
       "subdividedMeshes": 5,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 146
+      "skippedBySemanticPolicy": 146,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.062345042668001865
     }
   },
   "manualOverrides": {}

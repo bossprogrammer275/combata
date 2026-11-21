@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:09.658Z",
+  "generatedAt": "2026-11-21T21:55:18.685Z",
   "source": {
     "assetUrl": "data/models/assets/others/wheelbarrow.glb",
     "fileName": "wheelbarrow.glb",
@@ -15511,7 +15511,9 @@
       "boxes": 1396,
       "subdividedMeshes": 1,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 178
+      "skippedBySemanticPolicy": 178,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.012554373114277586
     }
   },
   "manualOverrides": {}

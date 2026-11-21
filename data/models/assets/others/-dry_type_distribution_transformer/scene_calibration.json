@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:07.467Z",
+  "generatedAt": "2026-11-21T21:55:17.123Z",
   "source": {
     "assetUrl": "data/models/assets/others/-dry_type_distribution_transformer/scene.gltf",
     "fileName": "scene.gltf",
@@ -12471,7 +12471,9 @@
       "boxes": 1202,
       "subdividedMeshes": 38,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 116
+      "skippedBySemanticPolicy": 116,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.02880800026416779
     }
   },
   "manualOverrides": {}

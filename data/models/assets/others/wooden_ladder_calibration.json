@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:09.776Z",
+  "generatedAt": "2026-11-21T21:55:18.761Z",
   "source": {
     "assetUrl": "data/models/assets/others/wooden_ladder.glb",
     "fileName": "wooden_ladder.glb",
@@ -1216,7 +1216,9 @@
       "boxes": 128,
       "subdividedMeshes": 1,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 0
+      "skippedBySemanticPolicy": 0,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 7.209821820259094
     }
   },
   "manualOverrides": {}

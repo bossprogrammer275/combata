@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:09.432Z",
+  "generatedAt": "2026-11-21T21:55:18.539Z",
   "source": {
     "assetUrl": "data/models/assets/others/traffic_lights/scene.gltf",
     "fileName": "scene.gltf",
@@ -5735,7 +5735,9 @@
       "boxes": 249,
       "subdividedMeshes": 5,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 153
+      "skippedBySemanticPolicy": 153,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.31968129731907563
     }
   },
   "manualOverrides": {}

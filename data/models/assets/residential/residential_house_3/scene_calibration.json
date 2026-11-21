@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:10.417Z",
+  "generatedAt": "2026-11-21T21:55:19.231Z",
   "source": {
     "assetUrl": "data/models/assets/residential/residential_house_3/scene.gltf",
     "fileName": "scene.gltf",
@@ -7527,7 +7527,9 @@
       "boxes": 323,
       "subdividedMeshes": 1,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 203
+      "skippedBySemanticPolicy": 203,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.08425963994348559
     }
   },
   "manualOverrides": {}

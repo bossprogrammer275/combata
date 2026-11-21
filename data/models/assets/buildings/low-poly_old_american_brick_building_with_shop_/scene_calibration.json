@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:06.882Z",
+  "generatedAt": "2026-11-21T21:55:16.693Z",
   "source": {
     "assetUrl": "data/models/assets/buildings/low-poly_old_american_brick_building_with_shop_/scene.gltf",
     "fileName": "scene.gltf",
@@ -3247,7 +3247,9 @@
       "boxes": 130,
       "subdividedMeshes": 1,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 89
+      "skippedBySemanticPolicy": 89,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.19866890867948533
     }
   },
   "manualOverrides": {}

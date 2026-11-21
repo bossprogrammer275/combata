@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:07.259Z",
+  "generatedAt": "2026-11-21T21:55:16.974Z",
   "source": {
     "assetUrl": "data/models/assets/ilorin_innovation_hub.glb",
     "fileName": "ilorin_innovation_hub.glb",
@@ -14886,7 +14886,9 @@
       "boxes": 1852,
       "subdividedMeshes": 254,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 51
+      "skippedBySemanticPolicy": 51,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.280739998664856
     }
   },
   "manualOverrides": {}

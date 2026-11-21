@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:07.695Z",
+  "generatedAt": "2026-11-21T21:55:17.283Z",
   "source": {
     "assetUrl": "data/models/assets/others/fence_-_11mb.glb",
     "fileName": "fence_-_11mb.glb",
@@ -3223,7 +3223,9 @@
       "boxes": 220,
       "subdividedMeshes": 5,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 58
+      "skippedBySemanticPolicy": 58,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.07377999835088855
     }
   },
   "manualOverrides": {}

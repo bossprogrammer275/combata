@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:08.106Z",
+  "generatedAt": "2026-11-21T21:55:17.571Z",
   "source": {
     "assetUrl": "data/models/assets/others/ladder.glb",
     "fileName": "ladder.glb",
@@ -2152,7 +2152,9 @@
       "boxes": 245,
       "subdividedMeshes": 5,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 0
+      "skippedBySemanticPolicy": 0,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.05505133945357443
     }
   },
   "manualOverrides": {}

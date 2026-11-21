@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:07.295Z",
+  "generatedAt": "2026-11-21T21:55:17.000Z",
   "source": {
     "assetUrl": "data/models/assets/kwara_revenue_house.glb",
     "fileName": "kwara_revenue_house.glb",
@@ -1243,7 +1243,9 @@
       "boxes": 72,
       "subdividedMeshes": 13,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 114
+      "skippedBySemanticPolicy": 114,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.8616000366210937
     }
   },
   "manualOverrides": {}

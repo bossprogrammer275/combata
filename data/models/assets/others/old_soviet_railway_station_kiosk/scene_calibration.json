@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:09.062Z",
+  "generatedAt": "2026-11-21T21:55:18.261Z",
   "source": {
     "assetUrl": "data/models/assets/others/old_soviet_railway_station_kiosk/scene.gltf",
     "fileName": "scene.gltf",
@@ -4783,7 +4783,9 @@
       "boxes": 88,
       "subdividedMeshes": 1,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 167
+      "skippedBySemanticPolicy": 167,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.05443867076811103
     }
   },
   "manualOverrides": {}

@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:05.323Z",
+  "generatedAt": "2026-11-21T21:55:15.524Z",
   "source": {
     "assetUrl": "data/models/assets/buildings/building/scene.gltf",
     "fileName": "scene.gltf",
@@ -9949,7 +9949,9 @@
       "boxes": 626,
       "subdividedMeshes": 14,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 209
+      "skippedBySemanticPolicy": 209,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.025278484887787788
     }
   },
   "manualOverrides": {}

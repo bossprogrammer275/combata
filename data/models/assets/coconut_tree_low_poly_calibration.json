@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:07.092Z",
+  "generatedAt": "2026-11-21T21:55:16.849Z",
   "source": {
     "assetUrl": "data/models/assets/coconut_tree_low_poly.glb",
     "fileName": "coconut_tree_low_poly.glb",
@@ -1319,7 +1319,9 @@
       "boxes": 153,
       "subdividedMeshes": 1,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 2
+      "skippedBySemanticPolicy": 2,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 3.1138275146484378
     }
   },
   "manualOverrides": {}

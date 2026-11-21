@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:09.944Z",
+  "generatedAt": "2026-11-21T21:55:18.873Z",
   "source": {
     "assetUrl": "data/models/assets/residential/Building+04_GLB/Building 04.glb",
     "fileName": "Building 04.glb",
@@ -18524,7 +18524,9 @@
       "boxes": 1612,
       "subdividedMeshes": 8,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 245
+      "skippedBySemanticPolicy": 245,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.20623160016132247
     }
   },
   "manualOverrides": {}

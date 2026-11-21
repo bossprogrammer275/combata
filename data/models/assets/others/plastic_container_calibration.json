@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:09.182Z",
+  "generatedAt": "2026-11-21T21:55:18.345Z",
   "source": {
     "assetUrl": "data/models/assets/others/plastic_container.glb",
     "fileName": "plastic_container.glb",
@@ -12039,7 +12039,9 @@
       "boxes": 1079,
       "subdividedMeshes": 1,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 139
+      "skippedBySemanticPolicy": 139,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.009109427572051899
     }
   },
   "manualOverrides": {}

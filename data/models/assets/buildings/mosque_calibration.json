@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:07.073Z",
+  "generatedAt": "2026-11-21T21:55:16.838Z",
   "source": {
     "assetUrl": "data/models/assets/buildings/mosque.glb",
     "fileName": "mosque.glb",
@@ -26217,7 +26217,9 @@
       "boxes": 2369,
       "subdividedMeshes": 22,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 272
+      "skippedBySemanticPolicy": 272,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.4470000076293945
     }
   },
   "manualOverrides": {}

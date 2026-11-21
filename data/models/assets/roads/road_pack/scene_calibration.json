@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:49:10.592Z",
+  "generatedAt": "2026-11-21T21:55:19.349Z",
   "source": {
     "assetUrl": "data/models/assets/roads/road_pack/scene.gltf",
     "fileName": "scene.gltf",
@@ -717,7 +717,9 @@
       "boxes": 0,
       "subdividedMeshes": 0,
       "skippedUnrasterizableMeshes": 0,
-      "skippedBySemanticPolicy": 6
+      "skippedBySemanticPolicy": 6,
+      "adaptiveSubdividedMeshes": 0,
+      "largestAdaptiveCellSize": 0.00024871396824925173
     }
   },
   "manualOverrides": {}
