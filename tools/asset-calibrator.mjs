@@ -417,7 +417,12 @@ function aggregateVehicleDoorPanelCandidates(meshDetails, manifest) {
       hingeAxisCandidate: [0, 1, 0],
       source: 'measured-unlabelled-side-panel-geometry',
     };
-  }).sort((left, right) => left.side.localeCompare(right.side) || (right.row === 'front-half' ? 1 : -1));
+  }).sort((left, right) => {
+    const sideOrder = left.side.localeCompare(right.side);
+    if (sideOrder) return sideOrder;
+    const rowOrder = row => row === 'front-half' ? 0 : 1;
+    return rowOrder(left.row) - rowOrder(right.row);
+  });
 }
 
 function aggregateLadderGroups(meshDetails) {
