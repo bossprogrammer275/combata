@@ -128,6 +128,7 @@ jobs:
           node --check js/npc-system/animation-controller.js
           node --check js/npc-system/npc-instance.js
           node --check tools/verify-npcs.mjs
+          node --check tools/verify-test-world.mjs
           node --check js/world-kit.js
           node --check tools/verify-world-kit.mjs
           node --check js/main.js
@@ -142,6 +143,8 @@ jobs:
           node --check js/utils/make-collision.js
           node --check tools/verify-collisioner-small-assets.mjs
           node tools/verify-collisioner-small-assets.mjs
+      - name: Verify compact gameplay test world inventory and systems
+        run: npm run test:test-world
       - name: Verify World Kit component metadata
         run: node tools/verify-world-kit.mjs
       - name: Verify imported bridge component extraction
