@@ -331,6 +331,7 @@ window.__vehicleVisualTest={
       duration:system._enterState?.duration||0,
       driving:!!system.driver,
       playerParent:player.char.root.parent?.name||'',
+      playerParentIsVehicle:player.char.root.parent===current?.root,
       playerWorldPosition:player.char.root.getWorldPosition(new THREE.Vector3()).toArray(),
       pose:player.char._poseMode,
       frames:count,
