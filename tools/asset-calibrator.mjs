@@ -351,8 +351,12 @@ function aggregateVehicleWheelGroups(meshDetails) {
 function aggregateVehicleDoorPanelCandidates(meshDetails, manifest) {
   const dimensions = manifest?.dimensions || [0, 0, 0];
   const boundsMin = manifest?.boundsMin || [0, 0, 0];
+  const boundsMax = manifest?.boundsMax || dimensions.map((value, axis) => boundsMin[axis] + value);
   const [width, height, length] = dimensions.map(value => Math.abs(Number(value) || 0));
   if (!(width > 0 && height > 0 && length > 0)) return [];
+  // glTF sources are not guaranteed to be centred at the origin. Do all
+  // longitudinal checks in asset-centred coordinates, just like runtime.
+  const assetCenterZ = (Number(boundsMin[2]) + Number(boundsMax[2])) * 0.5;
   const panels = [];
   const wheelAxles = [length * 0.25, -length * 0.25];
   for (const item of meshDetails || []) {
@@ -368,15 +372,16 @@ function aggregateVehicleDoorPanelCandidates(meshDetails, manifest) {
     const [cx, cy, cz] = center.map(value => Number(value) || 0);
     const sideDistance = Math.abs(cx);
     const heightRatio = (cy - boundsMin[1]) / height;
-    const nearWheelAxle = wheelAxles.some(z => Math.abs(cz - z) < length * 0.10);
+    const localZ = cz - assetCenterZ;
+    const nearWheelAxle = wheelAxles.some(z => Math.abs(localZ - z) < length * 0.07);
     const sidePanelShape = sx <= Math.max(0.24, width * 0.16)
       && sy >= height * 0.28 && sy <= height * 0.86
       && sz >= length * 0.11 && sz <= length * 0.32;
     const sidePosition = sideDistance >= width * 0.30 && sideDistance <= width * 0.58;
     const verticalPosition = heightRatio >= 0.34 && heightRatio <= 0.78;
-    const longitudinalPosition = Math.abs(cz) <= length * 0.39 && !nearWheelAxle;
+    const longitudinalPosition = Math.abs(localZ) <= length * 0.39 && !nearWheelAxle;
     if (!sidePanelShape || !sidePosition || !verticalPosition || !longitudinalPosition) continue;
-    panels.push({ item, side: cx >= 0 ? 'right-side' : 'left-side', z: cz });
+    panels.push({ item, side: cx >= 0 ? 'right-side' : 'left-side', z: localZ });
   }
   const clusters = [];
   for (const panel of panels) {
