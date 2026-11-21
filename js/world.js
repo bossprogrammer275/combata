@@ -1185,9 +1185,12 @@ export class World {
         : this._quality === 'high' ? 6
         : this._quality === 'medium' ? 4
         : this._quality === 'low' ? 2 : 1;
-      const memoryConcurrency = this._deviceMemoryGB <= 4 ? 2
+      const memoryConcurrency = this._deviceMemoryGB <= 4 ? 1
         : this._deviceMemoryGB <= 8 ? 3 : 4;
-      const concurrency = Math.min(qualityConcurrency, memoryConcurrency);
+      const configuredConcurrency = this._streamingConfig.assetConcurrency || 2;
+      const concurrency = Math.max(1, Math.min(
+        qualityConcurrency, memoryConcurrency, configuredConcurrency,
+      ));
       for (let i = 0; i < assets.length; i += concurrency) {
         await Promise.allSettled(assets.slice(i, i + concurrency).map(asset => this._loadGLBAsset(asset)));
       }
