@@ -45,9 +45,13 @@ function stableNodeName(mesh) {
 
 function isDecorativeAssetPath(assetPath) {
   const value = String(assetPath || '').toLowerCase().replace(/\\/g, '/');
-  return /(?:^|[\\/_-])(?:shrub|bush|hedge|grass|foliage|weed|flower|flowers|fern|petals?|fronds?)(?:[\\/_-]|\\.)/.test(value)
-    || /(?:^|\\/)vegetation\\//.test(value)
-    || /(?:^|\\/)plants?\\//.test(value);
+  const segments = value.split('/');
+  const visualParts = new Set([
+    'shrub', 'bush', 'hedge', 'grass', 'foliage', 'weed',
+    'flower', 'flowers', 'fern', 'petal', 'petals', 'frond', 'fronds',
+  ]);
+  if (segments.some(segment => segment === 'vegetation' || segment === 'plant' || segment === 'plants')) return true;
+  return segments.some(segment => segment.split(/[^a-z0-9]+/).some(token => visualParts.has(token)));
 }
 function classifyAssetType(assetPath) {
   const value = assetPath.toLowerCase().replace(/\\/g, '/');
