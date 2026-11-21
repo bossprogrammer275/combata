@@ -1,0 +1,1248 @@
+{
+  "id": "test",
+  "name": "Open World — Gameplay Test World",
+  "version": 1,
+  "bounds": 128,
+  "disableAutoSpawns": true,
+  "disableHostiles": true,
+  "startPoint": {
+    "x": 0,
+    "z": 32,
+    "yaw": 3.141592653589793
+  },
+  "ground": {
+    "size": 260,
+    "color": "#767b66",
+    "cellSize": 3.25,
+    "hills": [
+      {
+        "x": -108,
+        "z": -108,
+        "height": 7,
+        "radiusX": 38,
+        "radiusZ": 38,
+        "falloff": 1.35
+      },
+      {
+        "x": 108,
+        "z": -108,
+        "height": 8.5,
+        "radiusX": 38,
+        "radiusZ": 38,
+        "falloff": 1.35
+      },
+      {
+        "x": -108,
+        "z": 108,
+        "height": 6,
+        "radiusX": 38,
+        "radiusZ": 38,
+        "falloff": 1.35
+      },
+      {
+        "x": 108,
+        "z": 108,
+        "height": 9,
+        "radiusX": 38,
+        "radiusZ": 38,
+        "falloff": 1.35
+      }
+    ]
+  },
+  "roads": [
+    {
+      "name": "Main Street",
+      "w": 16,
+      "sidewalk": true,
+      "smooth": false,
+      "surface": "concrete",
+      "streetBase": {
+        "shoulder": 0.72,
+        "depth": 0.34
+      },
+      "points": [
+        [
+          -112,
+          15,
+          0
+        ],
+        [
+          112,
+          15,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "South Service Road",
+      "w": 10,
+      "sidewalk": true,
+      "smooth": false,
+      "surface": "concrete",
+      "streetBase": {
+        "shoulder": 0.55,
+        "depth": 0.3
+      },
+      "points": [
+        [
+          -102,
+          -18,
+          0
+        ],
+        [
+          102,
+          -18,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "Cross Street",
+      "w": 12,
+      "sidewalk": true,
+      "smooth": false,
+      "surface": "concrete",
+      "streetBase": {
+        "shoulder": 0.6,
+        "depth": 0.32
+      },
+      "points": [
+        [
+          0,
+          -112,
+          0
+        ],
+        [
+          0,
+          112,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "West Connector",
+      "w": 9,
+      "sidewalk": true,
+      "smooth": false,
+      "surface": "concrete",
+      "points": [
+        [
+          -100,
+          -18,
+          0
+        ],
+        [
+          -100,
+          15,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "East Connector",
+      "w": 9,
+      "sidewalk": true,
+      "smooth": false,
+      "surface": "concrete",
+      "points": [
+        [
+          100,
+          -18,
+          0
+        ],
+        [
+          100,
+          15,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "North Diagonal Ramp",
+      "w": 8,
+      "sidewalk": false,
+      "smooth": true,
+      "surface": "dirt",
+      "streetBase": false,
+      "points": [
+        [
+          -118,
+          -118,
+          5.724
+        ],
+        [
+          -92,
+          -92,
+          3.876
+        ],
+        [
+          -66,
+          -66,
+          0
+        ],
+        [
+          -40,
+          -40,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "East Diagonal Ramp",
+      "w": 8,
+      "sidewalk": false,
+      "smooth": true,
+      "surface": "dirt",
+      "streetBase": false,
+      "points": [
+        [
+          118,
+          -118,
+          6.95
+        ],
+        [
+          92,
+          -92,
+          4.707
+        ],
+        [
+          66,
+          -66,
+          0
+        ],
+        [
+          40,
+          -40,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "Southwest Diagonal Ramp",
+      "w": 8,
+      "sidewalk": false,
+      "smooth": true,
+      "surface": "dirt",
+      "streetBase": false,
+      "points": [
+        [
+          -118,
+          118,
+          4.906
+        ],
+        [
+          -92,
+          92,
+          3.322
+        ],
+        [
+          -66,
+          66,
+          0
+        ],
+        [
+          -40,
+          40,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "Southeast Diagonal Ramp",
+      "w": 8,
+      "sidewalk": false,
+      "smooth": true,
+      "surface": "dirt",
+      "streetBase": false,
+      "points": [
+        [
+          118,
+          118,
+          7.359
+        ],
+        [
+          92,
+          92,
+          4.984
+        ],
+        [
+          66,
+          66,
+          0
+        ],
+        [
+          40,
+          40,
+          0
+        ]
+      ]
+    }
+  ],
+  "glbAssets": [
+    {
+      "url": "./data/models/assets/buildings/brooklyn_street_twin_buildings_low_poly/scene.gltf",
+      "name": "Twin Building Pair",
+      "x": -96,
+      "z": -82,
+      "elevation": 2.255,
+      "targetH": 16,
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/buildings/building/scene.gltf",
+      "name": "Generic Building",
+      "x": -64,
+      "z": -82,
+      "elevation": 0,
+      "targetH": 10,
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/buildings/car_workshop.glb",
+      "name": "Car Workshop",
+      "x": -32,
+      "z": -82,
+      "elevation": 0,
+      "targetH": 8.5,
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/buildings/gas_station_5/scene.gltf",
+      "name": "Fuel Station",
+      "x": 32,
+      "z": -82,
+      "elevation": 0,
+      "targetH": 6.5,
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/buildings/low-poly_old_american_brick_building_with_shop_/scene.gltf",
+      "name": "Old Brick Shop",
+      "x": -96,
+      "z": -48,
+      "elevation": 0,
+      "targetH": 8,
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/buildings/low_poly_-_industrial_warehouse.glb",
+      "name": "Industrial Warehouse",
+      "x": -64,
+      "z": -48,
+      "elevation": 0,
+      "targetH": 12,
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/buildings/low_poly__school_building/scene.gltf",
+      "name": "School Building",
+      "x": -32,
+      "z": -48,
+      "elevation": 0,
+      "targetH": 12,
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/buildings/meed_grocery_store.glb",
+      "name": "Grocery Store",
+      "x": 32,
+      "z": -48,
+      "elevation": 0,
+      "targetH": 7,
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/buildings/mosque.glb",
+      "name": "Mosque",
+      "x": 64,
+      "z": -48,
+      "elevation": 0,
+      "targetH": 10,
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/residential/Building+04_GLB/Building 04.glb",
+      "name": "Residential Block 04",
+      "x": 96,
+      "z": -48,
+      "elevation": 0,
+      "targetH": 8.5,
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/residential/american_style_house/scene.gltf",
+      "name": "American Style House",
+      "x": -32,
+      "z": -12,
+      "elevation": 0,
+      "targetH": 7.5,
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/residential/nigeria_duplex/scene.gltf",
+      "name": "Nigeria Duplex",
+      "x": 32,
+      "z": -12,
+      "elevation": 0,
+      "targetH": 8.5,
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/residential/residential_family_house/scene.gltf",
+      "name": "Residential Family House",
+      "x": -96,
+      "z": -12,
+      "elevation": 0,
+      "targetH": 7,
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/residential/residential_house_3/scene.gltf",
+      "name": "Residential House 3",
+      "x": 96,
+      "z": -12,
+      "elevation": 0,
+      "targetH": 7,
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/ilorin_innovation_hub.glb",
+      "name": "Ilorin Innovation Hub",
+      "x": -92,
+      "z": 38,
+      "elevation": 0,
+      "targetH": 15,
+      "building": true,
+      "tags": [
+        "landmark",
+        "civic",
+        "technology"
+      ]
+    },
+    {
+      "url": "./data/models/assets/kwara_revenue_house.glb",
+      "name": "Kwara Revenue House",
+      "x": -30,
+      "z": 38,
+      "elevation": 0,
+      "targetH": 30,
+      "building": true,
+      "tags": [
+        "landmark",
+        "civic",
+        "office"
+      ]
+    },
+    {
+      "url": "./data/models/assets/low_poly_skyscraper.glb",
+      "name": "Low Poly Skyscraper",
+      "x": 32,
+      "z": 38,
+      "elevation": 0,
+      "targetH": 24,
+      "building": true,
+      "tags": [
+        "landmark",
+        "high-rise"
+      ]
+    },
+    {
+      "url": "./data/models/assets/low_poly_street_light.glb",
+      "name": "Street Light",
+      "x": 92,
+      "z": 38,
+      "elevation": 0,
+      "targetH": 4.5
+    },
+    {
+      "url": "./data/models/assets/road.glb",
+      "name": "Road Model",
+      "x": -96,
+      "z": 96,
+      "elevation": 4.444,
+      "targetH": 0.3,
+      "noCollision": true
+    },
+    {
+      "url": "./data/models/assets/roads/concrete_block_low_poly.glb",
+      "name": "Concrete Road Block",
+      "x": -64,
+      "z": 96,
+      "elevation": 0,
+      "targetH": 1.1
+    },
+    {
+      "url": "./data/models/assets/roads/road_block/scene.gltf",
+      "name": "Road Barrier",
+      "x": -32,
+      "z": 96,
+      "elevation": 0,
+      "targetH": 1.2
+    },
+    {
+      "url": "./data/models/assets/roads/road_pack/scene.gltf",
+      "name": "Road Pack Source",
+      "x": 0,
+      "z": 96,
+      "elevation": 0,
+      "targetH": 2.6,
+      "noCollision": true
+    },
+    {
+      "url": "./data/models/assets/roads/sidewalks/scene.gltf",
+      "name": "Sidewalk Pack",
+      "x": 32,
+      "z": 96,
+      "elevation": 0,
+      "targetH": 0.22,
+      "noCollision": true
+    },
+    {
+      "url": "./data/models/assets/roads/speed_bump.glb",
+      "name": "Speed Bump",
+      "x": 64,
+      "z": 96,
+      "elevation": 0,
+      "targetH": 0.18,
+      "noCollision": true
+    },
+    {
+      "url": "./data/models/assets/roads/street_road/scene.gltf",
+      "name": "Two Lane Street Road",
+      "x": 96,
+      "z": 96,
+      "elevation": 6.665,
+      "targetH": 0.22,
+      "noCollision": true
+    },
+    {
+      "url": "./data/models/assets/others/-dry_type_distribution_transformer/scene.gltf",
+      "name": "Distribution Transformer",
+      "x": -105,
+      "z": 70,
+      "elevation": 0,
+      "targetH": 5
+    },
+    {
+      "url": "./data/models/assets/others/concrete_road_barrier_photoscanned/scene.gltf",
+      "name": "Concrete Road Barrier",
+      "x": -91,
+      "z": 70,
+      "elevation": 0,
+      "targetH": 1.2
+    },
+    {
+      "url": "./data/models/assets/others/fence_-_11mb.glb",
+      "name": "Fence Section 1",
+      "x": -77,
+      "z": 70,
+      "elevation": 0,
+      "targetH": 1.5,
+      "climbable": true
+    },
+    {
+      "url": "./data/models/assets/others/fence_concrete-_15mb.glb",
+      "name": "Concrete Fence",
+      "x": -63,
+      "z": 70,
+      "elevation": 0,
+      "targetH": 1.7,
+      "climbable": true
+    },
+    {
+      "url": "./data/models/assets/others/freeway_streetlight_1/scene.gltf",
+      "name": "Freeway Streetlight",
+      "x": -49,
+      "z": 70,
+      "elevation": 0,
+      "targetH": 7
+    },
+    {
+      "url": "./data/models/assets/others/game-ready_modular_metal_guardrail.glb",
+      "name": "Metal Guardrail",
+      "x": -35,
+      "z": 70,
+      "elevation": 0,
+      "targetH": 1.1,
+      "climbable": true
+    },
+    {
+      "url": "./data/models/assets/others/ladder (1).glb",
+      "name": "Ladder Short",
+      "x": -21,
+      "z": 70,
+      "elevation": 0,
+      "targetH": 3.2,
+      "climbable": true
+    },
+    {
+      "url": "./data/models/assets/others/ladder.glb",
+      "name": "Ladder Tall",
+      "x": -7,
+      "z": 70,
+      "elevation": 0,
+      "targetH": 5.5,
+      "climbable": true
+    },
+    {
+      "url": "./data/models/assets/others/low_poly_electricity_pole/scene.gltf",
+      "name": "Electricity Pole",
+      "x": 7,
+      "z": 70,
+      "elevation": 0,
+      "targetH": 7
+    },
+    {
+      "url": "./data/models/assets/others/metal_billboard_advertising_single_sided_free/scene.gltf",
+      "name": "Billboard",
+      "x": 21,
+      "z": 70,
+      "elevation": 0,
+      "targetH": 7
+    },
+    {
+      "url": "./data/models/assets/others/power_transformer_building__electricity.glb",
+      "name": "Power Transformer Building",
+      "x": 35,
+      "z": 70,
+      "elevation": 0,
+      "targetH": 5,
+      "building": true
+    },
+    {
+      "url": "./data/models/assets/others/stair.glb",
+      "name": "Stair Structure",
+      "x": 49,
+      "z": 70,
+      "elevation": 0,
+      "targetH": 3.2,
+      "climbable": true
+    },
+    {
+      "url": "./data/models/assets/others/standard_bus_stop.glb",
+      "name": "Bus Stop",
+      "x": 63,
+      "z": 70,
+      "elevation": 0,
+      "targetH": 3.5
+    },
+    {
+      "url": "./data/models/assets/others/traffic_lights/scene.gltf",
+      "name": "Traffic Lights",
+      "x": 77,
+      "z": 70,
+      "elevation": 0,
+      "targetH": 4.2
+    },
+    {
+      "url": "./data/models/assets/others/wooden_fence.glb",
+      "name": "Wooden Fence",
+      "x": 91,
+      "z": 70,
+      "elevation": 0,
+      "targetH": 1.1,
+      "climbable": true
+    },
+    {
+      "url": "./data/models/assets/others/wooden_ladder.glb",
+      "name": "Wooden Ladder",
+      "x": 105,
+      "z": 70,
+      "elevation": 0,
+      "targetH": 4.4,
+      "climbable": true
+    },
+    {
+      "url": "./data/models/assets/others/bridge_road_lowpoly.glb",
+      "name": "Bridge Road Piece",
+      "x": -108,
+      "z": 112,
+      "elevation": 5.91,
+      "targetH": 0.8,
+      "noCollision": true
+    },
+    {
+      "url": "./data/models/assets/others/low_poly_plastic_crates.glb",
+      "name": "Plastic Crates",
+      "x": -90,
+      "z": 112,
+      "elevation": 4.176,
+      "targetH": 1.1,
+      "climbable": true
+    },
+    {
+      "url": "./data/models/assets/others/modular_bridge__low_poly__game_ready_/scene.gltf",
+      "name": "Modular Bridge Assembly",
+      "x": -72,
+      "z": 112,
+      "elevation": 0.237,
+      "targetH": 1.2,
+      "noCollision": true
+    },
+    {
+      "url": "./data/models/assets/others/old_soviet_railway_station_kiosk/scene.gltf",
+      "name": "Railway Kiosk",
+      "x": -54,
+      "z": 112,
+      "elevation": 0,
+      "targetH": 3.8
+    },
+    {
+      "url": "./data/models/assets/others/plastic_chair.glb",
+      "name": "Plastic Chair",
+      "x": -36,
+      "z": 112,
+      "elevation": 0,
+      "targetH": 0.9
+    },
+    {
+      "url": "./data/models/assets/others/plastic_container.glb",
+      "name": "Plastic Container",
+      "x": -18,
+      "z": 112,
+      "elevation": 0,
+      "targetH": 2
+    },
+    {
+      "url": "./data/models/assets/others/plastic_table.glb",
+      "name": "Plastic Table",
+      "x": 0,
+      "z": 112,
+      "elevation": 0,
+      "targetH": 0.9
+    },
+    {
+      "url": "./data/models/assets/others/psx_-_vending_machine.glb",
+      "name": "Vending Machine",
+      "x": 18,
+      "z": 112,
+      "elevation": 0,
+      "targetH": 1.9
+    },
+    {
+      "url": "./data/models/assets/others/vietnamese_meat_market_stall.glb",
+      "name": "Market Stall",
+      "x": 36,
+      "z": 112,
+      "elevation": 0,
+      "targetH": 3
+    },
+    {
+      "url": "./data/models/assets/others/water_dispenser.glb",
+      "name": "Water Dispenser",
+      "x": 54,
+      "z": 112,
+      "elevation": 0,
+      "targetH": 1.5
+    },
+    {
+      "url": "./data/models/assets/others/water_tank.glb",
+      "name": "Water Tank",
+      "x": 72,
+      "z": 112,
+      "elevation": 0.356,
+      "targetH": 2.5
+    },
+    {
+      "url": "./data/models/assets/others/wheelbarrow.glb",
+      "name": "Wheelbarrow",
+      "x": 90,
+      "z": 112,
+      "elevation": 6.264,
+      "targetH": 1.2
+    },
+    {
+      "url": "./data/models/assets/others/wooden_bench.glb",
+      "name": "Wooden Bench",
+      "x": 108,
+      "z": 112,
+      "elevation": 8.866,
+      "targetH": 1.1
+    },
+    {
+      "url": "./data/models/assets/coconut_tree_low_poly.glb",
+      "name": "Coconut Palm",
+      "x": -90,
+      "z": -112,
+      "elevation": 4.872,
+      "targetH": 9
+    },
+    {
+      "url": "./data/models/assets/tree_low-poly.glb",
+      "name": "Low Poly Tree",
+      "x": -54,
+      "z": -112,
+      "elevation": 0,
+      "targetH": 7
+    },
+    {
+      "url": "./data/models/assets/others/hedge.glb",
+      "name": "Hedge",
+      "x": -18,
+      "z": -112,
+      "elevation": 0,
+      "targetH": 1.3,
+      "noCollision": true
+    },
+    {
+      "url": "./data/models/assets/others/low_poly_shrub.glb",
+      "name": "Low Poly Shrub",
+      "x": 18,
+      "z": -112,
+      "elevation": 0,
+      "targetH": 1.1,
+      "noCollision": true
+    },
+    {
+      "url": "./data/models/assets/others/low_poly_tree.glb",
+      "name": "Low Poly Tree Variant",
+      "x": 54,
+      "z": -112,
+      "elevation": 0,
+      "targetH": 7
+    },
+    {
+      "url": "./data/models/assets/others/real_bush.glb",
+      "name": "Real Bush",
+      "x": 90,
+      "z": -112,
+      "elevation": 5.916,
+      "targetH": 1.6,
+      "noCollision": true
+    },
+    {
+      "url": "./data/models/assets/others/low_poly_street_food_cart.glb",
+      "name": "Street Food Cart",
+      "x": 108,
+      "z": 112,
+      "elevation": 8.866,
+      "targetH": 2.2
+    }
+  ],
+  "vehicles": [
+    {
+      "x": -27,
+      "z": 31,
+      "ry": 0,
+      "kind": "bugatti",
+      "elevation": 0
+    },
+    {
+      "x": -9,
+      "z": 31,
+      "ry": 0,
+      "kind": "cybertruck",
+      "elevation": 0
+    },
+    {
+      "x": 9,
+      "z": 31,
+      "ry": 0,
+      "kind": "escalade",
+      "elevation": 0
+    },
+    {
+      "x": 27,
+      "z": 31,
+      "ry": 0,
+      "kind": "lambo",
+      "elevation": 0
+    }
+  ],
+  "trafficVehicles": [
+    {
+      "kind": "lambo",
+      "route": [
+        [
+          -100,
+          -18,
+          0
+        ],
+        [
+          -100,
+          15,
+          0
+        ],
+        [
+          100,
+          15,
+          0
+        ],
+        [
+          100,
+          -18,
+          0
+        ]
+      ],
+      "distance": 0,
+      "speed": 5.4,
+      "laneOffset": 2.1
+    },
+    {
+      "kind": "bugatti",
+      "route": [
+        [
+          -100,
+          -18,
+          0
+        ],
+        [
+          -100,
+          15,
+          0
+        ],
+        [
+          100,
+          15,
+          0
+        ],
+        [
+          100,
+          -18,
+          0
+        ]
+      ],
+      "distance": 108,
+      "speed": 4.8,
+      "laneOffset": -2.1
+    },
+    {
+      "kind": "escalade",
+      "route": [
+        [
+          -100,
+          -18,
+          0
+        ],
+        [
+          -100,
+          15,
+          0
+        ],
+        [
+          100,
+          15,
+          0
+        ],
+        [
+          100,
+          -18,
+          0
+        ]
+      ],
+      "distance": 216,
+      "speed": 4.3,
+      "laneOffset": 2.1
+    },
+    {
+      "kind": "cybertruck",
+      "route": [
+        [
+          -100,
+          -18,
+          0
+        ],
+        [
+          -100,
+          15,
+          0
+        ],
+        [
+          100,
+          15,
+          0
+        ],
+        [
+          100,
+          -18,
+          0
+        ]
+      ],
+      "distance": 324,
+      "speed": 5,
+      "laneOffset": -2.1
+    }
+  ],
+  "pedestrianRoutes": [
+    {
+      "road": "Main Street",
+      "sides": [
+        -1,
+        1
+      ]
+    },
+    {
+      "road": "South Service Road",
+      "sides": [
+        -1,
+        1
+      ]
+    }
+  ],
+  "npcLimit": 4,
+  "npcSpawns": [
+    {
+      "x": -48,
+      "z": 7.4,
+      "profile": "civilian"
+    },
+    {
+      "x": -12,
+      "z": 22.6,
+      "profile": "aggressive"
+    },
+    {
+      "x": 28,
+      "z": 7.4,
+      "profile": "worker"
+    },
+    {
+      "x": 62,
+      "z": 22.6,
+      "profile": "police"
+    }
+  ],
+  "testWorld": {
+    "referenceWall": {
+      "x": -112,
+      "z": 30,
+      "width": 12,
+      "height": 5
+    },
+    "obstacles": [
+      {
+        "name": "1m vault fence",
+        "x": -64,
+        "z": 56,
+        "w": 5,
+        "h": 1,
+        "d": 0.28,
+        "climbable": true,
+        "type": "fence"
+      },
+      {
+        "name": "1.6m mantle fence",
+        "x": -48,
+        "z": 56,
+        "w": 5,
+        "h": 1.6,
+        "d": 0.3,
+        "climbable": true,
+        "type": "fence"
+      },
+      {
+        "name": "2.7m high fence",
+        "x": -32,
+        "z": 56,
+        "w": 5,
+        "h": 2.7,
+        "d": 0.32,
+        "climbable": true,
+        "type": "fence"
+      },
+      {
+        "name": "Low wall",
+        "x": -12,
+        "z": 56,
+        "w": 6,
+        "h": 0.95,
+        "d": 0.8,
+        "climbable": true,
+        "type": "wall"
+      },
+      {
+        "name": "Crate and wall combo",
+        "x": 8,
+        "z": 56,
+        "w": 3.5,
+        "h": 1.55,
+        "d": 1,
+        "climbable": true,
+        "type": "crate"
+      },
+      {
+        "name": "Raised loading dock",
+        "x": 30,
+        "z": 56,
+        "w": 9,
+        "h": 1.2,
+        "d": 3.4,
+        "climbable": true,
+        "type": "ledge"
+      },
+      {
+        "name": "Drainpipe ledge",
+        "x": 52,
+        "z": 56,
+        "w": 1,
+        "h": 3.2,
+        "d": 0.45,
+        "climbable": true,
+        "type": "pipe"
+      }
+    ],
+    "waterTower": {
+      "x": 92,
+      "z": 56
+    },
+    "sandPatches": [
+      {
+        "x": -78,
+        "z": 78,
+        "radius": 9
+      },
+      {
+        "x": -48,
+        "z": 82,
+        "radius": 7
+      },
+      {
+        "x": 78,
+        "z": 82,
+        "radius": 8
+      },
+      {
+        "x": -78,
+        "z": -100,
+        "radius": 7
+      },
+      {
+        "x": 70,
+        "z": -100,
+        "radius": 8
+      }
+    ],
+    "rocks": [
+      {
+        "x": -88,
+        "z": 65,
+        "scale": 1.7
+      },
+      {
+        "x": -78,
+        "z": 60,
+        "sx": 1.2,
+        "sy": 0.8,
+        "sz": 1.5
+      },
+      {
+        "x": -58,
+        "z": 88,
+        "scale": 1.4
+      },
+      {
+        "x": -32,
+        "z": 91,
+        "scale": 1
+      },
+      {
+        "x": 68,
+        "z": 92,
+        "scale": 1.6
+      },
+      {
+        "x": 82,
+        "z": 70,
+        "scale": 1.3
+      },
+      {
+        "x": -80,
+        "z": -92,
+        "scale": 1.5
+      },
+      {
+        "x": 82,
+        "z": -92,
+        "scale": 1.4
+      },
+      {
+        "x": -108,
+        "z": 5,
+        "scale": 1.1
+      },
+      {
+        "x": 110,
+        "z": 5,
+        "scale": 1.4
+      }
+    ],
+    "grassPatches": [
+      {
+        "x": -90,
+        "z": 48,
+        "radius": 8,
+        "count": 140
+      },
+      {
+        "x": -72,
+        "z": 100,
+        "radius": 8,
+        "count": 130
+      },
+      {
+        "x": 72,
+        "z": 100,
+        "radius": 8,
+        "count": 130
+      },
+      {
+        "x": 100,
+        "z": 44,
+        "radius": 7,
+        "count": 100
+      },
+      {
+        "x": -100,
+        "z": -100,
+        "radius": 7,
+        "count": 100
+      },
+      {
+        "x": 100,
+        "z": -100,
+        "radius": 7,
+        "count": 100
+      }
+    ]
+  },
+  "streaming": {
+    "enabled": false,
+    "chunkSize": 96,
+    "initialRadius": 128,
+    "loadRadius": 128,
+    "unloadRadius": 192,
+    "assetConcurrency": 1
+  },
+  "named": [
+    {
+      "x": 0,
+      "z": 15,
+      "name": "Main Street",
+      "color": "#e2c76b"
+    },
+    {
+      "x": -55,
+      "z": 56,
+      "name": "Interaction Yard",
+      "color": "#e2c76b"
+    },
+    {
+      "x": 90,
+      "z": 56,
+      "name": "Water Tower",
+      "color": "#e2c76b"
+    },
+    {
+      "x": -70,
+      "z": -62,
+      "name": "Building Test Cluster",
+      "color": "#e2c76b"
+    },
+    {
+      "x": 0,
+      "z": 32,
+      "name": "NPC Plaza",
+      "color": "#e2c76b"
+    }
+  ]
+}
