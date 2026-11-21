@@ -191,6 +191,12 @@ try{
       && soundSmoke.ultraLow.contextClosed,
     JSON.stringify(soundSmoke.ultraLow));
 
+  const punch=await page.evaluate(()=>window.__vehicleVisualTest.testPunchAnimation());
+  check('Punching.fbx plays as the unarmed action and hides the equipped weapon',
+    punch.started&&punch.pose==='punch'&&punch.weaponHidden&&punch.clipDuration>=0.9,
+    JSON.stringify(punch));
+  await capture(page,'player-punch-animation');
+
   const configs=[
     {kind:'lambo',expectedHeight:0.98,expectedFov:82,prefix:'lamborghini'},
     {kind:'cybertruck',expectedHeight:1.42,expectedFov:82,prefix:'cybertruck'},

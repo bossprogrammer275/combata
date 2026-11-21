@@ -282,6 +282,37 @@ window.__vehicleVisualTest={
     render();
     return {seats,doors,inventory:anchors.meshInventory||[]};
   },
+  async testPunchAnimation() {
+    if(!player.char._isBuilt) {
+      const began=performance.now();
+      while(!player.char._isBuilt&&performance.now()-began<25000) {
+        await new Promise(resolve=>setTimeout(resolve,40));
+      }
+    }
+    if(!player.char._isBuilt)throw new Error('npc_core_001 player rig not ready for punch test');
+    player.actionAnimation=null;
+    player.firstPerson=false;
+    player.char.setFirstPerson(false);
+    player.char.root.position.copy(player.pos);
+    player.char.root.visible=true;
+    const started=player.startPunch();
+    player.char.setState(player.getState(),1/60);
+    player.char.update(0.36);
+    const result={
+      started,
+      pose:player.char._poseMode,
+      weaponHidden:player.char.weaponMount?.visible===false,
+      clipDuration:player.char.getActionDuration('punch'),
+      impactWindowReached:player._punchElapsed>=0,
+    };
+    report.punch=result;
+    player.actionAnimation=null;
+    player.char.setState(player.getState(),1/60);
+    player.char.update(1/60);
+    if(player.char.weaponMount)player.char.weaponMount.visible=true;
+    render();
+    return result;
+  },
   async startEntry(kind) {
     await load(kind);
     system.driver=null;

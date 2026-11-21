@@ -933,7 +933,8 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 - [x] Prevent non-rifle weapon classes from borrowing rifle aim/reload animation poses.
 - [x] Add the downloaded `Punching.fbx` as a timed unarmed action; hide the held weapon mesh during the strike.
 - [x] Add the `P` melee input and one forward-range damage event at the punch impact window.
-- [ ] Visually verify the punch hand pose, target contact and damage timing against a live NPC.
+- [x] Verify Punching.fbx activates the unarmed player pose and hides the equipped weapon in the browser test.
+- [ ] Visually verify the fist contact frame, target contact point and damage timing against a live NPC.
 - [ ] Preview `Gunplay.fbx` before assigning it as a firing/recoil action; no pistol, draw or holster animation is available.
 - [ ] Test first-person and third-person hand, sight, muzzle and weapon alignment.
 
