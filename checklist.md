@@ -931,6 +931,9 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 - [ ] Calibrate current procedural weapon meshes and attachment points.
 - [x] Connect rifle aim/walk/run clips and the 3.3-second standing-idle-only reload clip to player weapon state.
 - [x] Prevent non-rifle weapon classes from borrowing rifle aim/reload animation poses.
+- [x] Add the downloaded `Punching.fbx` as a timed unarmed action; hide the held weapon mesh during the strike.
+- [x] Add the `P` melee input and one forward-range damage event at the punch impact window.
+- [ ] Visually verify the punch hand pose, target contact and damage timing against a live NPC.
 - [ ] Preview `Gunplay.fbx` before assigning it as a firing/recoil action; no pistol, draw or holster animation is available.
 - [ ] Test first-person and third-person hand, sight, muzzle and weapon alignment.
 
@@ -943,23 +946,29 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 
 ### Phase 5 — Vehicle doors and entry/exit
 
-- [ ] Inspect vehicle GLB hierarchies and identify usable door/seat bones or meshes.
-- [ ] Calibrate door hinge pivots and open/closed transforms.
-- [ ] Add driver/passenger seat, handle, approach and exit anchors.
-- [ ] Connect `Entering Car.fbx`, `Exiting Car.fbx` and `Driving.fbx` to calibrated vehicle anchors.
-- [ ] Test entry/exit, door states and seat alignment on every current vehicle model.
+- [x] Generate the missing `scene_calibration.json` sidecars for all four current vehicle GLBs.
+- [x] Add a measured runtime mesh inventory (mesh name, hierarchy path and local bounds) for vehicle inspection.
+- [x] Add a clearly flagged estimated driver-seat fallback for models whose exported nodes have no seat labels; never record this as an accepted calibration.
+- [x] Connect `Entering Car.fbx`, `Exiting Car.fbx` and `Driving.fbx` to a timed driver entry/exit and seated-character state machine.
+- [x] Keep the player capsule disabled only during the in-cabin phase; restore position and collision on exit or a cancelled approach.
+- [ ] Inspect each car's actual body, interior, seats, glass and moving door meshes in the browser inventory.
+- [ ] Identify real driver and passenger seat meshes/anchors for each vehicle; do not use one generic seat as a passenger layout.
+- [ ] Calibrate driver/passenger door hinges, handle/hand contact, open/closed transforms and per-door collision states.
+- [ ] Add working door open/close animation around reviewed pivots; doors must not be guessed from chassis bounding boxes.
+- [ ] Test entry/exit, seating and collision restoration on all four vehicles, including crowded parking positions.
 
 ### Phase 6 — Traversal system
 
-- [ ] Add ladder/fence/wall/ledge geometry metadata and traversal anchors.
-- [ ] Connect `Climbing.fbx` to obstacle top-out/landing anchors and `Climbing Ladder.fbx` to ladder ascent.
+- [x] Add the existing Rapier traversal path state machine and explicit ladder/fence/wall/ledge profile contract.
+- [x] Connect `Climbing.fbx` to obstacle top-out/landing paths and `Climbing Ladder.fbx` to reviewed ladder ascent.
+- [ ] Add/approve measured ladder, fence, wall and ledge anchors for the actual test-world assets.
 - [ ] Validate reverse ladder playback for descent only after hand/foot contact checks; it remains experimental.
-- [ ] Align the complete character motion to geometry anchors and measured obstacle/ladder dimensions.
+- [ ] Visually validate the complete character motion against geometry and limb contacts.
 - [ ] Verify physics handoff, no teleporting, floating or collision traps.
 
 ### Phase 6A — Unified asset calibration (implementation in progress; asset/runtime validation pending)
 
-**Calibration and traversal code is implemented to first-pass scope. Representative asset sidecars, browser playback and in-game physics acceptance remain pending. Phase 7 has now started from the user's supplied test-world brief.**
+**The reset/recalibration pipeline and collision safety changes are implemented. A complete 62-model batch passed with 62 calibration profiles, 58 collision sidecars and zero failures. Runtime visual review, manual anchor approval and collision acceptance remain open.**
 
 - [x] Add the unified CLI entry point: `tools/asset-calibrator.mjs`.
 - [x] Reuse `tools/process-glbs.js` as the internal collision scan stage instead of maintaining a disconnected collision generator.
@@ -987,8 +996,14 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 - [x] Source-level syntax parsing succeeded for all touched runtime, editor, calibration and test modules in this editing session.
 - [x] Run the combined calibration/traversal regression suite in GitHub Actions: **18 passed, 0 failed**. Run [44812890463](https://github.com/bossprogrammer275/combata/actions/runs/44812890463) completed successfully.
 - [x] Run the native `node --check` sweep over the calibrator, traversal solver, player, civilians, NPC animation system, world, physics, vehicles, review UI and server in the same CI job.
-- [ ] Generate, validate and visually review sidecars for the modular bridge kit, Road Pack, street-road asset, sidewalk pack, representative building/prop assets and all current vehicle GLBs/GLTFs.
-- [ ] Compare generated unified collision boxes against existing `*_col.json` sidecars and actual world behaviour before migrating or replacing any legacy sidecar.
+- [x] Generate calibration profiles for all 62 physical gameplay models; all four car `scene_calibration.json` files now exist. Batch run [44949768947](https://github.com/bossprogrammer275/combata/actions/runs/44949768947) completed with 62 profiles, 58 collision sidecars and zero failures.
+- [x] Add a repeatable reset/recalibration command which archives old sidecars under `.asset-calibration-backups/<timestamp>/`, excludes decorative vegetation and regenerates physical models sequentially.
+- [x] Generate the legacy `*_col.json` collision sidecars from the same triangle scan that generates the calibration profile, so the two outputs no longer diverge.
+- [x] Stop using a broad enclosing AABB when a complex/open mesh produces no stable triangle coverage; record skipped meshes rather than inventing invisible solid geometry.
+- [x] Exclude visual-only shrubs, bushes, hedges, grasses, flowers, weeds and foliage from gameplay collision calibration.
+- [x] Preserve a full source mesh inventory for each vehicle profile so anonymous exported interior nodes can be reviewed by stable node path and bounds.
+- [ ] Visually review the modular bridge kit, Road Pack, street-road asset, sidewalk pack, representative building/prop assets and all four current vehicle GLBs/GLTFs.
+- [ ] Compare regenerated collision shapes against the old sidecars and actual in-world contacts before treating them as accepted.
 - [ ] Complete scale/origin/up-axis inference using trustworthy reference dimensions. Do not auto-rescale assets with unknown source units.
 - [ ] Add geometry-based door pivot detection, actual door swing/rotation and safe open/closed collision states for buildings and vehicles. Current accepted hinge/handle/open-range data is registered but panels are not yet animated.
 - [ ] Add measured stair tread/riser/platform surfaces and connect them to player/NPC step-height and landing support where required.
@@ -1007,7 +1022,7 @@ pnpm test:asset-calibration
 pnpm dev
 ```
 
-The calibrator writes `scene_calibration.json` beside the source glTF and does not rewrite the model. The 18 regression tests and native syntax sweep passed in GitHub Actions run [44812890463](https://github.com/bossprogrammer275/combata/actions/runs/44812890463). No representative source-asset sidecars have yet been generated/reviewed, and no browser/in-game traversal or physics test has been executed.
+The calibrator writes `scene_calibration.json` beside the source GLB/glTF and does not rewrite the model. The batch reset/rebuild completed successfully in [44949768947](https://github.com/bossprogrammer275/combata/actions/runs/44949768947). The integrity suite passed on [18abfb7d](https://github.com/bossprogrammer275/combata/actions/runs/44950708494). The four car sidecars are present; their semantic seat/door candidates are empty because the exports expose no recognisable seat/door labels. Runtime uses a flagged estimated driver seat only until the browser mesh audit and manual anchor review are complete.
 ### Phase 7 — Test world and surface engine
 
 - [x] Create `data/worlds/test.json` as a compact 250m × 250m gameplay test block.
@@ -1026,12 +1041,14 @@ The calibrator writes `scene_calibration.json` beside the source glTF and does n
 
 ### Phase 8 — Full gameplay validation
 
+- [x] Add the unarmed punch action and impact-damage path; its visual hand/target-contact test remains open.
+- [x] Add player enter/exit action clips and driver-character attachment/collision handoff; per-car browser validation remains open.
 - [ ] NPC profiles and animation transitions.
 - [ ] Gun/weapon alignment and reload/fire events.
 - [ ] Chairs/props.
-- [ ] Vehicle doors/entry/exit.
-- [ ] Ladder/fence/ledge traversal.
-- [ ] Surface and collision responses.
+- [ ] Vehicle door pivots, open/close states, passenger seats and full entry/exit validation.
+- [ ] Ladder/fence/ledge traversal visual and physics validation.
+- [ ] Surface and collision responses across test-world assets.
 - [ ] Sound and feedback.
 - [ ] Performance on the target low-memory PC.
 
