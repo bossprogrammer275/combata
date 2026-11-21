@@ -552,6 +552,7 @@ async function processGLB(inputPath, options = {}) {
     collisionStats: {
       boxes: boxes.length, subdividedMeshes: subdivCount,
       skippedUnrasterizableMeshes, skippedBySemanticPolicy,
+      adaptiveSubdividedMeshes, largestAdaptiveCellSize,
     },
   };
 }
