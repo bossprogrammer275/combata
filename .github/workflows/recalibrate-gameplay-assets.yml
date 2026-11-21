@@ -16,8 +16,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+# Share the write lock with city collision-sidecar generation.
 concurrency:
-  group: gameplay-asset-recalibration
+  group: main-generated-sidecars
   cancel-in-progress: false
 jobs:
   recalibrate:
@@ -50,4 +51,13 @@ jobs:
           git add data/models/assets data/models/cars
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "Rebuild gameplay calibration and collision sidecars"
-          git push origin HEAD:main
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git rebase origin/main
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "Push raced with another main update (attempt $attempt/3); rebasing and retrying."
+          done
+          echo "::error::Could not publish gameplay calibration sidecars after three retries."
+          exit 1

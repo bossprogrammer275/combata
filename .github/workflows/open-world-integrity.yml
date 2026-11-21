@@ -8,6 +8,12 @@ on:
 permissions:
   contents: write
 
+# Serialize generated sidecar writers across workflows. This avoids races with
+# gameplay calibration batches that also commit generated files onto main.
+concurrency:
+  group: main-generated-sidecars
+  cancel-in-progress: false
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -110,7 +116,16 @@ jobs:
               git config user.name "github-actions[bot]"
               git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
               git commit -m "chore: refresh city collision sidecars [skip ci]"
-              git push origin HEAD:main
+              for attempt in 1 2 3; do
+                git fetch origin main
+                git rebase origin/main
+                if git push origin HEAD:main; then
+                  exit 0
+                fi
+                echo "Push raced with another main update (attempt $attempt/3); rebasing and retrying."
+              done
+              echo "::error::Could not publish generated city collision sidecars after three retries."
+              exit 1
             fi
           fi
       - name: Check JavaScript syntax
