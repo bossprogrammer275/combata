@@ -141,6 +141,20 @@ async function load(kind){
     wheelCount:vehicle.wheels.length,
     meshCount:0,
     cabinMeshes:[],
+    interactionMeshes: {
+      seats: (vehicle.interactionAnchors?.seats || []).map(seat => ({
+        id: seat.id, name: seat.name, role: seat.role, row: seat.row,
+        accepted: seat.accepted === true, estimated: seat.estimated === true,
+        occupant: seat.anchors?.occupant?.toArray?.() || null,
+      })),
+      doors: (vehicle.interactionAnchors?.doorCandidates || []).map(door => ({
+        name: door.name, side: door.side, row: door.row, source: door.source,
+        accepted: door.accepted === true, estimated: door.estimated === true,
+        meshCount: door.meshCount || door.nodes?.length || 1,
+        center: door.bounds?.center?.toArray?.() || null,
+        size: door.bounds?.size?.toArray?.() || null,
+      })),
+    },
     lightIntensities:lights?.children?.map(l=>({name:l.name,intensity:l.intensity,range:l.distance}))||[],
     lightsInitiallyOff:lights?!lights.visible:false,
   };
@@ -275,10 +289,28 @@ window.__vehicleVisualTest={
       return {name:seat.name,role:seat.role,accepted:seat.accepted,estimated:seat.estimated,
         occupant:seat.anchors.occupant.toArray(),entry:seat.anchors.entry.toArray()};
     });
-    const doors=(anchors.doorCandidates||[]).map(item=>({
-      name:item.name,accepted:item.accepted,reason:item.reason,
-      center:item.bounds.center.toArray(),size:item.bounds.size.toArray(),
-    }));
+    const doors=(anchors.doorCandidates||[]).map(item=>{
+      const nodes=item.nodes?.length ? item.nodes : (item.node ? [item.node] : []);
+      for(const node of nodes) {
+        const box=new THREE.Box3().setFromObject(node);
+        if(box.isEmpty())continue;
+        const helper=new THREE.Box3Helper(box,item.side==='right-side'?0xffbd45:0xff7e36);
+        helper.material.depthTest=false;
+        helper.material.transparent=true;
+        helper.material.opacity=0.98;
+        helper.renderOrder=19;
+        scene.add(helper);interactionHelpers.push(helper);
+      }
+      return {
+        name:item.name,side:item.side||null,row:item.row||null,
+        source:item.source||'semantic-node-name',
+        accepted:item.accepted===true,estimated:item.estimated===true,
+        reason:item.reason,meshCount:item.meshCount||nodes.length||1,
+        center:item.bounds?.center?.toArray?.()||null,
+        size:item.bounds?.size?.toArray?.()||null,
+        hingeCandidates:item.hingeCandidates||[],
+      };
+    });
     render();
     return {seats,doors,inventory:anchors.meshInventory||[]};
   },
