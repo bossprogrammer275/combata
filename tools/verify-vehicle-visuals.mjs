@@ -263,9 +263,24 @@ try{
       JSON.stringify({transition,finished}));
     await capture(page,spec.prefix+'-after-exit');
     const allSeats=await page.evaluate(async kind=>window.__vehicleVisualTest.verifyAllSeats(kind),spec.kind);
+    const seatSummaries=[];
+    for(const seat of allSeats.results){
+      const fileName=spec.prefix+'-seat-'+seat.id+'.png';
+      const encoded=String(seat.screenshotDataUrl||'').split(',')[1]||'';
+      if(encoded){
+        const destination=path.join(OUT,fileName);
+        await fs.writeFile(destination,Buffer.from(encoded,'base64'));
+        const stat=await fs.stat(destination);
+        check(spec.kind+' '+seat.id+' occupied-seat screenshot saved',stat.size>15000,stat.size+' bytes');
+      }else{
+        check(spec.kind+' '+seat.id+' occupied-seat screenshot is present',false,'missing screenshot data');
+      }
+      const {screenshotDataUrl,...summary}=seat;
+      seatSummaries.push({...summary,screenshot:fileName});
+    }
     check(spec.kind+' provides an entry/exit action for every model seat',
-      allSeats.seatCount===expectedSeats&&allSeats.results.every(item=>item.entered&&item.poseCorrect&&item.exited),
-      JSON.stringify({seatCount:allSeats.seatCount,seats:allSeats.results}));
+      allSeats.seatCount===expectedSeats&&seatSummaries.every(item=>item.entered&&item.poseCorrect&&item.exited),
+      JSON.stringify({seatCount:allSeats.seatCount,seats:seatSummaries}));
     check(spec.kind+' has four road-wheel rigs',base.wheelCount===4,'wheels='+base.wheelCount);
     const wheelDiagnostics=base.wheelDiagnostics;
     const expectedQuadrants=['front-left','front-right','rear-left','rear-right'];
