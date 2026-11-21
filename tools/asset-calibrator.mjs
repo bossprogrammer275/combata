@@ -348,6 +348,70 @@ function aggregateVehicleWheelGroups(meshDetails) {
   return result;
 }
 
+function aggregateVehicleDoorPanelCandidates(meshDetails, manifest) {
+  const dimensions = manifest?.dimensions || [0, 0, 0];
+  const boundsMin = manifest?.boundsMin || [0, 0, 0];
+  const [width, height, length] = dimensions.map(value => Math.abs(Number(value) || 0));
+  if (!(width > 0 && height > 0 && length > 0)) return [];
+  const panels = [];
+  const wheelAxles = [length * 0.25, -length * 0.25];
+  for (const item of meshDetails || []) {
+    if (isCollisionProxyComponent(item)) continue;
+    const tokens = normalizedNameTokens(item.name + ' ' + item.nodePath);
+    if (tokens.some(token => [
+      'wheel','tire','tyre','rim','glass','window','mirror','trim',
+      'bumper','hood','bonnet','roof','windshield','windscreen',
+    ].includes(token))) continue;
+    if (tokens.some(token => ['door','doorpanel','hatch','tailgate','trunk','boot'].includes(token))) continue;
+    const [sx, sy, sz] = (item.dimensions || []).map(value => Math.abs(Number(value) || 0));
+    const center = item.center || [0, 0, 0];
+    const [cx, cy, cz] = center.map(value => Number(value) || 0);
+    const sideDistance = Math.abs(cx);
+    const heightRatio = (cy - boundsMin[1]) / height;
+    const nearWheelAxle = wheelAxles.some(z => Math.abs(cz - z) < length * 0.10);
+    const sidePanelShape = sx <= Math.max(0.24, width * 0.16)
+      && sy >= height * 0.28 && sy <= height * 0.86
+      && sz >= length * 0.11 && sz <= length * 0.32;
+    const sidePosition = sideDistance >= width * 0.30 && sideDistance <= width * 0.58;
+    const verticalPosition = heightRatio >= 0.34 && heightRatio <= 0.78;
+    const longitudinalPosition = Math.abs(cz) <= length * 0.39 && !nearWheelAxle;
+    if (!sidePanelShape || !sidePosition || !verticalPosition || !longitudinalPosition) continue;
+    panels.push({ item, side: cx >= 0 ? 'right-side' : 'left-side', z: cz });
+  }
+  const clusters = [];
+  for (const panel of panels) {
+    let cluster = clusters.find(candidate =>
+      candidate.side === panel.side && Math.abs(candidate.z - panel.z) <= length * 0.085);
+    if (!cluster) {
+      cluster = { side: panel.side, z: panel.z, items: [] };
+      clusters.push(cluster);
+    }
+    cluster.items.push(panel.item);
+    cluster.z = cluster.items.reduce((sum, item) => sum + item.center[2], 0) / cluster.items.length;
+  }
+  return clusters.map(cluster => {
+    const ancestor = commonNodeAncestor(cluster.items);
+    const fallback = cluster.items[0];
+    const item = unionMeshDetails(
+      cluster.items, ancestor.nodeKey || fallback.nodeKey, ancestor.nodePath || fallback.nodePath,
+      'Unlabelled_' + cluster.side.replace('-', '_') + '_door_panel_candidate',
+    );
+    const center = item.center;
+    return {
+      item, side: cluster.side,
+      row: center[2] >= 0 ? 'front-half' : 'rear-half',
+      memberNodeKeys: cluster.items.map(entry => entry.nodeKey),
+      confidence: 0.52, accepted: false, requiresReview: true,
+      hingeCandidates: [
+        [center[0], center[1], item.boundsMin[2]],
+        [center[0], center[1], item.boundsMax[2]],
+      ],
+      hingeAxisCandidate: [0, 1, 0],
+      source: 'measured-unlabelled-side-panel-geometry',
+    };
+  }).sort((left, right) => left.side.localeCompare(right.side) || right.item.center[2] - left.item.center[2]);
+}
+
 function aggregateLadderGroups(meshDetails) {
   const groups = new Map();
   for (const item of meshDetails) {
@@ -714,6 +778,8 @@ async function calibrateOne(file) {
   const road = buildRoadProfiles(assetType, components, meshByKey);
   const bridge = assetType === 'bridge' ? buildBridgeProfile(components, meshByKey) : null;
   const isVehicle = assetType === 'vehicle';
+  const geometryDoorCandidates = isVehicle
+    ? aggregateVehicleDoorPanelCandidates(scanned.meshDetails, scanned.manifest) : [];
   const traversal = components.filter(component =>
     component.kind === 'ladder'
       || component.kind === 'stairs'
@@ -866,17 +932,46 @@ async function calibrateOne(file) {
             }, accepted: false, requiresReview: true,
           };
         }),
-        doorCandidates: doors.map(component => ({
-          componentId: component.id, nodeKey: component.nodeKey, name: component.name,
-          bounds: component.bounds, estimatedHandle: component.bounds.center,
-          hingeCandidates: [
-            [component.bounds.center[0], component.bounds.center[1], component.bounds.min[2]],
-            [component.bounds.center[0], component.bounds.center[1], component.bounds.max[2]],
-          ],
-          hingeAxisCandidate: [0, 1, 0], accepted: false, requiresReview: true,
-        })),
-        candidates: components.filter(c => ['vehicle-wheel', 'vehicle-seat', 'door-panel', 'steering-wheel'].includes(c.role))
-          .map(c => ({ componentId: c.id, nodeKey: c.nodeKey, role: c.role, bounds: c.bounds, confidence: c.confidence, requiresReview: true })),
+        doorCandidates: [
+          ...doors.map(component => ({
+            componentId: component.id, nodeKey: component.nodeKey, name: component.name,
+            bounds: component.bounds, estimatedHandle: component.bounds.center,
+            hingeCandidates: [
+              [component.bounds.center[0], component.bounds.center[1], component.bounds.min[2]],
+              [component.bounds.center[0], component.bounds.center[1], component.bounds.max[2]],
+            ],
+            hingeAxisCandidate: [0, 1, 0], accepted: false, requiresReview: true,
+            source: 'semantic-node-name',
+          })),
+          ...(doors.length ? [] : geometryDoorCandidates.map(candidate => ({
+            componentId: null, nodeKey: candidate.item.nodeKey,
+            nodePath: candidate.item.nodePath, name: candidate.item.name,
+            side: candidate.side, row: candidate.row,
+            memberNodeKeys: candidate.memberNodeKeys,
+            bounds: {
+              min: candidate.item.boundsMin, max: candidate.item.boundsMax,
+              size: candidate.item.dimensions, center: candidate.item.center,
+            },
+            hingeCandidates: candidate.hingeCandidates,
+            hingeAxisCandidate: candidate.hingeAxisCandidate,
+            confidence: candidate.confidence, accepted: false, requiresReview: true,
+            source: candidate.source,
+            note: 'Panel-shaped geometry candidate only. Confirm it is a movable door and identify the hinge before accepting.',
+          }))),
+        ],
+        candidates: [
+          ...components.filter(c => ['vehicle-wheel', 'vehicle-seat', 'door-panel', 'steering-wheel'].includes(c.role))
+            .map(c => ({ componentId: c.id, nodeKey: c.nodeKey, role: c.role, bounds: c.bounds, confidence: c.confidence, requiresReview: true })),
+          ...geometryDoorCandidates.map(candidate => ({
+            componentId: null, nodeKey: candidate.item.nodeKey,
+            role: 'door-panel-candidate', side: candidate.side, row: candidate.row,
+            bounds: {
+              min: candidate.item.boundsMin, max: candidate.item.boundsMax,
+              size: candidate.item.dimensions, center: candidate.item.center,
+            },
+            confidence: candidate.confidence, requiresReview: true,
+          })),
+        ],
         note: 'Seat centres, door hinges and entry clearances are review-only candidates until confirmed against rendered geometry.',
       };
     })() : null,
@@ -887,6 +982,11 @@ async function calibrateOne(file) {
           nodeKey: component.nodeKey,
           role: component.role,
           reason: 'Confirm component identity, bounds, anchors and runtime behaviour in Asset Lab before accepting.',
+        })),
+        ...geometryDoorCandidates.map(candidate => ({
+          componentId: null, nodeKey: candidate.item.nodeKey,
+          role: 'door-panel-candidate',
+          reason: 'Geometry resembles a vertical exterior side panel. Confirm movable door identity and hinge in Asset Lab.',
         })),
         ...traversal.filter(candidate => candidate.requiresReview !== false).map(candidate => ({
           componentId: candidate.componentId,
@@ -982,7 +1082,7 @@ async function main() {
   if (failed) process.exitCode = 1;
 }
 
-export { calibrateOne, classifyAssetType, classifyComponent, isCollisionProxyComponent, isDecorativeAssetPath, isPlausibleWheelGeometry, aggregateVehicleWheelGroups, aggregateLadderGroups, aggregateNamedAssetSeat, isNativeCollisionProxy, buildNativeCollisionProxyRecords, localConnection, interactionSpec, makeComponent, buildRoadProfiles, buildBridgeProfile };
+export { calibrateOne, classifyAssetType, classifyComponent, isCollisionProxyComponent, isDecorativeAssetPath, isPlausibleWheelGeometry, aggregateVehicleWheelGroups, aggregateVehicleDoorPanelCandidates, aggregateLadderGroups, aggregateNamedAssetSeat, isNativeCollisionProxy, buildNativeCollisionProxyRecords, localConnection, interactionSpec, makeComponent, buildRoadProfiles, buildBridgeProfile };
 
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : '';
 if (invokedPath && import.meta.url === pathToFileURL(invokedPath).href) {
