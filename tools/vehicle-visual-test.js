@@ -480,12 +480,28 @@ window.__vehicleVisualTest={
       const speedBeforePassengerInput=vehicle.speed;
       if(seat.role!=='driver')system.update(1/60,{forward:1,right:1,jump:true},player);
       const passengerControlsLocked=seat.role==='driver'||vehicle.speed===speedBeforePassengerInput;
+
+      // Capture the actual seated rig before dismounting. The camera looks in
+      // through the nearest side rather than trusting the action state alone.
+      const occupantWorld=player.char.root.getWorldPosition(new THREE.Vector3());
+      const localSide=seat.anchors.occupant.x>=0?1:-1;
+      const cameraLocal=new THREE.Vector3(
+        seat.anchors.occupant.x+localSide*(vehicle.half.x+0.35),
+        seat.anchors.occupant.y+0.78,
+        seat.anchors.occupant.z+0.28,
+      );
+      camera.position.copy(vehicle.root.localToWorld(cameraLocal));
+      camera.lookAt(occupantWorld.clone().add(new THREE.Vector3(0,0.7,0)));
+      scene.updateMatrixWorld(true);
+      render();
+      const screenshotDataUrl=renderer.domElement.toDataURL('image/png');
+
       const exitStarted=system.exit(player);
       for(let frame=0;frame<180&&system._enterState;frame++) {
         system.update(0.05,{},player);scene.updateMatrixWorld(true);
       }
       const exited=!system.driver&&!system._enterState&&player.char.root.parent===scene;
-      results.push({id:seat.id,role:seat.role,estimated:seat.estimated,started,entered,pose:player.char._poseMode,expectedPose,poseCorrect,passengerControlsLocked,exitStarted,exited});
+      results.push({id:seat.id,role:seat.role,estimated:seat.estimated,started,entered,pose:expectedPose,actualPose:poseCorrect?expectedPose:player.char._poseMode,poseCorrect,passengerControlsLocked,exitStarted,exited,screenshotDataUrl});
       if(!entered||!poseCorrect||!passengerControlsLocked||!exitStarted||!exited)throw new Error(kind+' seat interaction failed: '+JSON.stringify(results.at(-1)));
     }
     render();
