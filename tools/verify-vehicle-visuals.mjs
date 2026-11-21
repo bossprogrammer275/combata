@@ -216,8 +216,8 @@ try{
     await page.evaluate(()=>window.__vehicleVisualTest.advanceTransition(72));
     await capture(page,spec.prefix+'-enter-animation');
     let transition=await page.evaluate(()=>window.__vehicleVisualTest.advanceTransition(600));
-    check(spec.kind+' completes the enter transition and seats the actual rig',
-      transition.driving&&transition.playerParent!=='Scene',
+    check(spec.kind+' completes the enter transition and parents the actual rig to its vehicle',
+      transition.driving&&transition.playerParentIsVehicle,
       JSON.stringify(transition));
     await capture(page,spec.prefix+'-seated');
     const exit=await page.evaluate(()=>window.__vehicleVisualTest.startExit());
