@@ -357,6 +357,7 @@ function aggregateVehicleDoorPanelCandidates(meshDetails, manifest) {
   // glTF sources are not guaranteed to be centred at the origin. Do all
   // longitudinal checks in asset-centred coordinates, just like runtime.
   // Keep this normalization shared with the browser-side mesh bounds audit.
+  const assetCenterX = (Number(boundsMin[0]) + Number(boundsMax[0])) * 0.5;
   const assetCenterZ = (Number(boundsMin[2]) + Number(boundsMax[2])) * 0.5;
   const panels = [];
   const wheelAxles = [length * 0.25, -length * 0.25];
@@ -371,7 +372,8 @@ function aggregateVehicleDoorPanelCandidates(meshDetails, manifest) {
     const [sx, sy, sz] = (item.dimensions || []).map(value => Math.abs(Number(value) || 0));
     const center = item.center || [0, 0, 0];
     const [cx, cy, cz] = center.map(value => Number(value) || 0);
-    const sideDistance = Math.abs(cx);
+    const localX = cx - assetCenterX;
+    const sideDistance = Math.abs(localX);
     const heightRatio = (cy - boundsMin[1]) / height;
     const localZ = cz - assetCenterZ;
     const nearWheelAxle = wheelAxles.some(z => Math.abs(localZ - z) < length * 0.07);
@@ -382,7 +384,7 @@ function aggregateVehicleDoorPanelCandidates(meshDetails, manifest) {
     const verticalPosition = heightRatio >= 0.34 && heightRatio <= 0.78;
     const longitudinalPosition = Math.abs(localZ) <= length * 0.39 && !nearWheelAxle;
     if (!sidePanelShape || !sidePosition || !verticalPosition || !longitudinalPosition) continue;
-    panels.push({ item, side: cx >= 0 ? 'right-side' : 'left-side', z: localZ });
+    panels.push({ item, side: localX >= 0 ? 'right-side' : 'left-side', z: localZ });
   }
   const clusters = [];
   for (const panel of panels) {
@@ -393,7 +395,7 @@ function aggregateVehicleDoorPanelCandidates(meshDetails, manifest) {
       clusters.push(cluster);
     }
     cluster.items.push(panel.item);
-    cluster.z = cluster.items.reduce((sum, item) => sum + item.center[2], 0) / cluster.items.length;
+    cluster.z = cluster.items.reduce((sum, item) => sum + item.center[2] - assetCenterZ, 0) / cluster.items.length;
   }
   return clusters.map(cluster => {
     const ancestor = commonNodeAncestor(cluster.items);
@@ -405,7 +407,7 @@ function aggregateVehicleDoorPanelCandidates(meshDetails, manifest) {
     const center = item.center;
     return {
       item, side: cluster.side,
-      row: center[2] >= 0 ? 'front-half' : 'rear-half',
+      row: cluster.z >= 0 ? 'front-half' : 'rear-half',
       memberNodeKeys: cluster.items.map(entry => entry.nodeKey),
       confidence: 0.52, accepted: false, requiresReview: true,
       hingeCandidates: [
@@ -415,7 +417,7 @@ function aggregateVehicleDoorPanelCandidates(meshDetails, manifest) {
       hingeAxisCandidate: [0, 1, 0],
       source: 'measured-unlabelled-side-panel-geometry',
     };
-  }).sort((left, right) => left.side.localeCompare(right.side) || right.item.center[2] - left.item.center[2]);
+  }).sort((left, right) => left.side.localeCompare(right.side) || (right.row === 'front-half' ? 1 : -1));
 }
 
 function aggregateLadderGroups(meshDetails) {
