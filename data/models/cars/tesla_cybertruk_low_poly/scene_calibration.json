@@ -5,7 +5,7 @@
     "id": "open-world-unified-asset-calibrator",
     "version": 1
   },
-  "generatedAt": "2026-11-21T21:45:28.247Z",
+  "generatedAt": "2026-11-21T21:46:38.497Z",
   "source": {
     "assetUrl": "data/models/cars/tesla_cybertruk_low_poly/scene.gltf",
     "fileName": "scene.gltf",
@@ -16617,7 +16617,7 @@
         "nodePath": "Sketchfab_model / a1506ebc52ee4ce09fee4a8643c3d13dfbx / Object_2 / RootNode / �������� / ��������_2 / ������������������_1_2 / ��������_1_1 / ������_4_1 / ������_4_1_����������������7_0",
         "name": "Unlabelled_left_side_door_panel_candidate",
         "side": "left-side",
-        "row": "rear-half",
+        "row": "front-half",
         "memberNodeKeys": [
           "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������[0]/��������_2[0]/������������������_1_2[8]/��������_1_1[0]/������_4_1[1]/������_4_1_����������������7_0[0]"
         ],
@@ -16668,68 +16668,14 @@
       },
       {
         "componentId": null,
-        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_4_2[4]/������_63[0]/������_63_����������������7_0[1]",
-        "nodePath": "Sketchfab_model / a1506ebc52ee4ce09fee4a8643c3d13dfbx / Object_2 / RootNode / ��������_4_2 / ������_63 / ������_63_����������������7_0",
+        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_4_2[4]/������_63[0]",
+        "nodePath": "Sketchfab_model / a1506ebc52ee4ce09fee4a8643c3d13dfbx / Object_2 / RootNode / ��������_4_2 / ������_63",
         "name": "Unlabelled_left_side_door_panel_candidate",
         "side": "left-side",
-        "row": "rear-half",
+        "row": "front-half",
         "memberNodeKeys": [
+          "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_4_2[4]/������_63[0]/������_63_����������������2_0[0]",
           "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_4_2[4]/������_63[0]/������_63_����������������7_0[1]"
-        ],
-        "bounds": {
-          "min": [
-            -0.9003937329263891,
-            0.4664082613645135,
-            -9.76196428831001
-          ],
-          "max": [
-            -0.7244513540465078,
-            1.2505559260273884,
-            -8.771141744901048
-          ],
-          "size": [
-            0.1759423788798813,
-            0.7841476646628749,
-            0.9908225434089619
-          ],
-          "center": [
-            -0.8124225434864485,
-            0.858482093695951,
-            -9.266553016605528
-          ]
-        },
-        "hingeCandidates": [
-          [
-            -0.8124225434864485,
-            0.858482093695951,
-            -9.76196428831001
-          ],
-          [
-            -0.8124225434864485,
-            0.858482093695951,
-            -8.771141744901048
-          ]
-        ],
-        "hingeAxisCandidate": [
-          0,
-          1,
-          0
-        ],
-        "confidence": 0.52,
-        "accepted": false,
-        "requiresReview": true,
-        "source": "measured-unlabelled-side-panel-geometry",
-        "note": "Panel-shaped geometry candidate only. Confirm it is a movable door and identify the hinge before accepting."
-      },
-      {
-        "componentId": null,
-        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_4_2[4]/������_63[0]/������_63_����������������2_0[0]",
-        "nodePath": "Sketchfab_model / a1506ebc52ee4ce09fee4a8643c3d13dfbx / Object_2 / RootNode / ��������_4_2 / ������_63 / ������_63_����������������2_0",
-        "name": "Unlabelled_left_side_door_panel_candidate",
-        "side": "left-side",
-        "row": "rear-half",
-        "memberNodeKeys": [
-          "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_4_2[4]/������_63[0]/������_63_����������������2_0[0]"
         ],
         "bounds": {
           "min": [
@@ -16738,29 +16684,29 @@
             -9.809227928611007
           ],
           "max": [
-            -0.7870059028192031,
+            -0.7244513540465078,
             1.2522384935862156,
             -8.768394337406876
           ],
           "size": [
-            0.12729430867818792,
+            0.1898488574508832,
             0.8590029524489573,
             1.0408335912041302
           ],
           "center": [
-            -0.8506530571582971,
+            -0.8193757827719494,
             0.822737017361737,
             -9.288811133008942
           ]
         },
         "hingeCandidates": [
           [
-            -0.8506530571582971,
+            -0.8193757827719494,
             0.822737017361737,
             -9.809227928611007
           ],
           [
-            -0.8506530571582971,
+            -0.8193757827719494,
             0.822737017361737,
             -8.768394337406876
           ]
@@ -16778,68 +16724,14 @@
       },
       {
         "componentId": null,
-        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_3_2[3]/������_3_52[0]/������_3_52_����������������7_0[1]",
-        "nodePath": "Sketchfab_model / a1506ebc52ee4ce09fee4a8643c3d13dfbx / Object_2 / RootNode / ��������_3_2 / ������_3_52 / ������_3_52_����������������7_0",
+        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_3_2[3]/������_3_52[0]",
+        "nodePath": "Sketchfab_model / a1506ebc52ee4ce09fee4a8643c3d13dfbx / Object_2 / RootNode / ��������_3_2 / ������_3_52",
         "name": "Unlabelled_left_side_door_panel_candidate",
         "side": "left-side",
         "row": "rear-half",
         "memberNodeKeys": [
+          "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_3_2[3]/������_3_52[0]/������_3_52_����������������2_0[0]",
           "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_3_2[3]/������_3_52[0]/������_3_52_����������������7_0[1]"
-        ],
-        "bounds": {
-          "min": [
-            -0.9102291584685382,
-            0.4511645788439069,
-            -10.747915862378944
-          ],
-          "max": [
-            -0.7490358617931193,
-            1.2987497039418723,
-            -9.77105067923783
-          ],
-          "size": [
-            0.16119329667541893,
-            0.8475851250979654,
-            0.9768651831411148
-          ],
-          "center": [
-            -0.8296325101308288,
-            0.8749571413928896,
-            -10.259483270808387
-          ]
-        },
-        "hingeCandidates": [
-          [
-            -0.8296325101308288,
-            0.8749571413928896,
-            -10.747915862378944
-          ],
-          [
-            -0.8296325101308288,
-            0.8749571413928896,
-            -9.77105067923783
-          ]
-        ],
-        "hingeAxisCandidate": [
-          0,
-          1,
-          0
-        ],
-        "confidence": 0.52,
-        "accepted": false,
-        "requiresReview": true,
-        "source": "measured-unlabelled-side-panel-geometry",
-        "note": "Panel-shaped geometry candidate only. Confirm it is a movable door and identify the hinge before accepting."
-      },
-      {
-        "componentId": null,
-        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_3_2[3]/������_3_52[0]/������_3_52_����������������2_0[0]",
-        "nodePath": "Sketchfab_model / a1506ebc52ee4ce09fee4a8643c3d13dfbx / Object_2 / RootNode / ��������_3_2 / ������_3_52 / ������_3_52_����������������2_0",
-        "name": "Unlabelled_left_side_door_panel_candidate",
-        "side": "left-side",
-        "row": "rear-half",
-        "memberNodeKeys": [
-          "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_3_2[3]/������_3_52[0]/������_3_52_����������������2_0[0]"
         ],
         "bounds": {
           "min": [
@@ -16848,29 +16740,29 @@
             -10.79943409926074
           ],
           "max": [
-            -0.7836026167650167,
+            -0.7490358617931193,
             1.3113188641223554,
             -9.768255754617527
           ],
           "size": [
-            0.1405578021716004,
+            0.17512455714349784,
             0.9180817589592545,
             1.0311783446432123
           ],
           "center": [
-            -0.853881517850817,
+            -0.8365981403648682,
             0.8522779846427282,
             -10.283844926939134
           ]
         },
         "hingeCandidates": [
           [
-            -0.853881517850817,
+            -0.8365981403648682,
             0.8522779846427282,
             -10.79943409926074
           ],
           [
-            -0.853881517850817,
+            -0.8365981403648682,
             0.8522779846427282,
             -9.768255754617527
           ]
@@ -16892,7 +16784,7 @@
         "nodePath": "Sketchfab_model / a1506ebc52ee4ce09fee4a8643c3d13dfbx / Object_2 / RootNode / �������� / ��������_2 / ������������������_1_2 / ��������_1_4 / ������_4_3 / ������_4_3_����������������7_0",
         "name": "Unlabelled_right_side_door_panel_candidate",
         "side": "right-side",
-        "row": "rear-half",
+        "row": "front-half",
         "memberNodeKeys": [
           "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������[0]/��������_2[0]/������������������_1_2[8]/��������_1_4[1]/������_4_3[1]/������_4_3_����������������7_0[0]"
         ],
@@ -16943,72 +16835,18 @@
       },
       {
         "componentId": null,
-        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_1_11_3[1]/������_1_104[0]/������_1_104_����������������7_0[2]",
-        "nodePath": "Sketchfab_model / a1506ebc52ee4ce09fee4a8643c3d13dfbx / Object_2 / RootNode / ��������_1_11_3 / ������_1_104 / ������_1_104_����������������7_0",
+        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_1_11_3[1]/������_1_104[0]",
+        "nodePath": "Sketchfab_model / a1506ebc52ee4ce09fee4a8643c3d13dfbx / Object_2 / RootNode / ��������_1_11_3 / ������_1_104",
         "name": "Unlabelled_right_side_door_panel_candidate",
         "side": "right-side",
-        "row": "rear-half",
+        "row": "front-half",
         "memberNodeKeys": [
-          "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_1_11_3[1]/������_1_104[0]/������_1_104_����������������7_0[2]"
-        ],
-        "bounds": {
-          "min": [
-            0.7244513540465078,
-            0.4664082613645135,
-            -9.761964667395542
-          ],
-          "max": [
-            0.9003937329263891,
-            1.2505559260273884,
-            -8.77114212398658
-          ],
-          "size": [
-            0.1759423788798813,
-            0.7841476646628749,
-            0.9908225434089619
-          ],
-          "center": [
-            0.8124225434864485,
-            0.858482093695951,
-            -9.266553395691062
-          ]
-        },
-        "hingeCandidates": [
-          [
-            0.8124225434864485,
-            0.858482093695951,
-            -9.761964667395542
-          ],
-          [
-            0.8124225434864485,
-            0.858482093695951,
-            -8.77114212398658
-          ]
-        ],
-        "hingeAxisCandidate": [
-          0,
-          1,
-          0
-        ],
-        "confidence": 0.52,
-        "accepted": false,
-        "requiresReview": true,
-        "source": "measured-unlabelled-side-panel-geometry",
-        "note": "Panel-shaped geometry candidate only. Confirm it is a movable door and identify the hinge before accepting."
-      },
-      {
-        "componentId": null,
-        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_1_11_3[1]/������_1_104[0]/������_1_104_����������������2_0[3]",
-        "nodePath": "Sketchfab_model / a1506ebc52ee4ce09fee4a8643c3d13dfbx / Object_2 / RootNode / ��������_1_11_3 / ������_1_104 / ������_1_104_����������������2_0",
-        "name": "Unlabelled_right_side_door_panel_candidate",
-        "side": "right-side",
-        "row": "rear-half",
-        "memberNodeKeys": [
+          "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_1_11_3[1]/������_1_104[0]/������_1_104_����������������7_0[2]",
           "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_1_11_3[1]/������_1_104[0]/������_1_104_����������������2_0[3]"
         ],
         "bounds": {
           "min": [
-            0.7870059028192031,
+            0.7244513540465078,
             0.39323554113725834,
             -9.80922830769654
           ],
@@ -17018,24 +16856,24 @@
             -8.76839471649241
           ],
           "size": [
-            0.12729430867818792,
+            0.1898488574508832,
             0.8590029524489573,
             1.0408335912041302
           ],
           "center": [
-            0.8506530571582971,
+            0.8193757827719494,
             0.822737017361737,
             -9.288811512094474
           ]
         },
         "hingeCandidates": [
           [
-            0.8506530571582971,
+            0.8193757827719494,
             0.822737017361737,
             -9.80922830769654
           ],
           [
-            0.8506530571582971,
+            0.8193757827719494,
             0.822737017361737,
             -8.76839471649241
           ]
@@ -17053,72 +16891,18 @@
       },
       {
         "componentId": null,
-        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_2_3[2]/������_2_52[0]/������_2_52_����������������7_0[2]",
-        "nodePath": "Sketchfab_model / a1506ebc52ee4ce09fee4a8643c3d13dfbx / Object_2 / RootNode / ��������_2_3 / ������_2_52 / ������_2_52_����������������7_0",
+        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_2_3[2]/������_2_52[0]",
+        "nodePath": "Sketchfab_model / a1506ebc52ee4ce09fee4a8643c3d13dfbx / Object_2 / RootNode / ��������_2_3 / ������_2_52",
         "name": "Unlabelled_right_side_door_panel_candidate",
         "side": "right-side",
         "row": "rear-half",
         "memberNodeKeys": [
-          "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_2_3[2]/������_2_52[0]/������_2_52_����������������7_0[2]"
-        ],
-        "bounds": {
-          "min": [
-            0.7519835494760198,
-            0.4511645788439069,
-            -10.748077228633829
-          ],
-          "max": [
-            0.9001205243143258,
-            1.2987497039418723,
-            -9.773110247557385
-          ],
-          "size": [
-            0.148136974838306,
-            0.8475851250979654,
-            0.9749669810764434
-          ],
-          "center": [
-            0.8260520368951727,
-            0.8749571413928896,
-            -10.260593738095608
-          ]
-        },
-        "hingeCandidates": [
-          [
-            0.8260520368951727,
-            0.8749571413928896,
-            -10.748077228633829
-          ],
-          [
-            0.8260520368951727,
-            0.8749571413928896,
-            -9.773110247557385
-          ]
-        ],
-        "hingeAxisCandidate": [
-          0,
-          1,
-          0
-        ],
-        "confidence": 0.52,
-        "accepted": false,
-        "requiresReview": true,
-        "source": "measured-unlabelled-side-panel-geometry",
-        "note": "Panel-shaped geometry candidate only. Confirm it is a movable door and identify the hinge before accepting."
-      },
-      {
-        "componentId": null,
-        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_2_3[2]/������_2_52[0]/������_2_52_����������������2_0[3]",
-        "nodePath": "Sketchfab_model / a1506ebc52ee4ce09fee4a8643c3d13dfbx / Object_2 / RootNode / ��������_2_3 / ������_2_52 / ������_2_52_����������������2_0",
-        "name": "Unlabelled_right_side_door_panel_candidate",
-        "side": "right-side",
-        "row": "rear-half",
-        "memberNodeKeys": [
+          "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_2_3[2]/������_2_52[0]/������_2_52_����������������7_0[2]",
           "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_2_3[2]/������_2_52[0]/������_2_52_����������������2_0[3]"
         ],
         "bounds": {
           "min": [
-            0.7872416511049313,
+            0.7519835494760198,
             0.39323710516310095,
             -10.79941389740824
           ],
@@ -17128,24 +16912,24 @@
             -9.76984238721783
           ],
           "size": [
-            0.12676757529153593,
+            0.16202567692044745,
             0.9180817589592545,
             1.0295715101904097
           ],
           "center": [
-            0.8506254387506993,
+            0.8329963879362434,
             0.8522779846427282,
             -10.284628142313036
           ]
         },
         "hingeCandidates": [
           [
-            0.8506254387506993,
+            0.8329963879362434,
             0.8522779846427282,
             -10.79941389740824
           ],
           [
-            0.8506254387506993,
+            0.8329963879362434,
             0.8522779846427282,
             -9.76984238721783
           ]
@@ -17168,7 +16952,7 @@
         "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������[0]/��������_2[0]/������������������_1_2[8]/��������_1_1[0]/������_4_1[1]/������_4_1_����������������7_0[0]",
         "role": "door-panel-candidate",
         "side": "left-side",
-        "row": "rear-half",
+        "row": "front-half",
         "bounds": {
           "min": [
             -0.884862775060621,
@@ -17196,41 +16980,10 @@
       },
       {
         "componentId": null,
-        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_4_2[4]/������_63[0]/������_63_����������������7_0[1]",
+        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_4_2[4]/������_63[0]",
         "role": "door-panel-candidate",
         "side": "left-side",
-        "row": "rear-half",
-        "bounds": {
-          "min": [
-            -0.9003937329263891,
-            0.4664082613645135,
-            -9.76196428831001
-          ],
-          "max": [
-            -0.7244513540465078,
-            1.2505559260273884,
-            -8.771141744901048
-          ],
-          "size": [
-            0.1759423788798813,
-            0.7841476646628749,
-            0.9908225434089619
-          ],
-          "center": [
-            -0.8124225434864485,
-            0.858482093695951,
-            -9.266553016605528
-          ]
-        },
-        "confidence": 0.52,
-        "requiresReview": true
-      },
-      {
-        "componentId": null,
-        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_4_2[4]/������_63[0]/������_63_����������������2_0[0]",
-        "role": "door-panel-candidate",
-        "side": "left-side",
-        "row": "rear-half",
+        "row": "front-half",
         "bounds": {
           "min": [
             -0.914300211497391,
@@ -17238,17 +16991,17 @@
             -9.809227928611007
           ],
           "max": [
-            -0.7870059028192031,
+            -0.7244513540465078,
             1.2522384935862156,
             -8.768394337406876
           ],
           "size": [
-            0.12729430867818792,
+            0.1898488574508832,
             0.8590029524489573,
             1.0408335912041302
           ],
           "center": [
-            -0.8506530571582971,
+            -0.8193757827719494,
             0.822737017361737,
             -9.288811133008942
           ]
@@ -17258,38 +17011,7 @@
       },
       {
         "componentId": null,
-        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_3_2[3]/������_3_52[0]/������_3_52_����������������7_0[1]",
-        "role": "door-panel-candidate",
-        "side": "left-side",
-        "row": "rear-half",
-        "bounds": {
-          "min": [
-            -0.9102291584685382,
-            0.4511645788439069,
-            -10.747915862378944
-          ],
-          "max": [
-            -0.7490358617931193,
-            1.2987497039418723,
-            -9.77105067923783
-          ],
-          "size": [
-            0.16119329667541893,
-            0.8475851250979654,
-            0.9768651831411148
-          ],
-          "center": [
-            -0.8296325101308288,
-            0.8749571413928896,
-            -10.259483270808387
-          ]
-        },
-        "confidence": 0.52,
-        "requiresReview": true
-      },
-      {
-        "componentId": null,
-        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_3_2[3]/������_3_52[0]/������_3_52_����������������2_0[0]",
+        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_3_2[3]/������_3_52[0]",
         "role": "door-panel-candidate",
         "side": "left-side",
         "row": "rear-half",
@@ -17300,17 +17022,17 @@
             -10.79943409926074
           ],
           "max": [
-            -0.7836026167650167,
+            -0.7490358617931193,
             1.3113188641223554,
             -9.768255754617527
           ],
           "size": [
-            0.1405578021716004,
+            0.17512455714349784,
             0.9180817589592545,
             1.0311783446432123
           ],
           "center": [
-            -0.853881517850817,
+            -0.8365981403648682,
             0.8522779846427282,
             -10.283844926939134
           ]
@@ -17323,7 +17045,7 @@
         "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������[0]/��������_2[0]/������������������_1_2[8]/��������_1_4[1]/������_4_3[1]/������_4_3_����������������7_0[0]",
         "role": "door-panel-candidate",
         "side": "right-side",
-        "row": "rear-half",
+        "row": "front-half",
         "bounds": {
           "min": [
             0.6077249772982675,
@@ -17351,44 +17073,13 @@
       },
       {
         "componentId": null,
-        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_1_11_3[1]/������_1_104[0]/������_1_104_����������������7_0[2]",
+        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_1_11_3[1]/������_1_104[0]",
         "role": "door-panel-candidate",
         "side": "right-side",
-        "row": "rear-half",
+        "row": "front-half",
         "bounds": {
           "min": [
             0.7244513540465078,
-            0.4664082613645135,
-            -9.761964667395542
-          ],
-          "max": [
-            0.9003937329263891,
-            1.2505559260273884,
-            -8.77114212398658
-          ],
-          "size": [
-            0.1759423788798813,
-            0.7841476646628749,
-            0.9908225434089619
-          ],
-          "center": [
-            0.8124225434864485,
-            0.858482093695951,
-            -9.266553395691062
-          ]
-        },
-        "confidence": 0.52,
-        "requiresReview": true
-      },
-      {
-        "componentId": null,
-        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_1_11_3[1]/������_1_104[0]/������_1_104_����������������2_0[3]",
-        "role": "door-panel-candidate",
-        "side": "right-side",
-        "row": "rear-half",
-        "bounds": {
-          "min": [
-            0.7870059028192031,
             0.39323554113725834,
             -9.80922830769654
           ],
@@ -17398,12 +17089,12 @@
             -8.76839471649241
           ],
           "size": [
-            0.12729430867818792,
+            0.1898488574508832,
             0.8590029524489573,
             1.0408335912041302
           ],
           "center": [
-            0.8506530571582971,
+            0.8193757827719494,
             0.822737017361737,
             -9.288811512094474
           ]
@@ -17413,44 +17104,13 @@
       },
       {
         "componentId": null,
-        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_2_3[2]/������_2_52[0]/������_2_52_����������������7_0[2]",
+        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_2_3[2]/������_2_52[0]",
         "role": "door-panel-candidate",
         "side": "right-side",
         "row": "rear-half",
         "bounds": {
           "min": [
             0.7519835494760198,
-            0.4511645788439069,
-            -10.748077228633829
-          ],
-          "max": [
-            0.9001205243143258,
-            1.2987497039418723,
-            -9.773110247557385
-          ],
-          "size": [
-            0.148136974838306,
-            0.8475851250979654,
-            0.9749669810764434
-          ],
-          "center": [
-            0.8260520368951727,
-            0.8749571413928896,
-            -10.260593738095608
-          ]
-        },
-        "confidence": 0.52,
-        "requiresReview": true
-      },
-      {
-        "componentId": null,
-        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_2_3[2]/������_2_52[0]/������_2_52_����������������2_0[3]",
-        "role": "door-panel-candidate",
-        "side": "right-side",
-        "row": "rear-half",
-        "bounds": {
-          "min": [
-            0.7872416511049313,
             0.39323710516310095,
             -10.79941389740824
           ],
@@ -17460,12 +17120,12 @@
             -9.76984238721783
           ],
           "size": [
-            0.12676757529153593,
+            0.16202567692044745,
             0.9180817589592545,
             1.0295715101904097
           ],
           "center": [
-            0.8506254387506993,
+            0.8329963879362434,
             0.8522779846427282,
             -10.284628142313036
           ]
@@ -17488,25 +17148,13 @@
       },
       {
         "componentId": null,
-        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_4_2[4]/������_63[0]/������_63_����������������7_0[1]",
+        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_4_2[4]/������_63[0]",
         "role": "door-panel-candidate",
         "reason": "Geometry resembles a vertical exterior side panel. Confirm movable door identity and hinge in Asset Lab."
       },
       {
         "componentId": null,
-        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_4_2[4]/������_63[0]/������_63_����������������2_0[0]",
-        "role": "door-panel-candidate",
-        "reason": "Geometry resembles a vertical exterior side panel. Confirm movable door identity and hinge in Asset Lab."
-      },
-      {
-        "componentId": null,
-        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_3_2[3]/������_3_52[0]/������_3_52_����������������7_0[1]",
-        "role": "door-panel-candidate",
-        "reason": "Geometry resembles a vertical exterior side panel. Confirm movable door identity and hinge in Asset Lab."
-      },
-      {
-        "componentId": null,
-        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_3_2[3]/������_3_52[0]/������_3_52_����������������2_0[0]",
+        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_3_2[3]/������_3_52[0]",
         "role": "door-panel-candidate",
         "reason": "Geometry resembles a vertical exterior side panel. Confirm movable door identity and hinge in Asset Lab."
       },
@@ -17518,25 +17166,13 @@
       },
       {
         "componentId": null,
-        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_1_11_3[1]/������_1_104[0]/������_1_104_����������������7_0[2]",
+        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_1_11_3[1]/������_1_104[0]",
         "role": "door-panel-candidate",
         "reason": "Geometry resembles a vertical exterior side panel. Confirm movable door identity and hinge in Asset Lab."
       },
       {
         "componentId": null,
-        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_1_11_3[1]/������_1_104[0]/������_1_104_����������������2_0[3]",
-        "role": "door-panel-candidate",
-        "reason": "Geometry resembles a vertical exterior side panel. Confirm movable door identity and hinge in Asset Lab."
-      },
-      {
-        "componentId": null,
-        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_2_3[2]/������_2_52[0]/������_2_52_����������������7_0[2]",
-        "role": "door-panel-candidate",
-        "reason": "Geometry resembles a vertical exterior side panel. Confirm movable door identity and hinge in Asset Lab."
-      },
-      {
-        "componentId": null,
-        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_2_3[2]/������_2_52[0]/������_2_52_����������������2_0[3]",
+        "nodeKey": "Sketchfab_model[0]/a1506ebc52ee4ce09fee4a8643c3d13dfbx[0]/Object_2[0]/RootNode[0]/��������_2_3[2]/������_2_52[0]",
         "role": "door-panel-candidate",
         "reason": "Geometry resembles a vertical exterior side panel. Confirm movable door identity and hinge in Asset Lab."
       }
