@@ -1050,6 +1050,8 @@ The calibrator writes `scene_calibration.json` beside the source GLB/glTF and do
 - [x] Confirm the runtime report reaches 61/61 loaded models; the supplied game console reported: `[TestWorld] All 61 authored GLB/glTF assets loaded successfully.`
 - [ ] Complete an in-browser visual pass for all 61 imported assets, including exact dimensions, material appearance, collisions, terrain contact, vehicle placement and traversal feel.
 
+**Automated verification (22 November 2026):** Open-world integrity run [44980147035](https://github.com/bossprogrammer275/combata/actions/runs/44980147035) passed on commit `1cd6274fb06b4f4f532e1d09cf5a0f399ba9b8d3`. This includes `npm run test:test-world`, the 61-asset inventory and placement check, disabled-streaming assertion, terrain/ramp checks, vegetation collision exclusions, runtime global-size editor wiring, and the repository's syntax/collision/NPC/vehicle integrity checks. The in-browser visual pass above remains intentionally open pending a rendered review of actual models and gameplay contacts.
+
 ### Phase 8 — Full gameplay validation
 
 - [x] Add the unarmed punch action and impact-damage path; its visual hand/target-contact test remains open.
