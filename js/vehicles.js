@@ -76,9 +76,9 @@ function buildEstimatedVehicleSeatLayout(kind, bounds) {
   const seatY = min.y + Math.min(0.25, height * 0.16);
   const driverX = Math.min(width * 0.22, 0.46);
   const passengerX = -driverX;
-  const frontZ = max.z - Math.min(1.15, length * 0.27);
+  const frontZ = max.z - Math.min(1.55, length * 0.32);
   const middleZ = center.z - length * 0.02;
-  const rearZ = min.z + Math.min(1.45, length * 0.27);
+  const rearZ = min.z + Math.min(1.55, length * 0.28);
   const definitions = [];
   const add = (id, role, label, x, z, row) => definitions.push({ id, role, label, x, z, row });
   add('driver', 'driver', 'Estimated driver seat', driverX, frontZ, 'front');

@@ -12,8 +12,12 @@ let basePromise = null;
 const clipPromises = new Map();
 const IN_PLACE = new Set([
   'walk','walk_aim','run','rifle_run','sprint','crouch_walk','crouch_walk_aim',
-  'jump_idle','obstacle_climb','ladder_climb_up',
-  'punch','enter_vehicle','exit_vehicle','vehicle_driver_idle','sit_idle',
+  'jump_idle','obstacle_climb','ladder_climb_up','punch',
+]);
+// Seated actions animate the body into/out of the cabin. Preserve vertical
+// pelvis movement so the character actually sits; Rapier owns horizontal travel.
+const PRESERVE_VERTICAL_ROOT_MOTION = new Set([
+  'enter_vehicle','exit_vehicle','vehicle_driver_idle','sit_idle',
 ]);
 export const NPC_ANIMATION_ALIASES = Object.freeze({
   crouch: 'crouch_idle', crouchWalk: 'crouch_walk', jump: 'jump_idle',
@@ -170,6 +174,21 @@ function stripControllerRootTranslation(clip) {
   return clip;
 }
 
+function stripControllerHorizontalRootTranslation(clip) {
+  for (const track of clip.tracks) {
+    if (!/hips/i.test(track.name) || !/\.position$/i.test(track.name)) continue;
+    const values = track.values;
+    if (!values || values.length < 3 || values.length % 3 !== 0) continue;
+    const baseX = values[0], baseZ = values[2];
+    for (let i = 0; i < values.length; i += 3) {
+      values[i] = baseX;
+      values[i + 2] = baseZ;
+    }
+    track.needsUpdate = true;
+  }
+  return clip;
+}
+
 export async function loadNpcCoreClip(requestedKey) {
   const key = resolveNpcAnimationKey(requestedKey);
   if (!key) throw new Error('Empty NPC animation key');
@@ -194,7 +213,8 @@ export async function loadNpcCoreClip(requestedKey) {
       });
       if (!clip?.tracks?.length) throw new Error('Downloaded FBX has no playable animation take: ' + entry.file);
       clip.name = key;
-      if (IN_PLACE.has(key)) stripControllerRootTranslation(clip);
+      if (PRESERVE_VERTICAL_ROOT_MOTION.has(key)) stripControllerHorizontalRootTranslation(clip);
+      else if (IN_PLACE.has(key)) stripControllerRootTranslation(clip);
       clip.optimize();
       return clip;
     })().catch((error) => { clipPromises.delete(key); throw error; }));

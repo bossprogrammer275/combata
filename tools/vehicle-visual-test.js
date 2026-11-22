@@ -349,6 +349,45 @@ window.__vehicleVisualTest={
     render();
     return results;
   },
+  async testSeatAnimationPose() {
+    if(!player.char._isBuilt) {
+      const began=performance.now();
+      while(!player.char._isBuilt&&performance.now()-began<25000) {
+        await new Promise(resolve=>setTimeout(resolve,40));
+      }
+    }
+    if(!player.char._isBuilt)throw new Error('npc_core_001 player rig not ready for seated-pose test');
+    player.firstPerson=false;player.char.setFirstPerson(false);
+    if(player.char.root.parent!==scene)scene.add(player.char.root);
+    player.char.root.visible=true;
+    player.char.root.position.set(0,0,0);
+    const measure = animation => {
+      player.actionAnimation=animation;
+      const state={...player.getState(),x:0,y:0,z:0,actionAnimation:animation,traversalAnimation:null};
+      player.char.setState(state,1/60);
+      player.char.update(0.65);
+      scene.updateMatrixWorld(true);
+      const worldY = bone => bone?.getWorldPosition(new THREE.Vector3()).y ?? null;
+      return {
+        animation,
+        activePose:player.char._poseMode,
+        hipsY:worldY(player.char._hips),
+        headY:worldY(player.char._head),
+        duration:player.char.getActionDuration(animation),
+        actionRunning:player.char._actions[animation]?.isRunning?.()===true,
+      };
+    };
+    const idle=measure(null);
+    const sitting=measure('sit_idle');
+    const driving=measure('vehicle_driver_idle');
+    player.actionAnimation=null;
+    player.char.setState(player.getState(),1/60);
+    player.char.update(1/60);
+    const result={idle,sitting,driving};
+    report.seatedPose=result;
+    render();
+    return result;
+  },
   async testPunchAnimation() {
     if(!player.char._isBuilt) {
       const began=performance.now();

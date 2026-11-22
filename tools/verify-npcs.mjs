@@ -45,6 +45,8 @@ assert.ok(!exists("js/npc-config.js"), "legacy NPC config remains");
 assert.ok(core.includes("loadNpcCoreBase") && core.includes("cloneNpcCoreModel"));
 assert.ok(core.includes("manifest.baseRig?.candidateFile"));
 assert.ok(core.includes("stripControllerRootTranslation"));
+assert.ok(core.includes("stripControllerHorizontalRootTranslation"));
+assert.ok(core.includes("PRESERVE_VERTICAL_ROOT_MOTION"), "seated clips must retain vertical pelvis animation");
 assert.ok(core.includes("NPC_CORE_TARGET_HEIGHT = 1.74"));
 assert.ok(core.includes("REQUIRED_BODY_BONES") && core.includes("missingBones"), "base rig must contain required body landmarks");
 assert.ok(controller.includes("addEventListener('finished'"));

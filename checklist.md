@@ -953,6 +953,7 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 - [x] Add model-specific estimated seat layouts: 2 seats for each sports car, 5 Cybertruck seats and 7 Escalade seats.
 - [x] Select the nearest seat from the row/side the player approaches; use Driving.fbx for the driver and Sitting Idle.fbx for passengers.
 - [x] Connect Entering Car.fbx, Exiting Car.fbx and the seated idle clips to timed entry/exit and player attachment.
+- [x] Preserve vertical Hips animation in entry/exit and seated clips while stripping only horizontal controller drift; Rapier still owns the world-space root path.
 - [x] Keep the player capsule disabled only during the in-cabin phase; restore position and collision on exit or a cancelled/blocked approach.
 - [ ] Inspect each car's actual body, interior, seats, glass and moving door meshes in the browser inventory.
 - [ ] Identify real driver and passenger seat meshes/anchors for each vehicle; do not use one generic seat as a passenger layout.

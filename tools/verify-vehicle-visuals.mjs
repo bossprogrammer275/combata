@@ -199,6 +199,16 @@ try{
       JSON.stringify(result));
     await capture(page,'player-'+animation.replaceAll('_','-')+'-animation');
   }
+  const seatedPose=await page.evaluate(()=>window.__vehicleVisualTest.testSeatAnimationPose());
+  check('Sitting Idle preserves its vertical seated pose',
+    seatedPose.sitting.activePose==='sit_idle'&&seatedPose.sitting.actionRunning
+      &&Number.isFinite(seatedPose.sitting.hipsY)&&Number.isFinite(seatedPose.sitting.headY),
+    JSON.stringify(seatedPose));
+  check('Driving.fbx preserves the seated driver pose',
+    seatedPose.driving.activePose==='vehicle_driver_idle'&&seatedPose.driving.actionRunning
+      &&Number.isFinite(seatedPose.driving.hipsY)&&Number.isFinite(seatedPose.driving.headY),
+    JSON.stringify(seatedPose));
+  await capture(page,'player-seated-animation-pose');
   const punch=await page.evaluate(()=>window.__vehicleVisualTest.testPunchAnimation());
   check('Punching.fbx plays as the unarmed action and hides the equipped weapon',
     punch.started&&punch.pose==='punch'&&punch.weaponHidden&&punch.clipDuration>=0.9,
