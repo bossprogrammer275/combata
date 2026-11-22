@@ -1109,7 +1109,7 @@ The core gameplay/test stage is not complete until:
 4. Continue Phase 6A from its first unchecked item: generate and validate sidecars for the bridge kit, Road Pack, street-road, sidewalks, representative buildings/props and current vehicle assets. Inspect/correct each result in `/tools/asset-review.html`. The 18 calibration/traversal regression tests and native syntax sweep already pass in CI run [44812890463](https://github.com/bossprogrammer275/combata/actions/runs/44812890463).
 5. Run actual browser/in-game traversal, road/bridge, NPC-seat and vehicle interaction tests. Then finish door swing/open-state collision, stair/platform measurements and any remaining scale/axis/connection work. Do not mark runtime gates complete until observed in-game.
 6. Keep NPC base-rig/animation verification open until its browser tests pass.
-7. Do not create `test.json`, populate a test map or begin Phase 7 until the user has explained the test-world design and explicitly starts that phase.
-6. Keep the scope on the core NPC/player foundation and compact test world. No story-mode work until the user changes scope.
+7. The user has now explicitly approved and requested Phase 7. `data/worlds/test.json` is already built and is the default gameplay scene. Do not recreate it or remove its 61 authored placements. Its only unchecked Phase 7 item is the in-browser visual pass; keep that open until the assets, terrain contacts, collision shapes, vehicle placement and traversal are actually observed.
+8. Keep the scope on the core NPC/player foundation and compact test world. No story-mode work until the user changes scope.
 
 **This file is the durable project handoff. Update its checkboxes and notes as work is completed.**
