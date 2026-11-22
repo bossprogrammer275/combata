@@ -12,36 +12,62 @@ import { chromium } from 'playwright';
 const root = process.cwd();
 const port = Number(process.env.ASSET_REVIEW_PORT || 4180);
 const baseUrl = `http://127.0.0.1:${port}`;
-const assetRoot = path.join(root, 'data', 'models', 'assets');
+const modelRoots = [
+  {
+    absolute: path.join(root, 'data', 'models', 'assets'),
+    relative: 'data/models/assets',
+    label: 'world assets',
+  },
+  {
+    absolute: path.join(root, 'data', 'models', 'cars'),
+    relative: 'data/models/cars',
+    label: 'vehicle assets',
+  },
+];
 const manifestPath = path.join(root, 'tools', 'asset-review-manifest.json');
 const outputDir = path.join(root, 'artifacts', 'asset-review');
 const previewDir = path.join(outputDir, 'previews');
 
-assert.ok(existsSync(assetRoot), 'data/models/assets does not exist');
-
-const candidates = await glob('**/*.{glb,gltf}', { cwd: assetRoot, nodir: true });
-const modelFiles = candidates
-  .filter((file) => file.toLowerCase().endsWith('.glb') || path.basename(file).toLowerCase() === 'scene.gltf')
-  // The standalone root road.glb was explicitly excluded from this project.
-  .filter((file) => file.replace(/\\/g, '/').toLowerCase() !== 'road.glb')
-  .sort((a, b) => a.localeCompare(b));
+const modelFiles = [];
+for (const modelRoot of modelRoots) {
+  assert.ok(existsSync(modelRoot.absolute), modelRoot.relative + ' does not exist');
+  const candidates = await glob('**/*.{glb,gltf}', {
+    cwd: modelRoot.absolute,
+    nodir: true,
+  });
+  for (const relative of candidates) {
+    const normalized = relative.replace(/\\/g, '/').toLowerCase();
+    const isEntryPoint = normalized.endsWith('.glb') || path.basename(normalized) === 'scene.gltf';
+    if (!isEntryPoint) continue;
+    // Keep the intentionally excluded standalone road source out of the asset gallery.
+    if (modelRoot.relative === 'data/models/assets' && normalized === 'road.glb') continue;
+    modelFiles.push({ relative, modelRoot });
+  }
+}
+modelFiles.sort((a, b) => {
+  const pathA = a.modelRoot.relative + '/' + a.relative.replace(/\\/g, '/');
+  const pathB = b.modelRoot.relative + '/' + b.relative.replace(/\\/g, '/');
+  return pathA.localeCompare(pathB);
+});
 
 assert.ok(modelFiles.length > 0, 'No GLB or scene.gltf model entry points found');
 
-const manifest = modelFiles.map((relative, index) => {
-  const filePath = path.join('data', 'models', 'assets', relative.split(path.sep).join('/'));
+const manifest = modelFiles.map(({ relative, modelRoot }, index) => {
+  const normalizedRelative = relative.split(path.sep).join('/');
+  const filePath = modelRoot.relative + '/' + normalizedRelative;
   const parent = path.basename(path.dirname(relative));
   const base = path.basename(relative, path.extname(relative));
   const rawName = base.toLowerCase() === 'scene' ? parent : base;
   const name = rawName.split(/[+_-]+/).filter(Boolean).join(' ').trim();
-  const slug = relative.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const slug = filePath.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   return {
     index,
-    name: name || relative,
+    name: name || filePath,
     path: filePath,
     url: '/' + filePath,
     format: relative.toLowerCase().endsWith('.glb') ? 'glb' : 'gltf',
     slug,
+    category: modelRoot.label,
   };
 });
 
@@ -233,7 +259,7 @@ try {
 
   const report = {
     generatedAt: new Date().toISOString(),
-    source: 'data/models/assets',
+    sourceRoots: modelRoots.map(modelRoot => modelRoot.relative),
     entryPointCount: manifest.length,
     renderedCount: rendered,
     failedCount: failed,
