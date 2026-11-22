@@ -53,6 +53,7 @@ jobs:
           else
             node tools/asset-calibrator.mjs \
               data/models/assets/others \
+              data/models/assets/roads \
               data/models/assets/road.glb \
               data/models/assets/ilorin_innovation_hub.glb \
               data/models/assets/kwara_revenue_house.glb \
@@ -94,6 +95,10 @@ jobs:
         run: |
           set -euo pipefail
           node tools/compare-asset-calibrations.mjs \
+            data/models/assets/others/modular_bridge__low_poly__game_ready_/scene.gltf \
+            data/models/assets/roads/road_pack/scene.gltf \
+            data/models/assets/roads/street_road/scene.gltf \
+            data/models/assets/roads/sidewalks/scene.gltf \
             data/models/assets/ilorin_innovation_hub.glb \
             data/models/assets/kwara_revenue_house.glb \
             data/models/assets/low_poly_skyscraper.glb
