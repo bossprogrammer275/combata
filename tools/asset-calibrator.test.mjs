@@ -20,6 +20,24 @@ import {
 import { hasAnchor, isRuntimeSurfaceRole } from './validate-asset-calibration.mjs';
 import { compareCollisionSidecars } from './compare-asset-calibrations.mjs';
 
+test('surface-only road kits match when both legacy and unified solid-box sets are empty', () => {
+  const sourceHash = 'surface-only-source-hash';
+  const result = compareCollisionSidecars(
+    { sourceSha256: sourceHash, boxes: [] },
+    {
+      source: { sha256: sourceHash },
+      collision: { sourceSha256: sourceHash, boxes: [] },
+      road: { surfaces: [{ runtimeEnabled: true }] },
+    },
+  );
+  assert.equal(result.status, 'matches');
+  assert.equal(result.sameSource, true);
+  assert.equal(result.legacy.boxCount, 0);
+  assert.equal(result.calibrated.boxCount, 0);
+  assert.equal(result.difference.maxBoundsDelta, null);
+});
+
+
 const bridgePath = 'data/models/assets/others/modular_bridge__low_poly__game_ready_/scene.gltf';
 const roadPackPath = 'data/models/assets/roads/road_pack/scene.gltf';
 
