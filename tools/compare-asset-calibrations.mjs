@@ -74,7 +74,11 @@ export function compareCollisionSidecars(legacy, calibration, tolerance = 0.001)
     maxBoundsDelta = Infinity;
   }
   const countsMatch = legacyBoxes.length === calibratedBoxes.length;
-  const boundsMatch = maxBoundsDelta !== null && maxBoundsDelta <= tolerance;
+  // Road/bridge kits may be intentionally surface-only: both sidecars then
+  // contain zero solid boxes, while calibrated triangle surfaces carry the
+  // driveable/walkable geometry. Two empty box sets are an exact box match.
+  const bothEmpty = legacyBoxes.length === 0 && calibratedBoxes.length === 0;
+  const boundsMatch = bothEmpty || (maxBoundsDelta !== null && maxBoundsDelta <= tolerance);
   const sameSource = legacySourceMatches && unifiedSourceMatches;
   return {
     status: !sameSource ? 'source-hash-mismatch'
