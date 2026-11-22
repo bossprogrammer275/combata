@@ -1014,7 +1014,8 @@ Do not try to build the entire checklist in one patch. Keep each phase testable 
 - [x] Add collision regression tests for long thin speed bumps and doorway gaps so the scanner cannot silently skip a valid road profile or fill a doorway with a broad AABB.
 - [x] Verify the recalibration batch archives old sidecars, skips visual-only vegetation, regenerates 62 profiles and 58 collision sidecars, and fails on calibration errors.
 - [ ] Visually review the modular bridge kit, Road Pack, street-road asset, sidewalk pack, representative building/prop assets and all four current vehicle GLBs/GLTFs.
-- [ ] Compare regenerated collision shapes against the old sidecars and actual in-world contacts before treating them as accepted.
+- [x] Compare regenerated legacy collision-box outputs for the modular bridge, Road Pack, street-road, sidewalks, Ilorin Innovation Hub, Kwara Revenue House and skyscraper: **7/7 source hashes, box counts and aggregate bounds match** in [run 45034759423](https://github.com/bossprogrammer275/combata/actions/runs/45034759423). Road Pack is intentionally surface-only with zero solid boxes.
+- [ ] Compare collision/surface geometry against actual in-world contacts before treating the results as accepted.
 - [ ] Complete scale/origin/up-axis inference using trustworthy reference dimensions. Do not auto-rescale assets with unknown source units.
 - [ ] Add geometry-based door pivot detection, actual door swing/rotation and safe open/closed collision states for buildings and vehicles. Current accepted hinge/handle/open-range data is registered but panels are not yet animated.
 - [ ] Add measured stair tread/riser/platform surfaces and connect them to player/NPC step-height and landing support where required.
