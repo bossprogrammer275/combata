@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'data/models/assets/**'
+      - 'data/models/cars/**'
       - 'tools/asset-review.html'
       - 'tools/asset-review.js'
       - 'tools/verify-asset-review.mjs'
